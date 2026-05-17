@@ -2,6 +2,7 @@
 
 [English](./README_EN.md)
 
+[![npm version](https://img.shields.io/npm/v/ncloud-mcp-server.svg)](https://www.npmjs.com/package/ncloud-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
@@ -41,6 +42,28 @@ Ncloud의 **60개 이상 서비스**, **1,000개 이상 API 도구**를 MCP 프�
 - Ncloud API 인증키 ([포털에서 발급](https://www.ncloud.com/mypage/manage/authkey))
 
 ## 설치
+
+### npx (권장 — 설치 불필요)
+
+별도 설치 없이 바로 사용할 수 있습니다:
+
+```json
+{
+  "mcpServers": {
+    "ncloud": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ACCESS_KEY": "your-access-key",
+        "NCLOUD_SECRET_KEY": "your-secret-key",
+        "NCLOUD_REGION": "KR"
+      }
+    }
+  }
+}
+```
+
+### 소스에서 빌드
 
 ```bash
 # 저장소 클론

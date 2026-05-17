@@ -1,0 +1,4 @@
+# Test files (not needed in npm package)
+dist/**/*.test.js
+dist/**/*.test.js.map
+dist/**/*.test.d.ts

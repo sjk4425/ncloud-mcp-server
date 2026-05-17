@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "npx tsc",
     "test": "vitest --run",
     "prepare": "npm run build"
   },

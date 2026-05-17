@@ -2,6 +2,7 @@
 
 [한국어](./README.md)
 
+[![npm version](https://img.shields.io/npm/v/ncloud-mcp-server.svg)](https://www.npmjs.com/package/ncloud-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
@@ -41,6 +42,28 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 - Ncloud API credentials ([Get from portal](https://www.ncloud.com/mypage/manage/authkey))
 
 ## Installation
+
+### npx (Recommended — no install required)
+
+Use directly without installation:
+
+```json
+{
+  "mcpServers": {
+    "ncloud": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ACCESS_KEY": "your-access-key",
+        "NCLOUD_SECRET_KEY": "your-secret-key",
+        "NCLOUD_REGION": "KR"
+      }
+    }
+  }
+}
+```
+
+### Build from source
 
 ```bash
 # Clone the repository
