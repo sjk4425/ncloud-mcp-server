@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+
+# Kiro workspace (개발 도구 설정)
+.kiro/
+
+# Temporary files
+*.bak
+*.tmp
+*.orig
+
+# Package manager lock (선택 - 협업 시 포함 권장이나 개인 프로젝트이므로 제외 가능)
+# package-lock.json
+
+# Synology Drive metadata
+@eaDir/
+.SynologyWorkingDirectory/
