@@ -30,16 +30,16 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 | **Content Delivery** | Global Edge |
 | **Auto Scaling** | Launch Configuration, Auto Scaling Group, Scaling Policy |
 
+## Prerequisites
+
+- Node.js 20+
+- Ncloud API credentials ([Get from portal](https://www.ncloud.com/mypage/manage/authkey))
+
 ## Notes
 
 - This MCP server is built for the **Ncloud Public (민간존)** environment. API endpoints may differ for Financial or Government zones.
 - API specifications are based on the [Ncloud Official API Documentation](https://api.ncloud-docs.com/docs/home).
 - Primarily tested in the Korea (KR) region. Some APIs may behave differently in other regions.
-
-## Prerequisites
-
-- Node.js 20+
-- Ncloud API credentials ([Get from portal](https://www.ncloud.com/mypage/manage/authkey))
 
 ## Installation
 
@@ -47,21 +47,11 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 
 Use directly without installation:
 
-```json
-{
-  "mcpServers": {
-    "ncloud": {
-      "command": "npx",
-      "args": ["-y", "ncloud-mcp-server"],
-      "env": {
-        "NCLOUD_ACCESS_KEY": "your-access-key",
-        "NCLOUD_SECRET_KEY": "your-secret-key",
-        "NCLOUD_REGION": "KR"
-      }
-    }
-  }
-}
+```bash
+npx -y ncloud-mcp-server
 ```
+
+See the [MCP Client Configuration](#mcp-client-configuration) section below for setup details.
 
 ### Build from source
 
@@ -88,9 +78,27 @@ npm run build
 
 ## MCP Client Configuration
 
-### Kiro / Claude Desktop / Cursor
+### Using npx (Recommended)
 
 Add to your `mcp.json` (or equivalent MCP config file):
+
+```json
+{
+  "mcpServers": {
+    "ncloud": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ACCESS_KEY": "your-access-key",
+        "NCLOUD_SECRET_KEY": "your-secret-key",
+        "NCLOUD_REGION": "KR"
+      }
+    }
+  }
+}
+```
+
+### Using source build
 
 ```json
 {
@@ -129,8 +137,20 @@ Manage Ncloud infrastructure using natural language through your MCP client:
 | Korea | `KR` |
 | Japan | `JPN` |
 | Singapore | `SGN` |
-| US West | `USWN` |
-| Germany | `DEN` |
+
+> **Note:** US West (`USWN`) and Germany (`DEN`) regions only support the Classic environment and are not compatible with this VPC-based MCP server.
+
+## Troubleshooting
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| Server exits immediately on start | Environment variables not set | Ensure `NCLOUD_ACCESS_KEY` and `NCLOUD_SECRET_KEY` are configured |
+| `인증 실패` (HTTP 401) | Invalid API credentials | Verify key status is **active** on the [portal](https://www.ncloud.com/mypage/manage/authkey). Check for extra whitespace or newlines in key values |
+| `접근 거부` (HTTP 403) | Insufficient permissions | Confirm service subscription. For Sub Accounts, grant API permissions for the target service |
+| `유효하지 않은 리전입니다` | Invalid region code | Use supported regions (KR, JPN, SGN). Change via `ncloud_set_region` tool |
+| `서비스 일시 불가` (HTTP 503) | Cannot reach API endpoint | Check network connectivity. Allow outbound access to `ncloud.apigw.ntruss.com` in firewall/proxy environments |
+| `요청 시간 초과` (HTTP 504) | API response timeout | Retry after a moment. If persistent, check Ncloud status page |
+| `요청 제한 초과` (HTTP 429) | API rate limit reached | Wait and retry with intervals between requests |
 
 ## Project Structure
 
