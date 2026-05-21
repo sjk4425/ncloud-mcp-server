@@ -1,6 +1,7 @@
 {
   "name": "ncloud-mcp-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
+  "mcpName": "io.github.sjk4425/ncloud",
   "type": "module",
   "description": "MCP server for managing Naver Cloud Platform (Ncloud) infrastructure",
   "author": "sjk4425",
@@ -21,7 +22,9 @@
     "infrastructure",
     "cloud",
     "ai",
-    "navercloudplatform"
+    "navercloudplatform",
+    "ncp",
+    "devops"
   ],
   "bin": {
     "ncloud-mcp-server": "dist/index.js"

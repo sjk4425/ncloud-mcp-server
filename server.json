@@ -1,0 +1,43 @@
+﻿{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sjk4425/ncloud",
+  "description": "MCP server for managing Naver Cloud Platform (Ncloud) infrastructure",
+  "repository": {
+    "url": "https://github.com/sjk4425/ncloud-mcp-server",
+    "source": "github"
+  },
+  "version": "1.0.3",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "ncloud-mcp-server",
+      "version": "1.0.3",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Ncloud API Access Key",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true,
+          "name": "NCLOUD_ACCESS_KEY"
+        },
+        {
+          "description": "Ncloud API Secret Key",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true,
+          "name": "NCLOUD_SECRET_KEY"
+        },
+        {
+          "description": "Ncloud region code (KR, JPN, SGN, USWN, DEN)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "NCLOUD_REGION"
+        }
+      ]
+    }
+  ]
+}
