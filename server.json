@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sjk4425/ncloud",
   "description": "MCP server for managing Naver Cloud Platform (Ncloud) infrastructure",
@@ -6,12 +6,12 @@
     "url": "https://github.com/sjk4425/ncloud-mcp-server",
     "source": "github"
   },
-  "version": "1.0.3",
+  "version": "1.0.4",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "ncloud-mcp-server",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "transport": {
         "type": "stdio"
       },

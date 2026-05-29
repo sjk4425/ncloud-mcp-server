@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2026-05-29
+
+### Fixed
+- NKS cluster creation (`ncloud_nks_create_cluster`) pre-validation for G3/KVM clusters
+  - `lbPrivateSubnetNo` required check (API returns 400 without details if missing)
+  - `hypervisorCode` must be 'KVM' when clusterType contains G003
+  - `k8sVersion` must use nks.2 suffix for G3/KVM
+  - `zoneCode` required at cluster level when isRegional=false (default)
+  - `softwareCode` format validation (must include pipe and image number, e.g., `CODE|12345`)
+
+### Changed
+- Improved tool description and parameter descriptions for `ncloud_nks_create_cluster`
+  - Documented G3/KVM vs G2/XEN differences clearly
+  - Added format guidance for softwareCode parameter
+  - Clarified zoneCode requirement for single-zone clusters
+
 ## [1.0.3] - 2026-05-21
 
 ### Added

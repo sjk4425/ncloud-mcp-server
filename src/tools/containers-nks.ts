@@ -50,29 +50,43 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
 
   server.tool(
     "ncloud_nks_create_cluster",
-    "Create a new NKS Kubernetes cluster. Use dryRun=true to preview without creating. Requires loginKeyName, regionCode, vpcNo, subnetNoList, lbPublicSubnetNo.",
+    `Create a new NKS Kubernetes cluster. Use dryRun=true to preview without creating.
+
+**G3(KVM) cluster requirements:**
+- hypervisorCode: 'KVM' (required)
+- clusterType: must contain G003 (e.g., SVR.VNKS.STAND.C004.M016.G003)
+- k8sVersion: must use nks.2 suffix (e.g., 1.35.3-nks.2)
+- lbPrivateSubnetNo: Private LB subnet number (required — returns 400 without details if missing)
+- zoneCode: Required at cluster level when isRegional=false (default). Missing causes 400 without details.
+- nodePool.softwareCode: Must use FULL value from ncloud_nks_get_server_images including pipe and image number (e.g., SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604)
+- nodePool.serverSpecCode: g3 spec code (e.g., c2-g3)
+- nodePool.storageSize: 100~2000GB (required)
+
+**G2(XEN) vs G3(KVM) differences:**
+- G2: clusterType contains G002, k8sVersion suffix nks.1, hypervisorCode optional
+- G3: clusterType contains G003, k8sVersion suffix nks.2, hypervisorCode='KVM' required`,
     {
       name: z.string({ required_error: "필수 파라미터 'name'이 누락되었습니다." }).describe("Cluster name (3-30 chars, lowercase+numbers+'-')"),
-      clusterType: z.string({ required_error: "필수 파라미터 'clusterType'이 누락되었습니다." }).describe("Cluster type (e.g., SVR.VNKS.STAND.C004.M016.G003)"),
+      clusterType: z.string({ required_error: "필수 파라미터 'clusterType'이 누락되었습니다." }).describe("Cluster type (e.g., SVR.VNKS.STAND.C004.M016.G003 for G3, SVR.VNKS.STAND.C004.M016.G002 for G2)"),
       loginKeyName: z.string({ required_error: "필수 파라미터 'loginKeyName'이 누락되었습니다." }).describe("Login key name for node access"),
       regionCode: z.string({ required_error: "필수 파라미터 'regionCode'가 누락되었습니다." }).describe("Region code (e.g., KR, SGN, JPN)"),
       vpcNo: z.number({ required_error: "필수 파라미터 'vpcNo'가 누락되었습니다." }).describe("VPC number"),
       subnetNoList: z.array(z.number(), { required_error: "필수 파라미터 'subnetNoList'가 누락되었습니다." }).describe("Subnet number list for the cluster"),
       lbPublicSubnetNo: z.number({ required_error: "필수 파라미터 'lbPublicSubnetNo'가 누락되었습니다." }).describe("Load balancer public subnet number"),
-      k8sVersion: z.string().optional().describe("Kubernetes version (from ncloud_nks_get_versions)"),
-      hypervisorCode: z.string().optional().describe("Hypervisor code: XEN (default) or KVM"),
-      zoneCode: z.string().optional().describe("Zone code (e.g., KR-1). Not needed if isRegional=true"),
-      lbPrivateSubnetNo: z.number().optional().describe("Load balancer private subnet number"),
+      k8sVersion: z.string().optional().describe("Kubernetes version (from ncloud_nks_get_versions). G3/KVM uses nks.2 suffix, G2/XEN uses nks.1 suffix"),
+      hypervisorCode: z.string().optional().describe("Hypervisor code: XEN (default) or KVM. Required as 'KVM' for G3 clusters"),
+      zoneCode: z.string().optional().describe("Zone code (e.g., KR-2). Required when isRegional is false (default). API returns 400 without details if missing for single-zone clusters"),
+      lbPrivateSubnetNo: z.number().optional().describe("Load balancer private subnet number. Required for G3/KVM clusters (API returns 400 without details if missing)"),
       isRegional: z.boolean().optional().describe("Multi-zone (Regional) cluster. Default: false"),
       publicNetwork: z.boolean().optional().describe("Subnet network type. true=Public, false=Private (default)"),
       log: z.object({ audit: z.boolean().optional() }).optional().describe("Log settings (audit log)"),
       nodePool: z.array(z.object({
         name: z.string().optional().describe("Node pool name"),
         nodeCount: z.number().optional().describe("Number of nodes"),
-        softwareCode: z.string().optional().describe("Server image code (from ncloud_nks_get_server_images)"),
-        productCode: z.string().optional().describe("Product code (XEN only)"),
-        serverSpecCode: z.string().optional().describe("Server spec code (KVM only, from ncloud_nks_get_server_specs)"),
-        storageSize: z.number().optional().describe("Storage size in GB (KVM only, 100-2000)"),
+        softwareCode: z.string().optional().describe("Server image code — MUST use the FULL value from ncloud_nks_get_server_images including pipe and image number (e.g., SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604). Do NOT strip the pipe portion."),
+        productCode: z.string().optional().describe("Product code (XEN/G2 only, not available for G3/KVM)"),
+        serverSpecCode: z.string().optional().describe("Server spec code (KVM/G3 only, e.g., c2-g3. from ncloud_nks_get_server_specs)"),
+        storageSize: z.number().optional().describe("Storage size in GB (KVM/G3 only, 100-2000, required for G3)"),
         labels: z.array(z.object({ key: z.string(), value: z.string() })).optional().describe("Node labels"),
         taints: z.array(z.object({ key: z.string(), value: z.string().optional(), effect: z.string() })).optional().describe("Node taints"),
         serverRoleId: z.string().optional().describe("IAM server role ID"),
@@ -82,12 +96,60 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     },
     async (params) => {
       try {
+        // ─── G3/KVM pre-validation ────────────────────────────────────────────
+        const isG3 = params.clusterType?.includes("G003") || params.hypervisorCode?.toUpperCase() === "KVM";
+
+        // ─── Common pre-validation (applies to both G2 and G3) ────────────────
+        if (!params.isRegional && !params.zoneCode) {
+          return {
+            content: [{ type: "text" as const, text: "❌ 단일 존 클러스터(isRegional=false, 기본값) 생성 시 zoneCode는 필수입니다.\n\n클러스터 레벨에 zoneCode를 지정해주세요 (예: KR-2).\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다." }],
+            isError: true,
+          };
+        }
+
+        // softwareCode 형식 검증 (파이프 포함 여부)
+        if (params.nodePool && params.nodePool.length > 0) {
+          for (const pool of params.nodePool) {
+            if (pool.softwareCode && !pool.softwareCode.includes("|")) {
+              return {
+                content: [{ type: "text" as const, text: `❌ nodePool "${pool.name || "(unnamed)"}"의 softwareCode 형식이 올바르지 않습니다.\n\n입력값: ${pool.softwareCode}\n\nsoftwareCode는 반드시 ncloud_nks_get_server_images의 value 필드 전체를 사용해야 합니다.\n올바른 형식: 코드|이미지번호 (예: SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604)\n\n파이프(|) 뒤의 이미지 번호를 제거하지 마세요.` }],
+                isError: true,
+              };
+            }
+          }
+        }
+
+        if (isG3) {
+          if (!params.lbPrivateSubnetNo) {
+            return {
+              content: [{ type: "text" as const, text: "❌ G3/KVM 클러스터 생성 시 lbPrivateSubnetNo는 필수입니다.\n\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다.\nPrivate Load Balancer용 서브넷 번호를 지정해주세요." }],
+              isError: true,
+            };
+          }
+
+          if (!params.hypervisorCode || params.hypervisorCode.toUpperCase() !== "KVM") {
+            return {
+              content: [{ type: "text" as const, text: "❌ G3 클러스터(clusterType에 G003 포함) 생성 시 hypervisorCode를 'KVM'으로 지정해야 합니다.\n\n미지정 시 API가 G2(XEN)로 해석하여 clusterType/k8sVersion 불일치 에러가 발생합니다." }],
+              isError: true,
+            };
+          }
+
+          if (params.k8sVersion && !params.k8sVersion.includes("-nks.2")) {
+            return {
+              content: [{ type: "text" as const, text: `❌ G3/KVM 클러스터에서는 nks.2 suffix 버전만 사용 가능합니다.\n\n입력값: ${params.k8sVersion}\n예시: 1.35.3-nks.2\n\nncloud_nks_get_versions(hypervisorCode='KVM')으로 사용 가능한 버전을 확인하세요.` }],
+              isError: true,
+            };
+          }
+        }
+        // ─── End pre-validation ───────────────────────────────────────────────
+
         if (params.dryRun) {
           const preview = {
             label: "🔍 Dry-Run Preview: NKS Cluster Creation",
             ...params,
             dryRun: undefined,
             message: "이 요청은 실제 클러스터를 생성하지 않습니다. dryRun=false로 호출하면 클러스터가 생성됩니다.",
+            ...(isG3 ? { g3Validation: "✅ G3/KVM 필수 파라미터 검증 통과" } : {}),
           };
           return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
         }
