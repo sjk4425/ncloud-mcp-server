@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerImageOptimizerTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Query Tools ───────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/api/v2/projects", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -31,7 +32,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request(`/api/v2/projects/${params.projectId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -65,7 +66,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
             cdnRegionType: params.cdnRegionType,
             message: "이 요청은 실제 프로젝트를 생성하지 않습니다. dryRun=false로 호출하면 프로젝트가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: any = {
@@ -91,7 +92,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
           CDN생성: params.createCdn,
           상태: project?.projectStatus || "CREATING",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -114,7 +115,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.deleteRequest(`/api/v2/projects/${params.projectId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -135,7 +136,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
       try {
         const { projectId, ...queryParams } = params;
         const result = await client.request(`/api/v2/projects/${projectId}/rules`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -171,7 +172,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
             autorotate: params.autorotate,
             message: "이 요청은 실제 규칙을 생성하지 않습니다. dryRun=false로 호출하면 규칙이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: any = {
@@ -195,7 +196,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
           포맷: params.format || "original",
           상태: "created",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -217,7 +218,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.deleteRequest(`/api/v2/projects/${params.projectId}/rules/${params.ruleId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

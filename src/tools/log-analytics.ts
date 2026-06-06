@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerLogAnalyticsTools(server: McpServer, client: NcloudClient): void {
   // ncloud_search_logs — Search logs by keyword, period, and log source
@@ -28,7 +29,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         if (params.pageSize !== undefined) apiParams.pageSize = params.pageSize;
 
         const result = await client.request("/cloudloganalytics/v2/searchLogs", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -48,7 +49,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         if (params.regionCode !== undefined) apiParams.regionCode = params.regionCode;
 
         const result = await client.request("/cloudloganalytics/v2/getLogSourceList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -68,7 +69,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         if (params.regionCode !== undefined) apiParams.regionCode = params.regionCode;
 
         const result = await client.request("/cloudloganalytics/v2/getLogConfig", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -87,7 +88,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         const result = await client.request("/cloudloganalytics/v2/getLogCountTotal", {
           regionCode: params.regionCode,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -106,7 +107,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         const result = await client.request("/cloudloganalytics/v2/getLogCountRecent", {
           regionCode: params.regionCode,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -129,7 +130,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
           startTime: params.startTime,
           endTime: params.endTime,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -152,7 +153,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
           startTime: params.startTime,
           endTime: params.endTime,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -181,7 +182,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         if (params.logType !== undefined) apiParams.logType = params.logType;
 
         const result = await client.request("/cloudloganalytics/v2/exportLogs", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -200,7 +201,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         const result = await client.request("/cloudloganalytics/v2/getLogExportHistory", {
           regionCode: params.regionCode,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -219,7 +220,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
         const result = await client.request("/cloudloganalytics/v2/getLogUsage", {
           regionCode: params.regionCode,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

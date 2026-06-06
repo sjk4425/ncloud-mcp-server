@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * SourceCommit API Tools
@@ -31,7 +32,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
 
         const result = await client.requestRaw("GET", "/api/v1/repository", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -52,7 +53,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           "GET",
           `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -73,7 +74,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           "GET",
           `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -105,7 +106,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
             },
             message: "이 요청은 실제 저장소를 생성하지 않습니다. dryRun=false로 호출하면 저장소가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: Record<string, unknown> = { name: params.name };
@@ -124,7 +125,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           상태: "created",
           result,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -157,7 +158,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           undefined,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -190,7 +191,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           undefined,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -216,7 +217,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           "DELETE",
           `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -242,7 +243,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           "DELETE",
           `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -263,7 +264,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           "GET",
           `/api/v1/repository/${encodeURIComponent(params.repositoryName)}/branch`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -284,7 +285,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           "GET",
           `/api/v1/repository/${encodeURIComponent(params.repositoryName)}/tag`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -309,7 +310,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
           undefined,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

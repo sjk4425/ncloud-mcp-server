@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerStorageNasTools(server: McpServer, client: NcloudClient): void {
   // ─── NAS Volume Query Tools ────────────────────────────────────────────────
@@ -19,7 +20,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/getNasVolumeInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -35,7 +36,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/getNasVolumeInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -77,11 +78,11 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
             serverInstanceNoList: params.serverInstanceNoList ?? [],
             message: "이 요청은 실제 NAS 볼륨을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vnas/v2/createNasVolumeInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -105,7 +106,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vnas/v2/deleteNasVolumeInstances", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -124,7 +125,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/changeNasVolumeSize", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -144,7 +145,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/setNasVolumeAccessControl", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -163,7 +164,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/addNasVolumeAccessControl", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -186,7 +187,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vnas/v2/removeNasVolumeAccessControl", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -202,7 +203,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/getNasVolumeAccessControlRuleList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -221,7 +222,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/setNasVolumeReturnProtection", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -242,7 +243,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/getNasVolumeInstanceRatingList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -262,7 +263,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/getNasVolumeSnapshotList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -289,11 +290,11 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
             nasVolumeSnapshotName: params.nasVolumeSnapshotName ?? "(auto-generated)",
             message: "이 요청은 실제 NAS 스냅샷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vnas/v2/createNasVolumeSnapshot", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -317,7 +318,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vnas/v2/deleteNasVolumeSnapshot", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -335,7 +336,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/getNasVolumeSnapshotConfigurationHistoryList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -354,7 +355,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vnas/v2/changeNasVolumeSnapshotConfiguration", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -377,7 +378,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vnas/v2/restoreNasVolumeWithSnapshot", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

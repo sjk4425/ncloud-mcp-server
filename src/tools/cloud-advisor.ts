@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerCloudAdvisorTools(server: McpServer, client: NcloudClient): void {
   // ncloud_advisor_get_categories — Get check categories
@@ -11,7 +12,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/categories");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -28,7 +29,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -45,7 +46,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/status`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -62,7 +63,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/categories/${params.categoryCode}/checkitems/refresh`, undefined, {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -82,7 +83,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
           ? `/api/v1/categories/${params.categoryCode}/dashboard`
           : `/api/v1/categories/dashboard`;
         const result = await client.requestRaw("GET", path);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -99,7 +100,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/result-summary`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -117,7 +118,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/status`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -135,7 +136,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/refresh`, undefined, {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -153,7 +154,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/result-summary`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -185,7 +186,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
           `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/result-detail`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -209,7 +210,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
           undefined,
           params.instanceKeys
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -233,7 +234,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
           undefined,
           params.instanceKeys
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -250,7 +251,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/excel`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -268,7 +269,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/excel`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -283,7 +284,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/excel");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

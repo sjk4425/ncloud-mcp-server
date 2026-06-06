@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerSourceDeployTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Tools ─────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
         if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -42,10 +43,10 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
             projectName: params.name,
             message: "이 요청은 실제 배포 프로젝트를 생성하지 않습니다. dryRun=false로 호출하면 프로젝트가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const result = await client.requestRaw("POST", "/api/v1/project", undefined, { name: params.name });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -66,7 +67,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete SourceDeploy Project [${params.projectId}]. All stages, scenarios, and deployment history will be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -84,7 +85,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -101,7 +102,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -122,7 +123,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       try {
         const body = { name: params.name, type: params.type, config: params.config };
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -146,7 +147,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
         if (params.type) body.type = params.type;
         if (params.config) body.config = params.config;
         const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -168,7 +169,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Stage [${params.stageId}] from Project [${params.projectId}]. All scenarios in this stage will also be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -187,7 +188,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -205,7 +206,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -226,7 +227,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       try {
         const body = { name: params.name, ...params.config };
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -245,7 +246,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`, undefined, params.config);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -268,7 +269,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Scenario [${params.scenarioId}] from Stage [${params.stageId}].\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -288,7 +289,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -305,7 +306,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/history/${encodeURIComponent(params.historyId)}/cancel`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -326,7 +327,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/request`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -344,7 +345,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/accept`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -362,7 +363,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/reject`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -386,7 +387,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
         if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -403,7 +404,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history/${encodeURIComponent(params.historyId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -424,7 +425,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/accept`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -442,7 +443,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/reject`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -460,7 +461,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/analysis`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -479,7 +480,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/analysis/${params.stepNo}/report`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -496,7 +497,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/server");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -510,7 +511,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/autoscalinggroup");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -524,7 +525,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/kubernetesservice");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -538,7 +539,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/objectstorage");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -554,7 +555,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/objectstorage/${encodeURIComponent(params.bucketName)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -569,7 +570,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/sourcecommit");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -585,7 +586,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/sourcecommit/${encodeURIComponent(params.repositoryName)}/branch`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -599,7 +600,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/sourcebuild");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -615,7 +616,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/autoscalinggroup/${params.autoScalingGroupNo}/targetgroup`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

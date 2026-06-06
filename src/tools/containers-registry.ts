@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerContainersRegistryTools(server: McpServer, client: NcloudClient): void {
   // ─── Registry Query Tools ──────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/ncr/api/v2/repositories", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -31,7 +32,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -55,7 +56,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
             registryName: params.registryName,
             message: "이 요청은 실제 레지스트리를 생성하지 않습니다. dryRun=false로 호출하면 레지스트리가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -65,7 +66,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
           레지스트리명: params.registryName,
           상태: "creating",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -88,7 +89,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/delete`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -109,7 +110,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
       try {
         const { registryName, ...queryParams } = params;
         const result = await client.request(`/ncr/api/v2/repositories/${registryName}/images`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -126,7 +127,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/images/${params.imageName}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -148,7 +149,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
         const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/images/${params.imageName}`, {
           description: params.description,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -172,7 +173,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/images/${params.imageName}/delete`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -194,7 +195,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
       try {
         const { registryName, imageName, ...queryParams } = params;
         const result = await client.request(`/ncr/api/v2/repositories/${registryName}/images/${imageName}/tags`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -212,7 +213,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/images/${params.imageName}/tags/${params.tagName}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -237,7 +238,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/images/${params.imageName}/tags/${params.tag}/delete`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

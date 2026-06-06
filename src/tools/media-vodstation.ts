@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerVodStationTools(server: McpServer, client: NcloudClient): void {
   // ─── Channel Query Tools ───────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/api/v2/channels", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -31,7 +32,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v2/channels/${params.channelId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -71,7 +72,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
             cdnRegionType: params.cdnRegionType,
             message: "이 요청은 실제 채널을 생성하지 않습니다. dryRun=false로 호출하면 채널이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: any = {
@@ -99,7 +100,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
           프로토콜: params.protocolList,
           상태: channel?.channelStatus || "CREATING",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -122,7 +123,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -140,7 +141,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.putRequest(`/api/v2/channels/${params.channelId}/start`, {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -156,7 +157,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -175,7 +176,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/api/v2/category", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -210,7 +211,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
             accessControl: params.accessControl,
             message: "이 요청은 실제 카테고리를 생성하지 않습니다. dryRun=false로 호출하면 카테고리가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: any = {
@@ -235,7 +236,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
           썸네일: params.thumbnail,
           상태: "created",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

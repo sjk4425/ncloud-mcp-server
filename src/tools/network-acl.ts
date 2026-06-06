@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerNetworkAclTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getNetworkAclList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -32,7 +33,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getNetworkAclDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -49,7 +50,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getNetworkAclRuleList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -71,7 +72,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/createNetworkAcl", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -107,7 +108,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
         if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
         if (ruleDescription) requestParams["networkAclRuleList.1.ruleDescription"] = ruleDescription;
         const result = await client.request("/vpc/v2/addNetworkAclInboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -141,7 +142,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
         if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
         if (ruleDescription) requestParams["networkAclRuleList.1.ruleDescription"] = ruleDescription;
         const result = await client.request("/vpc/v2/addNetworkAclOutboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -160,7 +161,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/setSubnetNetworkAcl", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -184,7 +185,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vpc/v2/deleteNetworkAcl", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -221,7 +222,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
         if (denyAllowGroupNo) requestParams["networkAclRuleList.1.denyAllowGroupNo"] = denyAllowGroupNo;
         if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
         const result = await client.request("/vpc/v2/removeNetworkAclInboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -258,7 +259,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
         if (denyAllowGroupNo) requestParams["networkAclRuleList.1.denyAllowGroupNo"] = denyAllowGroupNo;
         if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
         const result = await client.request("/vpc/v2/removeNetworkAclOutboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -277,7 +278,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/setNetworkAclDescription", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -297,7 +298,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getNetworkAclDenyAllowGroupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -313,7 +314,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getNetworkAclDenyAllowGroupDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -331,7 +332,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/createNetworkAclDenyAllowGroup", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -353,7 +354,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vpc/v2/deleteNetworkAclDenyAllowGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -375,7 +376,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
           requestParams[`ipList.${i + 1}`] = ipList[i];
         }
         const result = await client.request("/vpc/v2/setNetworkAclDenyAllowGroupIpList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -392,7 +393,7 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/setNetworkAclDenyAllowGroupDescription", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

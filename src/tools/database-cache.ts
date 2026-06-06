@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerDatabaseCacheTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -49,7 +50,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheBackupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -68,7 +69,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheConfigGroupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -98,12 +99,12 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
             description: params.description,
             message: "이 요청은 실제 Config Group을 생성하지 않습니다. dryRun=false로 호출하면 Config Group이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vcache/v2/createCloudCacheConfigGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -125,7 +126,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vcache/v2/deleteCloudCacheConfigGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -178,7 +179,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
             shardCopyCount: params.shardCopyCount,
             message: "이 요청은 실제 Cache 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -194,7 +195,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
           서브넷: params.subnetNo,
           포트: params.cloudCachePort ?? 6379,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -212,7 +213,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/rebootCloudCacheServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -232,7 +233,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheManualBackupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -250,7 +251,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheManualBackupDetailList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -271,7 +272,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/createCloudCacheManualBackup", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -295,7 +296,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vcache/v2/deleteCloudCacheManualBackup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -321,7 +322,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vcache/v2/flushAllCloudCacheServerInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -352,7 +353,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
           apiParams[`cloudCacheExportObjectList.${idx + 1}.fullObjectName`] = name;
         });
         const result = await client.request("/vcache/v2/exportBackupToObjectStorage", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -373,7 +374,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheBackupDetailList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -391,7 +392,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheImageProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -409,7 +410,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -425,7 +426,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheTargetVpcList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -444,7 +445,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheTargetSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -460,7 +461,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheConfigGroupVersionList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -476,7 +477,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vcache/v2/getCloudCacheBucketList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -500,7 +501,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vcache/v2/deleteCloudCacheInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

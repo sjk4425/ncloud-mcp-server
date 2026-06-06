@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerGlobalDnsTools(server: McpServer, client: NcloudClient): void {
   // ─── Domain Management Tools ─────────────────────────────────────────────────
@@ -23,7 +24,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
           queryParams.domainName = params.domainName;
         }
         const result = await client.requestRaw("GET", "/dns/v1/ncpdns/domain", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -39,7 +40,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/dns/v1/ncpdns/domain/${params.domainId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -60,7 +61,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
           body.comment = params.comment;
         }
         const result = await client.requestRaw("POST", "/dns/v1/ncpdns/domain", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -81,7 +82,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/domain/${params.domainId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -97,7 +98,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/dns/v1/ncpdns/domain/${params.domainId}/apply`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -118,7 +119,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("PUT", `/dns/v1/ncpdns/domain/${params.domainId}/rollback`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -151,7 +152,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
           queryParams.searchContent = params.searchContent;
         }
         const result = await client.requestRaw("GET", `/dns/v1/ncpdns/record/${params.domainId}`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -176,7 +177,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, params.records);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -202,7 +203,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, params.records);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -224,7 +225,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, { recordIds: params.recordIds });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -238,7 +239,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     async () => {
       try {
         const result = await client.requestRaw("GET", "/dns/v1/ncpdns/record/lb");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -263,7 +264,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
           queryParams.domainId = String(params.domainId);
         }
         const result = await client.requestRaw("GET", "/dns/v1/ncpdns/domain/monitoring", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

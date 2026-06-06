@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerCloudInsightTools(server: McpServer, client: NcloudClient): void {
   // ncloud_query_monitoring_data — Query time-series monitoring data from Cloud Insight
@@ -31,7 +32,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         if (params.dimensions !== undefined) body.dimensions = params.dimensions;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/data/query", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -65,7 +66,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         if (params.aggregation !== undefined) body.aggregation = params.aggregation;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/data/query/multiple", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -98,7 +99,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         if (params.pageNum !== undefined) body.pageNum = params.pageNum;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/event/search", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -121,7 +122,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/event/searchById", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -136,7 +137,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     async () => {
       try {
         const result = await client.requestRaw("GET", "/cw_fea/real/cw/api/chart/dashboard");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -167,7 +168,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/data", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -196,7 +197,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         if (params.eventLevel !== undefined) body.eventLevel = params.eventLevel;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/event/search/count", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -213,7 +214,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/cw_fea/real/cw/api/chart/dashboard/${encodeURIComponent(params.dashboardId)}/widget`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -231,7 +232,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/cw_fea/real/cw/api/chart/dashboard/${encodeURIComponent(params.dashboardId)}/widget/${encodeURIComponent(params.widgetId)}/image`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -264,7 +265,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         if (params.dimensions !== undefined) body.dimensions = params.dimensions;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/data/widget/preview", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -285,7 +286,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/server/top", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

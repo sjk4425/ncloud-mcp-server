@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Data Query — 서버리스 대화형 쿼리 서비스 (Trino 기반)
@@ -47,7 +48,7 @@ export function registerDataQueryTools(server: McpServer, client: NcloudClient):
         if (params.projectId !== undefined) body.projectId = params.projectId;
 
         const result = await client.postRequest("/api/v2/queries", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -79,7 +80,7 @@ export function registerDataQueryTools(server: McpServer, client: NcloudClient):
         if (params.database) body.database = params.database;
 
         const result = await client.postRequest("/api/v2/queries/async", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -105,7 +106,7 @@ export function registerDataQueryTools(server: McpServer, client: NcloudClient):
         const result = await client.requestRaw(
           "GET", `/api/v2/queries/${params.executionId}`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -133,7 +134,7 @@ export function registerDataQueryTools(server: McpServer, client: NcloudClient):
         const result = await client.requestRaw(
           "GET", "/api/v2/queries", queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -160,7 +161,7 @@ export function registerDataQueryTools(server: McpServer, client: NcloudClient):
           }] };
         }
         const result = await client.deleteRequest(`/api/v2/queries/${params.executionId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

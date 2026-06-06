@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * NKS (Ncloud Kubernetes Service) API Tools
@@ -22,7 +23,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async () => {
       try {
         const result = await client.requestRaw("GET", "/vnks/v2/clusters");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -38,7 +39,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -151,12 +152,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
             message: "이 요청은 실제 클러스터를 생성하지 않습니다. dryRun=false로 호출하면 클러스터가 생성됩니다.",
             ...(isG3 ? { g3Validation: "✅ G3/KVM 필수 파라미터 검증 통과" } : {}),
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...body } = params;
         const result = await client.requestRaw("POST", "/vnks/v2/clusters", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -180,7 +181,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result ?? { success: true }, null, 2) }] };
+        return toolText(result ?? { success: true });
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -204,7 +205,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
         if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/upgrade`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -224,7 +225,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/log`, undefined, { audit: params.audit });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -241,7 +242,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/subnet`, undefined, { subnetNoList: params.subnetNoList });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -266,7 +267,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       try {
         const { clusterUuid, ...body } = params;
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/oidc`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -282,7 +283,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/oidc`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -298,7 +299,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -318,7 +319,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`, undefined, { entries: params.entries });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -335,7 +336,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/return-protection`, undefined, { returnProtection: params.returnProtection });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -354,7 +355,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       try {
         const { clusterUuid, ...body } = params;
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/lb-subnet`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -372,7 +373,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       try {
         const { clusterUuid, ...body } = params;
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/secret-encryption`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -389,7 +390,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/auth-type`, undefined, { authType: params.authType });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -408,7 +409,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -424,7 +425,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -442,7 +443,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/nodes`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -464,7 +465,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Worker Node [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/nodes/${params.instanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result ?? { success: true }, null, 2) }] };
+        return toolText(result ?? { success: true });
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -482,7 +483,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/node-pool`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -514,11 +515,11 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       try {
         if (params.dryRun) {
           const preview = { label: "🔍 Dry-Run Preview: Node Pool Creation", ...params, dryRun: undefined, message: "dryRun=false로 호출하면 노드풀이 생성됩니다." };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { clusterUuid, dryRun, ...body } = params;
         const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/node-pool`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -544,7 +545,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         if (params.nodeCount !== undefined) body.nodeCount = params.nodeCount;
         if (params.autoscale !== undefined) body.autoscale = params.autoscale;
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -566,7 +567,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Node Pool [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result ?? { success: true }, null, 2) }] };
+        return toolText(result ?? { success: true });
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -590,7 +591,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/labels`, undefined, { labels: params.labels });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -612,7 +613,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/taints`, undefined, { taints: params.taints });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -635,7 +636,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
         if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/upgrade`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -653,7 +654,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/subnet`, undefined, { subnetNoList: params.subnetNoList });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -671,7 +672,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -688,7 +689,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -708,7 +709,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       try {
         const { clusterUuid, ...body } = params;
         const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/access-entry`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -727,7 +728,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       try {
         const { clusterUuid, accessEntryNo, ...body } = params;
         const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/access-entry/${accessEntryNo}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -749,7 +750,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
           return { content: [{ type: "text" as const, text: `⚠️ This will delete IAM Access Entry [${params.accessEntryNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result ?? { success: true }, null, 2) }] };
+        return toolText(result ?? { success: true });
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -771,7 +772,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
         if (params.isRegionalSupport !== undefined) queryParams.isRegionalSupport = String(params.isRegionalSupport);
         const result = await client.requestRaw("GET", "/vnks/v2/option/version", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -789,7 +790,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         const queryParams: Record<string, string> = {};
         if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
         const result = await client.requestRaw("GET", "/vnks/v2/option/server-image", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -810,7 +811,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         if (params.zoneCode) queryParams.zoneCode = params.zoneCode;
         if (params.zoneNo) queryParams.zoneNo = params.zoneNo;
         const result = await client.requestRaw("GET", "/vnks/v2/option/server-product-code", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerCloudInsightPluginTools(server: McpServer, client: NcloudClient): void {
   // --- Plugin Tools ---
@@ -18,7 +19,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.instanceNo !== undefined) body.instanceNo = params.instanceNo;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/process", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -41,7 +42,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/process/add", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -74,7 +75,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/process/remove", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -94,7 +95,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.instanceNo !== undefined) body.instanceNo = params.instanceNo;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/port", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -117,7 +118,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/port/add", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -150,7 +151,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/port/remove", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -170,7 +171,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.instanceNo !== undefined) body.instanceNo = params.instanceNo;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/file", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -193,7 +194,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/file/add", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -226,7 +227,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/file/remove", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -248,7 +249,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.prodKey !== undefined) body.prodKey = params.prodKey;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/custom/resource", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -269,7 +270,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/custom/resource/detail", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -294,7 +295,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/custom/resource/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -325,7 +326,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/custom/resource/delete", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -342,7 +343,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
     async () => {
       try {
         const result = await client.requestRaw("GET", "/cw_fea/real/cw/api/schema/system/list");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -363,7 +364,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/schema", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -383,7 +384,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       try {
         const body = { instanceNo: params.instanceNo };
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/process/instance", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -401,7 +402,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       try {
         const body = { instanceNo: params.instanceNo };
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/port/instance", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -419,7 +420,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       try {
         const body = { instanceNo: params.instanceNo };
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/file/instance", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -444,7 +445,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.newProcessName !== undefined) body.newProcessName = params.newProcessName;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/process/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -469,7 +470,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.newPortNumber !== undefined) body.newPortNumber = params.newPortNumber;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/port/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -494,7 +495,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.newFilePath !== undefined) body.newFilePath = params.newFilePath;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/plugin/file/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -523,7 +524,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/schema/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -551,7 +552,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
 
         const body = { prodKey: params.prodKey };
         const result = await client.postRequest("/cw_fea/real/cw/api/schema/delete", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -578,7 +579,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/schema/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -596,7 +597,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       try {
         const body = { instanceNo: params.instanceNo };
         const result = await client.postRequest("/cw_fea/real/cw/api/schema/extended/status", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -614,7 +615,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       try {
         const body = { instanceNo: params.instanceNo };
         const result = await client.postRequest("/cw_fea/real/cw/api/schema/extended/enable", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -632,7 +633,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       try {
         const body = { instanceNo: params.instanceNo };
         const result = await client.postRequest("/cw_fea/real/cw/api/schema/extended/disable", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -659,7 +660,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.dimensions !== undefined) body.dimensions = params.dimensions;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/custom/resource/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -676,7 +677,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
     async () => {
       try {
         const result = await client.postRequest("/cw_fea/real/cw/api/maintenance/list", {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -694,7 +695,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       try {
         const body = { maintenanceId: params.maintenanceId };
         const result = await client.postRequest("/cw_fea/real/cw/api/maintenance/detail", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -721,7 +722,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.description !== undefined) body.description = params.description;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/maintenance/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -750,7 +751,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         if (params.description !== undefined) body.description = params.description;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/maintenance/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -778,7 +779,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
 
         const body = { maintenanceId: params.maintenanceId };
         const result = await client.postRequest("/cw_fea/real/cw/api/maintenance/delete", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

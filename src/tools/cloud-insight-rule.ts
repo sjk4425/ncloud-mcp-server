@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerCloudInsightRuleTools(server: McpServer, client: NcloudClient): void {
   // ncloud_list_rule_groups — Get event rule group list
@@ -23,7 +24,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         if (params.search !== undefined) body.search = params.search;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/ruleGrp/query", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -44,7 +45,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/detail", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -87,7 +88,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
             규칙수: params.cfgRuleList.length,
             알림수신자: params.recipientNotification?.length ?? 0,
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: Record<string, unknown> = {
@@ -100,7 +101,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         if (params.recipientNotification !== undefined) body.recipientNotification = params.recipientNotification;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -131,7 +132,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/delete", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -148,7 +149,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/cw_fea/real/cw/api/rule/group/monitor/${encodeURIComponent(params.prodKey)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -168,7 +169,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         if (params.prodKey !== undefined) body.prodKey = params.prodKey;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/list", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -183,7 +184,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     async () => {
       try {
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/recipient", {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -208,7 +209,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -229,7 +230,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/detail", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -254,7 +255,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         if (params.resourceList !== undefined) body.resourceList = params.resourceList;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -282,7 +283,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
         const body = { monitorGroupId: params.monitorGroupId };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/delete", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -314,7 +315,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -332,7 +333,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       try {
         const body = { metricsGroupId: params.metricsGroupId };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/detail", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -364,7 +365,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         if (params.metricList !== undefined) body.metricList = params.metricList;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -392,7 +393,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
         const body = { metricsGroupId: params.metricsGroupId };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/delete", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -433,7 +434,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         if (params.cfgRuleList !== undefined) body.cfgRuleList = params.cfgRuleList;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -472,7 +473,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         if (params.recipientNotification !== undefined) body.recipientNotification = params.recipientNotification;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/createDirectly", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -495,7 +496,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         };
 
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/copy", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -513,7 +514,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       try {
         const body = { prodKey: params.prodKey };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metric/search", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -545,7 +546,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
           resourceId: params.resourceId,
         };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/resource/remove", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -563,7 +564,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       try {
         const body = { metricsGroupIds: params.metricsGroupIds };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/byMetricGroupIds", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -581,7 +582,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       try {
         const body = { monitorGroupIds: params.monitorGroupIds };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/byMonitorGroupIds", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -613,7 +614,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
           ruleGroupId: params.ruleGroupId,
         };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/deleteByProdKeyAndId", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -645,7 +646,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
           metricsGroupId: params.metricsGroupId,
         };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/deleteByProdKeyAndId", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -673,7 +674,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
         const body = { metricsGroupId: params.metricsGroupId };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/deleteForce", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -701,7 +702,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
         const body = { monitorGroupId: params.monitorGroupId };
         const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/deleteForce", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

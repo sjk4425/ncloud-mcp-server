@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerAcgTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getAccessControlGroupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -35,7 +36,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getAccessControlGroupDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -52,7 +53,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getAccessControlGroupRuleList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -72,7 +73,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createAccessControlGroup", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -114,7 +115,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
           requestParams["accessControlGroupRuleList.1.accessControlGroupRuleDescription"] = accessControlGroupRuleDescription;
         }
         const result = await client.request("/vserver/v2/addAccessControlGroupInboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -154,7 +155,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
           requestParams["accessControlGroupRuleList.1.accessControlGroupRuleDescription"] = accessControlGroupRuleDescription;
         }
         const result = await client.request("/vserver/v2/addAccessControlGroupOutboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -179,7 +180,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteAccessControlGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -220,7 +221,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
           requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
         }
         const result = await client.request("/vserver/v2/removeAccessControlGroupInboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -261,7 +262,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
           requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
         }
         const result = await client.request("/vserver/v2/removeAccessControlGroupOutboundRule", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

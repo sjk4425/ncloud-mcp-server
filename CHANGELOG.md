@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-06-06
+
+### Added
+- `NCLOUD_TOOL_GROUPS` env var — selectively load tool groups (e.g. `compute,network,billing` or `all,-billing`). Unset = all groups ON (same as before). Reduces context tokens and improves tool-selection accuracy. The `common` group is always registered.
+- `NCLOUD_RESPONSE_PRUNE` env var — when `1`, globally strips empty values (`null`/`""`/`[]`/`{}`) from responses.
+- Common response helper `src/tools/_response.ts` (`toolText()` + `prune()`).
+- Group registry `src/tools/registry.ts` with a memoized per-base-URL client factory.
+- Keyword search fallback for billing pricing tools (`ncloud_get_product_list`, `ncloud_get_product_price_list`): `productName` is now matched client-side (case-insensitive substring) across `productName`, `productDescription`, `productCode`, `productType.codeName`, `productItemKind.codeName` — finds products (e.g. Load Balancer) whose NCP `productName` field is empty or Korean.
+- `detailLevel` parameter on `ncloud_get_product_price_list` (`price` default | `full`): `price` returns a slim projection (identity + price fields only, dropping per-item hardware/OS metadata and large `promiseList`/`periodUnitList`/`countryUnitList`/`packageUnitList` arrays), drastically shrinking large category responses. `full` returns the raw payload.
+- Response size guard for billing List Price tools (`ncloud_get_product_list`, `ncloud_get_product_price_list`): results are server-sorted by `productCode` and paginated (default 50/page, max 1000) with `totalRows`/`returnedRows`/`hasMore`/`nextPageNo` metadata, so high-match queries (e.g. `productName="MySQL"`, 94 matches) stay within the client token limit. A hard size backstop drops whole items (never mid-JSON) when a single page still exceeds the byte threshold, setting `truncated: true` (with `hasMore: true` kept honest) plus a `suggestedPageSize` recovery hint so the full set can still be paged through losslessly with a smaller `pageSize`.
+
+### Changed
+- All tool responses now serialize via `toolText()` (no indentation), reducing response size ~30–40%.
+- Billing pricing tools prune empty fields per item, shrinking large category dumps.
+- `src/index.ts` slimmed from ~400 to ~56 lines (group-based registration).
+
+### Fixed
+- Added the missing `confirm` safety gate to 5 destructive tools that lacked it (`ncloud_pca_delete_ca`, `ncloud_pca_delete_ocsp`, `ncloud_kms_delete_key`, `ncloud_kms_delete_acl_rule`, `ncloud_kms_delete_token_generator`). All 136 destructive tools now require `confirm=true`, enforced by an automated structural test over all registered tools.
+
 ## [1.0.4] - 2026-05-29
 
 ### Fixed

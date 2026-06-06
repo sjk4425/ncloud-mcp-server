@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Certificate Manager API 1.0
@@ -41,7 +42,7 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
           "/api/v1/certificates",
           hasQuery ? queryParams : undefined
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -72,7 +73,7 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
             certificateChain: params.certificateChain,
           }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -105,7 +106,7 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
           `/api/v1/certificate/${params.certificateNo}`,
           { certificateName: params.certificateName }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

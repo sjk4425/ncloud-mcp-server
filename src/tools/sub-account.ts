@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerSubAccountTools(server: McpServer, client: NcloudClient): void {
   // ─── Sub Account Query Tools ───────────────────────────────────────────────
@@ -22,7 +23,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
         if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", "/api/v1/sub-accounts", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -38,7 +39,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -76,12 +77,12 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
             needPasswordReset: params.needPasswordReset,
             message: "이 요청은 실제 서브 계정을 생성하지 않습니다. dryRun=false로 호출하면 서브 계정이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...bodyParams } = params;
         const result = await client.requestRaw("POST", "/api/v1/sub-accounts", undefined, bodyParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -104,7 +105,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -126,7 +127,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
         if (params.page !== undefined) queryParams.page = String(params.page);
         if (params.size !== undefined) queryParams.size = String(params.size);
         const result = await client.requestRaw("GET", "/api/v1/groups", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -152,12 +153,12 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
             groupDescription: params.groupDescription ?? "(none)",
             message: "이 요청은 실제 그룹을 생성하지 않습니다. dryRun=false로 호출하면 그룹이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...bodyParams } = params;
         const result = await client.requestRaw("POST", "/api/v1/groups", undefined, bodyParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -180,7 +181,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/groups/${encodeURIComponent(params.groupId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -208,7 +209,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
         if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", "/api/v1/policies", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -232,7 +233,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
           undefined,
           { policyIdList: params.policyIdList }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -259,7 +260,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
           "DELETE",
           `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}/policies/${encodeURIComponent(params.policyId)}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -283,7 +284,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
           undefined,
           { policyIdList: params.policyIdList }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -310,7 +311,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
           "DELETE",
           `/api/v1/groups/${encodeURIComponent(params.groupId)}/policies/${encodeURIComponent(params.policyId)}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -336,7 +337,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
         if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", "/api/v1/roles", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -368,12 +369,12 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
             descCont: params.descCont ?? "(none)",
             message: "이 요청은 실제 역할을 생성하지 않습니다. dryRun=false로 호출하면 역할이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...bodyParams } = params;
         const result = await client.requestRaw("POST", "/api/v1/roles", undefined, bodyParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -396,7 +397,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/roles/${encodeURIComponent(params.roleNo)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

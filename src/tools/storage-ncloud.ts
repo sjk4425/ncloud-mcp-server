@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -384,7 +385,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           queryParams: { lifecycle: "" },
         });
         const result = parseLifecycleConfigXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -441,7 +442,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
             })),
             message: "이 요청은 실제 라이프사이클 규칙을 적용하지 않습니다. dryRun=false로 호출하면 적용됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const xmlBody = buildLifecycleConfigXml(params.rules);
@@ -464,7 +465,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
             prefix: rule.prefix || "(all objects)",
           })),
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -496,7 +497,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         });
 
         const result = { message: `✅ 버킷 '${params.bucketName}'의 라이프사이클 규칙이 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -521,7 +522,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           queryParams: { cors: "" },
         });
         const result = parseCorsConfigXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -576,7 +577,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
             maxAgeSeconds: rule.maxAgeSeconds,
           })),
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -608,7 +609,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         });
 
         const result = { message: `✅ 버킷 '${params.bucketName}'의 CORS 설정이 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -633,7 +634,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           queryParams: { encryption: "" },
         });
         const result = parseEncryptionConfigXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -670,7 +671,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           bucket: params.bucketName,
           sseAlgorithm: params.sseAlgorithm,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -702,7 +703,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         });
 
         const result = { message: `✅ 버킷 '${params.bucketName}'의 기본 암호화 설정이 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -723,7 +724,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       try {
         const response = await client.request({ method: "GET" });
         const result = parseListBucketsXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -750,7 +751,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
             region: client.getRegionCode(),
             message: "이 요청은 실제 버킷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         await client.request({ method: "PUT", bucket: params.bucketName });
         const summary = {
@@ -759,7 +760,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           리전: client.getRegionCode(),
           상태: "created",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -785,7 +786,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         }
         await client.request({ method: "DELETE", bucket: params.bucketName });
         const result = { message: `✅ Ncloud Storage 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -811,7 +812,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           statusCode: response.status,
           region: response.headers.get("x-amz-bucket-region") ?? client.getRegionCode(),
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         if (error.message.includes("404")) {
           const result = {
@@ -819,7 +820,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
             exists: false,
             statusCode: 404,
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+          return toolText(result);
         }
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -854,7 +855,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           queryParams,
         });
         const result = parseListObjectsV2Xml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -890,7 +891,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
             bodySize: `${params.body.length} bytes`,
             message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const headers: Record<string, string> = {};
@@ -913,7 +914,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           크기: `${params.body.length} bytes`,
           상태: "uploaded",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -948,7 +949,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           lastModified: response.headers.get("last-modified"),
           body: response.body,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -984,7 +985,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           etag: response.headers.get("etag"),
           statusCode: response.status,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1025,7 +1026,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           상태: "copied",
           response: response.body,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1058,7 +1059,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           key: params.key,
         });
         const result = { message: `✅ Ncloud Storage 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1103,7 +1104,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           message: `✅ Ncloud Storage 버킷 '${params.bucketName}'에서 ${params.keys.length}개 오브젝트가 삭제되었습니다.`,
           response: response.body,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

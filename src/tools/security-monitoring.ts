@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerSecurityMonitoringTools(server: McpServer, client: NcloudClient): void {
   // ncloud_list_security_events — List security events with optional filters
@@ -28,7 +29,7 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
         if (params.pageSize !== undefined) apiParams.pageSize = params.pageSize;
 
         const result = await client.request("/vsecuritymonitoring/v1/getSecurityEventList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -51,7 +52,7 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
         if (params.regionCode !== undefined) apiParams.regionCode = params.regionCode;
 
         const result = await client.request("/vsecuritymonitoring/v1/getSecurityEventDetail", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -83,7 +84,7 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
         if (params.pageSize !== undefined) apiParams.pageSize = params.pageSize;
 
         const result = await client.request("/vsecuritymonitoring/v1/getIdsEventList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -115,7 +116,7 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
         if (params.pageSize !== undefined) apiParams.pageSize = params.pageSize;
 
         const result = await client.request("/vsecuritymonitoring/v1/getAntiVirusEventList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -142,7 +143,7 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
         if (params.pageSize !== undefined) apiParams.pageSize = params.pageSize;
 
         const result = await client.request("/vsecuritymonitoring/v1/getDDoSList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -163,7 +164,7 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
         };
 
         const result = await client.request("/vsecuritymonitoring/v1/getDDoSEventDetail", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -190,7 +191,7 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
         if (params.pageSize !== undefined) apiParams.pageSize = params.pageSize;
 
         const result = await client.request("/vsecuritymonitoring/v1/getWAFList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

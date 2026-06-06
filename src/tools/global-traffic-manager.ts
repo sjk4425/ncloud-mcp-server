@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerGlobalTrafficManagerTools(server: McpServer, client: NcloudClient): void {
   // ─── Traffic Profile (Domain) Tools ─────────────────────────────────────────
@@ -20,7 +21,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (params.size !== undefined) queryParams.size = String(params.size);
         if (params.name !== undefined) queryParams.name = params.name;
         const result = await client.requestRaw("GET", "/gtm/v1/domains", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -36,7 +37,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/gtm/v1/domains/${params.domainId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -58,7 +59,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (params.ttl !== undefined) body.ttl = params.ttl;
         if (params.claRegion !== undefined) body.claRegion = params.claRegion;
         const result = await client.requestRaw("POST", "/gtm/v1/domains", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -81,7 +82,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (params.ttl !== undefined) body.ttl = params.ttl;
         if (params.claRegion !== undefined) body.claRegion = params.claRegion;
         const result = await client.requestRaw("PUT", `/gtm/v1/domains/${params.domainId}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -101,7 +102,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete GTM Profile (Domain) [${params.domainId}].\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/gtm/v1/domains/${params.domainId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -129,7 +130,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (params.domainName !== undefined) queryParams.domainName = params.domainName;
         if (params.name !== undefined) queryParams.name = params.name;
         const result = await client.requestRaw("GET", "/gtm/v1/policies", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -145,7 +146,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/gtm/v1/policies/${params.policyId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -191,7 +192,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (params.monitor !== undefined) body.monitor = params.monitor;
         if (params.resourceGroups !== undefined) body.resourceGroups = params.resourceGroups;
         const result = await client.requestRaw("POST", "/gtm/v1/policies", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -241,7 +242,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (bodyFields.monitor !== undefined) body.monitor = bodyFields.monitor;
         if (bodyFields.resourceGroups !== undefined) body.resourceGroups = bodyFields.resourceGroups;
         const result = await client.requestRaw("PUT", `/gtm/v1/policies/${policyId}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -261,7 +262,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete GTM Policy [${params.policyId}].\n\nTo execute, call this tool again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/gtm/v1/policies/${params.policyId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -277,7 +278,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/gtm/v1/policies/${params.policyId}/resources`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -300,7 +301,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/gtm/v1/policies/${params.policyId}/resources`, undefined, params.resourceGroups);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -327,7 +328,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (bodyFields.active !== undefined) body.active = bodyFields.active;
         if (bodyFields.standby !== undefined) body.standby = bodyFields.standby;
         const result = await client.requestRaw("PUT", `/gtm/v1/policies/${policyId}/resources/${resourceGroupSid}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -359,7 +360,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (bodyFields.thresholdFail !== undefined) body.thresholdFail = bodyFields.thresholdFail;
         if (bodyFields.thresholdNormal !== undefined) body.thresholdNormal = bodyFields.thresholdNormal;
         const result = await client.requestRaw("PUT", `/gtm/v1/policies/${policyId}/health-check`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -379,7 +380,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
           return { content: [{ type: "text" as const, text: `⚠️ This will delete health check for GTM Policy [${params.policyId}].\n\nCall again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/gtm/v1/policies/${params.policyId}/health-check`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -393,7 +394,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async () => {
       try {
         const result = await client.requestRaw("GET", "/gtm/v1/policies/resource-types");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -407,7 +408,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async () => {
       try {
         const result = await client.requestRaw("GET", "/gtm/v1/policies/health-check-regions");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -421,7 +422,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async () => {
       try {
         const result = await client.requestRaw("GET", "/gtm/v1/policies/load-balancer-types");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -443,7 +444,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (params.page !== undefined) queryParams.page = String(params.page);
         if (params.size !== undefined) queryParams.size = String(params.size);
         const result = await client.requestRaw("GET", "/gtm/v1/maps", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -459,7 +460,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/gtm/v1/maps/${params.mapId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -485,7 +486,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       try {
         const body = { name: params.name, mapType: params.mapType, detailedMapList: params.detailedMapList };
         const result = await client.requestRaw("POST", "/gtm/v1/maps", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -516,7 +517,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         if (bodyFields.mapType !== undefined) body.mapType = bodyFields.mapType;
         if (bodyFields.detailedMapList !== undefined) body.detailedMapList = bodyFields.detailedMapList;
         const result = await client.requestRaw("PUT", `/gtm/v1/maps/${mapId}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -536,7 +537,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete GTM Geo/CIDR Map [${params.mapId}].\n\nCall again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/gtm/v1/maps/${params.mapId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -550,7 +551,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async () => {
       try {
         const result = await client.requestRaw("GET", "/gtm/v1/maps/types");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -564,7 +565,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     async () => {
       try {
         const result = await client.requestRaw("GET", "/gtm/v1/maps/geolocation");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -585,7 +586,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
         const queryParams: Record<string, string> = { baseTimeUnit: params.baseTimeUnit };
         if (params.domainId !== undefined) queryParams.domainId = String(params.domainId);
         const result = await client.requestRaw("GET", "/gtm/v1/monitoring/query-counts", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

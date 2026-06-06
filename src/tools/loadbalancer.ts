@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerLoadBalancerTools(server: McpServer, client: NcloudClient): void {
   // ─── Load Balancer Query Tools ─────────────────────────────────────────────
@@ -19,7 +20,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/getLoadBalancerInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -35,7 +36,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/getLoadBalancerInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -91,7 +92,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
             listeners: params.listenerList.map((l) => `${l.protocolTypeCode}:${l.port} → TG:${l.targetGroupNo}`),
             message: "이 요청은 실제 로드 밸런서를 생성하지 않습니다. dryRun=false로 호출하면 로드 밸런서가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, listenerList, subnetNoList, ...restParams } = params;
@@ -131,7 +132,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
           도메인: instance?.loadBalancerDomain ?? "pending",
           리스너설정: params.listenerList.map((l) => `${l.protocolTypeCode}:${l.port}`).join(", "),
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -157,7 +158,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vloadbalancer/v2/deleteLoadBalancerInstances", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -179,7 +180,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/changeLoadBalancerInstanceConfiguration", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -200,7 +201,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/setLoadBalancerDescription", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -221,7 +222,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/setLoadBalancerInstanceSubnet", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -251,7 +252,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/changeLoadBalancerListenerConfiguration", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -271,7 +272,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/getLoadBalancerRuleList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -294,7 +295,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/addLoadBalancerListenerCertificate", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -321,7 +322,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vloadbalancer/v2/removeLoadBalancerListenerCertificate", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -339,7 +340,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/getLoadBalancerListenerCertificateList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -359,7 +360,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/getLoadBalancerListenerList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -392,7 +393,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     async (params) => {
       try {
         const result = await client.request("/vloadbalancer/v2/createLoadBalancerListener", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -421,7 +422,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vloadbalancer/v2/deleteLoadBalancerListeners", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

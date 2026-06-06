@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerComputeStorageTools(server: McpServer, client: NcloudClient): void {
   // ─── Block Storage Query Tools ─────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getBlockStorageInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getBlockStorageInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -49,7 +50,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getBlockStorageVolumeTypeList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -95,12 +96,12 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
             blockStorageName: params.blockStorageName ?? "(auto-generated)",
             message: "이 요청은 실제 블록 스토리지를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vserver/v2/createBlockStorageInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -144,7 +145,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
         }
 
         const result = await client.request("/vserver/v2/attachBlockStorageInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -160,7 +161,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/detachBlockStorageInstances", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -179,7 +180,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/changeBlockStorageInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -196,7 +197,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/setBlockStorageReturnProtection", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -220,7 +221,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteBlockStorageInstances", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -240,7 +241,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getBlockStorageSnapshotInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -256,7 +257,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getBlockStorageSnapshotInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -283,11 +284,11 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
             blockStorageSnapshotName: params.blockStorageSnapshotName ?? "(auto-generated)",
             message: "이 요청은 실제 스냅샷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vserver/v2/createBlockStorageSnapshotInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -311,7 +312,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteBlockStorageSnapshotInstances", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

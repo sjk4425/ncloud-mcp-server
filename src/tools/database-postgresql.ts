@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerDatabasePostgresqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -49,7 +50,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlBackupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -118,7 +119,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
             cloudPostgresqlPort: params.cloudPostgresqlPort ?? 5432,
             message: "이 요청은 실제 PostgreSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -134,7 +135,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
           서브넷: params.subnetNo,
           데이터베이스명: params.cloudPostgresqlDatabaseName,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -152,7 +153,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/createCloudPostgresqlReadReplicaInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -170,7 +171,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/rebootCloudPostgresqlServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -188,7 +189,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlDatabaseList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -215,7 +216,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         }
 
         const result = await client.request("/vpostgresql/v2/addCloudPostgresqlDatabaseList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -233,7 +234,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlUserList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -262,7 +263,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         }
 
         const result = await client.request("/vpostgresql/v2/addCloudPostgresqlUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -291,7 +292,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         }
 
         const result = await client.request("/vpostgresql/v2/changeCloudPostgresqlUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -315,7 +316,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -348,7 +349,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         }
 
         const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlDatabaseList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -381,7 +382,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         }
 
         const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -403,7 +404,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlReadReplicaInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -421,7 +422,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlImageProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -438,7 +439,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -454,7 +455,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlTargetVpcList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -471,7 +472,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlTargetSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -488,7 +489,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlBackupDetailList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -504,7 +505,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getCloudPostgresqlBucketList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -521,7 +522,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/getDbServerLogList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -541,7 +542,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/exportBackupToObjectStorage", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -562,7 +563,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     async (params) => {
       try {
         const result = await client.request("/vpostgresql/v2/exportDbServerLogToObjectStorage", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

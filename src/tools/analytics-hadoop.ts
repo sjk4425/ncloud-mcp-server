@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Cloud Hadoop (VPC) — 빅데이터 분석 관리형 서비스
@@ -35,7 +36,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -52,7 +53,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -69,7 +70,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopAddOnList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -86,7 +87,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopBucketList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -103,7 +104,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopClusterTypeList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -119,7 +120,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopImageProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -135,7 +136,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopLoginKeyList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -152,7 +153,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopMysqlInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -169,7 +170,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopMysqlUserList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -188,7 +189,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopObjectList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -205,7 +206,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -223,7 +224,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopTargetSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -239,7 +240,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopTargetVpcList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -264,7 +265,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/testConnectExternalHiveMetaStore", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -285,7 +286,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/saveExternalHiveMetaStore", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -306,7 +307,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/backupClusterConfiguration", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -356,11 +357,11 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
         if (params.dryRun) {
           const { dryRun, ...rest } = params;
           const preview = { label: "Dry-Run Preview", ...rest, note: "Call with dryRun=false to create." };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vhadoop/v2/createCloudHadoopInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -378,7 +379,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/changeCloudHadoopNodeCount", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -398,7 +399,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/changeCloudHadoopNodeSpec", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -426,7 +427,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vhadoop/v2/deleteCloudHadoopInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -450,7 +451,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopNotebookInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -467,7 +468,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopNotebookInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -484,7 +485,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopNotebookBucketList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -501,7 +502,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopNotebookComponentList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -517,7 +518,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopNotebookImageProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -534,7 +535,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/getCloudHadoopNotebookProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -566,7 +567,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vhadoop/v2/createCloudHadoopNotebookInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -590,7 +591,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vhadoop/v2/deleteCloudHadoopNotebookInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

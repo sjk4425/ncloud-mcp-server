@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerAutoScalingTools(server: McpServer, client: NcloudClient): void {
   // ─── Launch Configuration Query Tools ──────────────────────────────────────
@@ -16,7 +17,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/getLaunchConfigurationList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -34,7 +35,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/getLaunchConfigurationDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -75,11 +76,11 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
             isEncryptedVolume: params.isEncryptedVolume ?? false,
             message: "이 요청은 실제 런치 설정을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vautoscaling/v2/createLaunchConfiguration", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -105,7 +106,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vautoscaling/v2/deleteLaunchConfiguration", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -126,7 +127,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/getAutoScalingGroupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -144,7 +145,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/getAutoScalingGroupDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -196,11 +197,11 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
             targetGroupNoList: params.targetGroupNoList ?? [],
             message: "이 요청은 실제 Auto Scaling Group을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vautoscaling/v2/createAutoScalingGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -226,7 +227,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vautoscaling/v2/deleteAutoScalingGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -249,7 +250,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/setDesiredCapacity", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -280,7 +281,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/putScalingPolicy", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -300,7 +301,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/getAutoScalingPolicyList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -327,7 +328,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vautoscaling/v2/deleteScalingPolicy", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -353,7 +354,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/updateAutoScalingGroup", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -376,7 +377,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/executePolicy", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -398,7 +399,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/getAutoScalingActivityLogList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -421,7 +422,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/suspendProcesses", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -442,7 +443,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/resumeProcesses", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -471,7 +472,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/putScheduledUpdateGroupAction", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -489,7 +490,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.request("/vautoscaling/v2/getScheduledActionList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -516,7 +517,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vautoscaling/v2/deleteScheduledAction", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -532,7 +533,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.request("/vautoscaling/v2/getScalingProcessTypeList", {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -546,7 +547,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.request("/vautoscaling/v2/getAdjustmentTypeList", {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

@@ -18,14 +18,14 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 | **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster |
 | **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
 | **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Redis |
-| **Storage** | Object Storage (S3-compatible), NAS, Archive Storage (Swift-compatible) |
+| **Storage** | Object Storage (S3-compatible), Ncloud Storage (S3-compatible), NAS, Archive Storage (Swift-compatible) |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
 | **Monitoring** | Cloud Insight (Dashboard, Event, Rule, Plugin, Schema, Data, Integration) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
 | **Media** | VOD Station, Live Station, Image Optimizer |
 | **Security** | Certificate Manager, Private CA, KMS, Security Monitoring |
 | **Application** | Cloud Functions, API Gateway, SENS (SMS/Push) |
-| **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Catalog, Data Forest, Data Flow, Data Query |
+| **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream, Data Catalog, Data Forest, Data Flow, Data Query |
 | **Management** | Sub Account, Activity Tracer, Resource Manager, Log Analytics, Cloud Advisor, Billing |
 | **Content Delivery** | Global Edge |
 | **Auto Scaling** | Launch Configuration, Auto Scaling Group, Scaling Policy |
@@ -75,6 +75,22 @@ npm run build
 | `NCLOUD_API_URL` | - | API base URL | `https://ncloud.apigw.ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage project ID | - |
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage domain ID | - |
+| `NCLOUD_TOOL_GROUPS` | - | Select which tool groups to load (see below). All groups ON when unset | all |
+| `NCLOUD_RESPONSE_PRUNE` | - | When `1`, globally strips empty values (`null`/`""`/`[]`/`{}`) from responses | `0` |
+
+### Tool Group Selection (`NCLOUD_TOOL_GROUPS`)
+
+The server exposes ~1,000 tools. Loading only the groups you need reduces context tokens and improves tool-selection accuracy. The `common` group is always registered.
+
+```
+# Unset → all groups ON (same as before)
+# Specific groups only (+ common):
+NCLOUD_TOOL_GROUPS=compute,network,billing
+# All groups, but exclude some (subtractive):
+NCLOUD_TOOL_GROUPS=all,-billing
+```
+
+Available group keys: `compute`, `network`, `database`, `storage`, `containers`, `monitoring`, `devtools`, `analytics`, `media`, `global`, `security`, `integration`, `billing` (plus the always-on `common`).
 
 ## MCP Client Configuration
 

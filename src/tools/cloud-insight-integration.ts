@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerCloudInsightIntegrationTools(server: McpServer, client: NcloudClient): void {
   // ncloud_list_integrations — Get integration list
@@ -11,7 +12,7 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
     async () => {
       try {
         const result = await client.postRequest("/cw_fea/real/cw/api/integration/list", {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -29,7 +30,7 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       try {
         const body = { integrationId: params.integrationId };
         const result = await client.postRequest("/cw_fea/real/cw/api/integration/detail", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -54,7 +55,7 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
         if (params.config !== undefined) body.config = params.config;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/integration/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -79,7 +80,7 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
         if (params.config !== undefined) body.config = params.config;
 
         const result = await client.postRequest("/cw_fea/real/cw/api/integration/update", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -107,7 +108,7 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
 
         const body = { integrationId: params.integrationId };
         const result = await client.postRequest("/cw_fea/real/cw/api/integration/delete", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

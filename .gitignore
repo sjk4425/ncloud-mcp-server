@@ -35,6 +35,13 @@ coverage/
 # Kiro workspace (개발 도구 설정)
 .kiro/
 
+# Claude Code workspace (개발 도구 설정)
+.claude/
+CLAUDE.md
+
+# 개발 과정 문서 (설계/계획/작업로그/테스트계획) — 레포에 업로드하지 않음
+docs/
+
 # Temporary files
 *.bak
 *.tmp

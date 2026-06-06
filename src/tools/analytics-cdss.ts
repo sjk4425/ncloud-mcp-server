@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Cloud Data Streaming Service (CDSS) — Apache Kafka 관리형 서비스
@@ -42,7 +43,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/getClusterInfoList`, body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -60,7 +61,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/getClusterInfoList/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -78,7 +79,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getClusterStatus/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -96,7 +97,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getClusterAcgInfo/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -114,7 +115,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/downloadCertificate/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -132,7 +133,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getKafkaVersionList`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -148,7 +149,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getNodeProductList`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -164,7 +165,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getOsProductList`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -180,7 +181,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getVpcList`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -200,7 +201,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getSubnetList`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -232,17 +233,17 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       try {
         if (params.dryRun) {
           const { dryRun, ...rest } = params;
-          return { content: [{ type: "text" as const, text: JSON.stringify({
+          return toolText({
             label: "Dry-Run Preview: CDSS Cluster Creation (G2)",
             ...rest,
             message: "No cluster created. Call again with dryRun=false to create.",
-          }, null, 2) }] };
+          });
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.postRequest(
           `${prefix}/cluster/createCDSSCluster`, apiParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -271,7 +272,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.deleteRequest(
           `${prefix}/cluster/deleteCDSSCluster/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -291,7 +292,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getClusterNodeList/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -311,7 +312,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
           `${prefix}/cluster/changeCountOfBrokerNode/${params.serviceGroupInstanceNo}`,
           { newBrokerNodeCount: params.newBrokerNodeCount }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -329,7 +330,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getBrokerInfo/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -347,7 +348,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getNodeSpecDetail/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -370,7 +371,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/changeSpecNode/${params.serviceGroupInstanceNo}`, body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -390,7 +391,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/restartAllServices/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -408,7 +409,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/restartKafkaService/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -426,7 +427,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/restartCmakService/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -446,7 +447,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
           `${prefix}/cluster/restartKafkaServicePerNode/${params.serviceGroupInstanceNo}`,
           { computeInstanceNo: params.computeInstanceNo }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -466,7 +467,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/enablePublicDomain/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -484,7 +485,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/disablePublicDomain/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -502,7 +503,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/enableBrokerNodePublicEndpoint/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -520,7 +521,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/disableBrokerNodePublicEndpoint/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -540,7 +541,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
           `${prefix}/cluster/resetCmakPassword/${params.serviceGroupInstanceNo}`,
           { kafkaManagerUserPassword: params.kafkaManagerUserPassword }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -567,7 +568,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/monitoring/getMonitoringData`, body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -592,7 +593,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/monitoring/getOsMonitoringData`, body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -614,7 +615,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/configGroup/getConfigGroupList`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -632,7 +633,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/configGroup/getConfigGroupDetail/${params.configGroupNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -650,7 +651,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/configGroup/getKafkaConfig/${params.configGroupNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -675,7 +676,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/configGroup/createConfigGroup`, body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -695,7 +696,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
           `${prefix}/configGroup/applyConfigGroup/${params.configGroupNo}`,
           { serviceGroupInstanceNo: params.serviceGroupInstanceNo }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -715,7 +716,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
           `${prefix}/configGroup/changeKafkaConfig/${params.configGroupNo}`,
           { kafkaConfig: params.kafkaConfig }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -742,7 +743,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.deleteRequest(
           `${prefix}/configGroup/deleteConfigGroup/${params.configGroupNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -762,7 +763,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/rollingRestart/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -780,7 +781,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/rollingRestartPreCheck/${params.serviceGroupInstanceNo}`, {}
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -798,7 +799,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/rollingRestartProgressCheck/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -822,7 +823,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/rollingUpgrade/${params.serviceGroupInstanceNo}`, body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -846,7 +847,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.postRequest(
           `${prefix}/cluster/rollingUpgradePreCheck/${params.serviceGroupInstanceNo}`, body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -864,7 +865,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/rollingUpgradeProgressCheck/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -882,7 +883,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getServerGenerationList`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -898,7 +899,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getServerSpecList`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -914,7 +915,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getClusterServerImageList`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -934,7 +935,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         const result = await client.requestRaw(
           "GET", `${prefix}/cluster/getLoadBalancerInstanceList/${params.serviceGroupInstanceNo}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

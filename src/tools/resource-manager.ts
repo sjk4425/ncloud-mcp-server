@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerResourceManagerTools(server: McpServer, client: NcloudClient): void {
   // ncloud_resource_list_resources — List resources with optional filters
@@ -37,7 +38,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
         if (params.size !== undefined) body.size = params.size;
 
         const result = await client.postRequest("/api/v1/resources", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -62,7 +63,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
         };
 
         const result = await client.postRequest("/api/v1/resource-tags", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -93,7 +94,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
         if (params.tagValue !== undefined) body.tagValue = params.tagValue;
 
         const result = await client.deleteRequest("/api/v1/resource-tags", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -117,7 +118,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
         if (params.size !== undefined) queryParams.size = String(params.size);
 
         const result = await client.requestRaw("GET", "/api/v1/groups", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -144,7 +145,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
           undefined,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -177,7 +178,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
           undefined,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

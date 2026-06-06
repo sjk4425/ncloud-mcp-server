@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerSourceBuildTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Management ────────────────────────────────────────────────────
@@ -21,7 +22,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
 
         const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -37,7 +38,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -175,7 +176,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
         if (params.description) body.description = params.description;
 
         const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -328,7 +329,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
         }
 
         const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -353,7 +354,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
           };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/project/${encodeURIComponent(params.projectId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -371,7 +372,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/build`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -387,7 +388,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -418,7 +419,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
           undefined,
           { buildId: params.buildId }
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -434,7 +435,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/env/os");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -448,7 +449,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/env/compute");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -464,7 +465,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/env/os/${encodeURIComponent(params.osId)}/runtime`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -484,7 +485,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
           "GET",
           `/api/v1/env/os/${encodeURIComponent(params.osId)}/runtime/${encodeURIComponent(params.runtimeId)}/version`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -498,7 +499,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/env/docker");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -514,7 +515,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/sourcecommit/repository");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -533,7 +534,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
           "GET",
           `/api/v1/sourcecommit/repository/${encodeURIComponent(params.repositoryName)}/branch`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -547,7 +548,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/objectstorage/bucket");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -561,7 +562,7 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/containerregistry/registry");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

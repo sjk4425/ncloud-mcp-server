@@ -6,12 +6,12 @@
     "url": "https://github.com/sjk4425/ncloud-mcp-server",
     "source": "github"
   },
-  "version": "1.0.4",
+  "version": "1.1.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "ncloud-mcp-server",
-      "version": "1.0.4",
+      "version": "1.1.0",
       "transport": {
         "type": "stdio"
       },
@@ -36,6 +36,20 @@
           "format": "string",
           "isSecret": false,
           "name": "NCLOUD_REGION"
+        },
+        {
+          "description": "Comma-separated tool groups to load, e.g. 'compute,network,billing' or 'all,-billing'. Unset = all groups. common is always on.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "NCLOUD_TOOL_GROUPS"
+        },
+        {
+          "description": "Set to '1' to strip empty values (null/\"\"/[]/{}) from responses globally.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "NCLOUD_RESPONSE_PRUNE"
         }
       ]
     }

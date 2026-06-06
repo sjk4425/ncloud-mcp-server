@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerSensTools(server: McpServer, client: NcloudClient): void {
   const smsServiceId = process.env.NCLOUD_SENS_SMS_SERVICE_ID ?? process.env.NCLOUD_SENS_SERVICE_ID ?? "";
@@ -46,7 +47,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
         if (params.reserveTimeZone) body.reserveTimeZone = params.reserveTimeZone;
 
         const result = await client.postRequest(`/sms/v2/services/${encodeURIComponent(smsServiceId)}/messages`, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -66,7 +67,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
         }
 
         const result = await client.request(`/sms/v2/services/${encodeURIComponent(smsServiceId)}/messages/${encodeURIComponent(params.messageId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -113,7 +114,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
         if (params.nextToken) apiParams.nextToken = params.nextToken;
 
         const result = await client.request(`/sms/v2/services/${encodeURIComponent(smsServiceId)}/messages`, apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -167,7 +168,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
         if (params.reserveTimeZone) body.reserveTimeZone = params.reserveTimeZone;
 
         const result = await client.postRequest(`/alimtalk/v2/services/${encodeURIComponent(alimtalkServiceId)}/messages`, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -199,7 +200,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
         if (params.pageIndex !== undefined) apiParams.pageIndex = String(params.pageIndex);
 
         const result = await client.request(`/alimtalk/v2/services/${encodeURIComponent(alimtalkServiceId)}/templates`, apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -251,7 +252,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
         if (params.reserveTimeZone) body.reserveTimeZone = params.reserveTimeZone;
 
         const result = await client.postRequest(`/push/v2/services/${encodeURIComponent(pushServiceId)}/messages`, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

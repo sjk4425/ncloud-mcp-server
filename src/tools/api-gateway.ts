@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerApiGatewayTools(server: McpServer, client: NcloudClient): void {
   // ─── Product Query Tools ───────────────────────────────────────────────────
@@ -18,7 +19,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
         if (params.offset !== undefined) apiParams.offset = params.offset;
         if (params.limit !== undefined) apiParams.limit = params.limit;
         const result = await client.request("/api/v1/products", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -34,7 +35,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v1/products/${encodeURIComponent(params.productId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -59,7 +60,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
         if (params.limit !== undefined) apiParams.limit = params.limit;
         if (params.apiName !== undefined) apiParams.apiName = params.apiName;
         const result = await client.request(`/api/v1/products/${encodeURIComponent(params.productId)}/apis`, apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -82,7 +83,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
         if (params.offset !== undefined) apiParams.offset = params.offset;
         if (params.limit !== undefined) apiParams.limit = params.limit;
         const result = await client.request(`/api/v1/products/${encodeURIComponent(params.productId)}/stages`, apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -108,7 +109,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
             stageDescription: params.stageDescription ?? "(none)",
             message: "이 요청은 실제 스테이지를 생성하지 않습니다. dryRun=false로 호출하면 스테이지가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: Record<string, string> = { stageName: params.stageName };
@@ -122,7 +123,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
           설명: params.stageDescription ?? "(none)",
           상태: "created",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -144,7 +145,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.request(`/api/v1/products/${encodeURIComponent(params.productId)}/stages/${encodeURIComponent(params.stageId)}/delete`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -166,7 +167,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
         if (params.offset !== undefined) apiParams.offset = params.offset;
         if (params.limit !== undefined) apiParams.limit = params.limit;
         const result = await client.request("/api/v1/api-keys", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -190,7 +191,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
             apiKeyDescription: params.apiKeyDescription ?? "(none)",
             message: "이 요청은 실제 API 키를 생성하지 않습니다. dryRun=false로 호출하면 API 키가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: Record<string, string> = { apiKeyName: params.apiKeyName };
@@ -203,7 +204,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
           설명: params.apiKeyDescription ?? "(none)",
           상태: "created",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -224,7 +225,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.request(`/api/v1/api-keys/${encodeURIComponent(params.apiKeyId)}/delete`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -242,7 +243,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v1/usage-plans/${encodeURIComponent(params.usagePlanId)}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

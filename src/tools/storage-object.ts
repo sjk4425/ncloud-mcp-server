@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -270,7 +271,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       try {
         const response = await client.request({ method: "GET" });
         const result = parseListBucketsXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -297,7 +298,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
             region: client.getRegionCode(),
             message: "이 요청은 실제 버킷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         await client.request({ method: "PUT", bucket: params.bucketName });
         const summary = {
@@ -306,7 +307,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           리전: client.getRegionCode(),
           상태: "created",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -332,7 +333,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         }
         await client.request({ method: "DELETE", bucket: params.bucketName });
         const result = { message: `✅ 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -367,7 +368,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           queryParams,
         });
         const result = parseListObjectsXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -400,7 +401,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           lastModified: response.headers.get("last-modified"),
           body: response.body,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -436,7 +437,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
             bodySize: `${params.body.length} bytes`,
             message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const headers: Record<string, string> = {};
@@ -459,7 +460,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           크기: `${params.body.length} bytes`,
           상태: "uploaded",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -492,7 +493,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           key: params.key,
         });
         const result = { message: `✅ 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -528,7 +529,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           headers,
         });
         const result = parseInitiateMultipartXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -581,7 +582,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           key: keyMatch?.[1] ?? params.key,
           etag: etagMatch?.[1] ?? "",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -630,7 +631,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           etag,
           size: `${params.body.length} bytes`,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -660,7 +661,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           queryParams: { uploadId: params.uploadId },
         });
         const result = parseListPartsXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -700,7 +701,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           key: params.objectName,
           uploadId: params.uploadId,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -729,7 +730,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           queryParams,
         });
         const result = parseListMultipartUploadsXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -754,7 +755,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           queryParams: { acl: "" },
         });
         const result = parseAclXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -785,7 +786,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           bucket: params.bucketName,
           acl: params.acl,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -814,7 +815,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           queryParams: { acl: "" },
         });
         const result = parseAclXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -850,7 +851,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           object: params.objectName,
           acl: params.acl,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -875,7 +876,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           queryParams: { versioning: "" },
         });
         const result = parseVersioningXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -908,7 +909,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           bucket: params.bucketName,
           versioningStatus: params.status,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -943,7 +944,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           queryParams,
         });
         const result = parseListObjectVersionsXml(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -984,7 +985,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           object: params.objectName,
           restoreDays: params.days,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1013,7 +1014,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           bucket: params.bucketName,
           location: locationMatch?.[1] ?? "",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1056,7 +1057,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           lastModified: lastModifiedMatch?.[1] ?? "",
           etag: etagMatch?.[1] ?? "",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1092,7 +1093,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           acceptRanges: response.headers.get("accept-ranges"),
           storageClass: response.headers.get("x-amz-storage-class"),
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1158,7 +1159,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           deleted,
           errors: errors.length > 0 ? errors : undefined,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -1186,7 +1187,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           region: response.headers.get("x-amz-bucket-region"),
           statusCode: response.status,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

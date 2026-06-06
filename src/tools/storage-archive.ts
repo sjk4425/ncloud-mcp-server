@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Parse JSON array response from Swift (when format=json is specified).
@@ -52,7 +53,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           queryParams,
         });
         const result = parseJsonResponse(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -79,7 +80,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
             region: client.getRegionCode(),
             message: "이 요청은 실제 컨테이너를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         await client.request({
           method: "PUT",
@@ -91,7 +92,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           리전: client.getRegionCode(),
           상태: "created",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -120,7 +121,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           container: params.containerName,
         });
         const result = { message: `✅ Archive 컨테이너 '${params.containerName}'이(가) 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -150,7 +151,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           bytesUsed: response.headers.get("x-container-bytes-used") ?? "0",
           metadata,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -185,7 +186,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           queryParams,
         });
         const result = parseJsonResponse(response.body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -219,7 +220,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           etag: response.headers.get("etag"),
           body: response.body,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -256,7 +257,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           etag: response.headers.get("etag"),
           metadata,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -292,7 +293,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
             bodySize: `${params.body.length} bytes`,
             message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const headers: Record<string, string> = {};
@@ -316,7 +317,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           etag: response.headers.get("etag") ?? "",
           상태: "uploaded",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -354,7 +355,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           destination: params.destination,
           상태: "copied",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -387,7 +388,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           object: params.objectName,
         });
         const result = { message: `✅ Archive 오브젝트 '${params.containerName}/${params.objectName}'이(가) 삭제되었습니다.` };
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

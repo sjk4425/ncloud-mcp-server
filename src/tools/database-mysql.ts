@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -49,7 +50,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlDatabaseList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -65,7 +66,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlUserList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -81,7 +82,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlBackupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -97,7 +98,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlImageProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -114,7 +115,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -130,7 +131,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlTargetVpcList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -147,7 +148,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlTargetSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -164,7 +165,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlBackupDetailList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -181,7 +182,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlRecoveryTime", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -198,7 +199,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getCloudMysqlEventHistoryList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -215,7 +216,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/getDbServerLogList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -296,7 +297,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
             isDeleteProtection: params.isDeleteProtection ?? false,
             message: "이 요청은 실제 MySQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -314,7 +315,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
           고가용성: instance?.isHa ?? params.isHa ?? true,
           멀티존: instance?.isMultiZone ?? params.isMultiZone ?? false,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -332,7 +333,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/createCloudMysqlSlaveInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -349,7 +350,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/addCloudMysqlDatabaseList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -386,7 +387,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         }
 
         const result = await client.request("/vmysql/v2/addCloudMysqlUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -404,7 +405,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/rebootCloudMysqlServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -423,7 +424,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/changeCloudMysqlServerSpec", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -444,7 +445,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/createCloudMysqlRecoveryInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -485,7 +486,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         }
 
         const result = await client.request("/vmysql/v2/changeCloudMysqlUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -505,7 +506,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/upgradeCloudMysqlDbEngineVersion", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -530,7 +531,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vmysql/v2/deleteCloudMysqlServerInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -552,7 +553,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vmysql/v2/deleteCloudMysqlInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -575,7 +576,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vmysql/v2/deleteCloudMysqlDatabaseList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -598,7 +599,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vmysql/v2/deleteCloudMysqlUserList", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -620,7 +621,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/exportBackupToObjectStorage", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -641,7 +642,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmysql/v2/exportDbServerLogToObjectStorage", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

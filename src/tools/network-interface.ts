@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerNetworkInterfaceTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getNetworkInterfaceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -34,7 +35,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getNetworkInterfaceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -50,7 +51,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getFlowLogConfigurationList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -81,11 +82,11 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
             privateIp: params.privateIp ?? "(auto-assigned)",
             message: "이 요청은 실제 네트워크 인터페이스를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vserver/v2/createNetworkInterface", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -104,7 +105,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/attachNetworkInterface", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -121,7 +122,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/detachNetworkInterface", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -139,7 +140,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/addNetworkInterfaceAccessControlGroup", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -157,7 +158,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/assignSecondaryIps", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -174,7 +175,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/unassignSecondaryIps", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -192,7 +193,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/enableFlowLog", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -208,7 +209,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/disableFlowLog", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -233,7 +234,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/removeNetworkInterfaceAccessControlGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -255,7 +256,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteNetworkInterface", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

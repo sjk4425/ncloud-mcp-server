@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerComputeLoginKeyTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export function registerComputeLoginKeyTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getLoginKeyList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerComputeLoginKeyTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createLoginKey", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -50,7 +51,7 @@ export function registerComputeLoginKeyTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/importLoginKey", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -74,7 +75,7 @@ export function registerComputeLoginKeyTools(server: McpServer, client: NcloudCl
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteLoginKeys", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

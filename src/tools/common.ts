@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 const REGION_NAME_MAP: Record<string, string> = {
   "한국": "KR",
@@ -42,7 +43,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
     async () => {
       try {
         const result = await client.request("/vserver/v2/getRegionList");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -57,7 +58,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
     async () => {
       try {
         const result = await client.request("/vserver/v2/getZoneList");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -86,7 +87,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
         previousRegion: { code: previousCode, name: REGION_CODE_MAP[previousCode] ?? previousCode },
         currentRegion: { code: resolvedCode, name: REGION_CODE_MAP[resolvedCode] },
       };
-      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      return toolText(result);
     }
   );
 
@@ -101,7 +102,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
         regionCode: code,
         regionName: REGION_CODE_MAP[code] ?? code,
       };
-      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+      return toolText(result);
     }
   );
 
@@ -144,7 +145,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
           : `⏳ 진행 중: ${resourceType} [${resourceId}] - 현재 상태: ${status}`;
 
         const response = { message, resourceType, resourceId, status };
-        return { content: [{ type: "text" as const, text: JSON.stringify(response, null, 2) }] };
+        return toolText(response);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

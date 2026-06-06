@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Private CA (사설 인증 기관) 도구 등록
@@ -23,7 +24,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
         const queryParams: Record<string, string | number | undefined> = {};
         if (params.pageNo !== undefined) queryParams.pageNo = params.pageNo;
         const result = await client.requestRaw("GET", "/api/v1/ca", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -40,7 +41,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/ca/${params.caTag}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -97,7 +98,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
         const path = `/api/v1/ca${queryString ? `?${queryString}` : ""}`;
 
         const result = await client.requestRaw("POST", path, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -115,7 +116,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/api/v1/ca/${params.caTag}`, undefined, { status: params.status });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -125,14 +126,18 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
   // ncloud_pca_delete_ca — Delete CA
   server.tool(
     "ncloud_pca_delete_ca",
-    "⚠️ Destructive: Permanently delete a Private CA. Only CAs in DESTROYING status can be deleted. The CA's private key will be permanently destroyed and cannot be recovered.",
+    "⚠️ Destructive: Permanently delete a Private CA. Only CAs in DESTROYING status can be deleted. The CA's private key will be permanently destroyed and cannot be recovered. Set confirm=true to execute.",
     {
       caTag: z.string().describe("CA tag value (required)"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       try {
+        if (!params.confirm) {
+          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Private CA [${params.caTag}] and destroy its private key (irreversible). To execute, call this tool again with confirm=true.` }] };
+        }
         const result = await client.requestRaw("DELETE", `/api/v1/ca/${params.caTag}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -149,7 +154,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/ca/${params.caTag}/chain`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -166,7 +171,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/ca/${params.caTag}/crl`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -185,7 +190,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/ca/${params.caTag}/crl/config`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -203,7 +208,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/api/v1/ca/${params.caTag}/crl/config`, undefined, { expiry: params.expiry });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -220,7 +225,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/ca/${params.caTag}/crl/rotate`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -240,7 +245,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("PUT", `/api/v1/ca/${params.caTag}/urls`, undefined, { ocsp_servers: params.ocspServers });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -250,14 +255,18 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
   // ncloud_pca_delete_ocsp — Delete OCSP
   server.tool(
     "ncloud_pca_delete_ocsp",
-    "⚠️ Destructive: Delete OCSP configuration and remove the OCSP URL from all certificates issued by this CA.",
+    "⚠️ Destructive: Delete OCSP configuration and remove the OCSP URL from all certificates issued by this CA. Set confirm=true to execute.",
     {
       caTag: z.string().describe("CA tag value (required)"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       try {
+        if (!params.confirm) {
+          return { content: [{ type: "text" as const, text: `⚠️ This will delete the OCSP configuration for CA [${params.caTag}] and remove the OCSP URL from all its issued certificates. To execute, call this tool again with confirm=true.` }] };
+        }
         const result = await client.requestRaw("DELETE", `/api/v1/ca/${params.caTag}/urls`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -276,7 +285,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/ca/${params.caTag}/sub/csr`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -298,7 +307,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
           certPem: params.certPem,
           caChainPem: params.caChainPem,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -320,7 +329,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
           period: params.period,
           csrPem: params.csrPem,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -339,7 +348,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/ca/${params.caTag}/cert`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -357,7 +366,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/ca/${params.caTag}/cert/${params.serialNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -401,7 +410,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
         if (params.ip !== undefined) body.x509Parameters.ip = params.ip;
 
         const result = await client.requestRaw("POST", `/api/v1/ca/${params.caTag}/cert`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -421,7 +430,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
         const result = await client.requestRaw("POST", `/api/v1/ca/${params.caTag}/cert/sign`, undefined, {
           csrPem: params.csrPem,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -439,7 +448,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/ca/${params.caTag}/cert/${params.serialNo}/revoke`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -458,7 +467,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/ca/${params.caTag}/trim`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

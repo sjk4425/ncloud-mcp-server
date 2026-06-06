@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -49,7 +50,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlBackupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -66,7 +67,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlBackupDetailList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -83,7 +84,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlLogBackupFileList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -99,7 +100,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlLogFileList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -115,7 +116,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlImageProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -131,7 +132,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -147,7 +148,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlTargetVpcList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -164,7 +165,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlTargetSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -180,7 +181,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlCharacterSetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -196,7 +197,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlConfigGroupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -212,7 +213,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlBucketList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -228,7 +229,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/getCloudMssqlFolderList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -290,7 +291,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
             isBackup: params.isBackup ?? true,
             message: "이 요청은 실제 MSSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -306,7 +307,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
           서브넷: params.subnetNo,
           고가용성: params.isHa,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -324,7 +325,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/createCloudMssqlSlaveInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -342,7 +343,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vmssql/v2/rebootCloudMssqlServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -374,7 +375,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
         }
 
         const result = await client.request("/vmssql/v2/exportBackupToObjectStorage", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -404,7 +405,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
         }
 
         const result = await client.request("/vmssql/v2/exportDbServerLogsToObjectStorage", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -428,7 +429,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vmssql/v2/deleteCloudMssqlInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -450,7 +451,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vmssql/v2/deleteCloudMssqlServerInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

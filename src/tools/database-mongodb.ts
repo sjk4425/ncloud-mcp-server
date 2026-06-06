@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerDatabaseMongodbTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -49,7 +50,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbBackupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -117,7 +118,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
             shardCount: params.shardCount,
             message: "이 요청은 실제 MongoDB 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -133,7 +134,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
           서브넷: params.subnetNo,
           클러스터타입: params.clusterTypeCode,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -151,7 +152,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/rebootCloudMongoDbServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -178,7 +179,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/changeCloudMongoDbSecondaryCount", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -199,7 +200,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/changeCloudMongoDbMongosCount", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -220,7 +221,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/changeCloudMongoDbConfigCount", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -241,7 +242,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/changeCloudMongoDbShardCount", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -261,7 +262,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbUserList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -296,7 +297,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         }
 
         const result = await client.request("/vmongodb/v2/addCloudMongoDbUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -327,7 +328,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         }
 
         const result = await client.request("/vmongodb/v2/changeCloudMongoDbUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -362,7 +363,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         }
 
         const result = await client.request("/vmongodb/v2/deleteCloudMongoDbUserList", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -382,7 +383,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbBackupDetailList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -400,7 +401,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getDbServerLogList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -436,7 +437,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         }
 
         const result = await client.request("/vmongodb/v2/exportBackupToObjectStorage", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -472,7 +473,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         }
 
         const result = await client.request("/vmongodb/v2/exportDbServerLogToObjectStorage", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -490,7 +491,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbImageProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -509,7 +510,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbProductList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -525,7 +526,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbTargetVpcList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -544,7 +545,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbTargetSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -560,7 +561,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vmongodb/v2/getCloudMongoDbBucketList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -584,7 +585,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vmongodb/v2/deleteCloudMongoDbInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

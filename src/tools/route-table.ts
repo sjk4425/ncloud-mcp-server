@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerRouteTableTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getRouteTableList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getRouteTableDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -50,7 +51,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getRouteList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -73,7 +74,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/createRouteTable", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -107,7 +108,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
         };
         if (targetName) requestParams["routeList.1.targetName"] = targetName;
         const result = await client.request("/vpc/v2/addRoute", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -127,7 +128,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getRouteTableSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -151,7 +152,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
           "subnetNoList.1": subnetNo,
         };
         const result = await client.request("/vpc/v2/addRouteTableSubnet", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -180,7 +181,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
           "subnetNoList.1": subnetNo,
         };
         const result = await client.request("/vpc/v2/removeRouteTableSubnet", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -199,7 +200,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/setRouteTableDescription", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -223,7 +224,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vpc/v2/deleteRouteTable", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -258,7 +259,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
           "routeList.1.targetNo": targetNo,
         };
         const result = await client.request("/vpc/v2/removeRoute", requestParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

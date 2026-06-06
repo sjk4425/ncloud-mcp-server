@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Ncloud Key Management Service (KMS) API 2.0
@@ -37,7 +38,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.isConvergent !== undefined) body.isConvergent = params.isConvergent;
 
         const result = await client.requestRaw("POST", "/kms/v1/keys", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -54,7 +55,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -76,7 +77,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.pageSize !== undefined) query.pageSize = params.pageSize;
 
         const result = await client.requestRaw("GET", "/kms/v1/keys", query);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -93,7 +94,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}/public-key`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -110,7 +111,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/enable`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -127,7 +128,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/disable`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -146,7 +147,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/update-name`, undefined, { keyName: params.keyName });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -163,7 +164,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/rotate`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -181,7 +182,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/versions/${params.version}/enable`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -199,7 +200,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/versions/${params.version}/disable`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -216,7 +217,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}/versions`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -236,7 +237,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
           return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
         }
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/request-deletion`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -253,7 +254,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/cancel-deletion`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -263,17 +264,21 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
   // ncloud_kms_delete_key — Permanently delete a key (⚠️ Destructive)
   server.tool(
     "ncloud_kms_delete_key",
-    "⚠️ Destructive: Permanently delete a KMS key. This action is irreversible. The key must be in REVOKE state (deletion requested) before it can be permanently deleted.",
+    "⚠️ Destructive: Permanently delete a KMS key. This action is irreversible. The key must be in REVOKE state (deletion requested) before it can be permanently deleted. Set confirm=true to execute.",
     {
       keyTag: z.string().min(1).describe("Key tag - unique identifier derived from key name (required)"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       try {
         if (!params.keyTag || params.keyTag.trim().length === 0) {
           return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
         }
+        if (!params.confirm) {
+          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete KMS key [${params.keyTag}]. This is irreversible. To execute, call this tool again with confirm=true.` }] };
+        }
         const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -294,7 +299,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/rotation-period`, undefined, { rotationPeriod: params.rotationPeriod });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -311,7 +316,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/enable-auto-rotation`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -328,7 +333,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/disable-auto-rotation`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -346,7 +351,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/memo`, undefined, { memo: params.memo });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -370,7 +375,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.context !== undefined) body.context = params.context;
 
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/encrypt`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -392,7 +397,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.context !== undefined) body.context = params.context;
 
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/decrypt`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -417,7 +422,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.context !== undefined) body.context = params.context;
 
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/create-custom-key`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -439,7 +444,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.context !== undefined) body.context = params.context;
 
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/reencrypt`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -457,7 +462,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/sign`, undefined, { data: params.data });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -476,7 +481,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/verify`, undefined, { data: params.data, signature: params.signature });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -496,7 +501,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/ip-acl/enable`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -513,7 +518,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/ip-acl/disable`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -530,7 +535,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}/ip-acl/rules`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -552,7 +557,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.memo !== undefined) body.memo = params.memo;
 
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/ip-acl/rules`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -562,18 +567,22 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
   // ncloud_kms_delete_acl_rule — Delete IP ACL rule (⚠️ Destructive)
   server.tool(
     "ncloud_kms_delete_acl_rule",
-    "⚠️ Destructive: Remove an IP address from the ACL rules for a KMS key.",
+    "⚠️ Destructive: Remove an IP address from the ACL rules for a KMS key. Set confirm=true to execute.",
     {
       keyTag: z.string().min(1).describe("Key tag - unique identifier derived from key name (required)"),
       ruleId: z.string().min(1).describe("ACL rule ID to delete (required)"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       try {
         if (!params.keyTag || !params.ruleId) {
           return { content: [{ type: "text" as const, text: "Error: keyTag and ruleId are required" }], isError: true };
         }
+        if (!params.confirm) {
+          return { content: [{ type: "text" as const, text: `⚠️ This will delete ACL rule [${params.ruleId}] from KMS key [${params.keyTag}]. To execute, call this tool again with confirm=true.` }] };
+        }
         const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}/ip-acl/rules/${params.ruleId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -592,7 +601,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/token-generator`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -609,7 +618,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}/token-generator`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -626,7 +635,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/token-generator/update`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -636,17 +645,21 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
   // ncloud_kms_delete_token_generator — Delete token generator (⚠️ Destructive)
   server.tool(
     "ncloud_kms_delete_token_generator",
-    "⚠️ Destructive: Delete (deactivate) the token generator for a KMS key. All existing tokens will be invalidated.",
+    "⚠️ Destructive: Delete (deactivate) the token generator for a KMS key. All existing tokens will be invalidated. Set confirm=true to execute.",
     {
       keyTag: z.string().min(1).describe("Key tag - unique identifier derived from key name (required)"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       try {
         if (!params.keyTag || params.keyTag.trim().length === 0) {
           return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
         }
+        if (!params.confirm) {
+          return { content: [{ type: "text" as const, text: `⚠️ This will delete the token generator for KMS key [${params.keyTag}] and invalidate all existing tokens. To execute, call this tool again with confirm=true.` }] };
+        }
         const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}/token-generator`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -663,7 +676,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/tokens`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -688,7 +701,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         if (params.pageSize !== undefined) query.pageSize = params.pageSize;
 
         const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}/activity-logs`, query);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -705,7 +718,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}/latest-use`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

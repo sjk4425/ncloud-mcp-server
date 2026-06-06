@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerCloudFunctionsTools(server: McpServer, client: NcloudClient): void {
   // ─── Package Management Tools ──────────────────────────────────────────────
@@ -18,7 +19,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           platform: params.platform,
         };
         const result = await client.requestRaw("GET", "/api/v2/packages", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -43,7 +44,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/packages/${encodeURIComponent(params.packageName)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -78,7 +79,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           queryParams,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -108,7 +109,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/packages/${encodeURIComponent(params.packageName)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -135,7 +136,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/packages/${encodeURIComponent(params.packageName)}/actions`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -161,7 +162,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/packages/${encodeURIComponent(params.packageName)}/actions/${encodeURIComponent(params.actionName)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -251,7 +252,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           queryParams,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -282,7 +283,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/packages/${encodeURIComponent(params.packageName)}/actions/${encodeURIComponent(params.actionName)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: result ? JSON.stringify(result, null, 2) : "Action deleted successfully (204 No Content)" }] };
+        return result ? toolText(result) : { content: [{ type: "text" as const, text: "Action deleted successfully (204 No Content)" }] };
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -315,7 +316,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           queryParams,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -337,7 +338,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           platform: params.platform,
         };
         const result = await client.requestRaw("GET", "/api/v2/triggers", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -362,7 +363,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/triggers/${encodeURIComponent(params.triggerName)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -398,7 +399,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           queryParams,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -426,7 +427,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           queryParams,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -456,7 +457,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/triggers/${encodeURIComponent(params.triggerName)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: result ? JSON.stringify(result, null, 2) : "Trigger deleted successfully (204 No Content)" }] };
+        return result ? toolText(result) : { content: [{ type: "text" as const, text: "Trigger deleted successfully (204 No Content)" }] };
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -488,7 +489,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           queryParams,
           body
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -520,7 +521,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/triggers/${encodeURIComponent(params.triggerName)}/link`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: result ? JSON.stringify(result, null, 2) : "Action unlinked from trigger successfully (204 No Content)" }] };
+        return result ? toolText(result) : { content: [{ type: "text" as const, text: "Action unlinked from trigger successfully (204 No Content)" }] };
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -556,7 +557,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/packages/${encodeURIComponent(params.packageName)}/actions/${encodeURIComponent(params.actionName)}/activations`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -583,7 +584,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/packages/${encodeURIComponent(params.packageName)}/actions/${encodeURIComponent(params.actionName)}/activations/${encodeURIComponent(params.activationId)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -616,7 +617,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/triggers/${encodeURIComponent(params.triggerName)}/activations`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -642,7 +643,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           `/api/v2/triggers/${encodeURIComponent(params.triggerName)}/activations/${encodeURIComponent(params.activationId)}`,
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -674,7 +675,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           "/api/v2/activations",
           queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

@@ -2,12 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import fc from "fast-check";
 import { NcloudClient } from "./ncloud-client.js";
 
-function createMockFetch(responseBody: any, status = 200) {
-  return vi.fn(async () => ({
+// NcloudClient는 응답 본문을 response.text() 로 읽어 JSON.parse 한다(.json() 미사용).
+// mock 응답에는 반드시 text()가 있어야 한다.
+function jsonResponse(body: any, status = 200) {
+  return {
     ok: status >= 200 && status < 300,
     status,
-    json: async () => responseBody,
-  }));
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  };
+}
+
+function createMockFetch(responseBody: any, status = 200) {
+  return vi.fn(async () => jsonResponse(responseBody, status));
 }
 
 describe("Feature: ncloud-mcp-server, Property 3: 인증 헤더 완전성", () => {
@@ -27,13 +34,9 @@ describe("Feature: ncloud-mcp-server, Property 3: 인증 헤더 완전성", () =
           let capturedHeaders: Record<string, string> = {};
           vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
             capturedHeaders = init.headers;
-            return {
-              ok: true,
-              status: 200,
-              json: async () => ({
-                getServerInstanceListResponse: { returnCode: "0", returnMessage: "success" },
-              }),
-            };
+            return jsonResponse({
+              getServerInstanceListResponse: { returnCode: "0", returnMessage: "success" },
+            });
           }));
 
           await client.request(action, {});
@@ -71,11 +74,7 @@ describe("Feature: ncloud-mcp-server, Property 4: JSON 응답 포맷 자동 추�
           let capturedUrl = "";
           vi.stubGlobal("fetch", vi.fn(async (url: string) => {
             capturedUrl = url;
-            return {
-              ok: true,
-              status: 200,
-              json: async () => ({ someResponse: { returnCode: "0" } }),
-            };
+            return jsonResponse({ someResponse: { returnCode: "0" } });
           }));
 
           const cleanParams: Record<string, string> = {};
@@ -106,13 +105,9 @@ describe("Feature: ncloud-mcp-server, Property 5: 에러 응답 전파", () => {
             baseUrl: "https://ncloud.apigw.ntruss.com",
           });
 
-          vi.stubGlobal("fetch", vi.fn(async () => ({
-            ok: false,
-            status: 400,
-            json: async () => ({
-              responseError: { returnCode, returnMessage },
-            }),
-          })));
+          vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+            responseError: { returnCode, returnMessage },
+          }, 400)));
 
           try {
             await client.request("/vserver/v2/getServerInstanceList", {});
@@ -139,13 +134,9 @@ describe("Feature: ncloud-mcp-server, Property 5: 에러 응답 전파", () => {
             baseUrl: "https://ncloud.apigw.ntruss.com",
           });
 
-          vi.stubGlobal("fetch", vi.fn(async () => ({
-            ok: false,
-            status: 400,
-            json: async () => ({
-              error: { errorCode, message },
-            }),
-          })));
+          vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+            error: { errorCode, message },
+          }, 400)));
 
           try {
             await client.request("/vserver/v2/getServerInstanceList", {});
@@ -208,13 +199,9 @@ describe("Feature: ncloud-mcp-server, Property 11: 기본 리전 폴백", () => 
           let capturedUrl = "";
           vi.stubGlobal("fetch", vi.fn(async (url: string) => {
             capturedUrl = url;
-            return {
-              ok: true,
-              status: 200,
-              json: async () => ({
-                getServerInstanceListResponse: { returnCode: "0", returnMessage: "success" },
-              }),
-            };
+            return jsonResponse({
+              getServerInstanceListResponse: { returnCode: "0", returnMessage: "success" },
+            });
           }));
 
           await client.request("/vserver/v2/getServerInstanceList", {});
@@ -240,13 +227,9 @@ describe("Feature: ncloud-mcp-server, Property 11: 기본 리전 폴백", () => 
     let capturedUrl = "";
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       capturedUrl = url;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          getServerInstanceListResponse: { returnCode: "0", returnMessage: "success" },
-        }),
-      };
+      return jsonResponse({
+        getServerInstanceListResponse: { returnCode: "0", returnMessage: "success" },
+      });
     }));
 
     await client.request("/vserver/v2/getServerInstanceList", {});
@@ -270,11 +253,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
     let capturedUrl = "";
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       capturedUrl = url;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ packages: [] }),
-      };
+      return jsonResponse({ packages: [] });
     }));
 
     await client.requestRaw("GET", "/api/v2/packages", { platform: "vpc" });
@@ -288,11 +267,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
     let capturedHeaders: Record<string, string> = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
       capturedHeaders = init.headers;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ packages: [] }),
-      };
+      return jsonResponse({ packages: [] });
     }));
 
     await client.requestRaw("GET", "/api/v2/packages");
@@ -304,11 +279,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
     let capturedHeaders: Record<string, string> = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
       capturedHeaders = init.headers;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ packages: [] }),
-      };
+      return jsonResponse({ packages: [] });
     }));
 
     await client.requestRaw("GET", "/api/v2/packages");
@@ -323,11 +294,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
     let capturedInit: any = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
       capturedInit = init;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ name: "test-package" }),
-      };
+      return jsonResponse({ name: "test-package" });
     }));
 
     const body = { description: "test", parameters: { key: "value" } };
@@ -341,11 +308,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
     let capturedInit: any = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
       capturedInit = init;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ activationId: "abc123" }),
-      };
+      return jsonResponse({ activationId: "abc123" });
     }));
 
     const body = { param1: "value1" };
@@ -359,11 +322,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
     let capturedInit: any = {};
     vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
       capturedInit = init;
-      return {
-        ok: true,
-        status: 204,
-        json: async () => ({}),
-      };
+      return jsonResponse({}, 204);
     }));
 
     await client.requestRaw("DELETE", "/api/v2/packages/test-pkg", { platform: "vpc" });
@@ -373,11 +332,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
   });
 
   it("204 No Content 응답 시 { success: true } 반환", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      status: 204,
-      json: async () => ({}),
-    })));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 204)));
 
     const result = await client.requestRaw("DELETE", "/api/v2/packages/test-pkg", { platform: "vpc" });
     expect(result).toEqual({ success: true });
@@ -387,11 +342,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
     let capturedUrl = "";
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       capturedUrl = url;
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ data: [] }),
-      };
+      return jsonResponse({ data: [] });
     }));
 
     await client.requestRaw("GET", "/api/v2/activations");
@@ -400,13 +351,9 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
   });
 
   it("에러 응답 시 handleErrorResponse를 통해 에러 throw", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: false,
-      status: 404,
-      json: async () => ({
-        error: { errorCode: "404", message: "Not Found" },
-      }),
-    })));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+      error: { errorCode: "404", message: "Not Found" },
+    }, 404)));
 
     await expect(
       client.requestRaw("GET", "/api/v2/packages/nonexistent", { platform: "vpc" })
@@ -415,11 +362,7 @@ describe("NcloudClient 단위 테스트: requestRaw 메서드", () => {
 
   it("응답 래퍼 해제 동작", async () => {
     const innerData = { packages: [{ name: "pkg1" }] };
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ getPackagesResponse: innerData }),
-    })));
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ getPackagesResponse: innerData })));
 
     const result = await client.requestRaw("GET", "/api/v2/packages", { platform: "vpc" });
     expect(result).toEqual(innerData);

@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Search Engine Service (SES) API
@@ -43,7 +44,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         if (params.pageNo) queryParams["pageNo"] = params.pageNo;
         if (params.pageSize) queryParams["pageSize"] = params.pageSize;
         const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfoList`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -62,7 +63,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfo/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -81,7 +82,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterAcgInfo/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -100,7 +101,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterNodeList/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -117,7 +118,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineVersionList`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -134,7 +135,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineServerGenerationList`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -155,7 +156,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         const result = await client.requestRaw("POST", `${prefix}/cluster/getNodeProductList`, undefined, {
           softwareProductCode: params.softwareProductCode,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -176,7 +177,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         const result = await client.requestRaw("POST", `${prefix}/cluster/getServerSpecList`, undefined, {
           softwareProductCode: params.softwareProductCode,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -193,7 +194,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getOsProductList`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -210,7 +211,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -227,7 +228,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getVpcList`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -246,7 +247,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getSubnetList`, { vpcNo: params.vpcNo });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -267,7 +268,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         const result = await client.requestRaw("POST", `${prefix}/cluster/getVpcAvailableSubnetList`, undefined, {
           vpcNo: params.vpcNo,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -284,7 +285,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getLoginKeyList`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -327,12 +328,12 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
             ...rest,
             message: "This is a dry-run preview. Call again with dryRun=false to create.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/createSearchEngineCluster`, undefined, apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -375,12 +376,12 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
             ...rest,
             message: "This is a dry-run preview. Call again with dryRun=false to create.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { dryRun, ...apiParams } = params;
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/createKvmSearchEngineCluster`, undefined, apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -399,7 +400,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/restartCluster/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -427,7 +428,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         }
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("DELETE", `${prefix}/cluster/deleteSearchEngineCluster/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -450,7 +451,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
           serviceGroupInstanceNo: params.serviceGroupInstanceNo,
           addDataNodeCount: params.addDataNodeCount,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -469,7 +470,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeSpecDetail/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -490,7 +491,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/changeSpecNode`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -510,7 +511,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/changeClusterNodeDiskSize`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -530,7 +531,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/resetSearchEngineUserPassword`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -549,7 +550,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getDashboard/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -575,7 +576,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
         if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
         const result = await client.requestRaw("GET", `${prefix}/cluster/getMonitoringData`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -601,7 +602,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
         if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
         const result = await client.requestRaw("GET", `${prefix}/cluster/getOsMonitoringData`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -622,7 +623,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotBucketList`, {
           serviceGroupInstanceNo: params.serviceGroupInstanceNo,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -641,7 +642,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotApiKey`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -659,7 +660,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/createSnapshot`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -678,7 +679,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotHistory`, {
           serviceGroupInstanceNo: params.serviceGroupInstanceNo,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -697,7 +698,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotSchedule`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -714,7 +715,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/removeSnapshotSchedule`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -735,7 +736,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         const result = await client.requestRaw("GET", `${prefix}/cluster/getImportBucketList`, {
           serviceGroupInstanceNo: params.serviceGroupInstanceNo,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -755,7 +756,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/runImport`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -774,7 +775,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         const result = await client.requestRaw("GET", `${prefix}/cluster/getImportHistory`, {
           serviceGroupInstanceNo: params.serviceGroupInstanceNo,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -792,7 +793,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/stopImport`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -812,7 +813,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradeCluster`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -830,7 +831,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradePreCheck`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -847,7 +848,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("GET", `${prefix}/cluster/getRollingUpgradeProgress/${params.serviceGroupInstanceNo}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -868,7 +869,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       try {
         const prefix = getApiPrefix(client.getRegionCode());
         const result = await client.requestRaw("POST", `${prefix}/cluster/setHotWarmNode`, undefined, params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

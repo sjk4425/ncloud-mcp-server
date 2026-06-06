@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerComputeServerTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getServerInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getServerInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -50,7 +51,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getRootPassword", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -79,7 +80,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getServerImageList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -98,7 +99,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getServerSpecList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -114,7 +115,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getMemberServerImageInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -171,7 +172,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
             hint_KVM: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수",
             hint_XEN: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, networkInterfaceList, ...apiParams } = params;
@@ -209,7 +210,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
           서브넷: params.subnetNo,
           사설IP: instance?.privateIp ?? "pending",
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -227,7 +228,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createServerImage", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -245,7 +246,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createMemberServerImageInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -264,7 +265,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/startServerInstances", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -280,7 +281,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/stopServerInstances", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -296,7 +297,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/rebootServerInstances", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -313,7 +314,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/changeServerInstanceSpec", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -330,7 +331,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/setProtectServerTermination", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -355,7 +356,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/terminateServerInstances", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -377,7 +378,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteServerImageInstances", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -399,7 +400,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteMemberServerImageInstances", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -420,7 +421,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getRootPasswordServerInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -436,7 +437,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/interruptServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -455,7 +456,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getServerImageDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -474,7 +475,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createServerImageFromSnapshot", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -490,7 +491,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getMemberServerImageInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -510,7 +511,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/addServerImageSharingPermission", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -533,7 +534,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/removeServerImageSharingPermission", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -550,7 +551,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/addMemberServerImageSharingPermission", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -567,7 +568,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/setMemberServerImageSharingPermission", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -590,7 +591,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/removeMemberServerImageSharingPermission", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

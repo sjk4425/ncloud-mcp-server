@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerComputePublicIpTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getPublicIpInstanceList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -33,7 +34,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getPublicIpInstanceDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -47,7 +48,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     async () => {
       try {
         const result = await client.request("/vserver/v2/getPublicIpTargetServerInstanceList");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -66,7 +67,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createPublicIpInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -83,7 +84,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/associatePublicIpWithServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -99,7 +100,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/disassociatePublicIpFromServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -127,7 +128,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deletePublicIpInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

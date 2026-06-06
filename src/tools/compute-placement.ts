@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerComputePlacementTools(server: McpServer, client: NcloudClient): void {
   // ═══════════════════════════════════════════════════════════════════════════
@@ -19,7 +20,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getPlacementGroupList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -35,7 +36,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getPlacementGroupDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -56,7 +57,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createPlacementGroup", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -75,7 +76,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/addPlacementGroupServerInstance", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -98,7 +99,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/removePlacementGroupServerInstance", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -122,7 +123,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deletePlacementGroup", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -145,7 +146,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getFabricClusterList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -161,7 +162,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getFabricClusterDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -177,7 +178,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/getFabricClusterPoolList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -199,7 +200,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/createFabricCluster", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -221,7 +222,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/updateFabricCluster", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -240,7 +241,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     async (params) => {
       try {
         const result = await client.request("/vserver/v2/changeFabricClusterServerInstances", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -264,7 +265,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vserver/v2/deleteFabricCluster", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

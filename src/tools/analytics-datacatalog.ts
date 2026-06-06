@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Data Catalog — 메타데이터 통합 및 관리 서비스
@@ -27,7 +28,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         if (params.pageNo) queryParams.pageNo = params.pageNo;
         if (params.pageSize) queryParams.pageSize = params.pageSize;
         const result = await client.requestRaw("GET", "/api/v1/catalogs", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -54,7 +55,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -77,7 +78,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -116,7 +117,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/tables`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -140,7 +141,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -160,7 +161,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -185,7 +186,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schema`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -210,7 +211,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/partitions`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -235,7 +236,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/partitionKeys`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -255,7 +256,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/properties`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -280,7 +281,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schemaAndPartitionKeys`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -305,7 +306,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schemaVersions`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -331,7 +332,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schema/${params.versionId}`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -356,7 +357,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/tags`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -383,7 +384,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/scanners`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -402,7 +403,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -431,7 +432,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}/histories`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -450,7 +451,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "PUT", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}/run-scanner`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -469,7 +470,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "PUT", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}/stop-scanner`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -496,7 +497,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/connections`, queryParams
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -515,7 +516,7 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
         const result = await client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/connections/${params.connectionId}`
         );
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

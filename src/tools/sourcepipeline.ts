@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * SourcePipeline API
@@ -29,7 +30,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         if (params.projectName) queryParams.projectName = params.projectName;
         const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -45,7 +46,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -103,7 +104,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
             trigger: params.trigger ?? "(none)",
             message: "dryRun=false로 호출하면 실제 파이프라인이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: Record<string, unknown> = {
@@ -114,7 +115,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.trigger) body.trigger = params.trigger;
 
         const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -168,7 +169,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.trigger) body.trigger = params.trigger;
 
         const result = await client.requestRaw("PATCH", `/api/v1/project/${params.projectId}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -189,7 +190,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/project/${params.projectId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -207,7 +208,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${params.projectId}/do`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -224,7 +225,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.requestRaw("POST", `/api/v1/project/${params.projectId}/history/${params.historyId}/cancel`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -247,7 +248,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}/history`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -264,7 +265,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}/history/${params.historyId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -280,7 +281,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/trigger/timezone");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -304,7 +305,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", "/api/v1/sourcecommit/repository", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -320,7 +321,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/sourcecommit/repository/${encodeURIComponent(params.repositoryName)}/branch`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -344,7 +345,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", "/api/v1/sourcebuild/project", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -368,7 +369,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", "/api/v1/sourcedeploy/project", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -391,7 +392,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -415,7 +416,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
         if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
         if (params.searchWord) queryParams.searchWord = params.searchWord;
         const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage/${params.stageId}/scenario`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

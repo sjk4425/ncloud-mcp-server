@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Data Stream API Tools
@@ -28,7 +29,7 @@ export function registerDataStreamTools(
     async () => {
       try {
         const result = await client.requestRaw("GET", "/api/v1/topic-prefix");
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -50,7 +51,7 @@ export function registerDataStreamTools(
         if (params.descending !== undefined) queryParams.descending = params.descending;
         if (params.searchText) queryParams.searchText = params.searchText;
         const result = await client.requestRaw("GET", "/api/v1/topics", queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -66,7 +67,7 @@ export function registerDataStreamTools(
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -94,14 +95,14 @@ export function registerDataStreamTools(
             retentionMs: params.retentionMs ?? 86400000,
             message: "dryRun=false로 호출하면 토픽이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const body: Record<string, any> = { name: params.name };
         if (params.description !== undefined) body.description = params.description;
         if (params.partitions !== undefined) body.partitions = params.partitions;
         if (params.retentionMs !== undefined) body.retentionMs = params.retentionMs;
         const result = await client.requestRaw("POST", "/api/v1/topics", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -125,7 +126,7 @@ export function registerDataStreamTools(
           retentionMs: params.retentionMs,
         };
         const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -145,7 +146,7 @@ export function registerDataStreamTools(
           return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete topic [${params.topicId}]. All messages will be lost.\nTo execute, call again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -165,7 +166,7 @@ export function registerDataStreamTools(
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/connectors`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -206,11 +207,11 @@ export function registerDataStreamTools(
             schemaType: params.schemaType ?? "STRING",
             message: "dryRun=false로 호출하면 커넥터가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
         const { topicId, dryRun, ...bodyParams } = params;
         const result = await client.requestRaw("POST", `/api/v1/topics/${topicId}/connectors`, undefined, bodyParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -238,7 +239,7 @@ export function registerDataStreamTools(
       try {
         const { topicId, connectorId, ...bodyParams } = params;
         const result = await client.requestRaw("PUT", `/api/v1/topics/${topicId}/connectors/${connectorId}`, undefined, bodyParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -259,7 +260,7 @@ export function registerDataStreamTools(
           return { content: [{ type: "text" as const, text: `⚠️ This will delete connector [${params.connectorId}] from topic [${params.topicId}].\nTo execute, call again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/connectors/${params.connectorId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -283,7 +284,7 @@ export function registerDataStreamTools(
       try {
         const body = { schemaType: params.schemaType, schema: params.schema };
         const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result ?? { success: true }, null, 2) }] };
+        return toolText(result ?? { success: true });
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -308,7 +309,7 @@ export function registerDataStreamTools(
         if (params.page !== undefined) queryParams.page = params.page;
         if (params.size !== undefined) queryParams.size = params.size;
         const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/schemas`, queryParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -325,7 +326,7 @@ export function registerDataStreamTools(
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -346,7 +347,7 @@ export function registerDataStreamTools(
           return { content: [{ type: "text" as const, text: `⚠️ This will delete schema [${params.resourceId}] from topic [${params.topicId}]. This may affect message serialization.\nTo execute, call again with confirm=true.` }] };
         }
         const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result ?? { success: true }, null, 2) }] };
+        return toolText(result ?? { success: true });
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -362,7 +363,7 @@ export function registerDataStreamTools(
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/registry-config`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -380,7 +381,7 @@ export function registerDataStreamTools(
       try {
         const body = { compatibility: params.compatibility };
         const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}/registry-config`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result ?? { success: true }, null, 2) }] };
+        return toolText(result ?? { success: true });
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -396,7 +397,7 @@ export function registerDataStreamTools(
     async (params) => {
       try {
         const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/registry-info`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -415,7 +416,7 @@ export function registerDataStreamTools(
       try {
         const body = { schemaType: params.schemaType, schema: params.schema };
         const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas/validate/compatibility/latest`, undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -444,7 +445,7 @@ export function registerDataStreamTools(
         };
         if (params.partition !== undefined) body.partition = params.partition;
         const result = await messageClient.requestRaw("POST", "/api/produce", undefined, body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

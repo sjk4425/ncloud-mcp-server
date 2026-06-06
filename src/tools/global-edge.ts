@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient): void {
   // ─── Profile Query Tools ───────────────────────────────────────────────────
@@ -15,7 +16,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/api/v1/profiles", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -31,7 +32,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v1/profiles/${params.profileId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -50,7 +51,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
       try {
         const body = { profileName: params.profileName };
         const result = await client.postRequest("/api/v1/profiles", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -71,7 +72,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.deleteRequest(`/api/v1/profiles/${params.profileId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -92,7 +93,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
       try {
         const { profileId, ...queryParams } = params;
         const result = await client.request("/api/v1/cdn-edges", { profileId, ...queryParams });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -108,7 +109,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v1/cdn-edge/${params.edgeId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -151,7 +152,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
             originLocation: params.originBucketName || params.originCustomLocation || "(not specified)",
             message: "이 요청은 실제 엣지를 생성하지 않습니다. dryRun=false로 호출하면 엣지가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const body: any = {
@@ -236,7 +237,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
           상태: "creating",
           edgeId: result?.result?.edgeId || result?.edgeId,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -265,7 +266,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
         }
 
         const result = await client.putRequest(`/api/v1/cdn-edges/${params.edgeId}`, config);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -288,7 +289,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.deleteRequest(`/api/v1/cdn-edges/${params.edgeId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -316,7 +317,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
         }
 
         const result = await client.postRequest("/api/v1/purge", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -335,7 +336,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.postRequest(`/api/v1/profiles/${params.profileId}/cdn-edges/${params.edgeId}/start`, {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -352,7 +353,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.postRequest(`/api/v1/profiles/${params.profileId}/cdn-edges/${params.edgeId}/stop`, {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -369,7 +370,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v1/profiles/${params.profileId}/cdn-edges/${params.edgeId}/status`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -391,7 +392,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
           startDateTime: params.startDateTime,
           endDateTime: params.endDateTime,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -408,7 +409,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v1/profiles/${params.profileId}/cdn-edges/${params.edgeId}/purge-history`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -427,7 +428,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request("/api/v1/certificate/provisioning", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -448,7 +449,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
           serviceRegion: params.serviceRegion,
         };
         const result = await client.postRequest("/api/v1/certificate/provisioning", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -464,7 +465,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     async (params) => {
       try {
         const result = await client.request(`/api/v1/certificate/provisioning/${params.certificateId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -485,7 +486,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
           return { content: [{ type: "text" as const, text: message }] };
         }
         const result = await client.deleteRequest(`/api/v1/certificate/provisioning/${params.certificateId}`);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

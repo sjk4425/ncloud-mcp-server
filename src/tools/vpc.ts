@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerVpcTools(server: McpServer, client: NcloudClient): void {
   // ─── VPC Query Tools ───────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getVpcList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -32,7 +33,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getVpcDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -64,7 +65,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
             vpcName: params.vpcName ?? "(auto-generated)",
             message: "이 요청은 실제 VPC를 생성하지 않습니다. dryRun=false로 호출하면 VPC가 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -78,7 +79,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
           생성시각: instance?.createDate ?? new Date().toISOString(),
           CIDR블록: params.ipv4CidrBlock,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -105,7 +106,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vpc/v2/deleteVpc", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -127,7 +128,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getSubnetList", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -143,7 +144,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     async (params) => {
       try {
         const result = await client.request("/vpc/v2/getSubnetDetail", params);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -193,7 +194,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
             usageTypeCode: params.usageTypeCode ?? "GEN",
             message: "이 요청은 실제 서브넷을 생성하지 않습니다. dryRun=false로 호출하면 서브넷이 생성됩니다.",
           };
-          return { content: [{ type: "text" as const, text: JSON.stringify(preview, null, 2) }] };
+          return toolText(preview);
         }
 
         const { dryRun, ...apiParams } = params;
@@ -209,7 +210,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
           존: params.zoneCode,
           VPC: params.vpcNo,
         };
-        return { content: [{ type: "text" as const, text: JSON.stringify(summary, null, 2) }] };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -235,7 +236,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
         }
         const { confirm, ...apiParams } = params;
         const result = await client.request("/vpc/v2/deleteSubnet", apiParams);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

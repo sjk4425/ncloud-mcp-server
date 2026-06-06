@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 export function registerActivityTracerTools(server: McpServer, client: NcloudClient): void {
   // ncloud_get_activity_logs — Get activity list via POST /api/v1/activities
@@ -35,7 +36,7 @@ export function registerActivityTracerTools(server: McpServer, client: NcloudCli
         if (params.nrn !== undefined) body.nrn = params.nrn;
 
         const result = await client.postRequest("/api/v1/activities", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -74,7 +75,7 @@ export function registerActivityTracerTools(server: McpServer, client: NcloudCli
         if (result && Array.isArray(result.content)) {
           const activity = result.content.find((item: any) => item.activityId === params.activityId);
           if (activity) {
-            return { content: [{ type: "text" as const, text: JSON.stringify(activity, null, 2) }] };
+            return toolText(activity);
           }
         }
 
@@ -82,7 +83,7 @@ export function registerActivityTracerTools(server: McpServer, client: NcloudCli
         if (Array.isArray(result)) {
           const activity = result.find((item: any) => item.activityId === params.activityId);
           if (activity) {
-            return { content: [{ type: "text" as const, text: JSON.stringify(activity, null, 2) }] };
+            return toolText(activity);
           }
         }
 

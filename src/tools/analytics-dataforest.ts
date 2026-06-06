@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { toolText } from "./_response.js";
 
 /**
  * Data Forest — 빅데이터 분석 플랫폼 (Accounts & Apps 관리)
@@ -27,7 +28,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/accounts/checkAvailableName", {
           name: params.name,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -47,7 +48,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           name: params.name,
           password: params.password,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -61,7 +62,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
     async () => {
       try {
         const result = await client.postRequest("/api/v2/accounts/getList", {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -79,7 +80,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/accounts/getDetail", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -97,7 +98,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/accounts/checkHasResource", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -115,7 +116,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/accounts/getKerberosKeytab", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -133,7 +134,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/accounts/resetKerberosKeytab", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -153,7 +154,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           id: params.id,
           password: params.password,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -177,7 +178,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           fileCountMillion: params.fileCountMillion,
           spaceTb: params.spaceTb,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -204,7 +205,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/accounts/delete", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -228,7 +229,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           accountId: params.accountId,
           name: params.name,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -248,7 +249,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           accountId: params.accountId,
           appTypeId: params.appTypeId,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -262,7 +263,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
     async () => {
       try {
         const result = await client.postRequest("/api/v2/apps/getAppTypeIdList", {});
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -280,7 +281,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/apps/getAppTypeTemplate", {
           appTypeId: params.appTypeId,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -318,7 +319,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         if (params.description) body.description = params.description;
         if (params.dependentIds) body.dependentIds = params.dependentIds;
         const result = await client.postRequest("/api/v2/apps/create", body);
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -336,7 +337,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/apps/getList", {
           search: { accountId: params.accountId },
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -354,7 +355,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/apps/getDetail", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -376,7 +377,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           componentName: params.componentName,
           containerCount: params.containerCount,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -396,7 +397,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           id: params.id,
           lifetime: params.lifetime,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -416,7 +417,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
           id: params.id,
           containerName: params.containerName,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -434,7 +435,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/apps/killMaster", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -452,7 +453,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/apps/start", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -470,7 +471,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/apps/stop", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
@@ -497,7 +498,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
         const result = await client.postRequest("/api/v2/apps/delete", {
           id: params.id,
         });
-        return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
+        return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
