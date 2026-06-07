@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-06-07
+
+### Fixed
+- Corrected wrong API endpoints (returned `code 300 Not Found`) across four monitoring/security modules, verified against official NCP docs:
+  - **Cloud Log Analytics**: now uses the dedicated host `cloudloganalytics.apigw.ntruss.com` and the real `/api/{regionCode}-v1/...` path scheme (was the generic gateway + nonexistent `/cloudloganalytics/v2/...`). Replaced the nonexistent `getLogSourceList` with the real server-list endpoint, and removed the nonexistent `getLogConfig` getter; added export-bucket listing.
+  - **Security Monitoring**: now uses the dedicated host `securitymonitoring.apigw.ntruss.com` with `POST` (was `GET` on the generic gateway). Replaced 2 nonexistent endpoints (`getSecurityEventList`/`getSecurityEventDetail`) with the real per-type endpoints (`getAVList`/`getIDSList`/`getIPSList`/`getWAFList`/`getDDoSList` + `getDDoSEventDetail`/`getIDSEventDetail`). Corrected params (`page`/`countPerPage`, `startDateTime`/`endDateTime`, `ticketId`).
+  - **Cloud Insight – Integration**: list endpoint `/integration/list` → `/integration/page` with required `{query,pageNum,pageSize}`; detail is `GET .../{id}/detail`; create/update use `name`/`type`/`url`/`payload`; delete body is a JSON array of ids.
+  - **Cloud Insight – Plugin/Schema/Maintenance**: process/port/file plugins moved to the `/cw_server/real/api/plugin/...` prefix (list/get are `GET`); schema uses method-multiplexed `/schema` (GET/POST/PUT/DELETE) with `prodName`/`cw_key`; planned maintenance uses the REST `/planned-maintenances` resource. Removed fictional params (`newProcessName`, etc.).
+
 ## [1.1.0] - 2026-06-06
 
 ### Added

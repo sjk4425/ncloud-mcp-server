@@ -29,7 +29,7 @@ const creds = { accessKey, secretKey };
 // Create MCP Server
 const server = new McpServer({
   name: "ncloud-mcp-server",
-  version: "1.1.0",
+  version: "1.1.1",
 });
 
 // 그룹 단위 도구 등록 (NCLOUD_TOOL_GROUPS 미설정 시 전체 ON = 기존 동작 동일)

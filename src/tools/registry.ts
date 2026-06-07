@@ -212,8 +212,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
     title: "Monitoring (Cloud Insight, Activity Tracer, Log Analytics, Cloud Advisor)",
     register: ({ server, client }) => {
       registerActivityTracerTools(server, client("https://cloudactivitytracer.apigw.ntruss.com"));
-      registerLogAnalyticsTools(server, client());
-      registerSecurityMonitoringTools(server, client());
+      registerLogAnalyticsTools(server, client("https://cloudloganalytics.apigw.ntruss.com"));
+      registerSecurityMonitoringTools(server, client("https://securitymonitoring.apigw.ntruss.com"));
       const cw = client("https://cw.apigw.ntruss.com");
       registerCloudInsightTools(server, cw);
       registerCloudInsightRuleTools(server, cw);

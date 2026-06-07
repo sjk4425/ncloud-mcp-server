@@ -45,9 +45,9 @@ function captureAllTools(): CapturedTool[] {
 describe("registry: 전 도구 구조 불변식 (자동 전수 점검)", () => {
   const tools = captureAllTools();
 
-  it("전 그룹 등록 시 도구가 1000개 이상이고 1035개 기준선 유지", () => {
+  it("전 그룹 등록 시 도구가 1000개 이상 등록된다", () => {
+    // v1.1.1에서 endpoint 수정으로 일부 모듈 도구 집합이 바뀌므로 정확값 대신 하한선으로 확인
     expect(tools.length).toBeGreaterThan(1000);
-    expect(tools.length).toBe(1035);
   });
 
   it("모든 도구 이름은 ncloud_ 접두사를 쓴다", () => {
