@@ -52,9 +52,9 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
       targetVpcNo: z.string({ required_error: "필수 파라미터 'targetVpcNo'가 누락되었습니다." }).describe("Target (accepter) VPC number"),
       targetVpcName: z.string().optional().describe("Target VPC name (required for cross-account peering)"),
       targetVpcLoginId: z.string().optional().describe("Target VPC owner login ID (required for cross-account peering)"),
-      vpcPeeringName: z.string().max(30, {
-        message: "잘못된 파라미터: 'vpcPeeringName'은 30자 이하여야 합니다.",
-      }).optional().describe("VPC Peering name (max 30 characters)"),
+      vpcPeeringName: z.string().regex(/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/, {
+        message: "잘못된 파라미터: 'vpcPeeringName'은 3~30자의 소문자/숫자/하이픈만 허용하며, 영숫자로 시작·종료해야 합니다.",
+      }).optional().describe("VPC Peering name (3-30 chars; lowercase letters, numbers, hyphens; must start and end with an alphanumeric character)"),
       vpcPeeringDescription: z.string().optional().describe("Description for the VPC Peering"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the resource"),
     },
@@ -75,7 +75,17 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
         }
         const { dryRun, ...apiParams } = params;
         const result = await client.request("/vpc/v2/createVpcPeeringInstance", apiParams);
-        return toolText(result);
+        const instance = result.vpcPeeringInstanceList?.[0];
+        const summary = {
+          리소스타입: "VPC Peering",
+          리소스ID: instance?.vpcPeeringInstanceNo ?? "unknown",
+          리소스명: instance?.vpcPeeringName ?? params.vpcPeeringName ?? "unknown",
+          상태: instance?.vpcPeeringInstanceStatus?.codeName ?? "creating",
+          생성시각: instance?.createDate ?? new Date().toISOString(),
+          소스VPC: params.sourceVpcNo,
+          타겟VPC: params.targetVpcNo,
+        };
+        return toolText(summary);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }

@@ -17,7 +17,7 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 |----------|----------|
 | **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster |
 | **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
-| **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Redis |
+| **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey) |
 | **Storage** | Object Storage (S3-compatible), Ncloud Storage (S3-compatible), NAS, Archive Storage (Swift-compatible) |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
 | **Monitoring** | Cloud Insight (Dashboard, Event, Rule, Plugin, Schema, Data, Integration) |
@@ -75,22 +75,8 @@ npm run build
 | `NCLOUD_API_URL` | - | API base URL | `https://ncloud.apigw.ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage project ID | - |
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage domain ID | - |
-| `NCLOUD_TOOL_GROUPS` | - | Select which tool groups to load (see below). All groups ON when unset | all |
+| `NCLOUD_TOOL_GROUPS` | - | Select which tool groups to load. All groups ON when unset (details in [Tool Group Selection](#tool-group-selection-optional) below) | all |
 | `NCLOUD_RESPONSE_PRUNE` | - | When `1`, globally strips empty values (`null`/`""`/`[]`/`{}`) from responses | `0` |
-
-### Tool Group Selection (`NCLOUD_TOOL_GROUPS`)
-
-The server exposes ~1,000 tools. Loading only the groups you need reduces context tokens and improves tool-selection accuracy. The `common` group is always registered.
-
-```
-# Unset → all groups ON (same as before)
-# Specific groups only (+ common):
-NCLOUD_TOOL_GROUPS=compute,network,billing
-# All groups, but exclude some (subtractive):
-NCLOUD_TOOL_GROUPS=all,-billing
-```
-
-Available group keys: `compute`, `network`, `database`, `storage`, `containers`, `monitoring`, `devtools`, `analytics`, `media`, `global`, `security`, `integration`, `billing` (plus the always-on `common`).
 
 ## MCP Client Configuration
 
@@ -131,6 +117,65 @@ Add to your `mcp.json` (or equivalent MCP config file):
   }
 }
 ```
+
+## Tool Group Selection (Optional)
+
+> The default setup loads **all** tools (~1,000) and works out of the box. Read this section **only if you want to reduce the number of tools**.
+
+**What is it?** This server exposes ~1,000 tools. With `NCLOUD_TOOL_GROUPS` you can **load only the service groups you need**, so the AI sees fewer tools at once — lowering token cost and improving tool-selection accuracy.
+
+> 💡 **Want everything? Just leave this unset.** Unset means "all groups" and behaves exactly as before. The options below are only needed when you want a subset.
+
+**How to use it?** Add a single `NCLOUD_TOOL_GROUPS` line to the `env` of the `mcp.json` above, listing the group keys you want, comma-separated. (`common` holds shared Region/Zone tools and is always included automatically.)
+
+| Value | Result |
+|---|---|
+| (unset) | **All groups ON** — default, same as before |
+| `compute,network` | Only compute + network (+ auto common) |
+| `compute,network,billing` | Only those three |
+| `all,-billing` | Everything except billing (`-` means "exclude") |
+
+**Group key → included services**
+
+| Group key | Included services |
+|---|---|
+| `compute` | Server, Block Storage, Snapshot, Public IP, Login Key, Init Script, Placement Group, Auto Scaling |
+| `network` | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group |
+| `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey) |
+| `storage` | Object Storage, Ncloud Storage, NAS, Archive Storage |
+| `containers` | Ncloud Kubernetes Service (NKS), Container Registry |
+| `monitoring` | Cloud Insight, Activity Tracer, Cloud Log Analytics, Cloud Advisor, Security Monitoring |
+| `devtools` | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
+| `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query |
+| `media` | VOD Station, Live Station, Image Optimizer |
+| `global` | Global Edge, Global DNS, Global Traffic Manager |
+| `security` | Certificate Manager, Private CA, KMS, Sub Account |
+| `integration` | API Gateway, SENS, Cloud Functions, Resource Manager |
+| `billing` | Billing (pricing, cost & usage, discounts) |
+| `common` *(always ON)* | Region / Zone shared |
+
+**Example** (`mcp.json` — e.g. only compute, network, billing):
+
+```json
+{
+  "mcpServers": {
+    "ncloud": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ACCESS_KEY": "your-access-key",
+        "NCLOUD_SECRET_KEY": "your-secret-key",
+        "NCLOUD_REGION": "KR",
+        "NCLOUD_TOOL_GROUPS": "compute,network,billing"
+      }
+    }
+  }
+}
+```
+
+> At startup the server logs which groups were loaded:
+> `ncloud-mcp-server: 4개 그룹 등록 (common, compute, network, billing)`
+> Unknown keys are ignored with a warning.
 
 ## Usage Examples
 

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-06-09
+
+### Changed
+- **VPC Peering** (`ncloud_create_vpc_peering`): `vpcPeeringName` is now validated against the official NCP naming rule — 3–30 characters, lowercase letters/numbers/hyphens only, must start and end with an alphanumeric character (was only a `max(30)` length check).
+- **VPC Peering** (`ncloud_create_vpc_peering`): the create response now returns a normalized summary (resource ID, name, status, create time, source/target VPC), consistent with `ncloud_create_vpc`, instead of the raw API payload.
+
+### Docs
+- Reworked the **Tool Group Selection** (`NCLOUD_TOOL_GROUPS`) section in both READMEs to be beginner-friendly (what it is / how to use, value→result and group-key→services tables, "leave unset for everything" note) and moved it below **MCP Client Configuration** as an optional step, so first-time readers see the basic setup first. The env-var table now links down to it.
+- Renamed "Cloud DB for Redis" → "Cloud DB for Cache (Redis/Valkey)" in both READMEs (service and `database` group tables) to match the rebranded NCP product; the implementation already used the Cache naming (`/vcache/v2/`, `ncloud_*_cache_*`).
+
 ## [1.1.1] - 2026-06-07
 
 ### Fixed
