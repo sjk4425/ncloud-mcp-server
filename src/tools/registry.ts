@@ -1,7 +1,7 @@
 /**
  * 그룹 단위 도구 레지스트리.
  *
- * 64개 서비스 모듈을 13개 그룹(+always common)으로 묶고, env `NCLOUD_TOOL_GROUPS`로
+ * 64개 서비스 모듈을 14개 그룹(+always common)으로 묶고, env `NCLOUD_TOOL_GROUPS`로
  * 선택적으로 로딩한다. 그룹별 register 클로저 안에서 base URL·특수 클라이언트를 캡슐화하고,
  * 클라이언트는 base URL별로 memoize 해 켜진 그룹만 생성한다.
  *
@@ -116,6 +116,16 @@ export function makeClientFactory(
   };
 }
 
+/**
+ * 이름이 바뀐/분해된 옛 그룹 key → 안내 메시지.
+ * 자동 매핑은 하지 않고(사용자 풀 사실상 0, 기능 도입 직후 안정화 단계),
+ * 옛 key를 만나면 새 key를 알려주고 무시한다.
+ */
+const MOVED_GROUP_KEYS: Record<string, string> = {
+  integration: "'application'으로 이름이 바뀌었습니다. 'application'을 사용하세요.",
+  global: "'cdn'(Global Edge)과 'network'(Global DNS/Traffic Manager)로 나뉘었습니다. 'cdn' 또는 'network'를 사용하세요.",
+};
+
 export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "common",
@@ -127,8 +137,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "compute",
-    title: "Compute (Server, Storage, Public IP, Auto Scaling)",
-    register: ({ server, client }) => {
+    title: "Compute (Server, Storage, Public IP, Auto Scaling, Cloud Functions)",
+    register: ({ server, client, regionCode }) => {
       const c = client();
       registerComputeServerTools(server, c);
       registerComputeStorageTools(server, c);
@@ -137,11 +147,21 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerComputeInitScriptTools(server, c);
       registerComputePlacementTools(server, c);
       registerAutoScalingTools(server, c);
+
+      // Cloud Functions는 region별 base URL
+      const cloudFunctionsBaseUrlMap: Record<string, string> = {
+        KR: "https://cloudfunctions.apigw.ntruss.com",
+        SGN: "https://sg-cloudfunctions.apigw.ntruss.com",
+        JPN: "https://jp-cloudfunctions.apigw.ntruss.com",
+      };
+      const cfBaseUrl =
+        cloudFunctionsBaseUrlMap[regionCode] ?? "https://cloudfunctions.apigw.ntruss.com";
+      registerCloudFunctionsTools(server, client(cfBaseUrl));
     },
   },
   {
     key: "network",
-    title: "Network (VPC, ACG, LB, Target Group)",
+    title: "Network (VPC, ACG, LB, Target Group, Global DNS, Traffic Manager)",
     register: ({ server, client }) => {
       const c = client();
       registerVpcTools(server, c);
@@ -153,6 +173,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerNetworkInterfaceTools(server, c);
       registerLoadBalancerTools(server, c);
       registerTargetGroupTools(server, c);
+      registerGlobalDnsTools(server, client("https://globaldns.apigw.ntruss.com"));
+      registerGlobalTrafficManagerTools(server, client("https://globaltrafficmanager.apigw.ntruss.com"));
     },
   },
   {
@@ -209,17 +231,24 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "monitoring",
-    title: "Monitoring (Cloud Insight, Activity Tracer, Log Analytics, Cloud Advisor)",
+    title: "Monitoring (Cloud Insight, Log Analytics)",
     register: ({ server, client }) => {
-      registerActivityTracerTools(server, client("https://cloudactivitytracer.apigw.ntruss.com"));
       registerLogAnalyticsTools(server, client("https://cloudloganalytics.apigw.ntruss.com"));
-      registerSecurityMonitoringTools(server, client("https://securitymonitoring.apigw.ntruss.com"));
       const cw = client("https://cw.apigw.ntruss.com");
       registerCloudInsightTools(server, cw);
       registerCloudInsightRuleTools(server, cw);
       registerCloudInsightPluginTools(server, cw);
       registerCloudInsightIntegrationTools(server, cw);
+    },
+  },
+  {
+    key: "governance",
+    title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account)",
+    register: ({ server, client }) => {
+      registerActivityTracerTools(server, client("https://cloudactivitytracer.apigw.ntruss.com"));
       registerCloudAdvisorTools(server, client("https://cloud-advisor.apigw.ntruss.com"));
+      registerResourceManagerTools(server, client("https://resourcemanager.apigw.ntruss.com"));
+      registerSubAccountTools(server, client("https://subaccount.apigw.ntruss.com"));
     },
   },
   {
@@ -260,42 +289,28 @@ export const TOOL_GROUPS: ToolGroup[] = [
     },
   },
   {
-    key: "global",
-    title: "Global (Edge, DNS, Traffic Manager)",
+    key: "cdn",
+    title: "Content Delivery (Global Edge)",
     register: ({ server, client }) => {
       registerGlobalEdgeTools(server, client("https://edge.apigw.ntruss.com"));
-      registerGlobalDnsTools(server, client("https://globaldns.apigw.ntruss.com"));
-      registerGlobalTrafficManagerTools(server, client("https://globaltrafficmanager.apigw.ntruss.com"));
     },
   },
   {
     key: "security",
-    title: "Security (Certificate Manager, Private CA, KMS, Sub Account)",
+    title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring)",
     register: ({ server, client }) => {
       registerCertificateManagerTools(server, client("https://certificatemanager.apigw.ntruss.com"));
       registerPrivateCaTools(server, client("https://pca.apigw.ntruss.com"));
       registerKmsTools(server, client("https://ocapi.ncloud.com"));
-      registerSubAccountTools(server, client("https://subaccount.apigw.ntruss.com"));
+      registerSecurityMonitoringTools(server, client("https://securitymonitoring.apigw.ntruss.com"));
     },
   },
   {
-    key: "integration",
-    title: "Integration (API Gateway, SENS, Cloud Functions, Resource Manager)",
-    register: ({ server, client, regionCode }) => {
+    key: "application",
+    title: "Application (API Gateway, SENS)",
+    register: ({ server, client }) => {
       registerApiGatewayTools(server, client("https://apigateway.apigw.ntruss.com"));
       registerSensTools(server, client("https://sens.apigw.ntruss.com"));
-
-      // Cloud Functions는 region별 base URL
-      const cloudFunctionsBaseUrlMap: Record<string, string> = {
-        KR: "https://cloudfunctions.apigw.ntruss.com",
-        SGN: "https://sg-cloudfunctions.apigw.ntruss.com",
-        JPN: "https://jp-cloudfunctions.apigw.ntruss.com",
-      };
-      const cfBaseUrl =
-        cloudFunctionsBaseUrlMap[regionCode] ?? "https://cloudfunctions.apigw.ntruss.com";
-      registerCloudFunctionsTools(server, client(cfBaseUrl));
-
-      registerResourceManagerTools(server, client("https://resourcemanager.apigw.ntruss.com"));
     },
   },
   {
@@ -335,6 +350,10 @@ export function resolveGroups(raw: string | undefined): ToolGroup[] {
     if (token === "all") continue;
     const isExclude = token.startsWith("-");
     const key = isExclude ? token.slice(1) : token;
+    if (MOVED_GROUP_KEYS[key]) {
+      console.error(`Warning: 그룹 key '${key}'는 ${MOVED_GROUP_KEYS[key]} (이번 요청에서는 무시됨)`);
+      continue;
+    }
     if (!known.has(key)) {
       console.error(`Warning: 알 수 없는 NCLOUD_TOOL_GROUPS 그룹 "${key}" — 무시합니다.`);
       continue;

@@ -15,20 +15,22 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 
 | Category | Services |
 |----------|----------|
-| **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster |
+| **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster, Auto Scaling, Cloud Functions |
 | **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
 | **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey) |
 | **Storage** | Object Storage (S3-compatible), Ncloud Storage (S3-compatible), NAS, Archive Storage (Swift-compatible) |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
-| **Monitoring** | Cloud Insight (Dashboard, Event, Rule, Plugin, Schema, Data, Integration) |
-| **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
-| **Media** | VOD Station, Live Station, Image Optimizer |
 | **Security** | Certificate Manager, Private CA, KMS, Security Monitoring |
-| **Application** | Cloud Functions, API Gateway, SENS (SMS/Push) |
+| **Monitoring** | Cloud Insight, Log Analytics |
+| **Management & Governance** | Activity Tracer, Cloud Advisor, Resource Manager, Sub Account |
+| **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
 | **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream, Data Catalog, Data Forest, Data Flow, Data Query |
-| **Management** | Sub Account, Activity Tracer, Resource Manager, Log Analytics, Cloud Advisor, Billing |
-| **Content Delivery** | Global Edge |
-| **Auto Scaling** | Launch Configuration, Auto Scaling Group, Scaling Policy |
+| **Media** | VOD Station, Live Station, Image Optimizer |
+| **Content Delivery (CDN)** | Global Edge |
+| **Application** | API Gateway, SENS (SMS/Push) |
+| **Billing** | Billing (list price, cost & usage, discount) |
+
+> ℹ️ Each category maps 1:1 to a `NCLOUD_TOOL_GROUPS` group key. To load only a subset of tools, see the [Tool Group Selection](#tool-group-selection-optional) table below.
 
 ## Prerequisites
 
@@ -139,20 +141,23 @@ Add to your `mcp.json` (or equivalent MCP config file):
 
 | Group key | Included services |
 |---|---|
-| `compute` | Server, Block Storage, Snapshot, Public IP, Login Key, Init Script, Placement Group, Auto Scaling |
-| `network` | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group |
+| `compute` | Server, Block Storage, Snapshot, Public IP, Login Key, Init Script, Placement Group, Fabric Cluster, Auto Scaling, Cloud Functions |
+| `network` | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
 | `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey) |
 | `storage` | Object Storage, Ncloud Storage, NAS, Archive Storage |
 | `containers` | Ncloud Kubernetes Service (NKS), Container Registry |
-| `monitoring` | Cloud Insight, Activity Tracer, Cloud Log Analytics, Cloud Advisor, Security Monitoring |
+| `monitoring` | Cloud Insight, Cloud Log Analytics |
+| `governance` | Activity Tracer, Cloud Advisor, Resource Manager, Sub Account |
 | `devtools` | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
 | `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query |
 | `media` | VOD Station, Live Station, Image Optimizer |
-| `global` | Global Edge, Global DNS, Global Traffic Manager |
-| `security` | Certificate Manager, Private CA, KMS, Sub Account |
-| `integration` | API Gateway, SENS, Cloud Functions, Resource Manager |
+| `cdn` | Global Edge |
+| `security` | Certificate Manager, Private CA, KMS, Security Monitoring |
+| `application` | API Gateway, SENS |
 | `billing` | Billing (pricing, cost & usage, discounts) |
 | `common` *(always ON)* | Region / Zone shared |
+
+> ℹ️ **Group key changes (v1.2.0):** `integration` was renamed to `application`, and `global` was split into `cdn` (Global Edge) and `network` (Global DNS/Traffic Manager). Old keys are not auto-aliased — switch to the new keys (specifying an old key prints a guidance message on the server and is ignored).
 
 **Example** (`mcp.json` — e.g. only compute, network, billing):
 

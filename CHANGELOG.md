@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-06-10
+
+### ⚠️ BREAKING — `NCLOUD_TOOL_GROUPS` group keys
+
+The tool-group taxonomy was realigned so each `NCLOUD_TOOL_GROUPS` group key maps 1:1 to a service category. This changes some public group keys. The default behavior is **unaffected** — leaving `NCLOUD_TOOL_GROUPS` unset still loads everything (`all` ON), exactly as before. Only setups that explicitly listed the changed keys are affected.
+
+- `integration` removed → renamed to **`application`** (API Gateway, SENS).
+- `global` removed → split into **`cdn`** (Global Edge) and **`network`** (Global DNS / Global Traffic Manager).
+- **Cloud Functions**: moved from `integration` → **`compute`** (region-specific base URL handling moved with it).
+- **Security Monitoring**: moved from `monitoring` → **`security`**.
+- **Activity Tracer · Cloud Advisor · Resource Manager · Sub Account**: moved into a new **`governance`** group (Activity Tracer/Cloud Advisor were in `monitoring`, Resource Manager and Sub Account were in `integration`/`security`). Sub Account (IAM: accounts/groups/policies/roles) is classified as account & access governance.
+- Old keys are **not auto-aliased**: specifying `integration` or `global` prints a guidance message naming the new key(s) and is then ignored for that request.
+
+> Note: group keys are still stabilizing since the feature was introduced in 1.1.0 and may change again. Strict semver would make this a major bump, but the affected surface is a days-old, opt-in knob with no impact on default behavior, so it ships as a minor release.
+
+### Changed
+- Group count 13 → 14 (`governance` added; `integration`→`application` and `global`→`cdn` are renames). Total tool count is unchanged — registrations were moved between groups, not added or removed.
+
+### Docs
+- Reworked the **Features** category table in both READMEs to classify services by purpose, so the 14 categories now map 1:1 to the `NCLOUD_TOOL_GROUPS` group keys (added a note pointing to the group-selection table). Updated the **Tool Group Selection** table with the new keys and a rename-guidance note.
+
 ## [1.1.2] - 2026-06-09
 
 ### Changed
