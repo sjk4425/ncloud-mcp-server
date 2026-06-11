@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { fetchWithTimeout } from "./_timeout.js";
 
 export type S3StorageType = "object" | "ncloud";
 
@@ -231,7 +232,7 @@ export class S3CompatibleClient {
       ? `${this.getEndpoint()}${canonicalUri}?${canonicalQueryString}`
       : `${this.getEndpoint()}${canonicalUri}`;
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method,
       headers: fetchHeaders,
       body: body ?? undefined,

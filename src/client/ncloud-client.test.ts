@@ -8,6 +8,11 @@ function jsonResponse(body: any, status = 200) {
   return {
     ok: status >= 200 && status < 300,
     status,
+    // 429 재시도 경로가 Retry-After 를 읽는다. 테스트에서는 0초로 지연 없이 즉시 재시도.
+    headers: {
+      get: (k: string) => (k.toLowerCase() === "retry-after" ? "0" : null),
+      forEach: () => {},
+    },
     json: async () => body,
     text: async () => JSON.stringify(body),
   };
@@ -650,5 +655,184 @@ describe("NcloudClient 단위 테스트: 두 가지 에러 형식 파싱", () =>
     await expect(
       client.postRequest("/cw_fea/real/cw/api/data/query", {})
     ).rejects.toThrow("메시지: 서버 내부 오류");
+  });
+});
+
+// 응답 헤더를 읽는 경로(빈 본문 진단·429 Retry-After)를 검증할 수 있는 mock.
+// 실제 fetch Response 의 headers.get / forEach 를 흉내낸다.
+function rawResponse(opts: {
+  status?: number;
+  text?: string;
+  headers?: Record<string, string>;
+}) {
+  const status = opts.status ?? 200;
+  const headerMap = new Map(
+    Object.entries(opts.headers ?? {}).map(([k, v]) => [k.toLowerCase(), v])
+  );
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get: (k: string) => headerMap.get(k.toLowerCase()) ?? null,
+      forEach: (cb: (v: string, k: string) => void) => headerMap.forEach(cb),
+    },
+    text: async () => opts.text ?? "",
+    json: async () => JSON.parse(opts.text ?? "{}"),
+  };
+}
+
+describe("NcloudClient 단위 테스트: 빈 응답 본문 처리 (Task 2)", () => {
+  let client: NcloudClient;
+  beforeEach(() => {
+    client = new NcloudClient({
+      accessKey: "testKey",
+      secretKey: "testSecret",
+      baseUrl: "https://ncloud.apigw.ntruss.com",
+      regionCode: "KR",
+    });
+  });
+
+  it("postRequest: 200 + 빈 본문 → { success: true } (과거 JSON 파싱 에러 회귀 방지)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => rawResponse({ status: 200, text: "" })));
+    const result = await client.postRequest("/some/create", { name: "x" });
+    expect(result).toEqual({ success: true });
+  });
+
+  it("putRequest: 201 + 빈 본문 → { success: true }", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => rawResponse({ status: 201, text: "" })));
+    const result = await client.putRequest("/some/update", { name: "x" });
+    expect(result).toEqual({ success: true });
+  });
+
+  it("deleteRequest: 200 + 빈 본문 → { success: true }", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => rawResponse({ status: 200, text: "" })));
+    const result = await client.deleteRequest("/some/delete");
+    expect(result).toEqual({ success: true });
+  });
+
+  it("deleteRequest: 204 → { success: true }", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => rawResponse({ status: 204, text: "" })));
+    const result = await client.deleteRequest("/some/delete");
+    expect(result).toEqual({ success: true });
+  });
+});
+
+describe("NcloudClient 단위 테스트: post/put/delete 헤더 보존 (Task 2)", () => {
+  let client: NcloudClient;
+  beforeEach(() => {
+    client = new NcloudClient({
+      accessKey: "testKey",
+      secretKey: "testSecret",
+      baseUrl: "https://cw.apigw.ntruss.com",
+      regionCode: "JPN",
+    });
+  });
+
+  it("postRequest 는 Cloud Insight 가 의존하는 x-ncp-region_code 헤더를 싣는다", async () => {
+    let captured: Record<string, string> = {};
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
+      captured = init.headers;
+      return rawResponse({ status: 200, text: JSON.stringify({ ok: true }) });
+    }));
+
+    await client.postRequest("/cw_fea/real/cw/api/data/query", { metric: "cpu" });
+    expect(captured["x-ncp-region_code"]).toBe("JPN");
+    // 인증 헤더 3종도 그대로 유지
+    expect(captured).toHaveProperty("x-ncp-apigw-signature-v2");
+  });
+
+  it("deleteRequest 도 x-ncp-region_code 헤더를 싣는다", async () => {
+    let captured: Record<string, string> = {};
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
+      captured = init.headers;
+      return rawResponse({ status: 204, text: "" });
+    }));
+
+    await client.deleteRequest("/some/delete");
+    expect(captured["x-ncp-region_code"]).toBe("JPN");
+  });
+});
+
+describe("NcloudClient 단위 테스트: 타임아웃 + 재시도 (Task 3)", () => {
+  let client: NcloudClient;
+  beforeEach(() => {
+    client = new NcloudClient({
+      accessKey: "testKey",
+      secretKey: "testSecret",
+      baseUrl: "https://ncloud.apigw.ntruss.com",
+      regionCode: "KR",
+    });
+    delete process.env.NCLOUD_TIMEOUT_MS;
+  });
+
+  it("타임아웃(AbortSignal) 발생 시 사용자 친화 메시지로 변환", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw Object.assign(new Error("aborted"), { name: "TimeoutError" });
+    }));
+
+    await expect(
+      client.request("/vserver/v2/getServerInstanceList", {})
+    ).rejects.toThrow("API 호출 시간 초과");
+  });
+
+  it("NCLOUD_TIMEOUT_MS 오버라이드가 메시지 초 단위에 반영된다", async () => {
+    process.env.NCLOUD_TIMEOUT_MS = "5000";
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw Object.assign(new Error("aborted"), { name: "TimeoutError" });
+    }));
+
+    await expect(
+      client.request("/vserver/v2/getServerInstanceList", {})
+    ).rejects.toThrow("API 호출 시간 초과(5s)");
+    delete process.env.NCLOUD_TIMEOUT_MS;
+  });
+
+  it("429 → 1회 재시도 후 성공하고, 재시도마다 인증 헤더(timestamp)를 새로 만든다", async () => {
+    const seenTimestamps: string[] = [];
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: any) => {
+      seenTimestamps.push(init.headers["x-ncp-apigw-timestamp"]);
+      call++;
+      if (call === 1) {
+        // Retry-After: 0 으로 실 대기 없이 즉시 재시도
+        return rawResponse({ status: 429, text: "", headers: { "retry-after": "0" } });
+      }
+      return rawResponse({
+        status: 200,
+        text: JSON.stringify({ getServerInstanceListResponse: { returnCode: "0" } }),
+      });
+    }));
+
+    const result = await client.request("/vserver/v2/getServerInstanceList", {});
+    expect(call).toBe(2);
+    expect(result).toEqual({ returnCode: "0" });
+    // 시도마다 buildAuthHeaders 가 다시 호출됨 → 각 시도에 timestamp 헤더가 존재
+    expect(seenTimestamps).toHaveLength(2);
+    expect(seenTimestamps[0]).toBeTruthy();
+    expect(seenTimestamps[1]).toBeTruthy();
+  });
+
+  it("503 + 생성성 호출(POST)은 재시도하지 않고 즉시 에러 (중복 생성 위험 회피)", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      call++;
+      return rawResponse({ status: 503, text: "" });
+    }));
+
+    await expect(client.postRequest("/some/create", { name: "x" })).rejects.toThrow();
+    expect(call).toBe(1); // 재시도 없음
+  });
+
+  it("429 가 maxRetries(2회)까지 계속되면 최종적으로 에러를 던진다", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      call++;
+      return rawResponse({ status: 429, text: "{}", headers: { "retry-after": "0" } });
+    }));
+
+    await expect(
+      client.request("/vserver/v2/getServerInstanceList", {})
+    ).rejects.toThrow("요청 제한 초과");
+    expect(call).toBe(3); // 최초 1 + 재시도 2
   });
 });

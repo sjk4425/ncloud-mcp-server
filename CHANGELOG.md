@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-06-12
+
+> Reliability & internal-consistency patch. No public tool name/schema/group-key changes.
+
+### Fixed
+- **MCP server version drift**: the server version is now read from `package.json` as the single source of truth (was hardcoded `1.1.1` in `src/index.ts` while `package.json` was already `1.2.0`).
+- **Empty response body on POST/PUT**: `postRequest`/`putRequest` called `response.json()` directly, so a `200`/`201` with an empty body threw `Unexpected end of JSON input` and failed the tool call. All three (`post`/`put`/`delete`) now reuse the hardened `requestRaw` path and return `{ success: true }` for empty bodies. The Cloud-Insight-required `x-ncp-region_code` header is preserved.
+- **`ncloud_set_region` only applied to the default client**: region changes are now propagated to every memoized client across all base URLs (Cloud Insight, NKS, Billing, etc.), and newly created clients inherit the current region. The response now documents the scope (not applied: Object/Archive Storage and Cloud Functions — these require a server restart).
+
+### Added
+- **Request timeout** (default 30s, override via `NCLOUD_TIMEOUT_MS`): requests no longer hang indefinitely when the gateway is unresponsive; on timeout a friendly message is returned.
+- **Automatic retry on HTTP 429** (max 2 attempts, exponential backoff + jitter, honors `Retry-After`). Conservative by design: only 429 is retried (other status codes and network errors are not), and auth headers are regenerated on each attempt.
+
 ## [1.2.0] - 2026-06-10
 
 ### ⚠️ BREAKING — `NCLOUD_TOOL_GROUPS` group keys

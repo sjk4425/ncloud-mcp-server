@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -8,6 +9,10 @@ import {
   registerGroups,
   type RegisterCtx,
 } from "./tools/registry.js";
+
+// 버전은 package.json 단일 소스에서 읽는다 (하드코딩 드리프트 방지).
+// dist/index.js 기준 ../package.json → 프로젝트 루트 package.json 으로 해석된다.
+const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
 
 // Validate required environment variables
 const accessKey = process.env.NCLOUD_ACCESS_KEY;
@@ -29,7 +34,7 @@ const creds = { accessKey, secretKey };
 // Create MCP Server
 const server = new McpServer({
   name: "ncloud-mcp-server",
-  version: "1.1.1",
+  version: pkg.version,
 });
 
 // 그룹 단위 도구 등록 (NCLOUD_TOOL_GROUPS 미설정 시 전체 ON = 기존 동작 동일)

@@ -88,3 +88,36 @@ describe("registry: 전 도구 구조 불변식 (자동 전수 점검)", () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe("makeClientFactory: setRegionAll 전파 (Task 4)", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  it("서로 다른 base URL 클라이언트 모두에 리전 변경이 전파된다", () => {
+    const factory = makeClientFactory(creds, "KR");
+    const a = factory("https://cw.apigw.ntruss.com");
+    const b = factory("https://nks.apigw.ntruss.com");
+    expect(a.getRegionCode()).toBe("KR");
+    expect(b.getRegionCode()).toBe("KR");
+
+    factory.setRegionAll("JPN");
+
+    expect(a.getRegionCode()).toBe("JPN");
+    expect(b.getRegionCode()).toBe("JPN");
+    expect(factory.getRegionCode()).toBe("JPN");
+  });
+
+  it("setRegionAll 이후 새로 생성된 클라이언트도 전파된 리전으로 만들어진다", () => {
+    const factory = makeClientFactory(creds, "KR");
+    factory.setRegionAll("JPN");
+
+    const fresh = factory("https://billingapi.apigw.ntruss.com");
+    expect(fresh.getRegionCode()).toBe("JPN");
+  });
+
+  it("같은 base URL 은 memoize 되어 동일 인스턴스를 반환한다", () => {
+    const factory = makeClientFactory(creds, "KR");
+    const a = factory("https://cw.apigw.ntruss.com");
+    const b = factory("https://cw.apigw.ntruss.com");
+    expect(a).toBe(b);
+  });
+});

@@ -6,12 +6,12 @@
     "url": "https://github.com/sjk4425/ncloud-mcp-server",
     "source": "github"
   },
-  "version": "1.2.0",
+  "version": "1.2.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "ncloud-mcp-server",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "transport": {
         "type": "stdio"
       },
@@ -50,6 +50,13 @@
           "format": "string",
           "isSecret": false,
           "name": "NCLOUD_RESPONSE_PRUNE"
+        },
+        {
+          "description": "API request timeout in milliseconds (default 30000). HTTP 429 is auto-retried up to 2 times.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "NCLOUD_TIMEOUT_MS"
         }
       ]
     }

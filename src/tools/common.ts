@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { NcloudClient } from "../client/ncloud-client.js";
 import { toolText } from "./_response.js";
+import type { ClientFactory } from "./registry.js";
 
 const REGION_NAME_MAP: Record<string, string> = {
   "한국": "KR",
@@ -34,7 +34,7 @@ const RESOURCE_DETAIL_MAP: Record<string, { apiPath: string; paramKey: string }>
   autoScalingGroup: { apiPath: "/vautoscaling/v2/getAutoScalingGroupDetail", paramKey: "autoScalingGroupNo" },
 };
 
-export function registerCommonTools(server: McpServer, client: NcloudClient): void {
+export function registerCommonTools(server: McpServer, client: ClientFactory): void {
   // ncloud_get_regions — List available regions
   server.tool(
     "ncloud_get_regions",
@@ -42,7 +42,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
     {},
     async () => {
       try {
-        const result = await client.request("/vserver/v2/getRegionList");
+        const result = await client().request("/vserver/v2/getRegionList");
         return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
@@ -57,7 +57,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
     {},
     async () => {
       try {
-        const result = await client.request("/vserver/v2/getZoneList");
+        const result = await client().request("/vserver/v2/getZoneList");
         return toolText(result);
       } catch (error: any) {
         return { content: [{ type: "text" as const, text: error.message }], isError: true };
@@ -81,11 +81,18 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
         };
       }
       const previousCode = client.getRegionCode();
-      client.setRegionCode(resolvedCode);
+      client.setRegionAll(resolvedCode);
       const result = {
         message: `✅ 리전이 ${REGION_CODE_MAP[resolvedCode]} (${resolvedCode})으로 변경되었습니다.`,
         previousRegion: { code: previousCode, name: REGION_CODE_MAP[previousCode] ?? previousCode },
         currentRegion: { code: resolvedCode, name: REGION_CODE_MAP[resolvedCode] },
+        appliedScope: {
+          applied: "일반 API 클라이언트 전체 (Compute, Network, Database, Cloud Insight, NKS, Billing 등)",
+          notApplied: [
+            "Object Storage·Archive Storage — 환경 변수 기반 리전 고정 (서버 재시작 필요)",
+            "Cloud Functions — 리전별 base URL이 달라 setRegion으로 전환 불가 (서버 재시작 필요)",
+          ],
+        },
       };
       return toolText(result);
     }
@@ -127,7 +134,7 @@ export function registerCommonTools(server: McpServer, client: NcloudClient): vo
         };
       }
       try {
-        const result = await client.request(mapping.apiPath, { [mapping.paramKey]: resourceId });
+        const result = await client().request(mapping.apiPath, { [mapping.paramKey]: resourceId });
         // Extract status from the first list item in the response
         const listKey = Object.keys(result).find((k) => Array.isArray(result[k]));
         const item = listKey ? result[listKey][0] : undefined;

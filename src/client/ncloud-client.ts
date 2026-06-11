@@ -1,4 +1,5 @@
 import { generateSignature } from "../auth/signature.js";
+import { fetchWithTimeout } from "./_timeout.js";
 
 export interface NcloudClientConfig {
   accessKey: string;
@@ -56,6 +57,68 @@ export class NcloudClient {
     return result;
   }
 
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /** 429 재시도 백오프(ms). Retry-After 헤더가 있으면 우선, 없으면 지수(1s→2s) + jitter. */
+  private computeBackoff(attempt: number, retryAfter: string | null): number {
+    if (retryAfter) {
+      const secs = Number(retryAfter);
+      if (Number.isFinite(secs) && secs >= 0) return secs * 1000;
+    }
+    const base = 1000 * Math.pow(2, attempt); // attempt 0 → 1s, attempt 1 → 2s
+    return base + Math.random() * 250;
+  }
+
+  /**
+   * 타임아웃 + 보수적 재시도를 적용한 fetch.
+   * - 타임아웃: `AbortSignal.timeout`. 초과 시 사용자 친화 메시지로 변환.
+   * - 재시도: HTTP 429에만 (요청이 서버 도달 전 거절 — 멱등성 안전). 그 외 상태코드/네트워크 에러는 재시도하지 않는다.
+   *   Ncloud는 생성/삭제도 GET이 많아 "GET이므로 안전" 가정이 성립하지 않으므로 보수적으로 시작한다(DESIGN §3).
+   * @param buildOptions 시도마다 호출 — 재시도 시 timestamp가 달라지므로 인증 헤더를 매번 재생성해야 한다.
+   */
+  private async fetchWithRetry(
+    urlPath: string,
+    buildOptions: () => RequestInit
+  ): Promise<Response> {
+    const url = `${this.baseUrl}${urlPath}`;
+    const maxRetries = 2;
+    let attempt = 0;
+    while (true) {
+      const response = await fetchWithTimeout(url, buildOptions());
+
+      if (response.status === 429 && attempt < maxRetries) {
+        const delay = this.computeBackoff(attempt, response.headers?.get("retry-after") ?? null);
+        if (process.env.NCLOUD_DEBUG === "1") {
+          // eslint-disable-next-line no-console
+          console.error(`[NCLOUD_DEBUG] HTTP 429 — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${url}`);
+        }
+        await this.sleep(delay);
+        attempt++;
+        continue;
+      }
+      return response;
+    }
+  }
+
+  /**
+   * 비어있지 않은 응답 본문을 파싱하고 에러를 처리한 뒤 래퍼를 해제한다.
+   * request / requestRaw 공통. (빈 본문/204 처리는 성공 응답 형태가 달라 호출부에 남긴다.)
+   */
+  private parseBodyAndHandle(responseText: string, status: number, ok: boolean): any {
+    let body: any;
+    try {
+      body = JSON.parse(responseText);
+    } catch {
+      throw new Error(`API 응답 파싱 실패: HTTP ${status}\n\n응답: ${responseText.substring(0, 500)}`);
+    }
+    if (!ok || body.error || body.responseError) {
+      this.handleErrorResponse(status, body);
+    }
+    return this.unwrapResponse(body);
+  }
+
   private buildAuthHeaders(method: string, url: string): Record<string, string> {
     const timestamp = Date.now().toString();
     const signature = generateSignature({
@@ -81,12 +144,11 @@ export class NcloudClient {
 
     const queryString = new URLSearchParams(serialized).toString();
     const urlPath = `${action}?${queryString}`;
-    const headers = this.buildAuthHeaders("GET", urlPath);
 
-    const response = await fetch(`${this.baseUrl}${urlPath}`, {
+    const response = await this.fetchWithRetry(urlPath, () => ({
       method: "GET",
-      headers,
-    });
+      headers: this.buildAuthHeaders("GET", urlPath),
+    }));
 
     const responseText = await response.text();
     if (!responseText || responseText.trim().length === 0) {
@@ -96,33 +158,15 @@ export class NcloudClient {
       throw new Error(`API 호출 실패: HTTP ${response.status} (빈 응답)`);
     }
 
-    let body: any;
-    try {
-      body = JSON.parse(responseText);
-    } catch {
-      throw new Error(`API 응답 파싱 실패: HTTP ${response.status}\n\n응답: ${responseText.substring(0, 500)}`);
-    }
-
-    if (!response.ok) {
-      this.handleErrorResponse(response.status, body);
-    }
-
-    if (body.error) {
-      this.handleErrorResponse(response.status, body);
-    }
-
-    if (body.responseError) {
-      this.handleErrorResponse(response.status, body);
-    }
-
-    return this.unwrapResponse(body);
+    return this.parseBodyAndHandle(responseText, response.status, response.ok);
   }
 
   async requestRaw(
     method: string,
     path: string,
     queryParams?: Record<string, string | number | boolean | undefined>,
-    body?: unknown
+    body?: unknown,
+    opts?: { regionHeader?: boolean }
   ): Promise<any> {
     const upperMethod = method.toUpperCase();
     let urlPath = path;
@@ -138,30 +182,34 @@ export class NcloudClient {
       }
     }
 
-    const headers = this.buildAuthHeaders(upperMethod, urlPath);
-    headers["Accept"] = "application/json";
-    // Certificate Manager 등 일부 서비스는 GET에도 Content-Type 헤더를 명시적으로 요구함
-    headers["Content-Type"] = "application/json";
+    const serializedBody =
+      (upperMethod === "POST" || upperMethod === "PUT" || upperMethod === "DELETE" || upperMethod === "PATCH") &&
+      body !== undefined
+        ? JSON.stringify(body)
+        : undefined;
 
-    const fetchOptions: RequestInit = {
-      method: upperMethod,
-      headers,
-    };
-
-    if (upperMethod === "POST" || upperMethod === "PUT" || upperMethod === "DELETE" || upperMethod === "PATCH") {
-      if (body !== undefined) {
-        fetchOptions.body = JSON.stringify(body);
+    const response = await this.fetchWithRetry(urlPath, () => {
+      const headers = this.buildAuthHeaders(upperMethod, urlPath);
+      headers["Accept"] = "application/json";
+      // Certificate Manager 등 일부 서비스는 GET에도 Content-Type 헤더를 명시적으로 요구함
+      headers["Content-Type"] = "application/json";
+      // Cloud Insight 계열은 x-ncp-region_code 헤더에 의존 (post/put/delete 래퍼에서 사용)
+      if (opts?.regionHeader) {
+        headers["x-ncp-region_code"] = this.regionCode;
       }
-    }
-
-    const response = await fetch(`${this.baseUrl}${urlPath}`, fetchOptions);
+      const fetchOptions: RequestInit = { method: upperMethod, headers };
+      if (serializedBody !== undefined) {
+        fetchOptions.body = serializedBody;
+      }
+      return fetchOptions;
+    });
 
     // Debug logging (env: NCLOUD_DEBUG=1)
     if (process.env.NCLOUD_DEBUG === "1") {
       const respHeaders: Record<string, string> = {};
       response.headers.forEach((v, k) => { respHeaders[k] = v; });
       // eslint-disable-next-line no-console
-      console.error(`[NCLOUD_DEBUG] ${upperMethod} ${this.baseUrl}${urlPath} -> ${response.status}\n  reqHeaderKeys: ${Object.keys(headers).join(",")}\n  respHeaders: ${JSON.stringify(respHeaders)}`);
+      console.error(`[NCLOUD_DEBUG] ${upperMethod} ${this.baseUrl}${urlPath} -> ${response.status}\n  respHeaders: ${JSON.stringify(respHeaders)}`);
     }
 
     // Handle 204 No Content or empty body
@@ -189,120 +237,22 @@ export class NcloudClient {
       throw new Error(`API 호출 실패: HTTP ${response.status} (빈 응답)${diagStr}`);
     }
 
-    let responseBody: any;
-    try {
-      responseBody = JSON.parse(responseText);
-    } catch {
-      throw new Error(`API 응답 파싱 실패: HTTP ${response.status}\n\n응답: ${responseText.substring(0, 500)}`);
-    }
-
-    if (!response.ok) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.error) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.responseError) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    return this.unwrapResponse(responseBody);
+    return this.parseBodyAndHandle(responseText, response.status, response.ok);
   }
 
+  // post/put/delete 는 requestRaw 위의 얇은 래퍼.
+  // 기존 동작 보존: Cloud Insight 계열이 의존하는 x-ncp-region_code 헤더를 유지(regionHeader: true).
+  // 200/201 + 빈 본문도 requestRaw 가 { success: true } 로 안전 처리한다(과거 .json() 직접 호출 버그 수정).
   async postRequest(path: string, body: unknown): Promise<any> {
-    const headers = this.buildAuthHeaders("POST", path);
-    headers["Content-type"] = "application/json";
-    headers["x-ncp-region_code"] = this.regionCode;
-
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    const responseBody = await response.json();
-
-    if (!response.ok) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.error) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.responseError) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    return this.unwrapResponse(responseBody);
+    return this.requestRaw("POST", path, undefined, body, { regionHeader: true });
   }
 
   async putRequest(path: string, body: unknown): Promise<any> {
-    const headers = this.buildAuthHeaders("PUT", path);
-    headers["Content-type"] = "application/json";
-    headers["x-ncp-region_code"] = this.regionCode;
-
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    const responseBody = await response.json();
-
-    if (!response.ok) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.error) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.responseError) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    return this.unwrapResponse(responseBody);
+    return this.requestRaw("PUT", path, undefined, body, { regionHeader: true });
   }
 
   async deleteRequest(path: string, body?: unknown): Promise<any> {
-    const headers = this.buildAuthHeaders("DELETE", path);
-    headers["Content-type"] = "application/json";
-    headers["x-ncp-region_code"] = this.regionCode;
-
-    const fetchOptions: RequestInit = {
-      method: "DELETE",
-      headers,
-    };
-
-    if (body !== undefined) {
-      fetchOptions.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(`${this.baseUrl}${path}`, fetchOptions);
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return { success: true };
-    }
-
-    const responseBody = await response.json();
-
-    if (!response.ok) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.error) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    if (responseBody.responseError) {
-      this.handleErrorResponse(response.status, responseBody);
-    }
-
-    return this.unwrapResponse(responseBody);
+    return this.requestRaw("DELETE", path, undefined, body, { regionHeader: true });
   }
 
   private unwrapResponse(body: any): any {

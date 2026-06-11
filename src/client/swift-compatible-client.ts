@@ -12,6 +12,8 @@
  *   - Header: X-Auth-Token
  */
 
+import { fetchWithTimeout } from "./_timeout.js";
+
 export interface SwiftCompatibleClientConfig {
   accessKey: string;
   secretKey: string;
@@ -122,7 +124,7 @@ export class SwiftCompatibleClient {
       },
     };
 
-    const response = await fetch(authUrl, {
+    const response = await fetchWithTimeout(authUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -198,7 +200,7 @@ export class SwiftCompatibleClient {
       ...extraHeaders,
     };
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       method,
       headers: requestHeaders,
       body: body ?? undefined,

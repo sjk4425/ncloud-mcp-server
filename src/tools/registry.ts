@@ -83,10 +83,22 @@ import {
 const DEFAULT_BASE_URL =
   process.env.NCLOUD_API_URL ?? "https://ncloud.apigw.ntruss.com";
 
+/**
+ * base URL별로 memoize 된 NcloudClient 팩토리.
+ * 호출 시 해당 base URL 클라이언트를 반환하고, 리전 변경을 캐시된 전 클라이언트에 전파한다.
+ */
+export interface ClientFactory {
+  /** base URL별 NcloudClient 반환. 인자 생략 시 기본 base URL. */
+  (baseUrl?: string): NcloudClient;
+  /** 캐시된 전 클라이언트 + 이후 신규 생성분에 리전을 적용. */
+  setRegionAll(regionCode: string): void;
+  /** 팩토리가 보관 중인 현재 리전(단일 소스). */
+  getRegionCode(): string;
+}
+
 export interface RegisterCtx {
   server: McpServer;
-  /** base URL별로 memoize 된 NcloudClient 팩토리. 인자 생략 시 기본 base URL. */
-  client: (baseUrl?: string) => NcloudClient;
+  client: ClientFactory;
   regionCode: string;
   creds: { accessKey: string; secretKey: string };
   env: NodeJS.ProcessEnv;
@@ -104,16 +116,27 @@ export interface ToolGroup {
 export function makeClientFactory(
   creds: { accessKey: string; secretKey: string },
   regionCode: string
-): (baseUrl?: string) => NcloudClient {
+): ClientFactory {
   const cache = new Map<string, NcloudClient>();
-  return (baseUrl = DEFAULT_BASE_URL) => {
+  // 단일 소스로 보관 — 신규 클라이언트도 이 값으로 생성한다(생성 시점 초기 리전 고정 잠복 버그 해결).
+  let currentRegion = regionCode;
+
+  const factory = ((baseUrl = DEFAULT_BASE_URL) => {
     let c = cache.get(baseUrl);
     if (!c) {
-      c = new NcloudClient({ ...creds, baseUrl, regionCode });
+      c = new NcloudClient({ ...creds, baseUrl, regionCode: currentRegion });
       cache.set(baseUrl, c);
     }
     return c;
+  }) as ClientFactory;
+
+  factory.setRegionAll = (code: string) => {
+    currentRegion = code;
+    for (const c of cache.values()) c.setRegionCode(code);
   };
+  factory.getRegionCode = () => currentRegion;
+
+  return factory;
 }
 
 /**
@@ -132,7 +155,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     title: "Common (Region/Zone)",
     always: true,
     register: ({ server, client }) => {
-      registerCommonTools(server, client());
+      registerCommonTools(server, client);
     },
   },
   {

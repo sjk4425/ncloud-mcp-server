@@ -79,6 +79,7 @@ npm run build
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage 도메인 ID | - |
 | `NCLOUD_TOOL_GROUPS` | - | 로딩할 도구 그룹 선택. 미설정 시 전체 ON (자세히는 아래 [도구 그룹 선택](#도구-그룹-선택-선택) 참조) | 전체 |
 | `NCLOUD_RESPONSE_PRUNE` | - | `1`이면 응답에서 빈 값(`null`/`""`/`[]`/`{}`)을 전역 제거 | `0` |
+| `NCLOUD_TIMEOUT_MS` | - | API 요청 타임아웃(밀리초). 초과 시 호출이 중단되고 안내 메시지를 반환 (HTTP 429는 최대 2회 자동 재시도) | `30000` |
 
 ## MCP 클라이언트 설정
 
