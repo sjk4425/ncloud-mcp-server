@@ -2,6 +2,7 @@
 
 [English](./README_EN.md)
 
+[![CI](https://github.com/sjk4425/ncloud-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/sjk4425/ncloud-mcp-server/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/ncloud-mcp-server.svg)](https://www.npmjs.com/package/ncloud-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
