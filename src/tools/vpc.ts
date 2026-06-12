@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerVpcTools(server: McpServer, client: NcloudClient): void {
   // ─── VPC Query Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_vpcs",
     "List all VPCs in the current region",
     {
@@ -15,34 +16,26 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       vpcStatusCode: z.string().optional().describe("Filter by VPC status code (INIT, CREATING, RUN, TERMTING)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getVpcList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getVpcList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_vpc_detail",
     "Get detailed information about a specific VPC",
     {
       vpcNo: z.string().describe("VPC number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getVpcDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getVpcDetail", params);
     }
   );
 
   // ─── VPC Create Tool ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_vpc",
     "Create a new VPC. Use dryRun=true to preview without creating.",
     {
@@ -57,39 +50,36 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the VPC"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: VPC Creation",
-            ipv4CidrBlock: params.ipv4CidrBlock,
-            vpcName: params.vpcName ?? "(auto-generated)",
-            message: "이 요청은 실제 VPC를 생성하지 않습니다. dryRun=false로 호출하면 VPC가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vpc/v2/createVpc", apiParams);
-        const instance = result.vpcList?.[0];
-        const summary = {
-          리소스타입: "VPC",
-          리소스ID: instance?.vpcNo ?? "unknown",
-          리소스명: instance?.vpcName ?? params.vpcName ?? "unknown",
-          상태: instance?.vpcStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          CIDR블록: params.ipv4CidrBlock,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: VPC Creation",
+          ipv4CidrBlock: params.ipv4CidrBlock,
+          vpcName: params.vpcName ?? "(auto-generated)",
+          message: "이 요청은 실제 VPC를 생성하지 않습니다. dryRun=false로 호출하면 VPC가 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vpc/v2/createVpc", apiParams);
+      const instance = result.vpcList?.[0];
+      const summary = {
+        리소스타입: "VPC",
+        리소스ID: instance?.vpcNo ?? "unknown",
+        리소스명: instance?.vpcName ?? params.vpcName ?? "unknown",
+        상태: instance?.vpcStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        CIDR블록: params.ipv4CidrBlock,
+      };
+      return summary;
     }
   );
 
 
   // ─── VPC Destructive Tool ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_vpc",
     "⚠️ Destructive: Permanently delete a VPC. Set confirm=true to execute.",
     {
@@ -99,23 +89,19 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete VPC [${params.vpcNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vpc/v2/deleteVpc", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete VPC [${params.vpcNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      return client.request("/vpc/v2/deleteVpc", apiParams);
     }
   );
 
   // ─── Subnet Query Tools ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_subnets",
     "List all subnets in the current region",
     {
@@ -126,34 +112,26 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       usageTypeCode: z.string().optional().describe("Filter by usage type (GEN, LOADB, BM, NATGW)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getSubnetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getSubnetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_subnet_detail",
     "Get detailed information about a specific subnet",
     {
       subnetNo: z.string().describe("Subnet number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getSubnetDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getSubnetDetail", params);
     }
   );
 
   // ─── Subnet Create Tool ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_subnet",
     "Create a new subnet in a VPC. Use dryRun=true to preview without creating.",
     {
@@ -181,45 +159,42 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the subnet"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Subnet Creation",
-            vpcNo: params.vpcNo,
-            subnet: params.subnet,
-            zoneCode: params.zoneCode,
-            networkAclNo: params.networkAclNo,
-            subnetTypeCode: params.subnetTypeCode,
-            subnetName: params.subnetName ?? "(auto-generated)",
-            usageTypeCode: params.usageTypeCode ?? "GEN",
-            message: "이 요청은 실제 서브넷을 생성하지 않습니다. dryRun=false로 호출하면 서브넷이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vpc/v2/createSubnet", apiParams);
-        const instance = result.subnetList?.[0];
-        const summary = {
-          리소스타입: "Subnet",
-          리소스ID: instance?.subnetNo ?? "unknown",
-          리소스명: instance?.subnetName ?? params.subnetName ?? "unknown",
-          상태: instance?.subnetStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          CIDR블록: params.subnet,
-          존: params.zoneCode,
-          VPC: params.vpcNo,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Subnet Creation",
+          vpcNo: params.vpcNo,
+          subnet: params.subnet,
+          zoneCode: params.zoneCode,
+          networkAclNo: params.networkAclNo,
+          subnetTypeCode: params.subnetTypeCode,
+          subnetName: params.subnetName ?? "(auto-generated)",
+          usageTypeCode: params.usageTypeCode ?? "GEN",
+          message: "이 요청은 실제 서브넷을 생성하지 않습니다. dryRun=false로 호출하면 서브넷이 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vpc/v2/createSubnet", apiParams);
+      const instance = result.subnetList?.[0];
+      const summary = {
+        리소스타입: "Subnet",
+        리소스ID: instance?.subnetNo ?? "unknown",
+        리소스명: instance?.subnetName ?? params.subnetName ?? "unknown",
+        상태: instance?.subnetStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        CIDR블록: params.subnet,
+        존: params.zoneCode,
+        VPC: params.vpcNo,
+      };
+      return summary;
     }
   );
 
   // ─── Subnet Destructive Tool ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_subnet",
     "⚠️ Destructive: Permanently delete a subnet. Set confirm=true to execute.",
     {
@@ -229,17 +204,12 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Subnet [${params.subnetNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vpc/v2/deleteSubnet", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Subnet [${params.subnetNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      return client.request("/vpc/v2/deleteSubnet", apiParams);
     }
   );
 }

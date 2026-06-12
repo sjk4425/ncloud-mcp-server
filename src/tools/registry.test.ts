@@ -4,13 +4,16 @@ import { makeClientFactory, resolveGroups, registerGroups, TOOL_GROUPS } from ".
 // 전 도구를 가짜 서버에 등록시켜 구조 불변식을 검사한다(API 호출·비용 없음).
 interface CapturedTool {
   name: string;
+  description: string | null;
   schemaKeys: string[] | null;
+  annotations: Record<string, any> | undefined;
   hasHandler: boolean;
 }
 
 function captureAllTools(): CapturedTool[] {
   const captured: CapturedTool[] = [];
   const fakeServer: any = {
+    // 구 API: server.tool(name, description, schema, handler) — defineTool 전환 후 사용처 0이어야 함
     tool: (...args: any[]) => {
       const name = args[0];
       const handler = args[args.length - 1];
@@ -20,12 +23,23 @@ function captureAllTools(): CapturedTool[] {
       }
       captured.push({
         name,
+        description: typeof args[1] === "string" ? args[1] : null,
         schemaKeys: schema ? Object.keys(schema) : null,
+        annotations: undefined,
+        hasHandler: typeof handler === "function",
+      });
+    },
+    // 신 API: server.registerTool(name, config, handler) — defineTool 래퍼가 사용
+    registerTool: (name: string, config: any, handler: any) => {
+      captured.push({
+        name,
+        description: config?.description ?? null,
+        schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null,
+        annotations: config?.annotations,
         hasHandler: typeof handler === "function",
       });
     },
   };
-  fakeServer.registerTool = (...a: any[]) => fakeServer.tool(...a);
 
   const creds = { accessKey: "x", secretKey: "y" };
   registerGroups(

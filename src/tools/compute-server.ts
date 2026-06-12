@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerComputeServerTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_servers",
     "List all server instances in the current region",
     {
@@ -16,32 +17,24 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getServerInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getServerInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_server_detail",
     "Get detailed information about a specific server instance",
     {
       serverInstanceNo: z.string().describe("Server instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getServerInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getServerInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_root_password",
     "Get the root password for a server instance",
     {
@@ -49,19 +42,15 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       privateKey: z.string().optional().describe("Private key to decrypt the password"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getRootPassword", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getRootPassword", params);
     }
   );
 
 
   // ─── Image & Spec Tools ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_server_images",
     "List available server images (supports Gen2 XEN and Gen3 KVM)",
     {
@@ -78,16 +67,12 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       sortingOrder: z.string().optional().describe("Sort order (ASC | DESC)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getServerImageList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getServerImageList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_server_specs",
     "List available server specifications (supports Gen2 XEN and Gen3 KVM). Use serverImageNo from ncloud_get_server_images to filter compatible specs.",
     {
@@ -97,35 +82,27 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       zoneCode: z.string().optional().describe("Filter by zone code"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getServerSpecList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getServerSpecList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_member_server_image_list",
     "List member server images (custom images created from running servers)",
     {
       memberServerImageInstanceNoList: z.array(z.string()).optional().describe("Filter by member server image instance numbers"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getMemberServerImageInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getMemberServerImageInstanceList", params);
     }
   );
 
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_server",
     "Create a new server instance. For KVM (Gen3): use serverImageNo + serverSpecCode. For XEN (Gen2): use serverImageProductCode + serverProductCode, or serverImageNo + serverSpecCode. Use dryRun=true to preview without creating.",
     {
@@ -153,71 +130,68 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the server"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Server Creation",
-            serverImageNo: params.serverImageNo ?? "(not specified)",
-            serverImageProductCode: params.serverImageProductCode ?? "(not specified)",
-            memberServerImageInstanceNo: params.memberServerImageInstanceNo ?? "(not specified)",
-            serverSpecCode: params.serverSpecCode ?? "(not specified)",
-            serverProductCode: params.serverProductCode ?? "(not specified)",
-            vpcNo: params.vpcNo,
-            subnetNo: params.subnetNo,
-            serverName: params.serverName ?? "(auto-generated)",
-            loginKeyName: params.loginKeyName ?? "(none)",
-            initScriptNo: params.initScriptNo ?? "(none)",
-            feeSystemTypeCode: params.feeSystemTypeCode ?? "MTRAT",
-            message: "이 요청은 실제 서버를 생성하지 않습니다. dryRun=false로 호출하면 서버가 생성됩니다.",
-            hint_KVM: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수",
-            hint_XEN: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode",
-          };
-          return toolText(preview);
-        }
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Server Creation",
+          serverImageNo: params.serverImageNo ?? "(not specified)",
+          serverImageProductCode: params.serverImageProductCode ?? "(not specified)",
+          memberServerImageInstanceNo: params.memberServerImageInstanceNo ?? "(not specified)",
+          serverSpecCode: params.serverSpecCode ?? "(not specified)",
+          serverProductCode: params.serverProductCode ?? "(not specified)",
+          vpcNo: params.vpcNo,
+          subnetNo: params.subnetNo,
+          serverName: params.serverName ?? "(auto-generated)",
+          loginKeyName: params.loginKeyName ?? "(none)",
+          initScriptNo: params.initScriptNo ?? "(none)",
+          feeSystemTypeCode: params.feeSystemTypeCode ?? "MTRAT",
+          message: "이 요청은 실제 서버를 생성하지 않습니다. dryRun=false로 호출하면 서버가 생성됩니다.",
+          hint_KVM: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수",
+          hint_XEN: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode",
+        };
+        return preview;
+      }
 
-        const { dryRun, networkInterfaceList, ...apiParams } = params;
-        const requestParams: any = { ...apiParams };
+      const { dryRun, networkInterfaceList, ...apiParams } = params;
+      const requestParams: any = { ...apiParams };
 
-        if (networkInterfaceList) {
-          for (let i = 0; i < networkInterfaceList.length; i++) {
-            const nic = networkInterfaceList[i];
-            requestParams[`networkInterfaceList.${i + 1}.networkInterfaceOrder`] = nic.networkInterfaceOrder;
-            if (nic.accessControlGroupNoList) {
-              for (let j = 0; j < nic.accessControlGroupNoList.length; j++) {
-                requestParams[`networkInterfaceList.${i + 1}.accessControlGroupNoList.${j + 1}`] = nic.accessControlGroupNoList[j];
-              }
-            }
-            if (nic.subnetNo) {
-              requestParams[`networkInterfaceList.${i + 1}.subnetNo`] = nic.subnetNo;
-            }
-            if (nic.ip) {
-              requestParams[`networkInterfaceList.${i + 1}.ip`] = nic.ip;
+      if (networkInterfaceList) {
+        for (let i = 0; i < networkInterfaceList.length; i++) {
+          const nic = networkInterfaceList[i];
+          requestParams[`networkInterfaceList.${i + 1}.networkInterfaceOrder`] = nic.networkInterfaceOrder;
+          if (nic.accessControlGroupNoList) {
+            for (let j = 0; j < nic.accessControlGroupNoList.length; j++) {
+              requestParams[`networkInterfaceList.${i + 1}.accessControlGroupNoList.${j + 1}`] = nic.accessControlGroupNoList[j];
             }
           }
+          if (nic.subnetNo) {
+            requestParams[`networkInterfaceList.${i + 1}.subnetNo`] = nic.subnetNo;
+          }
+          if (nic.ip) {
+            requestParams[`networkInterfaceList.${i + 1}.ip`] = nic.ip;
+          }
         }
-
-        const result = await client.request("/vserver/v2/createServerInstances", requestParams);
-        const instance = result.serverInstanceList?.[0];
-        const summary = {
-          리소스타입: "Server",
-          리소스ID: instance?.serverInstanceNo ?? "unknown",
-          리소스명: instance?.serverName ?? params.serverName ?? "unknown",
-          상태: instance?.serverInstanceStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          서버스펙: params.serverSpecCode ?? params.serverProductCode ?? "default",
-          이미지: params.serverImageNo ?? params.serverImageProductCode ?? params.memberServerImageInstanceNo ?? "unknown",
-          VPC: params.vpcNo,
-          서브넷: params.subnetNo,
-          사설IP: instance?.privateIp ?? "pending",
-        };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
       }
+
+      const result = await client.request("/vserver/v2/createServerInstances", requestParams);
+      const instance = result.serverInstanceList?.[0];
+      const summary = {
+        리소스타입: "Server",
+        리소스ID: instance?.serverInstanceNo ?? "unknown",
+        리소스명: instance?.serverName ?? params.serverName ?? "unknown",
+        상태: instance?.serverInstanceStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        서버스펙: params.serverSpecCode ?? params.serverProductCode ?? "default",
+        이미지: params.serverImageNo ?? params.serverImageProductCode ?? params.memberServerImageInstanceNo ?? "unknown",
+        VPC: params.vpcNo,
+        서브넷: params.subnetNo,
+        사설IP: instance?.privateIp ?? "pending",
+      };
+      return summary;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_server_image",
     "Create a server image from an existing server instance",
     {
@@ -226,16 +200,12 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       serverImageDescription: z.string().optional().describe("Description for the new server image"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createServerImage", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createServerImage", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_member_server_image",
     "Create a member server image from a running server instance",
     {
@@ -244,67 +214,51 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       memberServerImageDescription: z.string().optional().describe("Description for the member server image"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createMemberServerImageInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createMemberServerImageInstance", params);
     }
   );
 
 
   // ─── Operation Tools (non-destructive) ─────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_start_server",
     "Start one or more stopped server instances",
     {
       serverInstanceNoList: z.array(z.string()).min(1).describe("List of server instance numbers to start"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/startServerInstances", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/startServerInstances", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_stop_server",
     "Stop one or more running server instances",
     {
       serverInstanceNoList: z.array(z.string()).min(1).describe("List of server instance numbers to stop"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/stopServerInstances", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/stopServerInstances", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_reboot_server",
     "Reboot one or more running server instances",
     {
       serverInstanceNoList: z.array(z.string()).min(1).describe("List of server instance numbers to reboot"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/rebootServerInstances", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/rebootServerInstances", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_server_spec",
     "Change the server spec (product code) of a stopped server instance",
     {
@@ -312,16 +266,12 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       serverProductCode: z.string().describe("New server product code"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/changeServerInstanceSpec", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/changeServerInstanceSpec", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_protect_termination",
     "Set or unset termination protection on a server instance",
     {
@@ -329,19 +279,15 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       isProtectServerTermination: z.boolean().describe("Whether to enable termination protection"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/setProtectServerTermination", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/setProtectServerTermination", params);
     }
   );
 
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_terminate_server",
     "⚠️ Destructive: Permanently terminate (delete) one or more server instances. Set confirm=true to execute.",
     {
@@ -349,21 +295,18 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently terminate Server [${params.serverInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/terminateServerInstances", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently terminate Server [${params.serverInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/terminateServerInstances", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_server_images",
     "⚠️ Destructive: Delete one or more server image instances. Set confirm=true to execute.",
     {
@@ -371,21 +314,18 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete ServerImage [${params.serverImageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteServerImageInstances", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete ServerImage [${params.serverImageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteServerImageInstances", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_member_server_images",
     "⚠️ Destructive: Delete one or more member server image instances. Set confirm=true to execute.",
     {
@@ -393,24 +333,21 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete MemberServerImage [${params.memberServerImageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteMemberServerImageInstances", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete MemberServerImage [${params.memberServerImageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteMemberServerImageInstances", apiParams);
+      return result;
     }
   );
 
 
   // ─── Server Instance — Additional APIs ─────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_root_password_list",
     "List server instances that can retrieve root password",
     {
@@ -419,51 +356,39 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getRootPasswordServerInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getRootPasswordServerInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_interrupt_server",
     "Interrupt a server instance for diagnostics of abnormal behavior",
     {
       serverInstanceNo: z.string().describe("Server instance number to interrupt"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/interruptServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/interruptServerInstance", params);
     }
   );
 
 
   // ─── Server Image — Additional APIs ────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_server_image_detail",
     "Get detailed information about a specific server image",
     {
       serverImageNo: z.string().describe("Server image number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getServerImageDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getServerImageDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_server_image_from_snapshot",
     "Create a server image from block storage snapshots",
     {
@@ -473,35 +398,27 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       serverImageDescription: z.string().optional().describe("Description for the new server image"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createServerImageFromSnapshot", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createServerImageFromSnapshot", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_member_server_image_detail",
     "Get detailed information about a member server image instance",
     {
       memberServerImageInstanceNo: z.string().describe("Member server image instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getMemberServerImageInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getMemberServerImageInstanceDetail", params);
     }
   );
 
 
   // ─── Image Sharing Permission APIs ─────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_server_image_sharing",
     "Add sharing permission for a server image to specified accounts",
     {
@@ -509,16 +426,12 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       targetLoginIdList: z.array(z.string()).min(1).describe("List of target login IDs to grant sharing permission"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/addServerImageSharingPermission", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/addServerImageSharingPermission", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_server_image_sharing",
     "⚠️ DESTRUCTIVE: Remove sharing permission for a server image. Set confirm=true to execute.",
     {
@@ -527,21 +440,18 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will remove sharing permission for ServerImage [${params.serverImageNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/removeServerImageSharingPermission", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will remove sharing permission for ServerImage [${params.serverImageNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/removeServerImageSharingPermission", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_member_server_image_sharing",
     "Add sharing permission for a member server image to specified accounts",
     {
@@ -549,16 +459,12 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       targetLoginIdList: z.array(z.string()).min(1).describe("List of target login IDs to grant sharing permission"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/addMemberServerImageSharingPermission", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/addMemberServerImageSharingPermission", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_member_server_image_sharing",
     "Set sharing permission for a member server image (replaces existing permissions)",
     {
@@ -566,16 +472,12 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       targetLoginIdList: z.array(z.string()).min(1).describe("List of target login IDs to set as sharing permission (replaces existing)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/setMemberServerImageSharingPermission", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/setMemberServerImageSharingPermission", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_member_server_image_sharing",
     "⚠️ DESTRUCTIVE: Remove sharing permission for a member server image. Set confirm=true to execute.",
     {
@@ -584,17 +486,13 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will remove sharing permission for MemberServerImage [${params.memberServerImageInstanceNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/removeMemberServerImageSharingPermission", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will remove sharing permission for MemberServerImage [${params.memberServerImageInstanceNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/removeMemberServerImageSharingPermission", apiParams);
+      return result;
     }
   );
 
