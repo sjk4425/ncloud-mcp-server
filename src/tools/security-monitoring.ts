@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 // Security Monitoring (NCP) API
 // Base host: https://securitymonitoring.apigw.ntruss.com (registry에서 주입)
@@ -36,7 +36,8 @@ function buildListBody(p: any): Record<string, unknown> {
 
 export function registerSecurityMonitoringTools(server: McpServer, client: NcloudClient): void {
   // ncloud_list_av_events — Anti-Virus detection events
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_av_events",
     "List Anti-Virus malware detection events from Security Monitoring. Only for users subscribed to the Security Monitoring service.",
     {
@@ -46,21 +47,18 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
       malwareType: z.string().optional().describe("Filter by malware type"),
     },
     async (params) => {
-      try {
-        const body = buildListBody(params);
-        if (params.infectedServerIp !== undefined) body.infectedServerIp = params.infectedServerIp;
-        if (params.detectionPath !== undefined) body.detectionPath = params.detectionPath;
-        if (params.malwareType !== undefined) body.malwareType = params.malwareType;
-        const result = await client.postRequest(`${PREFIX}/getAVList`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = buildListBody(params);
+      if (params.infectedServerIp !== undefined) body.infectedServerIp = params.infectedServerIp;
+      if (params.detectionPath !== undefined) body.detectionPath = params.detectionPath;
+      if (params.malwareType !== undefined) body.malwareType = params.malwareType;
+      const result = await client.postRequest(`${PREFIX}/getAVList`, body);
+      return result;
     }
   );
 
   // ncloud_list_ids_events — IDS detection events
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_ids_events",
     "List IDS intrusion detection events from Security Monitoring. Only for users subscribed to the Security Monitoring service.",
     {
@@ -70,21 +68,18 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
       targetIp: z.string().optional().describe("Filter by target IP"),
     },
     async (params) => {
-      try {
-        const body = buildListBody(params);
-        if (params.attackType !== undefined) body.attackType = params.attackType;
-        if (params.attackIp !== undefined) body.attackIp = params.attackIp;
-        if (params.targetIp !== undefined) body.targetIp = params.targetIp;
-        const result = await client.postRequest(`${PREFIX}/getIDSList`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = buildListBody(params);
+      if (params.attackType !== undefined) body.attackType = params.attackType;
+      if (params.attackIp !== undefined) body.attackIp = params.attackIp;
+      if (params.targetIp !== undefined) body.targetIp = params.targetIp;
+      const result = await client.postRequest(`${PREFIX}/getIDSList`, body);
+      return result;
     }
   );
 
   // ncloud_list_ips_events — IPS prevention events
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_ips_events",
     "List IPS intrusion prevention events from Security Monitoring. Only for users subscribed to the Security Monitoring service.",
     {
@@ -95,22 +90,19 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
       protocol: z.string().optional().describe("Filter by protocol (VPC only)"),
     },
     async (params) => {
-      try {
-        const body = buildListBody(params);
-        if (params.eventNm !== undefined) body.eventNm = params.eventNm;
-        if (params.attackIp !== undefined) body.attackIp = params.attackIp;
-        if (params.targetIp !== undefined) body.targetIp = params.targetIp;
-        if (params.protocol !== undefined) body.protocol = params.protocol;
-        const result = await client.postRequest(`${PREFIX}/getIPSList`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = buildListBody(params);
+      if (params.eventNm !== undefined) body.eventNm = params.eventNm;
+      if (params.attackIp !== undefined) body.attackIp = params.attackIp;
+      if (params.targetIp !== undefined) body.targetIp = params.targetIp;
+      if (params.protocol !== undefined) body.protocol = params.protocol;
+      const result = await client.postRequest(`${PREFIX}/getIPSList`, body);
+      return result;
     }
   );
 
   // ncloud_list_waf_events — WAF events
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_waf_events",
     "List WAF (Web Application Firewall) security events from Security Monitoring. Only for users subscribed to the Security Monitoring service.",
     {
@@ -121,22 +113,19 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
       targetIp: z.string().optional().describe("Filter by target IP"),
     },
     async (params) => {
-      try {
-        const body = buildListBody(params);
-        if (params.attackType !== undefined) body.attackType = params.attackType;
-        if (params.eventNm !== undefined) body.eventNm = params.eventNm;
-        if (params.attackIp !== undefined) body.attackIp = params.attackIp;
-        if (params.targetIp !== undefined) body.targetIp = params.targetIp;
-        const result = await client.postRequest(`${PREFIX}/getWAFList`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = buildListBody(params);
+      if (params.attackType !== undefined) body.attackType = params.attackType;
+      if (params.eventNm !== undefined) body.eventNm = params.eventNm;
+      if (params.attackIp !== undefined) body.attackIp = params.attackIp;
+      if (params.targetIp !== undefined) body.targetIp = params.targetIp;
+      const result = await client.postRequest(`${PREFIX}/getWAFList`, body);
+      return result;
     }
   );
 
   // ncloud_list_ddos_events — Anti-DDoS events
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_ddos_events",
     "List Anti-DDoS security events from Security Monitoring. Only for users subscribed to the Security Monitoring service.",
     {
@@ -145,49 +134,37 @@ export function registerSecurityMonitoringTools(server: McpServer, client: Nclou
       targetIp: z.string().optional().describe("Filter by target IP"),
     },
     async (params) => {
-      try {
-        const body = buildListBody(params);
-        if (params.attackIp !== undefined) body.attackIp = params.attackIp;
-        if (params.targetIp !== undefined) body.targetIp = params.targetIp;
-        const result = await client.postRequest(`${PREFIX}/getDDoSList`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = buildListBody(params);
+      if (params.attackIp !== undefined) body.attackIp = params.attackIp;
+      if (params.targetIp !== undefined) body.targetIp = params.targetIp;
+      const result = await client.postRequest(`${PREFIX}/getDDoSList`, body);
+      return result;
     }
   );
 
   // ncloud_get_ddos_event_detail — Anti-DDoS event detail
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_ddos_event_detail",
     "Get detailed information about a specific Anti-DDoS security event. Only for users subscribed to the Security Monitoring service.",
     {
       ticketId: z.string().describe("The DDoS event ticket ID to get details for"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest(`${PREFIX}/getDDoSEventDetail`, { ticketId: params.ticketId });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.postRequest(`${PREFIX}/getDDoSEventDetail`, { ticketId: params.ticketId });
     }
   );
 
   // ncloud_get_ids_event_detail — IDS event detail
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_ids_event_detail",
     "Get detailed information about a specific IDS intrusion detection event. Only for users subscribed to the Security Monitoring service.",
     {
       ticketId: z.string().describe("The IDS event ticket ID to get details for"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest(`${PREFIX}/getIDSEventDetail`, { ticketId: params.ticketId });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.postRequest(`${PREFIX}/getIDSEventDetail`, { ticketId: params.ticketId });
     }
   );
 }

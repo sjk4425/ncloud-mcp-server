@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mysql_instances",
     "List all Cloud DB for MySQL instances in the current region",
     {
@@ -16,96 +17,72 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mysql_instance_detail",
     "Get detailed information about a specific Cloud DB for MySQL instance",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mysql_databases",
     "List databases in a Cloud DB for MySQL instance",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlDatabaseList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlDatabaseList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mysql_users",
     "List users in a Cloud DB for MySQL instance",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlUserList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlUserList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mysql_backups",
     "List backups for a Cloud DB for MySQL instance",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlBackupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlBackupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mysql_image_products",
     "List available Cloud DB for MySQL image product codes (engine versions)",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlImageProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlImageProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mysql_products",
     "List available Cloud DB for MySQL server spec product codes for a given image product code",
     {
@@ -113,32 +90,24 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mysql_target_vpcs",
     "List VPCs available for Cloud DB for MySQL instance creation",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlTargetVpcList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlTargetVpcList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mysql_target_subnets",
     "List subnets available for Cloud DB for MySQL instance creation within a specific MySQL instance",
     {
@@ -146,16 +115,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlTargetSubnetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlTargetSubnetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mysql_backup_details",
     "List detailed backup information (including file names) for a Cloud DB for MySQL instance",
     {
@@ -163,16 +128,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlBackupDetailList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlBackupDetailList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mysql_recovery_time",
     "Get the available recovery time range (recoveryStartTime ~ recoveryEndTime) for a Cloud DB for MySQL instance",
     {
@@ -180,16 +141,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlRecoveryTime", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlRecoveryTime", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mysql_events",
     "List event history for a Cloud DB for MySQL instance",
     {
@@ -197,16 +154,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getCloudMysqlEventHistoryList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getCloudMysqlEventHistoryList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mysql_logs",
     "List DB server log files for a Cloud DB for MySQL server instance",
     {
@@ -214,18 +167,14 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/getDbServerLogList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/getDbServerLogList", params);
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_mysql_instance",
     "Create a new Cloud DB for MySQL instance. Use dryRun=true to preview without creating.",
     {
@@ -275,54 +224,51 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: MySQL Instance Creation",
-            cloudMysqlServiceName: params.cloudMysqlServiceName,
-            cloudMysqlServerNamePrefix: params.cloudMysqlServerNamePrefix,
-            cloudMysqlUserName: params.cloudMysqlUserName,
-            hostIp: params.hostIp,
-            vpcNo: params.vpcNo,
-            subnetNo: params.subnetNo,
-            cloudMysqlDatabaseName: params.cloudMysqlDatabaseName,
-            isHa: params.isHa ?? true,
-            isMultiZone: params.isMultiZone ?? false,
-            standbyMasterSubnetNo: params.standbyMasterSubnetNo ?? "(not set)",
-            dataStorageTypeCode: params.dataStorageTypeCode ?? "(auto)",
-            isStorageEncryption: params.isStorageEncryption ?? false,
-            isBackup: params.isBackup ?? true,
-            cloudMysqlPort: params.cloudMysqlPort ?? 3306,
-            engineVersionCode: params.engineVersionCode ?? "(latest)",
-            isDeleteProtection: params.isDeleteProtection ?? false,
-            message: "이 요청은 실제 MySQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vmysql/v2/createCloudMysqlInstance", apiParams);
-        const instance = result.cloudMysqlInstanceList?.[0];
-        const summary = {
-          리소스타입: "MySQL",
-          리소스ID: instance?.cloudMysqlInstanceNo ?? "unknown",
-          서비스명: params.cloudMysqlServiceName,
-          상태: instance?.cloudMysqlInstanceStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          VPC: params.vpcNo,
-          서브넷: params.subnetNo,
-          데이터베이스명: params.cloudMysqlDatabaseName,
-          고가용성: instance?.isHa ?? params.isHa ?? true,
-          멀티존: instance?.isMultiZone ?? params.isMultiZone ?? false,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: MySQL Instance Creation",
+          cloudMysqlServiceName: params.cloudMysqlServiceName,
+          cloudMysqlServerNamePrefix: params.cloudMysqlServerNamePrefix,
+          cloudMysqlUserName: params.cloudMysqlUserName,
+          hostIp: params.hostIp,
+          vpcNo: params.vpcNo,
+          subnetNo: params.subnetNo,
+          cloudMysqlDatabaseName: params.cloudMysqlDatabaseName,
+          isHa: params.isHa ?? true,
+          isMultiZone: params.isMultiZone ?? false,
+          standbyMasterSubnetNo: params.standbyMasterSubnetNo ?? "(not set)",
+          dataStorageTypeCode: params.dataStorageTypeCode ?? "(auto)",
+          isStorageEncryption: params.isStorageEncryption ?? false,
+          isBackup: params.isBackup ?? true,
+          cloudMysqlPort: params.cloudMysqlPort ?? 3306,
+          engineVersionCode: params.engineVersionCode ?? "(latest)",
+          isDeleteProtection: params.isDeleteProtection ?? false,
+          message: "이 요청은 실제 MySQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vmysql/v2/createCloudMysqlInstance", apiParams);
+      const instance = result.cloudMysqlInstanceList?.[0];
+      const summary = {
+        리소스타입: "MySQL",
+        리소스ID: instance?.cloudMysqlInstanceNo ?? "unknown",
+        서비스명: params.cloudMysqlServiceName,
+        상태: instance?.cloudMysqlInstanceStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        VPC: params.vpcNo,
+        서브넷: params.subnetNo,
+        데이터베이스명: params.cloudMysqlDatabaseName,
+        고가용성: instance?.isHa ?? params.isHa ?? true,
+        멀티존: instance?.isMultiZone ?? params.isMultiZone ?? false,
+      };
+      return summary;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_mysql_slave",
     "Create a slave (read replica) for a Cloud DB for MySQL instance",
     {
@@ -331,16 +277,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/createCloudMysqlSlaveInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/createCloudMysqlSlaveInstance", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_mysql_databases",
     "Add databases to a Cloud DB for MySQL instance",
     {
@@ -348,16 +290,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       cloudMysqlDatabaseNameList: z.array(z.string()).min(1).describe("List of database names to add"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/addCloudMysqlDatabaseList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/addCloudMysqlDatabaseList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_mysql_users",
     "Add users to a Cloud DB for MySQL instance",
     {
@@ -370,49 +308,42 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       })).min(1).describe("List of users to add"),
     },
     async (params) => {
-      try {
-        const { cloudMysqlInstanceNo, cloudMysqlUserList } = params;
-        const requestParams: any = { cloudMysqlInstanceNo };
+      const { cloudMysqlInstanceNo, cloudMysqlUserList } = params;
+      const requestParams: any = { cloudMysqlInstanceNo };
 
-        for (let i = 0; i < cloudMysqlUserList.length; i++) {
-          const user = cloudMysqlUserList[i];
-          requestParams[`cloudMysqlUserList.${i + 1}.name`] = user.name;
-          requestParams[`cloudMysqlUserList.${i + 1}.password`] = user.password;
-          if (user.hostIp) {
-            requestParams[`cloudMysqlUserList.${i + 1}.hostIp`] = user.hostIp;
-          }
-          if (user.authority) {
-            requestParams[`cloudMysqlUserList.${i + 1}.authority`] = user.authority;
-          }
+      for (let i = 0; i < cloudMysqlUserList.length; i++) {
+        const user = cloudMysqlUserList[i];
+        requestParams[`cloudMysqlUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudMysqlUserList.${i + 1}.password`] = user.password;
+        if (user.hostIp) {
+          requestParams[`cloudMysqlUserList.${i + 1}.hostIp`] = user.hostIp;
         }
-
-        const result = await client.request("/vmysql/v2/addCloudMysqlUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        if (user.authority) {
+          requestParams[`cloudMysqlUserList.${i + 1}.authority`] = user.authority;
+        }
       }
+
+      const result = await client.request("/vmysql/v2/addCloudMysqlUserList", requestParams);
+      return result;
     }
   );
 
   // ─── Operation Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_reboot_mysql_server",
     "Reboot a Cloud DB for MySQL server instance",
     {
       cloudMysqlServerInstanceNo: z.string().describe("Cloud MySQL server instance number to reboot"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/rebootCloudMysqlServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/rebootCloudMysqlServerInstance", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_mysql_spec",
     "Change the server spec (CPU/Memory) of a Cloud DB for MySQL instance",
     {
@@ -422,16 +353,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/changeCloudMysqlServerSpec", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/changeCloudMysqlServerSpec", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_mysql_recovery",
     "Create a Recovery server instance for a Cloud DB for MySQL instance. Restores from backup file or point-in-time.",
     {
@@ -443,16 +370,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/createCloudMysqlRecoveryInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/createCloudMysqlRecoveryInstance", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_mysql_users",
     "Change DB user information (authority, password, hostIp) for a Cloud DB for MySQL instance",
     {
@@ -467,33 +390,30 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      try {
-        const { cloudMysqlInstanceNo, cloudMysqlUserList, regionCode } = params;
-        const requestParams: any = { cloudMysqlInstanceNo };
-        if (regionCode) requestParams.regionCode = regionCode;
+      const { cloudMysqlInstanceNo, cloudMysqlUserList, regionCode } = params;
+      const requestParams: any = { cloudMysqlInstanceNo };
+      if (regionCode) requestParams.regionCode = regionCode;
 
-        for (let i = 0; i < cloudMysqlUserList.length; i++) {
-          const user = cloudMysqlUserList[i];
-          requestParams[`cloudMysqlUserList.${i + 1}.name`] = user.name;
-          requestParams[`cloudMysqlUserList.${i + 1}.hostIp`] = user.hostIp;
-          requestParams[`cloudMysqlUserList.${i + 1}.authority`] = user.authority;
-          if (user.password) {
-            requestParams[`cloudMysqlUserList.${i + 1}.password`] = user.password;
-          }
-          if (user.isSystemTableAccess !== undefined) {
-            requestParams[`cloudMysqlUserList.${i + 1}.isSystemTableAccess`] = user.isSystemTableAccess;
-          }
+      for (let i = 0; i < cloudMysqlUserList.length; i++) {
+        const user = cloudMysqlUserList[i];
+        requestParams[`cloudMysqlUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudMysqlUserList.${i + 1}.hostIp`] = user.hostIp;
+        requestParams[`cloudMysqlUserList.${i + 1}.authority`] = user.authority;
+        if (user.password) {
+          requestParams[`cloudMysqlUserList.${i + 1}.password`] = user.password;
         }
-
-        const result = await client.request("/vmysql/v2/changeCloudMysqlUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        if (user.isSystemTableAccess !== undefined) {
+          requestParams[`cloudMysqlUserList.${i + 1}.isSystemTableAccess`] = user.isSystemTableAccess;
+        }
       }
+
+      const result = await client.request("/vmysql/v2/changeCloudMysqlUserList", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_upgrade_mysql_version",
     "Upgrade the DB engine version of a Cloud DB for MySQL instance",
     {
@@ -504,18 +424,14 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/upgradeCloudMysqlDbEngineVersion", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/upgradeCloudMysqlDbEngineVersion", params);
     }
   );
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mysql_server",
     "⚠️ Destructive: Delete a Slave or Recovery server instance from a Cloud DB for MySQL cluster. Master/Standby cannot be deleted. Set confirm=true to execute.",
     {
@@ -524,21 +440,18 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete MySQL server instance [${params.cloudMysqlServerInstanceNo}] (Slave/Recovery only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vmysql/v2/deleteCloudMysqlServerInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete MySQL server instance [${params.cloudMysqlServerInstanceNo}] (Slave/Recovery only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vmysql/v2/deleteCloudMysqlServerInstance", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mysql_instance",
     "⚠️ Destructive: Permanently delete a Cloud DB for MySQL instance. Set confirm=true to execute.",
     {
@@ -546,21 +459,18 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vmysql/v2/deleteCloudMysqlInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vmysql/v2/deleteCloudMysqlInstance", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mysql_databases",
     "⚠️ Destructive: Delete databases from a Cloud DB for MySQL instance. Set confirm=true to execute.",
     {
@@ -569,21 +479,18 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete databases [${params.cloudMysqlDatabaseNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vmysql/v2/deleteCloudMysqlDatabaseList", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete databases [${params.cloudMysqlDatabaseNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vmysql/v2/deleteCloudMysqlDatabaseList", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mysql_users",
     "⚠️ Destructive: Delete users from a Cloud DB for MySQL instance. Set confirm=true to execute.",
     {
@@ -592,23 +499,20 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete users [${params.cloudMysqlUserNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vmysql/v2/deleteCloudMysqlUserList", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete users [${params.cloudMysqlUserNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vmysql/v2/deleteCloudMysqlUserList", apiParams);
+      return result;
     }
   );
 
   // ─── Export Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_mysql_backup",
     "Export a Cloud DB for MySQL backup file to Object Storage. Use ncloud_list_mysql_backup_details to get available file names.",
     {
@@ -619,16 +523,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/exportBackupToObjectStorage", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/exportBackupToObjectStorage", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_mysql_log",
     "Export a Cloud DB for MySQL server log file to Object Storage. Use ncloud_list_mysql_logs to get available log files.",
     {
@@ -640,12 +540,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmysql/v2/exportDbServerLogToObjectStorage", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmysql/v2/exportDbServerLogToObjectStorage", params);
     }
   );
 }

@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerSourceBuildTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Management ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_projects",
     "List SourceBuild projects with optional name filter and pagination",
     {
@@ -15,37 +16,30 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Items per page (omit for all)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.projectName) queryParams.projectName = params.projectName;
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      const queryParams: Record<string, string> = {};
+      if (params.projectName) queryParams.projectName = params.projectName;
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
 
-        const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_get_project",
     "Get detailed information about a specific SourceBuild project",
     {
       projectId: z.string().describe("Project ID to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_create_project",
     "Create a new SourceBuild project with full configuration",
     {
@@ -90,100 +84,97 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       linkedFileSafer: z.boolean().optional().default(false).describe("Enable File Safer integration"),
     },
     async (params) => {
-      try {
-        // Build platform config
-        const platformConfig: Record<string, any> = {};
-        if (params.platformType === "SourceBuild") {
-          if (params.osId !== undefined) platformConfig.os = { id: params.osId };
-          if (params.runtimeId !== undefined) {
-            const runtime: Record<string, any> = { id: params.runtimeId };
-            if (params.runtimeVersionId !== undefined) {
-              runtime.version = { id: params.runtimeVersionId };
-            }
-            platformConfig.runtime = runtime;
+      // Build platform config
+      const platformConfig: Record<string, any> = {};
+      if (params.platformType === "SourceBuild") {
+        if (params.osId !== undefined) platformConfig.os = { id: params.osId };
+        if (params.runtimeId !== undefined) {
+          const runtime: Record<string, any> = { id: params.runtimeId };
+          if (params.runtimeVersionId !== undefined) {
+            runtime.version = { id: params.runtimeVersionId };
           }
-        } else {
-          if (params.registryName) platformConfig.registry = { name: params.registryName };
-          if (params.image) platformConfig.image = params.image;
-          if (params.tag) platformConfig.tag = params.tag;
+          platformConfig.runtime = runtime;
         }
-
-        // Build request body
-        const body: Record<string, any> = {
-          name: params.name,
-          source: {
-            type: params.sourceType,
-            config: {
-              repository: params.repository,
-              branch: params.branch,
-            },
-          },
-          env: {
-            compute: { id: params.computeId },
-            platform: {
-              type: params.platformType,
-              config: platformConfig,
-            },
-            docker: {
-              use: params.dockerUse ?? false,
-              ...(params.dockerUse && params.dockerId ? { id: params.dockerId } : {}),
-            },
-            timeout: params.timeout ?? 60,
-            envVars: params.envVars ?? [],
-          },
-          cmd: {
-            pre: params.preBuildCommands ?? [],
-            build: params.buildCommands ?? [],
-            post: params.postBuildCommands ?? [],
-            dockerbuild: {
-              use: params.dockerbuildUse ?? false,
-              ...(params.dockerbuildUse ? {
-                dockerfile: params.dockerbuildDockerfile ?? "",
-                registry: params.dockerbuildRegistry ?? "",
-                image: params.dockerbuildImage ?? "",
-                tag: params.dockerbuildTag ?? "",
-                latest: params.dockerbuildLatest ?? false,
-              } : {}),
-            },
-          },
-          artifact: {
-            use: params.artifactUse ?? false,
-            ...(params.artifactUse ? {
-              path: params.artifactPath ?? [],
-              storage: {
-                bucket: params.artifactBucket ?? "",
-                path: params.artifactStoragePath ?? "",
-                filename: params.artifactFilename ?? "",
-              },
-              backup: params.artifactBackup ?? false,
-            } : {}),
-          },
-          cache: {
-            use: params.cacheUse ?? false,
-            ...(params.cacheUse ? {
-              registry: params.cacheRegistry ?? "",
-              image: params.cacheImage ?? "",
-              tag: params.cacheTag ?? "",
-              latest: params.cacheLatest ?? false,
-            } : {}),
-          },
-          linked: {
-            CloudLogAnalytics: params.linkedCloudLogAnalytics ?? false,
-            FileSafer: params.linkedFileSafer ?? false,
-          },
-        };
-
-        if (params.description) body.description = params.description;
-
-        const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      } else {
+        if (params.registryName) platformConfig.registry = { name: params.registryName };
+        if (params.image) platformConfig.image = params.image;
+        if (params.tag) platformConfig.tag = params.tag;
       }
+
+      // Build request body
+      const body: Record<string, any> = {
+        name: params.name,
+        source: {
+          type: params.sourceType,
+          config: {
+            repository: params.repository,
+            branch: params.branch,
+          },
+        },
+        env: {
+          compute: { id: params.computeId },
+          platform: {
+            type: params.platformType,
+            config: platformConfig,
+          },
+          docker: {
+            use: params.dockerUse ?? false,
+            ...(params.dockerUse && params.dockerId ? { id: params.dockerId } : {}),
+          },
+          timeout: params.timeout ?? 60,
+          envVars: params.envVars ?? [],
+        },
+        cmd: {
+          pre: params.preBuildCommands ?? [],
+          build: params.buildCommands ?? [],
+          post: params.postBuildCommands ?? [],
+          dockerbuild: {
+            use: params.dockerbuildUse ?? false,
+            ...(params.dockerbuildUse ? {
+              dockerfile: params.dockerbuildDockerfile ?? "",
+              registry: params.dockerbuildRegistry ?? "",
+              image: params.dockerbuildImage ?? "",
+              tag: params.dockerbuildTag ?? "",
+              latest: params.dockerbuildLatest ?? false,
+            } : {}),
+          },
+        },
+        artifact: {
+          use: params.artifactUse ?? false,
+          ...(params.artifactUse ? {
+            path: params.artifactPath ?? [],
+            storage: {
+              bucket: params.artifactBucket ?? "",
+              path: params.artifactStoragePath ?? "",
+              filename: params.artifactFilename ?? "",
+            },
+            backup: params.artifactBackup ?? false,
+          } : {}),
+        },
+        cache: {
+          use: params.cacheUse ?? false,
+          ...(params.cacheUse ? {
+            registry: params.cacheRegistry ?? "",
+            image: params.cacheImage ?? "",
+            tag: params.cacheTag ?? "",
+            latest: params.cacheLatest ?? false,
+          } : {}),
+        },
+        linked: {
+          CloudLogAnalytics: params.linkedCloudLogAnalytics ?? false,
+          FileSafer: params.linkedFileSafer ?? false,
+        },
+      };
+
+      if (params.description) body.description = params.description;
+
+      const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_update_project",
     "Update an existing SourceBuild project configuration",
     {
@@ -228,115 +219,112 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       linkedFileSafer: z.boolean().optional().describe("File Safer integration"),
     },
     async (params) => {
-      try {
-        const body: Record<string, any> = {};
+      const body: Record<string, any> = {};
 
-        if (params.description !== undefined) body.description = params.description;
+      if (params.description !== undefined) body.description = params.description;
 
-        // Source
-        if (params.sourceType || params.repository || params.branch) {
-          body.source = {
-            ...(params.sourceType ? { type: params.sourceType } : {}),
-            ...(params.repository || params.branch ? {
-              config: {
-                ...(params.repository ? { repository: params.repository } : {}),
-                ...(params.branch ? { branch: params.branch } : {}),
-              },
-            } : {}),
-          };
-        }
-
-        // Env
-        const env: Record<string, any> = {};
-        if (params.computeId !== undefined) env.compute = { id: params.computeId };
-        if (params.platformType) {
-          const platformConfig: Record<string, any> = {};
-          if (params.platformType === "SourceBuild") {
-            if (params.osId !== undefined) platformConfig.os = { id: params.osId };
-            if (params.runtimeId !== undefined) {
-              const runtime: Record<string, any> = { id: params.runtimeId };
-              if (params.runtimeVersionId !== undefined) runtime.version = { id: params.runtimeVersionId };
-              platformConfig.runtime = runtime;
-            }
-          } else {
-            if (params.registryName) platformConfig.registry = { name: params.registryName };
-            if (params.image) platformConfig.image = params.image;
-            if (params.tag) platformConfig.tag = params.tag;
-          }
-          env.platform = { type: params.platformType, config: platformConfig };
-        }
-        if (params.dockerUse !== undefined) {
-          env.docker = { use: params.dockerUse, ...(params.dockerUse && params.dockerId ? { id: params.dockerId } : {}) };
-        }
-        if (params.timeout !== undefined) env.timeout = params.timeout;
-        if (params.envVars !== undefined) env.envVars = params.envVars;
-        if (Object.keys(env).length > 0) body.env = env;
-
-        // Cmd
-        const cmd: Record<string, any> = {};
-        if (params.preBuildCommands !== undefined) cmd.pre = params.preBuildCommands;
-        if (params.buildCommands !== undefined) cmd.build = params.buildCommands;
-        if (params.postBuildCommands !== undefined) cmd.post = params.postBuildCommands;
-        if (params.dockerbuildUse !== undefined) {
-          cmd.dockerbuild = {
-            use: params.dockerbuildUse,
-            ...(params.dockerbuildUse ? {
-              dockerfile: params.dockerbuildDockerfile ?? "",
-              registry: params.dockerbuildRegistry ?? "",
-              image: params.dockerbuildImage ?? "",
-              tag: params.dockerbuildTag ?? "",
-              latest: params.dockerbuildLatest ?? false,
-            } : {}),
-          };
-        }
-        if (Object.keys(cmd).length > 0) body.cmd = cmd;
-
-        // Artifact
-        if (params.artifactUse !== undefined) {
-          body.artifact = {
-            use: params.artifactUse,
-            ...(params.artifactUse ? {
-              path: params.artifactPath ?? [],
-              storage: {
-                bucket: params.artifactBucket ?? "",
-                path: params.artifactStoragePath ?? "",
-                filename: params.artifactFilename ?? "",
-              },
-              backup: params.artifactBackup ?? false,
-            } : {}),
-          };
-        }
-
-        // Cache
-        if (params.cacheUse !== undefined) {
-          body.cache = {
-            use: params.cacheUse,
-            ...(params.cacheUse ? {
-              registry: params.cacheRegistry ?? "",
-              image: params.cacheImage ?? "",
-              tag: params.cacheTag ?? "",
-              latest: params.cacheLatest ?? false,
-            } : {}),
-          };
-        }
-
-        // Linked
-        if (params.linkedCloudLogAnalytics !== undefined || params.linkedFileSafer !== undefined) {
-          body.linked = {
-            ...(params.linkedCloudLogAnalytics !== undefined ? { CloudLogAnalytics: params.linkedCloudLogAnalytics } : {}),
-            ...(params.linkedFileSafer !== undefined ? { FileSafer: params.linkedFileSafer } : {}),
-          };
-        }
-
-        const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      // Source
+      if (params.sourceType || params.repository || params.branch) {
+        body.source = {
+          ...(params.sourceType ? { type: params.sourceType } : {}),
+          ...(params.repository || params.branch ? {
+            config: {
+              ...(params.repository ? { repository: params.repository } : {}),
+              ...(params.branch ? { branch: params.branch } : {}),
+            },
+          } : {}),
+        };
       }
+
+      // Env
+      const env: Record<string, any> = {};
+      if (params.computeId !== undefined) env.compute = { id: params.computeId };
+      if (params.platformType) {
+        const platformConfig: Record<string, any> = {};
+        if (params.platformType === "SourceBuild") {
+          if (params.osId !== undefined) platformConfig.os = { id: params.osId };
+          if (params.runtimeId !== undefined) {
+            const runtime: Record<string, any> = { id: params.runtimeId };
+            if (params.runtimeVersionId !== undefined) runtime.version = { id: params.runtimeVersionId };
+            platformConfig.runtime = runtime;
+          }
+        } else {
+          if (params.registryName) platformConfig.registry = { name: params.registryName };
+          if (params.image) platformConfig.image = params.image;
+          if (params.tag) platformConfig.tag = params.tag;
+        }
+        env.platform = { type: params.platformType, config: platformConfig };
+      }
+      if (params.dockerUse !== undefined) {
+        env.docker = { use: params.dockerUse, ...(params.dockerUse && params.dockerId ? { id: params.dockerId } : {}) };
+      }
+      if (params.timeout !== undefined) env.timeout = params.timeout;
+      if (params.envVars !== undefined) env.envVars = params.envVars;
+      if (Object.keys(env).length > 0) body.env = env;
+
+      // Cmd
+      const cmd: Record<string, any> = {};
+      if (params.preBuildCommands !== undefined) cmd.pre = params.preBuildCommands;
+      if (params.buildCommands !== undefined) cmd.build = params.buildCommands;
+      if (params.postBuildCommands !== undefined) cmd.post = params.postBuildCommands;
+      if (params.dockerbuildUse !== undefined) {
+        cmd.dockerbuild = {
+          use: params.dockerbuildUse,
+          ...(params.dockerbuildUse ? {
+            dockerfile: params.dockerbuildDockerfile ?? "",
+            registry: params.dockerbuildRegistry ?? "",
+            image: params.dockerbuildImage ?? "",
+            tag: params.dockerbuildTag ?? "",
+            latest: params.dockerbuildLatest ?? false,
+          } : {}),
+        };
+      }
+      if (Object.keys(cmd).length > 0) body.cmd = cmd;
+
+      // Artifact
+      if (params.artifactUse !== undefined) {
+        body.artifact = {
+          use: params.artifactUse,
+          ...(params.artifactUse ? {
+            path: params.artifactPath ?? [],
+            storage: {
+              bucket: params.artifactBucket ?? "",
+              path: params.artifactStoragePath ?? "",
+              filename: params.artifactFilename ?? "",
+            },
+            backup: params.artifactBackup ?? false,
+          } : {}),
+        };
+      }
+
+      // Cache
+      if (params.cacheUse !== undefined) {
+        body.cache = {
+          use: params.cacheUse,
+          ...(params.cacheUse ? {
+            registry: params.cacheRegistry ?? "",
+            image: params.cacheImage ?? "",
+            tag: params.cacheTag ?? "",
+            latest: params.cacheLatest ?? false,
+          } : {}),
+        };
+      }
+
+      // Linked
+      if (params.linkedCloudLogAnalytics !== undefined || params.linkedFileSafer !== undefined) {
+        body.linked = {
+          ...(params.linkedCloudLogAnalytics !== undefined ? { CloudLogAnalytics: params.linkedCloudLogAnalytics } : {}),
+          ...(params.linkedFileSafer !== undefined ? { FileSafer: params.linkedFileSafer } : {}),
+        };
+      }
+
+      const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_delete_project",
     "⚠️ Destructive: Permanently delete a SourceBuild project and all its build history. Set confirm=true to execute.",
     {
@@ -344,58 +332,47 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return {
-            content: [{
-              type: "text" as const,
-              text: `⚠️ This will permanently delete SourceBuild project [${params.projectId}] and all build history.\n\nTo execute, call again with confirm=true.`,
-            }],
-          };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/project/${encodeURIComponent(params.projectId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `⚠️ This will permanently delete SourceBuild project [${params.projectId}] and all build history.\n\nTo execute, call again with confirm=true.`,
+          }],
+        };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/project/${encodeURIComponent(params.projectId)}`);
+      return result;
     }
   );
 
   // ─── Build Execution ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_start_build",
     "Start a build for a SourceBuild project",
     {
       projectId: z.string().describe("Project ID to build"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/build`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/build`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_get_build_history",
     "Get build history for a SourceBuild project",
     {
       projectId: z.string().describe("Project ID to query build history"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_cancel_build",
     "⚠️ Destructive: Cancel a running SourceBuild build. Set confirm=true to execute.",
     {
@@ -404,75 +381,60 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().default(false).describe("Must be true to execute the cancel operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return {
-            content: [{
-              type: "text" as const,
-              text: `⚠️ This will cancel build [${params.buildId}] of project [${params.projectId}].\n\nTo execute, call again with confirm=true.`,
-            }],
-          };
-        }
-        const result = await client.requestRaw(
-          "DELETE",
-          `/api/v1/project/${encodeURIComponent(params.projectId)}/build`,
-          undefined,
-          { buildId: params.buildId }
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `⚠️ This will cancel build [${params.buildId}] of project [${params.projectId}].\n\nTo execute, call again with confirm=true.`,
+          }],
+        };
       }
+      const result = await client.requestRaw(
+        "DELETE",
+        `/api/v1/project/${encodeURIComponent(params.projectId)}/build`,
+        undefined,
+        { buildId: params.buildId }
+      );
+      return result;
     }
   );
 
   // ─── Build Environment Query ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_os",
     "List available operating systems for SourceBuild build environment",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/env/os");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/env/os");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_compute",
     "List available compute types for SourceBuild build environment",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/env/compute");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/env/compute");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_runtimes",
     "List available runtime types for a specific OS in SourceBuild",
     {
       osId: z.string().describe("OS ID (from list_os)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/env/os/${encodeURIComponent(params.osId)}/runtime`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/env/os/${encodeURIComponent(params.osId)}/runtime`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_runtime_versions",
     "List available runtime versions for a specific OS and runtime in SourceBuild",
     {
@@ -480,92 +442,67 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       runtimeId: z.string().describe("Runtime type ID (from list_runtimes)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET",
           `/api/v1/env/os/${encodeURIComponent(params.osId)}/runtime/${encodeURIComponent(params.runtimeId)}/version`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_docker_engines",
     "List available Docker engine versions for SourceBuild",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/env/docker");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/env/docker");
     }
   );
 
   // ─── Linked Service Query ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_repositories",
     "List SourceCommit repositories available for SourceBuild",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/sourcecommit/repository");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/sourcecommit/repository");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_branches",
     "List branches of a SourceCommit repository",
     {
       repositoryName: z.string().describe("Repository name (from list_repositories)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET",
           `/api/v1/sourcecommit/repository/${encodeURIComponent(params.repositoryName)}/branch`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_buckets",
     "List Object Storage buckets available for SourceBuild artifact storage",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/objectstorage/bucket");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/objectstorage/bucket");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcebuild_list_registries",
     "List Container Registry registries available for SourceBuild",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/containerregistry/registry");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/containerregistry/registry");
     }
   );
 }

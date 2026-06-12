@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerComputeInitScriptTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_init_scripts",
     "List all init scripts in the current region",
     {
@@ -15,34 +16,26 @@ export function registerComputeInitScriptTools(server: McpServer, client: Ncloud
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getInitScriptList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getInitScriptList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_init_script_detail",
     "Get detailed information about a specific init script",
     {
       initScriptNo: z.string().describe("Init script number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getInitScriptDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getInitScriptDetail", params);
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_init_script",
     "Create a new init script",
     {
@@ -52,18 +45,14 @@ export function registerComputeInitScriptTools(server: McpServer, client: Ncloud
       osTypeCode: z.string().optional().describe("OS type code (LNX or WND)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createInitScript", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createInitScript", params);
     }
   );
 
   // ─── Destructive Tools ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_init_scripts",
     "⚠️ Destructive: Permanently delete one or more init scripts. Set confirm=true to execute.",
     {
@@ -71,17 +60,13 @@ export function registerComputeInitScriptTools(server: McpServer, client: Ncloud
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete InitScript [${params.initScriptNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteInitScripts", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete InitScript [${params.initScriptNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteInitScripts", apiParams);
+      return result;
     }
   );
 }

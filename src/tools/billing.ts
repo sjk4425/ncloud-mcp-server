@@ -1,7 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText, prune, paginateWithGuard } from "./_response.js";
+import { prune, paginateWithGuard } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Ncloud Billing API Tools
@@ -203,7 +204,8 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
   // ============================================================
 
   // ncloud_get_price_list — 요금제 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_price_list",
     "Get price list by price numbers. Retrieves pricing plan details including charging unit, rating unit, conditions, and promise discounts.",
     {
@@ -212,41 +214,35 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       payCurrencyCode: z.enum(["KRW", "USD", "JPY"]).optional().describe("Payment currency code"),
     },
     async ({ priceNoList, promiseNoList, payCurrencyCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json" };
-        priceNoList.forEach((no, i) => { params[`priceNoList.${i + 1}`] = no; });
-        if (promiseNoList) promiseNoList.forEach((no, i) => { params[`promiseNoList.${i + 1}`] = no; });
-        if (payCurrencyCode) params["payCurrencyCode"] = payCurrencyCode;
-        const result = await client.requestRaw("GET", "/billing/v1/product/getPriceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json" };
+      priceNoList.forEach((no, i) => { params[`priceNoList.${i + 1}`] = no; });
+      if (promiseNoList) promiseNoList.forEach((no, i) => { params[`promiseNoList.${i + 1}`] = no; });
+      if (payCurrencyCode) params["payCurrencyCode"] = payCurrencyCode;
+      const result = await client.requestRaw("GET", "/billing/v1/product/getPriceList", params);
+      return result;
     }
   );
 
   // ncloud_get_product_category_list — 서비스 카테고리 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_product_category_list",
     "Get product category list for Ncloud billing. Returns available service categories like COMPUTE, DATABASE, NETWORKING, etc.",
     {
       productCategoryCode: z.string().optional().describe("Product category code to filter (e.g. COMPUTE)"),
     },
     async ({ productCategoryCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json" };
-        if (productCategoryCode) params["productCategoryCode"] = productCategoryCode;
-        const result = await client.requestRaw("GET", "/billing/v1/product/getProductCategoryList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json" };
+      if (productCategoryCode) params["productCategoryCode"] = productCategoryCode;
+      const result = await client.requestRaw("GET", "/billing/v1/product/getProductCategoryList", params);
+      return result;
     }
   );
 
 
   // ncloud_get_product_list — 서비스 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_product_list",
     "Get product (service) list for billing. Returns available products with their codes, names, descriptions, and categories. Use regionCode and optional filters to narrow results. Paginated (default 50/page, sorted by productCode); the response includes totalRows/returnedRows/hasMore/nextPageNo — follow nextPageNo to page through all results.",
     {
@@ -259,30 +255,27 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       productName: z.string().optional().describe("Keyword search (case-insensitive substring). Matches across productName, productDescription, productCode, productType.codeName, productItemKind.codeName — works even when the NCP productName field is empty/Korean (e.g. 'Load Balancer')."),
     },
     async ({ regionCode, pageNo, pageSize, productItemKindCode, productCategoryCode, productCode, productName }) => {
-      try {
-        const baseParams: Record<string, string> = { responseFormatType: "json", regionCode };
-        if (productItemKindCode) baseParams["productItemKindCode"] = productItemKindCode;
-        if (productCategoryCode) baseParams["productCategoryCode"] = productCategoryCode;
-        if (productCode) baseParams["productCode"] = productCode;
+      const baseParams: Record<string, string> = { responseFormatType: "json", regionCode };
+      if (productItemKindCode) baseParams["productItemKindCode"] = productItemKindCode;
+      if (productCategoryCode) baseParams["productCategoryCode"] = productCategoryCode;
+      if (productCode) baseParams["productCode"] = productCode;
 
-        const result = await runListPriceQuery({
-          client,
-          path: "/billing/v1/product/getProductList",
-          listKey: "productList",
-          baseParams,
-          productName,
-          pageNo,
-          pageSize,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await runListPriceQuery({
+        client,
+        path: "/billing/v1/product/getProductList",
+        listKey: "productList",
+        baseParams,
+        productName,
+        pageNo,
+        pageSize,
+      });
+      return result;
     }
   );
 
   // ncloud_get_product_price_list — 서비스 및 가격 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_product_price_list",
     "Get product and price list. Returns products with their associated pricing information including monthly/hourly rates, conditions, and discount details. Paginated (default 50/page, sorted by productCode); the response includes totalRows/returnedRows/hasMore/nextPageNo (and truncated=true if a single page was size-capped) — follow nextPageNo to page through all results.",
     {
@@ -297,30 +290,26 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       detailLevel: z.enum(["price", "full"]).optional().default("price").describe("'price' (default): slim response with identity + price fields only (much smaller). 'full': raw payload with all metadata. Tip: for broad category queries combine productCategoryCode + productName to keep responses small."),
     },
     async ({ regionCode, pageNo, pageSize, productItemKindCode, productCategoryCode, productCode, productName, payCurrencyCode, detailLevel }) => {
-      try {
-        const baseParams: Record<string, string> = { responseFormatType: "json", regionCode };
-        if (productItemKindCode) baseParams["productItemKindCode"] = productItemKindCode;
-        if (productCategoryCode) baseParams["productCategoryCode"] = productCategoryCode;
-        if (productCode) baseParams["productCode"] = productCode;
-        if (payCurrencyCode) baseParams["payCurrencyCode"] = payCurrencyCode;
+      const baseParams: Record<string, string> = { responseFormatType: "json", regionCode };
+      if (productItemKindCode) baseParams["productItemKindCode"] = productItemKindCode;
+      if (productCategoryCode) baseParams["productCategoryCode"] = productCategoryCode;
+      if (productCode) baseParams["productCode"] = productCode;
+      if (payCurrencyCode) baseParams["payCurrencyCode"] = payCurrencyCode;
 
-        // P3: detailLevel="full" 아니면 price 모드(기본) — 항목을 가격·식별 필드로 축약
-        const project = detailLevel === "full" ? (x: any) => x : slimProductPrice;
+      // P3: detailLevel="full" 아니면 price 모드(기본) — 항목을 가격·식별 필드로 축약
+      const project = detailLevel === "full" ? (x: any) => x : slimProductPrice;
 
-        const result = await runListPriceQuery({
-          client,
-          path: "/billing/v1/product/getProductPriceList",
-          listKey: "productPriceList",
-          baseParams,
-          productName,
-          pageNo,
-          pageSize,
-          project,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await runListPriceQuery({
+        client,
+        path: "/billing/v1/product/getProductPriceList",
+        listKey: "productPriceList",
+        baseParams,
+        productName,
+        pageNo,
+        pageSize,
+        project,
+      });
+      return result;
     }
   );
 
@@ -330,7 +319,8 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
   // ============================================================
 
   // ncloud_get_demand_cost_list — 월 청구 비용 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_demand_cost_list",
     "Get monthly billing cost list. Returns total billing amounts including discounts, VAT, and payment status for the specified period (max 3 months).",
     {
@@ -343,23 +333,20 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       memberNoList: z.array(z.string()).optional().describe("Member number list (master/partner only)"),
     },
     async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        const result = await client.requestRaw("GET", "/billing/v1/cost/getDemandCostList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      const result = await client.requestRaw("GET", "/billing/v1/cost/getDemandCostList", params);
+      return result;
     }
   );
 
   // ncloud_get_product_demand_cost_list — 서비스별 청구 비용 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_product_demand_cost_list",
     "Get billing cost list grouped by product/service type. Returns per-service billing amounts with discount breakdowns for the specified period (max 3 months).",
     {
@@ -373,25 +360,22 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       productDemandTypeCode: z.string().optional().describe("Product demand type code to filter"),
     },
     async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, productDemandTypeCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (productDemandTypeCode) params["productDemandTypeCode"] = productDemandTypeCode;
-        const result = await client.requestRaw("GET", "/billing/v1/cost/getProductDemandCostList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (productDemandTypeCode) params["productDemandTypeCode"] = productDemandTypeCode;
+      const result = await client.requestRaw("GET", "/billing/v1/cost/getProductDemandCostList", params);
+      return result;
     }
   );
 
 
   // ncloud_get_contract_demand_cost_list — 계약 청구 비용 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_contract_demand_cost_list",
     "Get contract-level billing cost list. Returns detailed billing per contract including usage quantities, pricing, and discount amounts for the specified period (max 3 months).",
     {
@@ -408,27 +392,24 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       regionCode: z.string().optional().describe("Region code (e.g. KR)"),
     },
     async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, demandTypeCode, demandTypeDetailCode, regionCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (contractNo) params["contractNo"] = contractNo;
-        if (demandTypeCode) params["demandTypeCode"] = demandTypeCode;
-        if (demandTypeDetailCode) params["demandTypeDetailCode"] = demandTypeDetailCode;
-        if (regionCode) params["regionCode"] = regionCode;
-        const result = await client.requestRaw("GET", "/billing/v1/cost/getContractDemandCostList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (contractNo) params["contractNo"] = contractNo;
+      if (demandTypeCode) params["demandTypeCode"] = demandTypeCode;
+      if (demandTypeDetailCode) params["demandTypeDetailCode"] = demandTypeDetailCode;
+      if (regionCode) params["regionCode"] = regionCode;
+      const result = await client.requestRaw("GET", "/billing/v1/cost/getContractDemandCostList", params);
+      return result;
     }
   );
 
   // ncloud_get_contract_summary_list — 사용자 계약 요약 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_contract_summary_list",
     "Get contract summary list. Returns a summary of contracts grouped by region and contract type with counts for the specified month.",
     {
@@ -443,27 +424,24 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       regionCode: z.string().optional().describe("Region code (e.g. KR)"),
     },
     async ({ contractMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractTypeCode, contractStatusCode, regionCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json", contractMonth };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
-        if (contractStatusCode) params["contractStatusCode"] = contractStatusCode;
-        if (regionCode) params["regionCode"] = regionCode;
-        const result = await client.requestRaw("GET", "/billing/v1/cost/getContractSummaryList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json", contractMonth };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
+      if (contractStatusCode) params["contractStatusCode"] = contractStatusCode;
+      if (regionCode) params["regionCode"] = regionCode;
+      const result = await client.requestRaw("GET", "/billing/v1/cost/getContractSummaryList", params);
+      return result;
     }
   );
 
 
   // ncloud_get_contract_usage_list — 계약 사용량 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_contract_usage_list",
     "Get contract usage list. Returns usage details per contract including metering type, usage quantity, and service period for the specified months (max 3 months).",
     {
@@ -480,27 +458,24 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       regionCode: z.string().optional().describe("Region code (e.g. KR)"),
     },
     async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, contractStatusCode, regionCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (contractNo) params["contractNo"] = contractNo;
-        if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
-        if (contractStatusCode) params["contractStatusCode"] = contractStatusCode;
-        if (regionCode) params["regionCode"] = regionCode;
-        const result = await client.requestRaw("GET", "/billing/v1/cost/getContractUsageList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (contractNo) params["contractNo"] = contractNo;
+      if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
+      if (contractStatusCode) params["contractStatusCode"] = contractStatusCode;
+      if (regionCode) params["regionCode"] = regionCode;
+      const result = await client.requestRaw("GET", "/billing/v1/cost/getContractUsageList", params);
+      return result;
     }
   );
 
   // ncloud_get_contract_usage_list_by_daily — 일별 계약 사용량 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_contract_usage_list_by_daily",
     "Get daily contract usage list. Returns daily usage breakdown per contract for the specified date range (max 3 months).",
     {
@@ -517,27 +492,24 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       regionCode: z.string().optional().describe("Region code (e.g. KR)"),
     },
     async ({ useStartDay, useEndDay, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, productItemKindCode, regionCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json", useStartDay, useEndDay };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (contractNo) params["contractNo"] = contractNo;
-        if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
-        if (productItemKindCode) params["productItemKindCode"] = productItemKindCode;
-        if (regionCode) params["regionCode"] = regionCode;
-        const result = await client.requestRaw("GET", "/billing/v1/cost/getContractUsageListByDaily", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json", useStartDay, useEndDay };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (contractNo) params["contractNo"] = contractNo;
+      if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
+      if (productItemKindCode) params["productItemKindCode"] = productItemKindCode;
+      if (regionCode) params["regionCode"] = regionCode;
+      const result = await client.requestRaw("GET", "/billing/v1/cost/getContractUsageListByDaily", params);
+      return result;
     }
   );
 
   // ncloud_get_cost_relation_code_list — 비용 연관 코드 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_cost_relation_code_list",
     "Get cost relation code list. Returns mapping between contract types, product item kinds, rating types, metering types, demand types, and product categories. Useful for understanding billing code relationships.",
     {
@@ -548,18 +520,14 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       productCategoryCode: z.string().optional().describe("Product category code (e.g. COMPUTE)"),
     },
     async ({ contractTypeCode, productItemKindCode, productRatingTypeCode, meteringTypeCode, productCategoryCode }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json" };
-        if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
-        if (productItemKindCode) params["productItemKindCode"] = productItemKindCode;
-        if (productRatingTypeCode) params["productRatingTypeCode"] = productRatingTypeCode;
-        if (meteringTypeCode) params["meteringTypeCode"] = meteringTypeCode;
-        if (productCategoryCode) params["productCategoryCode"] = productCategoryCode;
-        const result = await client.requestRaw("GET", "/billing/v1/cost/getCostRelationCodeList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json" };
+      if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
+      if (productItemKindCode) params["productItemKindCode"] = productItemKindCode;
+      if (productRatingTypeCode) params["productRatingTypeCode"] = productRatingTypeCode;
+      if (meteringTypeCode) params["meteringTypeCode"] = meteringTypeCode;
+      if (productCategoryCode) params["productCategoryCode"] = productCategoryCode;
+      const result = await client.requestRaw("GET", "/billing/v1/cost/getCostRelationCodeList", params);
+      return result;
     }
   );
 
@@ -569,7 +537,8 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
   // ============================================================
 
   // ncloud_get_discount_list — 할인 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_discount_list",
     "Get discount list. Returns all discounts (product discounts, credits, coins) assigned to the account with their validity periods and amounts.",
     {
@@ -584,27 +553,24 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       isValidDiscount: z.boolean().optional().describe("Filter only valid (active) discounts"),
     },
     async ({ pageNo, pageSize, isOrganization, isPartner, memberNoList, discountTypeCode, startMonth, endMonth, isValidDiscount }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json" };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (discountTypeCode) params["discountTypeCode"] = discountTypeCode;
-        if (startMonth) params["startMonth"] = startMonth;
-        if (endMonth) params["endMonth"] = endMonth;
-        if (isValidDiscount !== undefined) params["isValidDiscount"] = String(isValidDiscount);
-        const result = await client.requestRaw("GET", "/billing/v1/discount/getDiscountList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json" };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (discountTypeCode) params["discountTypeCode"] = discountTypeCode;
+      if (startMonth) params["startMonth"] = startMonth;
+      if (endMonth) params["endMonth"] = endMonth;
+      if (isValidDiscount !== undefined) params["isValidDiscount"] = String(isValidDiscount);
+      const result = await client.requestRaw("GET", "/billing/v1/discount/getDiscountList", params);
+      return result;
     }
   );
 
   // ncloud_get_coin_history_list — 코인 이력 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_coin_history_list",
     "Get coin history list. Returns coin balance, usage history, and status for all or specific coins assigned to the account.",
     {
@@ -616,24 +582,21 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       memberNoList: z.array(z.string()).optional().describe("Member number list (master/partner only)"),
     },
     async ({ pageNo, pageSize, discountNoList, isOrganization, isPartner, memberNoList }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json" };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (discountNoList) discountNoList.forEach((no, i) => { params[`discountNoList.${i + 1}`] = no; });
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        const result = await client.requestRaw("GET", "/billing/v1/discount/getCoinHistoryList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json" };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (discountNoList) discountNoList.forEach((no, i) => { params[`discountNoList.${i + 1}`] = no; });
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      const result = await client.requestRaw("GET", "/billing/v1/discount/getCoinHistoryList", params);
+      return result;
     }
   );
 
   // ncloud_get_credit_history_list — 크레딧 이력 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_credit_history_list",
     "Get credit history list. Returns credit balance, usage history per service, and validity periods for all or specific credits.",
     {
@@ -647,27 +610,24 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       endMonth: z.string().optional().describe("End month in yyyyMM format"),
     },
     async ({ pageNo, pageSize, discountNoList, isOrganization, isPartner, memberNoList, startMonth, endMonth }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json" };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (discountNoList) discountNoList.forEach((no, i) => { params[`discountNoList.${i + 1}`] = no; });
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (startMonth) params["startMonth"] = startMonth;
-        if (endMonth) params["endMonth"] = endMonth;
-        const result = await client.requestRaw("GET", "/billing/v1/discount/getCreditHistoryList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json" };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (discountNoList) discountNoList.forEach((no, i) => { params[`discountNoList.${i + 1}`] = no; });
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (startMonth) params["startMonth"] = startMonth;
+      if (endMonth) params["endMonth"] = endMonth;
+      const result = await client.requestRaw("GET", "/billing/v1/discount/getCreditHistoryList", params);
+      return result;
     }
   );
 
 
   // ncloud_get_product_demand_cost_by_discount_list — 할인 반영 청구 내역 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_product_demand_cost_by_discount_list",
     "Get billing history with discount details applied. Returns per-service billing amounts showing how each discount (product discount, credit) was applied for the specified period (max 6 months).",
     {
@@ -681,24 +641,21 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       memberNoList: z.array(z.string()).optional().describe("Member number list (master/partner only)"),
     },
     async ({ startMonth, endMonth, pageNo, pageSize, productDemandTypeCodeList, isOrganization, isPartner, memberNoList }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (productDemandTypeCodeList) productDemandTypeCodeList.forEach((code, i) => { params[`productDemandTypeCodeList.${i + 1}`] = code; });
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        const result = await client.requestRaw("GET", "/billing/v1/discount/getProductDemandCostByDiscountList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (productDemandTypeCodeList) productDemandTypeCodeList.forEach((code, i) => { params[`productDemandTypeCodeList.${i + 1}`] = code; });
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      const result = await client.requestRaw("GET", "/billing/v1/discount/getProductDemandCostByDiscountList", params);
+      return result;
     }
   );
 
   // ncloud_get_product_discount_history_list — 서비스 할인 이력 목록 조회
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_product_discount_history_list",
     "Get product discount history list. Returns service discount details including discount rate, eligible services, and per-service usage/applied amounts.",
     {
@@ -712,21 +669,17 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       endMonth: z.string().optional().describe("End month in yyyyMM format"),
     },
     async ({ pageNo, pageSize, discountNoList, isOrganization, isPartner, memberNoList, startMonth, endMonth }) => {
-      try {
-        const params: Record<string, string> = { responseFormatType: "json" };
-        if (pageNo !== undefined) params["pageNo"] = String(pageNo);
-        if (pageSize !== undefined) params["pageSize"] = String(pageSize);
-        if (discountNoList) discountNoList.forEach((no, i) => { params[`discountNoList.${i + 1}`] = no; });
-        if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
-        if (isPartner !== undefined) params["isPartner"] = String(isPartner);
-        if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
-        if (startMonth) params["startMonth"] = startMonth;
-        if (endMonth) params["endMonth"] = endMonth;
-        const result = await client.requestRaw("GET", "/billing/v1/discount/getProductDiscountHistoryList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const params: Record<string, string> = { responseFormatType: "json" };
+      if (pageNo !== undefined) params["pageNo"] = String(pageNo);
+      if (pageSize !== undefined) params["pageSize"] = String(pageSize);
+      if (discountNoList) discountNoList.forEach((no, i) => { params[`discountNoList.${i + 1}`] = no; });
+      if (isOrganization !== undefined) params["isOrganization"] = String(isOrganization);
+      if (isPartner !== undefined) params["isPartner"] = String(isPartner);
+      if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
+      if (startMonth) params["startMonth"] = startMonth;
+      if (endMonth) params["endMonth"] = endMonth;
+      const result = await client.requestRaw("GET", "/billing/v1/discount/getProductDiscountHistoryList", params);
+      return result;
     }
   );
 

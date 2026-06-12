@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Data Flow API Tools
@@ -24,7 +24,8 @@ export function registerDataFlowTools(
   // Dashboard APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_execution_interval",
     "Get job execution count statistics for Data Flow dashboard. Returns execution counts grouped by time interval.",
     {
@@ -32,19 +33,16 @@ export function registerDataFlowTools(
       endTime: z.string().optional().describe("End time for query range (ISO 8601 format)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.startTime) queryParams.startTime = params.startTime;
-        if (params.endTime) queryParams.endTime = params.endTime;
-        const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-interval", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.startTime) queryParams.startTime = params.startTime;
+      if (params.endTime) queryParams.endTime = params.endTime;
+      const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-interval", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_execution_result",
     "Get job execution result statistics (execution count, success count, failure count) for Data Flow dashboard.",
     {
@@ -52,19 +50,16 @@ export function registerDataFlowTools(
       endTime: z.string().optional().describe("End time for query range (ISO 8601 format)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.startTime) queryParams.startTime = params.startTime;
-        if (params.endTime) queryParams.endTime = params.endTime;
-        const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-result", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.startTime) queryParams.startTime = params.startTime;
+      if (params.endTime) queryParams.endTime = params.endTime;
+      const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-result", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_execution_times",
     "Get job execution time statistics for Data Flow dashboard.",
     {
@@ -72,15 +67,11 @@ export function registerDataFlowTools(
       endTime: z.string().optional().describe("End time for query range (ISO 8601 format)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.startTime) queryParams.startTime = params.startTime;
-        if (params.endTime) queryParams.endTime = params.endTime;
-        const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-times", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.startTime) queryParams.startTime = params.startTime;
+      if (params.endTime) queryParams.endTime = params.endTime;
+      const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-times", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
@@ -88,7 +79,8 @@ export function registerDataFlowTools(
   // Workflow APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_list_workflows",
     "List all workflows in the Data Flow service. Workflows define the data pipeline structure with nodes and edges.",
     {
@@ -97,36 +89,29 @@ export function registerDataFlowTools(
       searchText: z.string().optional().describe("Search by workflow name or description"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number> = {};
-        if (params.page !== undefined) queryParams.page = params.page;
-        if (params.size !== undefined) queryParams.size = params.size;
-        if (params.searchText) queryParams.searchText = params.searchText;
-        const result = await client.requestRaw("GET", "/api/v1/workflows", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number> = {};
+      if (params.page !== undefined) queryParams.page = params.page;
+      if (params.size !== undefined) queryParams.size = params.size;
+      if (params.searchText) queryParams.searchText = params.searchText;
+      const result = await client.requestRaw("GET", "/api/v1/workflows", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_workflow",
     "Get detailed information of a specific Data Flow workflow by ID.",
     {
       workflowId: z.string().describe("Workflow ID to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/workflows/${params.workflowId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/workflows/${params.workflowId}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_create_workflow",
     "Create a new Data Flow workflow. A workflow defines the data pipeline with nodes (source, filter, sink) and edges connecting them.",
     {
@@ -145,31 +130,28 @@ export function registerDataFlowTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "Dry-Run Preview: Data Flow Workflow Creation",
-            name: params.name,
-            description: params.description ?? "(not set)",
-            nodeCount: params.nodes?.length ?? 0,
-            edgeCount: params.edges?.length ?? 0,
-            message: "dryRun=false로 호출하면 워크플로가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const body: Record<string, any> = { name: params.name };
-        if (params.description !== undefined) body.description = params.description;
-        if (params.nodes !== undefined) body.nodes = params.nodes;
-        if (params.edges !== undefined) body.edges = params.edges;
-        const result = await client.requestRaw("POST", "/api/v1/workflows", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "Dry-Run Preview: Data Flow Workflow Creation",
+          name: params.name,
+          description: params.description ?? "(not set)",
+          nodeCount: params.nodes?.length ?? 0,
+          edgeCount: params.edges?.length ?? 0,
+          message: "dryRun=false로 호출하면 워크플로가 생성됩니다.",
+        };
+        return preview;
       }
+      const body: Record<string, any> = { name: params.name };
+      if (params.description !== undefined) body.description = params.description;
+      if (params.nodes !== undefined) body.nodes = params.nodes;
+      if (params.edges !== undefined) body.edges = params.edges;
+      const result = await client.requestRaw("POST", "/api/v1/workflows", undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_update_workflow",
     "Update an existing Data Flow workflow.",
     {
@@ -188,22 +170,19 @@ export function registerDataFlowTools(
       })).optional().describe("Updated list of edges"),
     },
     async (params) => {
-      try {
-        const { workflowId, ...bodyParams } = params;
-        const body: Record<string, any> = {};
-        if (bodyParams.name !== undefined) body.name = bodyParams.name;
-        if (bodyParams.description !== undefined) body.description = bodyParams.description;
-        if (bodyParams.nodes !== undefined) body.nodes = bodyParams.nodes;
-        if (bodyParams.edges !== undefined) body.edges = bodyParams.edges;
-        const result = await client.requestRaw("PUT", `/api/v1/workflows/${workflowId}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { workflowId, ...bodyParams } = params;
+      const body: Record<string, any> = {};
+      if (bodyParams.name !== undefined) body.name = bodyParams.name;
+      if (bodyParams.description !== undefined) body.description = bodyParams.description;
+      if (bodyParams.nodes !== undefined) body.nodes = bodyParams.nodes;
+      if (bodyParams.edges !== undefined) body.edges = bodyParams.edges;
+      const result = await client.requestRaw("PUT", `/api/v1/workflows/${workflowId}`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_delete_workflow",
     "⚠️ Destructive: Delete a Data Flow workflow permanently. Set confirm=true to execute.",
     {
@@ -211,19 +190,16 @@ export function registerDataFlowTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete workflow [${params.workflowId}].\nTo execute, call again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/workflows/${params.workflowId}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete workflow [${params.workflowId}].\nTo execute, call again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/workflows/${params.workflowId}`);
+      return result ?? { success: true };
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_workflow_executions",
     "Get execution history of a specific Data Flow workflow.",
     {
@@ -232,15 +208,11 @@ export function registerDataFlowTools(
       size: z.number().optional().describe("Page size"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number> = {};
-        if (params.page !== undefined) queryParams.page = params.page;
-        if (params.size !== undefined) queryParams.size = params.size;
-        const result = await client.requestRaw("GET", `/api/v1/workflows/${params.workflowId}/executions`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number> = {};
+      if (params.page !== undefined) queryParams.page = params.page;
+      if (params.size !== undefined) queryParams.size = params.size;
+      const result = await client.requestRaw("GET", `/api/v1/workflows/${params.workflowId}/executions`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
@@ -248,7 +220,8 @@ export function registerDataFlowTools(
   // Job APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_list_jobs",
     "List all jobs in the Data Flow service. Jobs are executable units within workflows.",
     {
@@ -258,37 +231,30 @@ export function registerDataFlowTools(
       status: z.string().optional().describe("Filter by job status"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number> = {};
-        if (params.page !== undefined) queryParams.page = params.page;
-        if (params.size !== undefined) queryParams.size = params.size;
-        if (params.searchText) queryParams.searchText = params.searchText;
-        if (params.status) queryParams.status = params.status;
-        const result = await client.requestRaw("GET", "/api/v1/jobs", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number> = {};
+      if (params.page !== undefined) queryParams.page = params.page;
+      if (params.size !== undefined) queryParams.size = params.size;
+      if (params.searchText) queryParams.searchText = params.searchText;
+      if (params.status) queryParams.status = params.status;
+      const result = await client.requestRaw("GET", "/api/v1/jobs", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_job",
     "Get detailed information of a specific Data Flow job by ID.",
     {
       jobId: z.string().describe("Job ID to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/jobs/${params.jobId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/jobs/${params.jobId}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_create_job",
     "Create a new Data Flow job. A job defines the execution configuration for a workflow.",
     {
@@ -299,31 +265,28 @@ export function registerDataFlowTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "Dry-Run Preview: Data Flow Job Creation",
-            name: params.name,
-            description: params.description ?? "(not set)",
-            workflowId: params.workflowId ?? "(not set)",
-            options: params.options ?? {},
-            message: "dryRun=false로 호출하면 작업이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const body: Record<string, any> = { name: params.name };
-        if (params.description !== undefined) body.description = params.description;
-        if (params.workflowId !== undefined) body.workflowId = params.workflowId;
-        if (params.options !== undefined) body.options = params.options;
-        const result = await client.requestRaw("POST", "/api/v1/jobs", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "Dry-Run Preview: Data Flow Job Creation",
+          name: params.name,
+          description: params.description ?? "(not set)",
+          workflowId: params.workflowId ?? "(not set)",
+          options: params.options ?? {},
+          message: "dryRun=false로 호출하면 작업이 생성됩니다.",
+        };
+        return preview;
       }
+      const body: Record<string, any> = { name: params.name };
+      if (params.description !== undefined) body.description = params.description;
+      if (params.workflowId !== undefined) body.workflowId = params.workflowId;
+      if (params.options !== undefined) body.options = params.options;
+      const result = await client.requestRaw("POST", "/api/v1/jobs", undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_update_job",
     "Update an existing Data Flow job configuration.",
     {
@@ -334,54 +297,43 @@ export function registerDataFlowTools(
       options: z.record(z.any()).optional().describe("Updated job execution options"),
     },
     async (params) => {
-      try {
-        const { jobId, ...bodyParams } = params;
-        const body: Record<string, any> = {};
-        if (bodyParams.name !== undefined) body.name = bodyParams.name;
-        if (bodyParams.description !== undefined) body.description = bodyParams.description;
-        if (bodyParams.workflowId !== undefined) body.workflowId = bodyParams.workflowId;
-        if (bodyParams.options !== undefined) body.options = bodyParams.options;
-        const result = await client.requestRaw("PUT", `/api/v1/jobs/${jobId}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { jobId, ...bodyParams } = params;
+      const body: Record<string, any> = {};
+      if (bodyParams.name !== undefined) body.name = bodyParams.name;
+      if (bodyParams.description !== undefined) body.description = bodyParams.description;
+      if (bodyParams.workflowId !== undefined) body.workflowId = bodyParams.workflowId;
+      if (bodyParams.options !== undefined) body.options = bodyParams.options;
+      const result = await client.requestRaw("PUT", `/api/v1/jobs/${jobId}`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_verify_job",
     "Verify (validate) a Data Flow job's execution request items before running. Checks if the job configuration is valid.",
     {
       jobId: z.string().describe("Job ID to verify"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/jobs/${params.jobId}/verify`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/jobs/${params.jobId}/verify`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_execute_job",
     "Execute a Data Flow job. Starts the data pipeline processing.",
     {
       jobId: z.string().describe("Job ID to execute"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/jobs/${params.jobId}/execute`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/jobs/${params.jobId}/execute`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_job_executions",
     "Get execution history of a specific Data Flow job.",
     {
@@ -390,19 +342,16 @@ export function registerDataFlowTools(
       size: z.number().optional().describe("Page size"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number> = {};
-        if (params.page !== undefined) queryParams.page = params.page;
-        if (params.size !== undefined) queryParams.size = params.size;
-        const result = await client.requestRaw("GET", `/api/v1/jobs/${params.jobId}/executions`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number> = {};
+      if (params.page !== undefined) queryParams.page = params.page;
+      if (params.size !== undefined) queryParams.size = params.size;
+      const result = await client.requestRaw("GET", `/api/v1/jobs/${params.jobId}/executions`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_job_execution",
     "Get detailed information of a specific Data Flow job execution.",
     {
@@ -410,16 +359,12 @@ export function registerDataFlowTools(
       executionId: z.string().describe("Execution ID to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/jobs/${params.jobId}/executions/${params.executionId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/jobs/${params.jobId}/executions/${params.executionId}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_update_job_execute_config",
     "Update the execution configuration (options) of a Data Flow job.",
     {
@@ -427,17 +372,14 @@ export function registerDataFlowTools(
       options: z.record(z.any()).describe("Execution options to update (e.g. resource spec, parallelism, timeout)"),
     },
     async (params) => {
-      try {
-        const body = { options: params.options };
-        const result = await client.requestRaw("PUT", `/api/v1/jobs/${params.jobId}/execute-config`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = { options: params.options };
+      const result = await client.requestRaw("PUT", `/api/v1/jobs/${params.jobId}/execute-config`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_delete_job",
     "⚠️ Destructive: Delete a Data Flow job permanently. Set confirm=true to execute.",
     {
@@ -445,15 +387,11 @@ export function registerDataFlowTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete job [${params.jobId}].\nTo execute, call again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/jobs/${params.jobId}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete job [${params.jobId}].\nTo execute, call again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/jobs/${params.jobId}`);
+      return result ?? { success: true };
     }
   );
 
@@ -461,7 +399,8 @@ export function registerDataFlowTools(
   // Trigger APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_list_triggers",
     "List all triggers in the Data Flow service. Triggers define scheduled or event-based job execution.",
     {
@@ -470,36 +409,29 @@ export function registerDataFlowTools(
       searchText: z.string().optional().describe("Search by trigger name or description"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number> = {};
-        if (params.page !== undefined) queryParams.page = params.page;
-        if (params.size !== undefined) queryParams.size = params.size;
-        if (params.searchText) queryParams.searchText = params.searchText;
-        const result = await client.requestRaw("GET", "/api/v1/triggers", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number> = {};
+      if (params.page !== undefined) queryParams.page = params.page;
+      if (params.size !== undefined) queryParams.size = params.size;
+      if (params.searchText) queryParams.searchText = params.searchText;
+      const result = await client.requestRaw("GET", "/api/v1/triggers", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_get_trigger",
     "Get detailed information of a specific Data Flow trigger.",
     {
       triggerId: z.string().describe("Trigger ID to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/triggers/${params.triggerId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/triggers/${params.triggerId}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_create_trigger",
     "Create a new Data Flow trigger for scheduled or event-based job execution.",
     {
@@ -512,37 +444,34 @@ export function registerDataFlowTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "Dry-Run Preview: Data Flow Trigger Creation",
-            name: params.name,
-            description: params.description ?? "(not set)",
-            jobId: params.jobId,
-            type: params.type ?? "(not set)",
-            schedule: params.schedule ?? "(not set)",
-            enabled: params.enabled ?? true,
-            message: "dryRun=false로 호출하면 트리거가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const body: Record<string, any> = {
+      if (params.dryRun) {
+        const preview = {
+          label: "Dry-Run Preview: Data Flow Trigger Creation",
           name: params.name,
+          description: params.description ?? "(not set)",
           jobId: params.jobId,
+          type: params.type ?? "(not set)",
+          schedule: params.schedule ?? "(not set)",
+          enabled: params.enabled ?? true,
+          message: "dryRun=false로 호출하면 트리거가 생성됩니다.",
         };
-        if (params.description !== undefined) body.description = params.description;
-        if (params.type !== undefined) body.type = params.type;
-        if (params.schedule !== undefined) body.schedule = params.schedule;
-        if (params.enabled !== undefined) body.enabled = params.enabled;
-        const result = await client.requestRaw("POST", "/api/v1/triggers", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+      const body: Record<string, any> = {
+        name: params.name,
+        jobId: params.jobId,
+      };
+      if (params.description !== undefined) body.description = params.description;
+      if (params.type !== undefined) body.type = params.type;
+      if (params.schedule !== undefined) body.schedule = params.schedule;
+      if (params.enabled !== undefined) body.enabled = params.enabled;
+      const result = await client.requestRaw("POST", "/api/v1/triggers", undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataflow_delete_trigger",
     "⚠️ Destructive: Delete a Data Flow trigger permanently. Set confirm=true to execute.",
     {
@@ -550,15 +479,11 @@ export function registerDataFlowTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete trigger [${params.triggerId}].\nTo execute, call again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/triggers/${params.triggerId}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete trigger [${params.triggerId}].\nTo execute, call again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/triggers/${params.triggerId}`);
+      return result ?? { success: true };
     }
   );
 }

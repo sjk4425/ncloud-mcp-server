@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_instances",
     "List all Cloud DB for MSSQL instances in the current region",
     {
@@ -16,48 +17,36 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mssql_instance_detail",
     "Get detailed information about a specific Cloud DB for MSSQL instance",
     {
       cloudMssqlInstanceNo: z.string().describe("Cloud MSSQL instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_backups",
     "List backups for a Cloud DB for MSSQL instance",
     {
       cloudMssqlInstanceNo: z.string().describe("Cloud MSSQL instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlBackupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlBackupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_backup_details",
     "List detailed backup information for a Cloud DB for MSSQL instance including file paths",
     {
@@ -65,16 +54,12 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       cloudMssqlServerInstanceNo: z.string().describe("Cloud MSSQL server instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlBackupDetailList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlBackupDetailList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_log_backup_files",
     "List log backup files for a Cloud DB for MSSQL instance",
     {
@@ -82,80 +67,60 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       cloudMssqlServerInstanceNo: z.string().describe("Cloud MSSQL server instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlLogBackupFileList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlLogBackupFileList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_log_files",
     "List log files for a Cloud DB for MSSQL server instance",
     {
       cloudMssqlServerInstanceNo: z.string().describe("Cloud MSSQL server instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlLogFileList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlLogFileList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mssql_image_products",
     "List available Cloud DB for MSSQL image product codes (engine versions)",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlImageProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlImageProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mssql_products",
     "List available Cloud DB for MSSQL server spec product codes",
     {
       cloudMssqlImageProductCode: z.string().describe("MSSQL image product code (from ncloud_get_mssql_image_products)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mssql_target_vpcs",
     "List VPCs available for Cloud DB for MSSQL",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlTargetVpcList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlTargetVpcList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mssql_target_subnets",
     "List subnets available for Cloud DB for MSSQL within a specific instance",
     {
@@ -163,82 +128,62 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlTargetSubnetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlTargetSubnetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_character_sets",
     "List available character sets for Cloud DB for MSSQL",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlCharacterSetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlCharacterSetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_config_groups",
     "List available Config Groups for Cloud DB for MSSQL",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlConfigGroupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlConfigGroupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_buckets",
     "List Object Storage buckets available for Cloud DB for MSSQL backup export",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlBucketList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlBucketList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mssql_folders",
     "List folders within an Object Storage bucket for Cloud DB for MSSQL",
     {
       bucketName: z.string().describe("Object Storage bucket name"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/getCloudMssqlFolderList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/getCloudMssqlFolderList", params);
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_mssql_instance",
     "Create a new Cloud DB for MSSQL instance. Use dryRun=true to preview without creating.",
     {
@@ -276,45 +221,42 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: MSSQL Instance Creation",
-            cloudMssqlServiceName: params.cloudMssqlServiceName,
-            vpcNo: params.vpcNo,
-            subnetNo: params.subnetNo,
-            cloudMssqlUserName: params.cloudMssqlUserName,
-            isHa: params.isHa,
-            isMultiZone: params.isMultiZone ?? false,
-            characterSetName: params.characterSetName ?? "Korean_Wansung_CI_AS",
-            cloudMssqlPort: params.cloudMssqlPort ?? 1433,
-            isBackup: params.isBackup ?? true,
-            message: "이 요청은 실제 MSSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vmssql/v2/createCloudMssqlInstance", apiParams);
-        const instance = result.cloudMssqlInstanceList?.[0];
-        const summary = {
-          리소스타입: "MSSQL",
-          리소스ID: instance?.cloudMssqlInstanceNo ?? "unknown",
-          서비스명: params.cloudMssqlServiceName,
-          상태: instance?.cloudMssqlInstanceStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          VPC: params.vpcNo,
-          서브넷: params.subnetNo,
-          고가용성: params.isHa,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: MSSQL Instance Creation",
+          cloudMssqlServiceName: params.cloudMssqlServiceName,
+          vpcNo: params.vpcNo,
+          subnetNo: params.subnetNo,
+          cloudMssqlUserName: params.cloudMssqlUserName,
+          isHa: params.isHa,
+          isMultiZone: params.isMultiZone ?? false,
+          characterSetName: params.characterSetName ?? "Korean_Wansung_CI_AS",
+          cloudMssqlPort: params.cloudMssqlPort ?? 1433,
+          isBackup: params.isBackup ?? true,
+          message: "이 요청은 실제 MSSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vmssql/v2/createCloudMssqlInstance", apiParams);
+      const instance = result.cloudMssqlInstanceList?.[0];
+      const summary = {
+        리소스타입: "MSSQL",
+        리소스ID: instance?.cloudMssqlInstanceNo ?? "unknown",
+        서비스명: params.cloudMssqlServiceName,
+        상태: instance?.cloudMssqlInstanceStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        VPC: params.vpcNo,
+        서브넷: params.subnetNo,
+        고가용성: params.isHa,
+      };
+      return summary;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_mssql_slave",
     "Create a slave server instance for a Cloud DB for MSSQL instance",
     {
@@ -323,36 +265,28 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       subnetNo: z.string().optional().describe("Subnet number for the slave instance. Required when Multi Zone is enabled."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/createCloudMssqlSlaveInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/createCloudMssqlSlaveInstance", params);
     }
   );
 
   // ─── Operation Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_reboot_mssql_server",
     "Reboot a Cloud DB for MSSQL server instance",
     {
       cloudMssqlServerInstanceNo: z.string().describe("Cloud MSSQL server instance number to reboot"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmssql/v2/rebootCloudMssqlServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmssql/v2/rebootCloudMssqlServerInstance", params);
     }
   );
 
   // ─── Export Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_mssql_backup",
     "Export Cloud DB for MSSQL backup files to Object Storage. Use ncloud_list_mssql_backup_details to get available file names.",
     {
@@ -365,24 +299,21 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       })).min(1).describe("List of backup objects to export"),
     },
     async (params) => {
-      try {
-        const { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName, folderPath, cloudMssqlExportObjectList } = params;
-        const requestParams: any = { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName };
-        if (folderPath) requestParams.folderPath = folderPath;
+      const { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName, folderPath, cloudMssqlExportObjectList } = params;
+      const requestParams: any = { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName };
+      if (folderPath) requestParams.folderPath = folderPath;
 
-        for (let i = 0; i < cloudMssqlExportObjectList.length; i++) {
-          requestParams[`cloudMssqlExportObjectList.${i + 1}.fullObjectName`] = cloudMssqlExportObjectList[i].fullObjectName;
-        }
-
-        const result = await client.request("/vmssql/v2/exportBackupToObjectStorage", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudMssqlExportObjectList.length; i++) {
+        requestParams[`cloudMssqlExportObjectList.${i + 1}.fullObjectName`] = cloudMssqlExportObjectList[i].fullObjectName;
       }
+
+      const result = await client.request("/vmssql/v2/exportBackupToObjectStorage", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_mssql_log",
     "Export Cloud DB for MSSQL server logs to Object Storage. Use ncloud_list_mssql_log_files to get available log files.",
     {
@@ -395,26 +326,23 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       })).min(1).describe("List of log objects to export"),
     },
     async (params) => {
-      try {
-        const { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName, folderPath, cloudMssqlExportObjectList } = params;
-        const requestParams: any = { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName };
-        if (folderPath) requestParams.folderPath = folderPath;
+      const { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName, folderPath, cloudMssqlExportObjectList } = params;
+      const requestParams: any = { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName };
+      if (folderPath) requestParams.folderPath = folderPath;
 
-        for (let i = 0; i < cloudMssqlExportObjectList.length; i++) {
-          requestParams[`cloudMssqlExportObjectList.${i + 1}.fullObjectName`] = cloudMssqlExportObjectList[i].fullObjectName;
-        }
-
-        const result = await client.request("/vmssql/v2/exportDbServerLogsToObjectStorage", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudMssqlExportObjectList.length; i++) {
+        requestParams[`cloudMssqlExportObjectList.${i + 1}.fullObjectName`] = cloudMssqlExportObjectList[i].fullObjectName;
       }
+
+      const result = await client.request("/vmssql/v2/exportDbServerLogsToObjectStorage", requestParams);
+      return result;
     }
   );
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mssql_instance",
     "⚠️ Destructive: Permanently delete a Cloud DB for MSSQL instance. Set confirm=true to execute.",
     {
@@ -422,21 +350,18 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete MSSQL instance [${params.cloudMssqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vmssql/v2/deleteCloudMssqlInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete MSSQL instance [${params.cloudMssqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vmssql/v2/deleteCloudMssqlInstance", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mssql_server",
     "⚠️ Destructive: Delete a Slave server instance from a Cloud DB for MSSQL cluster. Set confirm=true to execute.",
     {
@@ -444,17 +369,13 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete MSSQL server instance [${params.cloudMssqlServerInstanceNo}] (Slave only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vmssql/v2/deleteCloudMssqlServerInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete MSSQL server instance [${params.cloudMssqlServerInstanceNo}] (Slave only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vmssql/v2/deleteCloudMssqlServerInstance", apiParams);
+      return result;
     }
   );
 }

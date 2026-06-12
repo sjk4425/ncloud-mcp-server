@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerComputePublicIpTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_public_ips",
     "List all public IP instances in the current region",
     {
@@ -16,48 +17,36 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getPublicIpInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getPublicIpInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_public_ip_detail",
     "Get detailed information about a specific public IP instance",
     {
       publicIpInstanceNo: z.string().describe("Public IP instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getPublicIpInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getPublicIpInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_public_ip_target_servers",
     "List server instances that can be assigned a public IP",
     {},
     async () => {
-      try {
-        const result = await client.request("/vserver/v2/getPublicIpTargetServerInstanceList");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getPublicIpTargetServerInstanceList");
     }
   );
 
   // ─── Create & Associate Tools ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_public_ip",
     "Create a new public IP instance",
     {
@@ -65,16 +54,12 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
       publicIpDescription: z.string().optional().describe("Description for the public IP"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createPublicIpInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createPublicIpInstance", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_associate_public_ip",
     "Associate a public IP with a server instance",
     {
@@ -82,28 +67,19 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
       serverInstanceNo: z.string({ required_error: "필수 파라미터 'serverInstanceNo'가 누락되었습니다." }).describe("Server instance number to associate with"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/associatePublicIpWithServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/associatePublicIpWithServerInstance", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_disassociate_public_ip",
     "Disassociate a public IP from its currently associated server instance",
     {
       publicIpInstanceNo: z.string({ required_error: "필수 파라미터 'publicIpInstanceNo'가 누락되었습니다." }).describe("Public IP instance number to disassociate"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/disassociatePublicIpFromServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/disassociatePublicIpFromServerInstance", params);
     }
   );
 
@@ -113,7 +89,8 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
   // 2. confirm parameter (default false) that gates API execution
   // 3. Required parameter validation via zod
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_public_ip",
     "⚠️ Destructive: Delete a public IP instance. Set confirm=true to execute.",
     {
@@ -121,17 +98,13 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete PublicIP [${params.publicIpInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deletePublicIpInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete PublicIP [${params.publicIpInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deletePublicIpInstance", apiParams);
+      return result;
     }
   );
 }

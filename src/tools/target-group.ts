@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerTargetGroupTools(server: McpServer, client: NcloudClient): void {
   // ─── Target Group Query Tools ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_target_groups",
     "List all target groups in the current region",
     {
@@ -17,16 +18,12 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/getTargetGroupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/getTargetGroupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_target_group_detail",
     "Get detailed information about a specific target group",
     {
@@ -35,18 +32,14 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       }).describe("Target group number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/getTargetGroupDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/getTargetGroupDetail", params);
     }
   );
 
   // ─── Target Group Create Tool ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_target_group",
     "Create a new target group for a load balancer",
     {
@@ -75,18 +68,14 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       targetNoList: z.array(z.string()).optional().describe("List of target numbers to bind to the target group at creation"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/createTargetGroup", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/createTargetGroup", params);
     }
   );
 
   // ─── Target Group Destructive Tool ─────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_target_groups",
     "⚠️ Destructive: Permanently delete target groups. Set confirm=true to execute.",
     {
@@ -96,23 +85,20 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Target Group(s) [${params.targetGroupNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vloadbalancer/v2/deleteTargetGroups", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Target Group(s) [${params.targetGroupNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vloadbalancer/v2/deleteTargetGroups", apiParams);
+      return result;
     }
   );
 
   // ─── Target Management Tools ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_targets",
     "List all targets in a specific target group",
     {
@@ -121,16 +107,12 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       }).describe("Target group number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/getTargetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/getTargetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_target",
     "Add targets (server instances) to a target group",
     {
@@ -142,16 +124,12 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       }).describe("List of target (server instance) numbers to add"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/addTarget", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/addTarget", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_target",
     "⚠️ Destructive: Remove targets from a target group. Set confirm=true to execute.",
     {
@@ -164,23 +142,20 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will remove Target(s) [${params.targetNoList.join(", ")}] from Target Group [${params.targetGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vloadbalancer/v2/removeTarget", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will remove Target(s) [${params.targetNoList.join(", ")}] from Target Group [${params.targetGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vloadbalancer/v2/removeTarget", apiParams);
+      return result;
     }
   );
 
   // ─── Target Group Configuration Tools ──────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_target_group_config",
     "Change target group configuration (algorithm, sticky session, proxy protocol)",
     {
@@ -192,16 +167,12 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       useProxyProtocol: z.boolean().optional().describe("Whether to use proxy protocol (true/false). Available for PROXY_TCP protocol only"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/changeTargetGroupConfiguration", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/changeTargetGroupConfiguration", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_target_group_health",
     "Change target group health check configuration",
     {
@@ -216,16 +187,12 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       healthCheckDownThreshold: z.number().optional().describe("Unhealthy threshold count (2-10)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/changeTargetGroupHealthCheckConfiguration", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/changeTargetGroupHealthCheckConfiguration", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_target_group_description",
     "Set or update the description of a target group",
     {
@@ -237,16 +204,12 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       }).describe("Target group description"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/setTargetGroupDescription", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/setTargetGroupDescription", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_targets",
     "Set targets for a target group (replaces all existing targets with the specified list)",
     {
@@ -258,12 +221,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       }).describe("List of target (server instance) numbers to set (replaces existing targets)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vloadbalancer/v2/setTarget", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vloadbalancer/v2/setTarget", params);
     }
   );
 }

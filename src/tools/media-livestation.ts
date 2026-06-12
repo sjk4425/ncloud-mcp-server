@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerLiveStationTools(server: McpServer, client: NcloudClient): void {
   // ─── Channel Query Tools ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_list_channels",
     "List all Live Station streaming channels with pagination",
     {
@@ -14,34 +15,26 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       pageSizeNo: z.number().optional().describe("Number of items per page (default: 20)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/api/v2/channels", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/api/v2/channels", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_get_channel",
     "Get detailed information about a specific Live Station channel including streaming URLs and CDN settings",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID (e.g., ls-20250820xxxxxx)"),
     },
     async (params) => {
-      try {
-        const result = await client.request(`/api/v2/channels/${params.channelId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request(`/api/v2/channels/${params.channelId}`);
     }
   );
 
   // ─── Channel Create Tool ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_create_channel",
     "Create a new Live Station channel for live streaming. Use dryRun=true to preview without creating.",
     {
@@ -66,75 +59,72 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the channel"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Live Station Channel Creation",
-            channelName: params.channelName,
-            envType: params.envType,
-            outputProtocol: params.outputProtocol,
-            createCdn: params.createCdn,
-            cdnProfileId: params.cdnProfileId,
-            cdnRegionType: params.cdnRegionType,
-            qualitySetId: params.qualitySetId,
-            useDvr: params.useDvr,
-            recordType: params.recordType,
-            isStreamFailOver: params.isStreamFailOver,
-            drmEnabledYn: params.drmEnabledYn,
-            message: "이 요청은 실제 채널을 생성하지 않습니다. dryRun=false로 호출하면 채널이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const body: any = {
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Live Station Channel Creation",
           channelName: params.channelName,
           envType: params.envType,
           outputProtocol: params.outputProtocol,
-          cdn: {
-            createCdn: params.createCdn,
-            cdnType: "GLOBAL_EDGE",
-            profileId: params.cdnProfileId,
-            regionType: params.cdnRegionType,
-            cdnDomain: params.cdnDomain,
-            cdnInstanceNo: params.cdnInstanceNo,
-          },
+          createCdn: params.createCdn,
+          cdnProfileId: params.cdnProfileId,
+          cdnRegionType: params.cdnRegionType,
           qualitySetId: params.qualitySetId,
           useDvr: params.useDvr,
-          immediateOnAir: params.immediateOnAir,
-          record: {
-            type: params.recordType,
-            format: params.recordFormat,
-            bucketName: params.recordBucketName,
-            filePath: params.recordFilePath,
-          },
+          recordType: params.recordType,
           isStreamFailOver: params.isStreamFailOver,
           drmEnabledYn: params.drmEnabledYn,
+          message: "이 요청은 실제 채널을 생성하지 않습니다. dryRun=false로 호출하면 채널이 생성됩니다.",
         };
-        if (params.useDvr && params.timemachineMin) {
-          body.timemachineMin = params.timemachineMin;
-        }
-
-        const result = await client.postRequest("/api/v2/channels", body);
-        const channel = result?.content || result;
-        const summary = {
-          리소스타입: "Live Station Channel",
-          채널ID: channel?.channelId || channel?.id || "creating",
-          채널명: params.channelName,
-          프로토콜: params.outputProtocol,
-          DVR: params.useDvr,
-          녹화: params.recordType,
-          상태: channel?.channelStatus || "CREATING",
-        };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const body: any = {
+        channelName: params.channelName,
+        envType: params.envType,
+        outputProtocol: params.outputProtocol,
+        cdn: {
+          createCdn: params.createCdn,
+          cdnType: "GLOBAL_EDGE",
+          profileId: params.cdnProfileId,
+          regionType: params.cdnRegionType,
+          cdnDomain: params.cdnDomain,
+          cdnInstanceNo: params.cdnInstanceNo,
+        },
+        qualitySetId: params.qualitySetId,
+        useDvr: params.useDvr,
+        immediateOnAir: params.immediateOnAir,
+        record: {
+          type: params.recordType,
+          format: params.recordFormat,
+          bucketName: params.recordBucketName,
+          filePath: params.recordFilePath,
+        },
+        isStreamFailOver: params.isStreamFailOver,
+        drmEnabledYn: params.drmEnabledYn,
+      };
+      if (params.useDvr && params.timemachineMin) {
+        body.timemachineMin = params.timemachineMin;
+      }
+
+      const result = await client.postRequest("/api/v2/channels", body);
+      const channel = result?.content || result;
+      const summary = {
+        리소스타입: "Live Station Channel",
+        채널ID: channel?.channelId || channel?.id || "creating",
+        채널명: params.channelName,
+        프로토콜: params.outputProtocol,
+        DVR: params.useDvr,
+        녹화: params.recordType,
+        상태: channel?.channelStatus || "CREATING",
+      };
+      return summary;
     }
   );
 
   // ─── Channel Delete Tool ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_delete_channel",
     "⚠️ Destructive: Permanently terminate a Live Station channel. End broadcast streaming before terminating. Set confirm=true to execute.",
     {
@@ -142,22 +132,19 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently terminate Live Station Channel [${params.channelId}]. Created snapshots will also be deleted. The integrated CDN will be maintained.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently terminate Live Station Channel [${params.channelId}]. Created snapshots will also be deleted. The integrated CDN will be maintained.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
+      return result;
     }
   );
 
   // ─── Quality Settings Tools ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_list_quality_settings",
     "List available image quality settings for Live Station channels",
     {
@@ -165,36 +152,28 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       pageSizeNo: z.number().optional().describe("Number of items per page (default: 20)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/api/v2/quality-sets", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/api/v2/quality-sets", params);
     }
   );
 
   // ─── Service URL Tool ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_get_service_url",
     "Get the streaming service URLs (publish/play) for a Live Station channel",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to get service URLs for"),
     },
     async (params) => {
-      try {
-        const result = await client.request(`/api/v2/channels/${params.channelId}/serviceUrls`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request(`/api/v2/channels/${params.channelId}/serviceUrls`);
     }
   );
 
   // ─── Channel Operation Tools ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_stop_channel",
     "⚠️ Destructive: Stop a Live Station channel. The channel will be suspended and streaming will be interrupted. Set confirm=true to execute.",
     {
@@ -202,36 +181,29 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will stop Live Station Channel [${params.channelId}]. Streaming will be interrupted.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will stop Live Station Channel [${params.channelId}]. Streaming will be interrupted.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_resume_channel",
     "Resume a stopped Live Station channel to make it active again for streaming",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to resume"),
     },
     async (params) => {
-      try {
-        const result = await client.putRequest(`/api/v2/channels/${params.channelId}/resume`, {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.putRequest(`/api/v2/channels/${params.channelId}/resume`, {});
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_update_channel",
     "Update configuration of a Live Station channel (CDN, quality, recording, DVR settings)",
     {
@@ -249,63 +221,51 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       drmEnabledYn: z.boolean().optional().describe("Whether to enable Multi DRM"),
     },
     async (params) => {
-      try {
-        const { channelId, ...updateFields } = params;
-        const body: any = {};
-        if (updateFields.channelName !== undefined) body.channelName = updateFields.channelName;
-        if (updateFields.qualitySetId !== undefined) body.qualitySetId = updateFields.qualitySetId;
-        if (updateFields.useDvr !== undefined) body.useDvr = updateFields.useDvr;
-        if (updateFields.timemachineMin !== undefined) body.timemachineMin = updateFields.timemachineMin;
-        if (updateFields.immediateOnAir !== undefined) body.immediateOnAir = updateFields.immediateOnAir;
-        if (updateFields.isStreamFailOver !== undefined) body.isStreamFailOver = updateFields.isStreamFailOver;
-        if (updateFields.drmEnabledYn !== undefined) body.drmEnabledYn = updateFields.drmEnabledYn;
-        if (updateFields.recordType !== undefined) {
-          body.record = {
-            type: updateFields.recordType,
-            format: updateFields.recordFormat,
-            bucketName: updateFields.recordBucketName,
-            filePath: updateFields.recordFilePath,
-          };
-        }
-        const result = await client.putRequest(`/api/v2/channels/${channelId}`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      const { channelId, ...updateFields } = params;
+      const body: any = {};
+      if (updateFields.channelName !== undefined) body.channelName = updateFields.channelName;
+      if (updateFields.qualitySetId !== undefined) body.qualitySetId = updateFields.qualitySetId;
+      if (updateFields.useDvr !== undefined) body.useDvr = updateFields.useDvr;
+      if (updateFields.timemachineMin !== undefined) body.timemachineMin = updateFields.timemachineMin;
+      if (updateFields.immediateOnAir !== undefined) body.immediateOnAir = updateFields.immediateOnAir;
+      if (updateFields.isStreamFailOver !== undefined) body.isStreamFailOver = updateFields.isStreamFailOver;
+      if (updateFields.drmEnabledYn !== undefined) body.drmEnabledYn = updateFields.drmEnabledYn;
+      if (updateFields.recordType !== undefined) {
+        body.record = {
+          type: updateFields.recordType,
+          format: updateFields.recordFormat,
+          bucketName: updateFields.recordBucketName,
+          filePath: updateFields.recordFilePath,
+        };
       }
+      const result = await client.putRequest(`/api/v2/channels/${channelId}`, body);
+      return result;
     }
   );
 
   // ─── Channel Record Control ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_start_record",
     "Start manual recording for a Live Station channel that is currently streaming",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to start recording"),
     },
     async (params) => {
-      try {
-        const result = await client.putRequest(`/api/v2/channels/${params.channelId}/record/start`, {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.putRequest(`/api/v2/channels/${params.channelId}/record/start`, {});
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_livestation_stop_record",
     "Stop manual recording for a Live Station channel",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to stop recording"),
     },
     async (params) => {
-      try {
-        const result = await client.putRequest(`/api/v2/channels/${params.channelId}/record/stop`, {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.putRequest(`/api/v2/channels/${params.channelId}/record/stop`, {});
     }
   );
 }

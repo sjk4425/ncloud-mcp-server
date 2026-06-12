@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Data Catalog — 메타데이터 통합 및 관리 서비스
@@ -15,7 +15,8 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
 
   // ─── Catalog ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_catalogs",
     "Get Data Catalog list. Returns catalog ID, status, and metastore status.",
     {
@@ -23,21 +24,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw("GET", "/api/v1/catalogs", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw("GET", "/api/v1/catalogs", queryParams);
+      return result;
     }
   );
 
   // ─── Database ────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_databases",
     "Get database list in a catalog",
     {
@@ -47,22 +45,19 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       searchValue: z.string().optional().describe("Search keyword (database name)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        if (params.searchValue) queryParams.searchValue = params.searchValue;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      if (params.searchValue) queryParams.searchValue = params.searchValue;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_database",
     "Get database detail information including tags",
     {
@@ -71,23 +66,20 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       includeTags: z.boolean().describe("Include tags in response (true/false)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {
-          includeTags: params.includeTags,
-        };
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {
+        includeTags: params.includeTags,
+      };
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}`, queryParams
+      );
+      return result;
     }
   );
 
   // ─── Table ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_tables",
     "Get table list in a catalog with optional filtering and sorting",
     {
@@ -103,28 +95,25 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       sortIsAsc: z.boolean().optional().describe("Sort ascending (true/false)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        if (params.databaseName) queryParams.databaseName = params.databaseName;
-        if (params.tableName) queryParams.tableName = params.tableName;
-        if (params.location) queryParams.location = params.location;
-        if (params.tagKeyValue) queryParams.tagKeyValue = params.tagKeyValue;
-        if (params.dataFormats) queryParams.dataFormats = params.dataFormats;
-        if (params.sortField) queryParams["sort.field"] = params.sortField;
-        if (params.sortIsAsc !== undefined) queryParams["sort.isAsc"] = params.sortIsAsc;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/tables`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      if (params.databaseName) queryParams.databaseName = params.databaseName;
+      if (params.tableName) queryParams.tableName = params.tableName;
+      if (params.location) queryParams.location = params.location;
+      if (params.tagKeyValue) queryParams.tagKeyValue = params.tagKeyValue;
+      if (params.dataFormats) queryParams.dataFormats = params.dataFormats;
+      if (params.sortField) queryParams["sort.field"] = params.sortField;
+      if (params.sortIsAsc !== undefined) queryParams["sort.isAsc"] = params.sortIsAsc;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/tables`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_tables_by_database",
     "Get table list in a specific database",
     {
@@ -134,21 +123,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table",
     "Get table detail information including properties",
     {
@@ -157,18 +143,14 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       tableName: z.string().describe("Table name"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_schema",
     "Get table schema (column names, types, descriptions)",
     {
@@ -179,21 +161,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schema`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schema`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_partitions",
     "Get table partition list",
     {
@@ -204,21 +183,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/partitions`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/partitions`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_partition_keys",
     "Get table partition key list",
     {
@@ -229,21 +205,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/partitionKeys`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/partitionKeys`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_properties",
     "Get table detailed properties",
     {
@@ -252,18 +225,14 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       tableName: z.string().describe("Table name"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/properties`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_schema_and_partition_keys",
     "Get table schema and partition keys together",
     {
@@ -274,21 +243,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schemaAndPartitionKeys`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schemaAndPartitionKeys`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_schema_versions",
     "Get table schema version history",
     {
@@ -299,21 +265,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schemaVersions`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schemaVersions`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_schema_by_version",
     "Get table schema for a specific version",
     {
@@ -325,21 +288,18 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schema/${params.versionId}`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/schema/${params.versionId}`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_table_tags",
     "Get table tag list",
     {
@@ -350,23 +310,20 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/tags`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/databases/${params.databaseName}/tables/${params.tableName}/tags`, queryParams
+      );
+      return result;
     }
   );
 
   // ─── Scanner ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_scanners",
     "Get scanner list in a catalog",
     {
@@ -376,22 +333,19 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       searchValue: z.string().optional().describe("Search keyword (scanner name or description)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        if (params.searchValue) queryParams.searchValue = params.searchValue;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/scanners`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      if (params.searchValue) queryParams.searchValue = params.searchValue;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/scanners`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_scanner",
     "Get scanner detail information",
     {
@@ -399,18 +353,14 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       scannerId: z.number().describe("Scanner ID (from getScanners)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_scanner_histories",
     "Get scanner execution history",
     {
@@ -422,24 +372,21 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size 1~200 (default: 20)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {
-          fromTimestamp: params.fromTimestamp,
-          toTimestamp: params.toTimestamp,
-        };
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}/histories`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {
+        fromTimestamp: params.fromTimestamp,
+        toTimestamp: params.toTimestamp,
+      };
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}/histories`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_run_scanner",
     "Run (execute) a scanner to scan data sources",
     {
@@ -447,18 +394,14 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       scannerId: z.number().describe("Scanner ID to run"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "PUT", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}/run-scanner`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_stop_scanner",
     "Stop a running scanner",
     {
@@ -466,20 +409,16 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       scannerId: z.number().describe("Scanner ID to stop"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "PUT", `/api/v1/catalogs/${params.catalogId}/scanners/${params.scannerId}/stop-scanner`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── Connection ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_connections",
     "Get connection list in a catalog",
     {
@@ -489,22 +428,19 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       searchValue: z.string().optional().describe("Search keyword (connection name or description)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.pageNo) queryParams.pageNo = params.pageNo;
-        if (params.pageSize) queryParams.pageSize = params.pageSize;
-        if (params.searchValue) queryParams.searchValue = params.searchValue;
-        const result = await client.requestRaw(
-          "GET", `/api/v1/catalogs/${params.catalogId}/connections`, queryParams
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.pageNo) queryParams.pageNo = params.pageNo;
+      if (params.pageSize) queryParams.pageSize = params.pageSize;
+      if (params.searchValue) queryParams.searchValue = params.searchValue;
+      const result = await client.requestRaw(
+        "GET", `/api/v1/catalogs/${params.catalogId}/connections`, queryParams
+      );
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datacatalog_get_connection",
     "Get connection detail information",
     {
@@ -512,14 +448,9 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       connectionId: z.number().describe("Connection ID (from getConnections)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET", `/api/v1/catalogs/${params.catalogId}/connections/${params.connectionId}`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 }

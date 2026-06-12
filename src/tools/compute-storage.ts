@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerComputeStorageTools(server: McpServer, client: NcloudClient): void {
   // ─── Block Storage Query Tools ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_block_storage",
     "List all block storage instances in the current region",
     {
@@ -16,50 +17,38 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getBlockStorageInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getBlockStorageInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_block_storage_detail",
     "Get detailed information about a specific block storage instance",
     {
       blockStorageInstanceNo: z.string().describe("Block storage instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getBlockStorageInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getBlockStorageInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_block_storage_volume_types",
     "Get list of block storage volume types available in the region",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getBlockStorageVolumeTypeList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getBlockStorageVolumeTypeList", params);
     }
   );
 
   // ─── Block Storage Create Tools ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_block_storage",
     "Create a new block storage instance. Requires zoneCode + blockStorageVolumeTypeCode + blockStorageSize. For XEN: also provide serverInstanceNo to attach at creation. For KVM: cannot attach at creation — use ncloud_attach_block_storage after. Use dryRun=true to preview.",
     {
@@ -74,44 +63,41 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        // serverInstanceNo 없으면 (KVM) zoneCode 필수
-        if (!params.serverInstanceNo && !params.zoneCode) {
-          return {
-            content: [{ type: "text" as const, text: "zoneCode is required when serverInstanceNo is not provided (KVM standalone creation)." }],
-            isError: true,
-          };
-        }
-
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Block Storage Creation",
-            mode: params.serverInstanceNo ? "XEN (attach to server)" : "KVM (standalone, attach later)",
-            blockStorageSize: `${params.blockStorageSize} GB`,
-            zoneCode: params.zoneCode ?? "(resolved from server)",
-            blockStorageVolumeTypeCode: params.blockStorageVolumeTypeCode,
-            serverInstanceNo: params.serverInstanceNo ?? "(not set)",
-            blockStorageSnapshotInstanceNo: params.blockStorageSnapshotInstanceNo ?? "(not set)",
-            isReturnProtection: params.isReturnProtection ?? "(not set)",
-            blockStorageName: params.blockStorageName ?? "(auto-generated)",
-            message: "이 요청은 실제 블록 스토리지를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/createBlockStorageInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      // serverInstanceNo 없으면 (KVM) zoneCode 필수
+      if (!params.serverInstanceNo && !params.zoneCode) {
+        return {
+          content: [{ type: "text" as const, text: "zoneCode is required when serverInstanceNo is not provided (KVM standalone creation)." }],
+          isError: true,
+        };
       }
+
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Block Storage Creation",
+          mode: params.serverInstanceNo ? "XEN (attach to server)" : "KVM (standalone, attach later)",
+          blockStorageSize: `${params.blockStorageSize} GB`,
+          zoneCode: params.zoneCode ?? "(resolved from server)",
+          blockStorageVolumeTypeCode: params.blockStorageVolumeTypeCode,
+          serverInstanceNo: params.serverInstanceNo ?? "(not set)",
+          blockStorageSnapshotInstanceNo: params.blockStorageSnapshotInstanceNo ?? "(not set)",
+          isReturnProtection: params.isReturnProtection ?? "(not set)",
+          blockStorageName: params.blockStorageName ?? "(auto-generated)",
+          message: "이 요청은 실제 블록 스토리지를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+        };
+        return preview;
+      }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/createBlockStorageInstance", apiParams);
+      return result;
     }
   );
 
 
   // ─── Block Storage Operation Tools ─────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_attach_block_storage",
     "Attach a block storage instance to a server. Automatically waits if the block storage is still being created (polls until status is CREAT).",
     {
@@ -119,56 +105,49 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       blockStorageInstanceNo: z.string().describe("Block storage instance number to attach"),
     },
     async (params) => {
-      try {
-        // Poll until block storage is ready (status CREAT)
-        const maxAttempts = 20;
-        const intervalMs = 3000;
-        for (let i = 0; i < maxAttempts; i++) {
-          const detail = await client.request("/vserver/v2/getBlockStorageInstanceDetail", {
-            blockStorageInstanceNo: params.blockStorageInstanceNo,
-          });
-          const instance = detail?.blockStorageInstanceList?.[0];
-          const status = instance?.blockStorageInstanceStatus?.code;
+      // Poll until block storage is ready (status CREAT)
+      const maxAttempts = 20;
+      const intervalMs = 3000;
+      for (let i = 0; i < maxAttempts; i++) {
+        const detail = await client.request("/vserver/v2/getBlockStorageInstanceDetail", {
+          blockStorageInstanceNo: params.blockStorageInstanceNo,
+        });
+        const instance = detail?.blockStorageInstanceList?.[0];
+        const status = instance?.blockStorageInstanceStatus?.code;
 
-          if (status === "CREAT") {
-            break;
-          }
-
-          if (i === maxAttempts - 1) {
-            return {
-              content: [{ type: "text" as const, text: `Block storage ${params.blockStorageInstanceNo} is still in status '${status}' after ${maxAttempts * intervalMs / 1000}s. Please try again later.` }],
-              isError: true,
-            };
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        if (status === "CREAT") {
+          break;
         }
 
-        const result = await client.request("/vserver/v2/attachBlockStorageInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        if (i === maxAttempts - 1) {
+          return {
+            content: [{ type: "text" as const, text: `Block storage ${params.blockStorageInstanceNo} is still in status '${status}' after ${maxAttempts * intervalMs / 1000}s. Please try again later.` }],
+            isError: true,
+          };
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
       }
+
+      const result = await client.request("/vserver/v2/attachBlockStorageInstance", params);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_detach_block_storage",
     "Detach block storage instances from their servers",
     {
       blockStorageInstanceNoList: z.array(z.string()).min(1).describe("List of block storage instance numbers to detach"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/detachBlockStorageInstances", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/detachBlockStorageInstances", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_block_storage",
     "Change block storage instance (resize volume and/or update name/description). Supports both Gen2 (XEN) and Gen3 (KVM). For attached storage, server must be stopped to resize.",
     {
@@ -178,16 +157,12 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       blockStorageDescription: z.string().optional().describe("New block storage description"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/changeBlockStorageInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/changeBlockStorageInstance", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_block_storage_protection",
     "Set return protection for a block storage instance",
     {
@@ -195,18 +170,14 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       isReturnProtection: z.boolean().describe("Whether to enable return protection (true to protect, false to unprotect)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/setBlockStorageReturnProtection", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/setBlockStorageReturnProtection", params);
     }
   );
 
   // ─── Block Storage Destructive Tools ───────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_block_storage",
     "⚠️ Destructive: Permanently delete one or more block storage instances. Set confirm=true to execute.",
     {
@@ -214,23 +185,20 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete BlockStorage [${params.blockStorageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteBlockStorageInstances", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete BlockStorage [${params.blockStorageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteBlockStorageInstances", apiParams);
+      return result;
     }
   );
 
   // ─── Snapshot Query Tools ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_snapshots",
     "List all block storage snapshot instances",
     {
@@ -239,34 +207,26 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getBlockStorageSnapshotInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getBlockStorageSnapshotInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_snapshot_detail",
     "Get detailed information about a specific block storage snapshot instance",
     {
       blockStorageSnapshotInstanceNo: z.string().describe("Block storage snapshot instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getBlockStorageSnapshotInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getBlockStorageSnapshotInstanceDetail", params);
     }
   );
 
   // ─── Snapshot Create Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_snapshot",
     "Create a snapshot from a block storage instance. Use dryRun=true to preview.",
     {
@@ -276,28 +236,25 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Snapshot Creation",
-            blockStorageInstanceNo: params.blockStorageInstanceNo,
-            blockStorageSnapshotName: params.blockStorageSnapshotName ?? "(auto-generated)",
-            message: "이 요청은 실제 스냅샷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/createBlockStorageSnapshotInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Snapshot Creation",
+          blockStorageInstanceNo: params.blockStorageInstanceNo,
+          blockStorageSnapshotName: params.blockStorageSnapshotName ?? "(auto-generated)",
+          message: "이 요청은 실제 스냅샷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+        };
+        return preview;
       }
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/createBlockStorageSnapshotInstance", apiParams);
+      return result;
     }
   );
 
   // ─── Snapshot Destructive Tools ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_snapshots",
     "⚠️ Destructive: Permanently delete one or more block storage snapshot instances. Set confirm=true to execute.",
     {
@@ -305,17 +262,13 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Snapshot [${params.blockStorageSnapshotInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteBlockStorageSnapshotInstances", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Snapshot [${params.blockStorageSnapshotInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteBlockStorageSnapshotInstances", apiParams);
+      return result;
     }
   );
 }

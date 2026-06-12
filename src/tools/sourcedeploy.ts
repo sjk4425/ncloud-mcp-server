@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerSourceDeployTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Tools ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_list_projects",
     "List all SourceDeploy deployment projects with optional name filter",
     {
@@ -15,20 +16,17 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       pageSize: z.number().optional().describe("Number of items per page (default: 100, max: 100)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.projectName) queryParams.projectName = params.projectName;
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.projectName) queryParams.projectName = params.projectName;
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_create_project",
     "Create a new SourceDeploy deployment project. Use dryRun=true to preview without creating.",
     {
@@ -36,25 +34,22 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: SourceDeploy Project Creation",
-            projectName: params.name,
-            message: "이 요청은 실제 배포 프로젝트를 생성하지 않습니다. dryRun=false로 호출하면 프로젝트가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const result = await client.requestRaw("POST", "/api/v1/project", undefined, { name: params.name });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: SourceDeploy Project Creation",
+          projectName: params.name,
+          message: "이 요청은 실제 배포 프로젝트를 생성하지 않습니다. dryRun=false로 호출하면 프로젝트가 생성됩니다.",
+        };
+        return preview;
       }
+      const result = await client.requestRaw("POST", "/api/v1/project", undefined, { name: params.name });
+      return result;
     }
   );
 
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_delete_project",
     "⚠️ Destructive: Permanently delete a SourceDeploy project. All stages, scenarios, and history will be removed. Set confirm=true to execute.",
     {
@@ -62,37 +57,30 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete SourceDeploy Project [${params.projectId}]. All stages, scenarios, and deployment history will be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
-        }
-        const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete SourceDeploy Project [${params.projectId}]. All stages, scenarios, and deployment history will be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
       }
+      const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}`);
+      return result;
     }
   );
 
   // ─── Stage Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_list_stages",
     "List all deployment stages in a SourceDeploy project",
     {
       projectId: z.string().describe("ID of the deployment project"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_stage",
     "Get detailed information about a specific deployment stage",
     {
@@ -100,17 +88,13 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       stageId: z.string().describe("ID of the deployment stage"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
     }
   );
 
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_create_stage",
     "Create a new deployment stage in a SourceDeploy project",
     {
@@ -120,17 +104,14 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       config: z.record(z.any()).describe("Deployment target config. Server: {serverNo: [number[]]}. AutoScalingGroup: {autoScalingGroupNo: number}. KubernetesService: {clusterNo: number}. ObjectStorage: {bucketName: string}"),
     },
     async (params) => {
-      try {
-        const body = { name: params.name, type: params.type, config: params.config };
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = { name: params.name, type: params.type, config: params.config };
+      const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_edit_stage",
     "Edit deployment stage settings (name, type, or config)",
     {
@@ -141,21 +122,18 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       config: z.record(z.any()).optional().describe("New deployment target config"),
     },
     async (params) => {
-      try {
-        const body: Record<string, any> = {};
-        if (params.name) body.name = params.name;
-        if (params.type) body.type = params.type;
-        if (params.config) body.config = params.config;
-        const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, any> = {};
+      if (params.name) body.name = params.name;
+      if (params.type) body.type = params.type;
+      if (params.config) body.config = params.config;
+      const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`, undefined, body);
+      return result;
     }
   );
 
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_delete_stage",
     "⚠️ Destructive: Delete a deployment stage from a SourceDeploy project. Set confirm=true to execute.",
     {
@@ -164,21 +142,18 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Stage [${params.stageId}] from Project [${params.projectId}]. All scenarios in this stage will also be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
-        }
-        const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Stage [${params.stageId}] from Project [${params.projectId}]. All scenarios in this stage will also be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
       }
+      const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
+      return result;
     }
   );
 
   // ─── Scenario Tools ────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_list_scenarios",
     "List all deployment scenarios in a SourceDeploy project stage",
     {
@@ -186,16 +161,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       stageId: z.string().describe("ID of the deployment stage"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_scenario",
     "Get detailed information about a specific deployment scenario",
     {
@@ -204,17 +175,13 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
     }
   );
 
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_create_scenario",
     "Create a new deployment scenario in a stage",
     {
@@ -224,17 +191,14 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       config: z.record(z.any()).describe("Scenario configuration (source, deployment strategy, commands, etc.)"),
     },
     async (params) => {
-      try {
-        const body = { name: params.name, ...params.config };
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = { name: params.name, ...params.config };
+      const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_edit_scenario",
     "Edit deployment scenario settings",
     {
@@ -244,17 +208,13 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       config: z.record(z.any()).describe("Updated scenario configuration"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`, undefined, params.config);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`, undefined, params.config);
     }
   );
 
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_delete_scenario",
     "⚠️ Destructive: Delete a deployment scenario. Set confirm=true to execute.",
     {
@@ -264,21 +224,18 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Scenario [${params.scenarioId}] from Stage [${params.stageId}].\n\nTo execute, call this tool again with confirm=true.` }] };
-        }
-        const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Scenario [${params.scenarioId}] from Stage [${params.stageId}].\n\nTo execute, call this tool again with confirm=true.` }] };
       }
+      const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
+      return result;
     }
   );
 
   // ─── Deployment Execution Tools ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_start_deploy",
     "Start a deployment for a specific scenario",
     {
@@ -287,16 +244,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario to execute"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_cancel_deploy",
     "Cancel an ongoing SourceDeploy deployment",
     {
@@ -304,19 +257,15 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       historyId: z.string().describe("Job result ID (from deployment history)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/history/${encodeURIComponent(params.historyId)}/cancel`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/history/${encodeURIComponent(params.historyId)}/cancel`);
     }
   );
 
 
   // ─── Deployment Approval Tools ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_request_deploy_approval",
     "Request approval for a scenario deployment",
     {
@@ -325,16 +274,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/request`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/request`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_approve_deploy",
     "Approve a scenario deployment request",
     {
@@ -343,16 +288,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/accept`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/accept`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_reject_deploy",
     "Reject a scenario deployment request",
     {
@@ -361,19 +302,15 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/reject`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/deploy/reject`);
     }
   );
 
 
   // ─── Deployment History Tools ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_deploy_history",
     "Get deployment history list for a project",
     {
@@ -382,19 +319,16 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       pageSize: z.number().optional().describe("Number of items per page (default: 100, max: 100)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history`, queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_deploy_history_detail",
     "Get detailed information about a specific deployment history entry",
     {
@@ -402,19 +336,15 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       historyId: z.string().describe("Job result ID"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history/${encodeURIComponent(params.historyId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history/${encodeURIComponent(params.historyId)}`);
     }
   );
 
 
   // ─── Canary Deployment Tools ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_approve_canary",
     "Approve a manually analyzed canary version deployment",
     {
@@ -423,16 +353,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/accept`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/accept`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_reject_canary",
     "Reject a manually analyzed canary version deployment",
     {
@@ -441,16 +367,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/reject`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/reject`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_canary_analysis_steps",
     "Get the canary analysis step list for a deployment",
     {
@@ -459,16 +381,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       scenarioId: z.string().describe("ID of the deployment scenario"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/analysis`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/analysis`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_canary_analysis_report",
     "Get the canary analysis report for a specific step",
     {
@@ -478,148 +396,107 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       stepNo: z.number().describe("Canary analysis step number"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/analysis/${params.stepNo}/report`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}/canary/analysis/${params.stepNo}/report`);
     }
   );
 
 
   // ─── Resource Query Tools (for stage configuration) ────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_servers",
     "Get the list of available servers for SourceDeploy stage configuration",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/server");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/server");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_autoscaling_groups",
     "Get the list of available Auto Scaling groups for SourceDeploy stage configuration",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/autoscalinggroup");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/autoscalinggroup");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_k8s_clusters",
     "Get the list of available Kubernetes Service clusters for SourceDeploy stage configuration",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/kubernetesservice");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/kubernetesservice");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_objectstorage_buckets",
     "Get the list of available Object Storage buckets for SourceDeploy stage configuration",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/objectstorage");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/objectstorage");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_objectstorage_objects",
     "Get the list of objects in an Object Storage bucket",
     {
       bucketName: z.string().describe("Name of the Object Storage bucket"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/objectstorage/${encodeURIComponent(params.bucketName)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/objectstorage/${encodeURIComponent(params.bucketName)}`);
     }
   );
 
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_sourcecommit_repos",
     "Get the list of available SourceCommit repositories for scenario source configuration",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/sourcecommit");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/sourcecommit");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_sourcecommit_branches",
     "Get the list of branches in a SourceCommit repository",
     {
       repositoryName: z.string().describe("Name of the SourceCommit repository"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/sourcecommit/${encodeURIComponent(params.repositoryName)}/branch`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/sourcecommit/${encodeURIComponent(params.repositoryName)}/branch`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_sourcebuild_projects",
     "Get the list of available SourceBuild projects for scenario source configuration",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/sourcebuild");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/sourcebuild");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcedeploy_get_target_groups",
     "Get the list of load balancer target groups connected to an Auto Scaling group",
     {
       autoScalingGroupNo: z.number().describe("Auto Scaling group number"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/autoscalinggroup/${params.autoScalingGroupNo}/targetgroup`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/autoscalinggroup/${params.autoScalingGroupNo}/targetgroup`);
     }
   );
 }

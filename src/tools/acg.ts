@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerAcgTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_acgs",
     "List all Access Control Groups (ACGs) in the current region",
     {
@@ -18,32 +19,24 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       pageSize: z.number().optional().describe("Page size for pagination (1-1000, required when pageNo is set)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getAccessControlGroupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getAccessControlGroupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_acg_detail",
     "Get detailed information about a specific Access Control Group",
     {
       accessControlGroupNo: z.string().describe("Access Control Group number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getAccessControlGroupDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getAccessControlGroupDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_acg_rules",
     "List all inbound and outbound rules for a specific ACG",
     {
@@ -51,18 +44,14 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       accessControlGroupRuleTypeCode: z.string().optional().describe("Filter by rule type (INBND: inbound, OTBND: outbound). Default: all rules"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getAccessControlGroupRuleList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getAccessControlGroupRuleList", params);
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_acg",
     "Create a new Access Control Group in a VPC",
     {
@@ -71,18 +60,14 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       accessControlGroupDescription: z.string().optional().describe("Description for the ACG (0-1000 bytes)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createAccessControlGroup", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createAccessControlGroup", params);
     }
   );
 
   // ─── Rule Management Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_acg_inbound_rule",
     "Add an inbound rule to an Access Control Group",
     {
@@ -95,34 +80,31 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       accessControlGroupRuleDescription: z.string().optional().describe("Rule description (0-1000 bytes)"),
     },
     async (params) => {
-      try {
-        const { vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange, accessControlGroupRuleDescription } = params;
-        const requestParams: any = {
-          vpcNo,
-          accessControlGroupNo,
-          "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
-        };
-        if (ipBlock) {
-          requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
-        }
-        if (accessControlGroupSequence) {
-          requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
-        }
-        if (portRange) {
-          requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
-        }
-        if (accessControlGroupRuleDescription) {
-          requestParams["accessControlGroupRuleList.1.accessControlGroupRuleDescription"] = accessControlGroupRuleDescription;
-        }
-        const result = await client.request("/vserver/v2/addAccessControlGroupInboundRule", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      const { vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange, accessControlGroupRuleDescription } = params;
+      const requestParams: any = {
+        vpcNo,
+        accessControlGroupNo,
+        "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
+      };
+      if (ipBlock) {
+        requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
       }
+      if (accessControlGroupSequence) {
+        requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
+      }
+      if (portRange) {
+        requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
+      }
+      if (accessControlGroupRuleDescription) {
+        requestParams["accessControlGroupRuleList.1.accessControlGroupRuleDescription"] = accessControlGroupRuleDescription;
+      }
+      const result = await client.request("/vserver/v2/addAccessControlGroupInboundRule", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_acg_outbound_rule",
     "Add an outbound rule to an Access Control Group",
     {
@@ -135,36 +117,33 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       accessControlGroupRuleDescription: z.string().optional().describe("Rule description (0-1000 bytes)"),
     },
     async (params) => {
-      try {
-        const { vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange, accessControlGroupRuleDescription } = params;
-        const requestParams: any = {
-          vpcNo,
-          accessControlGroupNo,
-          "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
-        };
-        if (ipBlock) {
-          requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
-        }
-        if (accessControlGroupSequence) {
-          requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
-        }
-        if (portRange) {
-          requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
-        }
-        if (accessControlGroupRuleDescription) {
-          requestParams["accessControlGroupRuleList.1.accessControlGroupRuleDescription"] = accessControlGroupRuleDescription;
-        }
-        const result = await client.request("/vserver/v2/addAccessControlGroupOutboundRule", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      const { vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange, accessControlGroupRuleDescription } = params;
+      const requestParams: any = {
+        vpcNo,
+        accessControlGroupNo,
+        "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
+      };
+      if (ipBlock) {
+        requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
       }
+      if (accessControlGroupSequence) {
+        requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
+      }
+      if (portRange) {
+        requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
+      }
+      if (accessControlGroupRuleDescription) {
+        requestParams["accessControlGroupRuleList.1.accessControlGroupRuleDescription"] = accessControlGroupRuleDescription;
+      }
+      const result = await client.request("/vserver/v2/addAccessControlGroupOutboundRule", requestParams);
+      return result;
     }
   );
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_acg",
     "⚠️ Destructive: Delete an Access Control Group. Set confirm=true to execute.",
     {
@@ -173,21 +152,18 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteAccessControlGroup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteAccessControlGroup", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_acg_inbound_rule",
     "⚠️ Destructive: Remove an inbound rule from an Access Control Group. Set confirm=true to execute.",
     {
@@ -200,35 +176,32 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently remove inbound rule from ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange } = params;
-        const requestParams: any = {
-          vpcNo,
-          accessControlGroupNo,
-          "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
-        };
-        if (ipBlock) {
-          requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
-        }
-        if (accessControlGroupSequence) {
-          requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
-        }
-        if (portRange) {
-          requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
-        }
-        const result = await client.request("/vserver/v2/removeAccessControlGroupInboundRule", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently remove inbound rule from ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange } = params;
+      const requestParams: any = {
+        vpcNo,
+        accessControlGroupNo,
+        "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
+      };
+      if (ipBlock) {
+        requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
+      }
+      if (accessControlGroupSequence) {
+        requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
+      }
+      if (portRange) {
+        requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
+      }
+      const result = await client.request("/vserver/v2/removeAccessControlGroupInboundRule", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_acg_outbound_rule",
     "⚠️ Destructive: Remove an outbound rule from an Access Control Group. Set confirm=true to execute.",
     {
@@ -241,31 +214,27 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently remove outbound rule from ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange } = params;
-        const requestParams: any = {
-          vpcNo,
-          accessControlGroupNo,
-          "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
-        };
-        if (ipBlock) {
-          requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
-        }
-        if (accessControlGroupSequence) {
-          requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
-        }
-        if (portRange) {
-          requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
-        }
-        const result = await client.request("/vserver/v2/removeAccessControlGroupOutboundRule", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently remove outbound rule from ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange } = params;
+      const requestParams: any = {
+        vpcNo,
+        accessControlGroupNo,
+        "accessControlGroupRuleList.1.protocolTypeCode": protocolTypeCode,
+      };
+      if (ipBlock) {
+        requestParams["accessControlGroupRuleList.1.ipBlock"] = ipBlock;
+      }
+      if (accessControlGroupSequence) {
+        requestParams["accessControlGroupRuleList.1.accessControlGroupSequence"] = accessControlGroupSequence;
+      }
+      if (portRange) {
+        requestParams["accessControlGroupRuleList.1.portRange"] = portRange;
+      }
+      const result = await client.request("/vserver/v2/removeAccessControlGroupOutboundRule", requestParams);
+      return result;
     }
   );
 }

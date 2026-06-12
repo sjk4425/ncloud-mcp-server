@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 // Cloud Insight Integration API (base: https://cw.apigw.ntruss.com)
 // 공식 docs 기준 경로/메서드/필드 (management-cloudinsight-*integration*)
@@ -9,7 +9,8 @@ const BASE = "/cw_fea/real/cw/api/integration";
 
 export function registerCloudInsightIntegrationTools(server: McpServer, client: NcloudClient): void {
   // ncloud_list_integrations — Get integration list (paged)
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_integrations",
     "Get the list of Cloud Insight integrations (paged).",
     {
@@ -18,39 +19,32 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       pageSize: z.number().optional().default(100).describe("Page size (>= 1)"),
     },
     async (params) => {
-      try {
-        const body = {
-          query: params.query ?? "",
-          pageNum: params.pageNum ?? 1,
-          pageSize: params.pageSize ?? 100,
-        };
-        const result = await client.postRequest(`${BASE}/page`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = {
+        query: params.query ?? "",
+        pageNum: params.pageNum ?? 1,
+        pageSize: params.pageSize ?? 100,
+      };
+      const result = await client.postRequest(`${BASE}/page`, body);
+      return result;
     }
   );
 
   // ncloud_get_integration — Get integration details (GET, id in path)
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_integration",
     "Get detailed information about a specific Cloud Insight integration.",
     {
       integrationId: z.string().describe("Integration ID to retrieve details for"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `${BASE}/${params.integrationId}/detail`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `${BASE}/${params.integrationId}/detail`);
     }
   );
 
   // ncloud_create_integration — Create an integration (OUT_GOING webhook)
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_integration",
     "Create a new Cloud Insight integration (outgoing webhook).",
     {
@@ -61,24 +55,21 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       headers: z.record(z.string()).optional().describe("HTTP headers to send (max 10 entries)"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          name: params.name,
-          type: params.type ?? "OUT_GOING",
-          url: params.url,
-          payload: params.payload,
-        };
-        if (params.headers !== undefined) body.headers = params.headers;
-        const result = await client.postRequest(`${BASE}/create`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, unknown> = {
+        name: params.name,
+        type: params.type ?? "OUT_GOING",
+        url: params.url,
+        payload: params.payload,
+      };
+      if (params.headers !== undefined) body.headers = params.headers;
+      const result = await client.postRequest(`${BASE}/create`, body);
+      return result;
     }
   );
 
   // ncloud_update_integration — Update an integration
-  server.tool(
+  defineTool(
+    server,
     "ncloud_update_integration",
     "Update an existing Cloud Insight integration.",
     {
@@ -90,25 +81,22 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       headers: z.record(z.string()).optional().describe("HTTP headers to send (max 10 entries)"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          id: params.integrationId,
-          name: params.name,
-          type: params.type ?? "OUT_GOING",
-          url: params.url,
-          payload: params.payload,
-        };
-        if (params.headers !== undefined) body.headers = params.headers;
-        const result = await client.postRequest(`${BASE}/update`, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, unknown> = {
+        id: params.integrationId,
+        name: params.name,
+        type: params.type ?? "OUT_GOING",
+        url: params.url,
+        payload: params.payload,
+      };
+      if (params.headers !== undefined) body.headers = params.headers;
+      const result = await client.postRequest(`${BASE}/update`, body);
+      return result;
     }
   );
 
   // ncloud_delete_integration — Delete integration(s) (body = JSON array of ids)
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_integration",
     "⚠️ Destructive: Delete a Cloud Insight integration. Set confirm=true to execute.",
     {
@@ -116,21 +104,17 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return {
-            content: [{
-              type: "text" as const,
-              text: `⚠️ This will permanently delete integration [${params.integrationId}]. To execute, call this tool again with confirm=true.`,
-            }],
-          };
-        }
-        // 삭제 API는 id 문자열의 JSON 배열을 body로 받는다
-        const result = await client.postRequest(`${BASE}/delete`, [params.integrationId]);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `⚠️ This will permanently delete integration [${params.integrationId}]. To execute, call this tool again with confirm=true.`,
+          }],
+        };
       }
+      // 삭제 API는 id 문자열의 JSON 배열을 body로 받는다
+      const result = await client.postRequest(`${BASE}/delete`, [params.integrationId]);
+      return result;
     }
   );
 }

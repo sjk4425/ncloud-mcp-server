@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerDatabaseMongodbTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mongodb_instances",
     "List all Cloud DB for MongoDB instances in the current region",
     {
@@ -16,50 +17,38 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mongodb_instance_detail",
     "Get detailed information about a specific Cloud DB for MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string().describe("Cloud MongoDB instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mongodb_backups",
     "List backups for a Cloud DB for MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string().describe("Cloud MongoDB instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbBackupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbBackupList", params);
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_mongodb_instance",
     "Create a new Cloud DB for MongoDB instance. Use dryRun=true to preview without creating.",
     {
@@ -104,64 +93,57 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: MongoDB Instance Creation",
-            cloudMongoDbServiceName: params.cloudMongoDbServiceName,
-            cloudMongoDbServerNamePrefix: params.cloudMongoDbServerNamePrefix,
-            clusterTypeCode: params.clusterTypeCode,
-            vpcNo: params.vpcNo,
-            subnetNo: params.subnetNo,
-            cloudMongoDbUserName: params.cloudMongoDbUserName,
-            memberServerCount: params.memberServerCount,
-            shardCount: params.shardCount,
-            message: "이 요청은 실제 MongoDB 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vmongodb/v2/createCloudMongoDbInstance", apiParams);
-        const instance = result.cloudMongoDbInstanceList?.[0];
-        const summary = {
-          리소스타입: "MongoDB",
-          리소스ID: instance?.cloudMongoDbInstanceNo ?? "unknown",
-          서비스명: params.cloudMongoDbServiceName,
-          상태: instance?.cloudMongoDbInstanceStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          VPC: params.vpcNo,
-          서브넷: params.subnetNo,
-          클러스터타입: params.clusterTypeCode,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: MongoDB Instance Creation",
+          cloudMongoDbServiceName: params.cloudMongoDbServiceName,
+          cloudMongoDbServerNamePrefix: params.cloudMongoDbServerNamePrefix,
+          clusterTypeCode: params.clusterTypeCode,
+          vpcNo: params.vpcNo,
+          subnetNo: params.subnetNo,
+          cloudMongoDbUserName: params.cloudMongoDbUserName,
+          memberServerCount: params.memberServerCount,
+          shardCount: params.shardCount,
+          message: "이 요청은 실제 MongoDB 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vmongodb/v2/createCloudMongoDbInstance", apiParams);
+      const instance = result.cloudMongoDbInstanceList?.[0];
+      const summary = {
+        리소스타입: "MongoDB",
+        리소스ID: instance?.cloudMongoDbInstanceNo ?? "unknown",
+        서비스명: params.cloudMongoDbServiceName,
+        상태: instance?.cloudMongoDbInstanceStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        VPC: params.vpcNo,
+        서브넷: params.subnetNo,
+        클러스터타입: params.clusterTypeCode,
+      };
+      return summary;
     }
   );
 
   // ─── Operation Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_reboot_mongodb_server",
     "Reboot a Cloud DB for MongoDB server instance",
     {
       cloudMongoDbServerInstanceNo: z.string().describe("Cloud MongoDB server instance number to reboot"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/rebootCloudMongoDbServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/rebootCloudMongoDbServerInstance", params);
     }
   );
 
   // ─── Cluster Scaling Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_mongodb_secondary_count",
     "Change the number of Secondary (Member/Arbiter) servers in a MongoDB instance",
     {
@@ -177,16 +159,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       arbiterProductCode: z.string().optional().describe("Arbiter server product code"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/changeCloudMongoDbSecondaryCount", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/changeCloudMongoDbSecondaryCount", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_mongodb_mongos_count",
     "Change the number of Mongos servers in a MongoDB Sharded Cluster instance",
     {
@@ -198,16 +176,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }).describe("Number of mongos servers (2-5)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/changeCloudMongoDbMongosCount", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/changeCloudMongoDbMongosCount", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_mongodb_config_count",
     "Change the number of Config servers in a MongoDB Sharded Cluster instance",
     {
@@ -219,16 +193,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }).describe("Number of config servers"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/changeCloudMongoDbConfigCount", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/changeCloudMongoDbConfigCount", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_mongodb_shard_count",
     "Change the number of shards in a MongoDB Sharded Cluster instance",
     {
@@ -240,18 +210,14 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }).describe("Number of shards"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/changeCloudMongoDbShardCount", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/changeCloudMongoDbShardCount", params);
     }
   );
 
   // ─── User Management Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mongodb_users",
     "List users in a Cloud DB for MongoDB instance",
     {
@@ -260,16 +226,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }).describe("Cloud MongoDB instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbUserList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbUserList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_mongodb_users",
     "Add users to a Cloud DB for MongoDB instance",
     {
@@ -284,27 +246,24 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       })).describe("List of users to add"),
     },
     async (params) => {
-      try {
-        const { cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
-        const requestParams: any = { cloudMongoDbInstanceNo };
+      const { cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
+      const requestParams: any = { cloudMongoDbInstanceNo };
 
-        for (let i = 0; i < cloudMongoDbUserList.length; i++) {
-          const user = cloudMongoDbUserList[i];
-          requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
-          requestParams[`cloudMongoDbUserList.${i + 1}.password`] = user.password;
-          requestParams[`cloudMongoDbUserList.${i + 1}.databaseName`] = user.databaseName;
-          requestParams[`cloudMongoDbUserList.${i + 1}.authority`] = user.authority;
-        }
-
-        const result = await client.request("/vmongodb/v2/addCloudMongoDbUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudMongoDbUserList.length; i++) {
+        const user = cloudMongoDbUserList[i];
+        requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudMongoDbUserList.${i + 1}.password`] = user.password;
+        requestParams[`cloudMongoDbUserList.${i + 1}.databaseName`] = user.databaseName;
+        requestParams[`cloudMongoDbUserList.${i + 1}.authority`] = user.authority;
       }
+
+      const result = await client.request("/vmongodb/v2/addCloudMongoDbUserList", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_mongodb_users",
     "Change user information (password) in a Cloud DB for MongoDB instance",
     {
@@ -317,25 +276,22 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       })).describe("List of users to change"),
     },
     async (params) => {
-      try {
-        const { cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
-        const requestParams: any = { cloudMongoDbInstanceNo };
+      const { cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
+      const requestParams: any = { cloudMongoDbInstanceNo };
 
-        for (let i = 0; i < cloudMongoDbUserList.length; i++) {
-          const user = cloudMongoDbUserList[i];
-          requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
-          requestParams[`cloudMongoDbUserList.${i + 1}.password`] = user.password;
-        }
-
-        const result = await client.request("/vmongodb/v2/changeCloudMongoDbUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudMongoDbUserList.length; i++) {
+        const user = cloudMongoDbUserList[i];
+        requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudMongoDbUserList.${i + 1}.password`] = user.password;
       }
+
+      const result = await client.request("/vmongodb/v2/changeCloudMongoDbUserList", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mongodb_users",
     "⚠️ Destructive: Delete users from a Cloud DB for MongoDB instance. Set confirm=true to execute.",
     {
@@ -348,31 +304,28 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const userNames = params.cloudMongoDbUserList.map(u => u.name).join(", ");
-          const message = `⚠️ This will permanently delete MongoDB users [${userNames}] from instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
-        const requestParams: any = { cloudMongoDbInstanceNo };
-
-        for (let i = 0; i < cloudMongoDbUserList.length; i++) {
-          const user = cloudMongoDbUserList[i];
-          requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
-        }
-
-        const result = await client.request("/vmongodb/v2/deleteCloudMongoDbUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const userNames = params.cloudMongoDbUserList.map(u => u.name).join(", ");
+        const message = `⚠️ This will permanently delete MongoDB users [${userNames}] from instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
+      const requestParams: any = { cloudMongoDbInstanceNo };
+
+      for (let i = 0; i < cloudMongoDbUserList.length; i++) {
+        const user = cloudMongoDbUserList[i];
+        requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
+      }
+
+      const result = await client.request("/vmongodb/v2/deleteCloudMongoDbUserList", requestParams);
+      return result;
     }
   );
 
   // ─── Backup & Log Tools ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mongodb_backup_details",
     "List detailed backup information for a Cloud DB for MongoDB instance",
     {
@@ -381,16 +334,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }).describe("Cloud MongoDB instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbBackupDetailList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbBackupDetailList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mongodb_logs",
     "List server logs for a Cloud DB for MongoDB server instance",
     {
@@ -399,16 +348,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }).describe("Cloud MongoDB server instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getDbServerLogList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getDbServerLogList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_mongodb_backup",
     "Export MongoDB backup files to Object Storage",
     {
@@ -427,24 +372,21 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       })).describe("List of backup objects to export"),
     },
     async (params) => {
-      try {
-        const { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName, folderPath, cloudMongoDbExportObjectList } = params;
-        const requestParams: any = { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName };
-        if (folderPath) requestParams.folderPath = folderPath;
+      const { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName, folderPath, cloudMongoDbExportObjectList } = params;
+      const requestParams: any = { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName };
+      if (folderPath) requestParams.folderPath = folderPath;
 
-        for (let i = 0; i < cloudMongoDbExportObjectList.length; i++) {
-          requestParams[`cloudMongoDbExportObjectList.${i + 1}.fullObjectName`] = cloudMongoDbExportObjectList[i].fullObjectName;
-        }
-
-        const result = await client.request("/vmongodb/v2/exportBackupToObjectStorage", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudMongoDbExportObjectList.length; i++) {
+        requestParams[`cloudMongoDbExportObjectList.${i + 1}.fullObjectName`] = cloudMongoDbExportObjectList[i].fullObjectName;
       }
+
+      const result = await client.request("/vmongodb/v2/exportBackupToObjectStorage", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_mongodb_log",
     "Export MongoDB server logs to Object Storage",
     {
@@ -463,42 +405,35 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       })).describe("List of log objects to export"),
     },
     async (params) => {
-      try {
-        const { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName, folderPath, cloudMongoDbExportObjectList } = params;
-        const requestParams: any = { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName };
-        if (folderPath) requestParams.folderPath = folderPath;
+      const { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName, folderPath, cloudMongoDbExportObjectList } = params;
+      const requestParams: any = { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName };
+      if (folderPath) requestParams.folderPath = folderPath;
 
-        for (let i = 0; i < cloudMongoDbExportObjectList.length; i++) {
-          requestParams[`cloudMongoDbExportObjectList.${i + 1}.fullObjectName`] = cloudMongoDbExportObjectList[i].fullObjectName;
-        }
-
-        const result = await client.request("/vmongodb/v2/exportDbServerLogToObjectStorage", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudMongoDbExportObjectList.length; i++) {
+        requestParams[`cloudMongoDbExportObjectList.${i + 1}.fullObjectName`] = cloudMongoDbExportObjectList[i].fullObjectName;
       }
+
+      const result = await client.request("/vmongodb/v2/exportDbServerLogToObjectStorage", requestParams);
+      return result;
     }
   );
 
   // ─── Product & Reference Tools ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mongodb_image_products",
     "List available MongoDB image product codes",
     {
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbImageProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbImageProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mongodb_products",
     "List available MongoDB server spec product codes (filterable by role type)",
     {
@@ -508,32 +443,24 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       infraResourceDetailTypeCode: z.string().optional().describe("Filter by server role type (MNGOD | ARBIT | CFGSV | MNGOS)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mongodb_target_vpcs",
     "List VPCs available for Cloud DB for MongoDB",
     {
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbTargetVpcList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbTargetVpcList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_mongodb_target_subnets",
     "List subnets available for Cloud DB for MongoDB",
     {
@@ -543,34 +470,26 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbTargetSubnetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbTargetSubnetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_mongodb_buckets",
     "List Object Storage buckets available for Cloud DB for MongoDB backup export",
     {
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vmongodb/v2/getCloudMongoDbBucketList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vmongodb/v2/getCloudMongoDbBucketList", params);
     }
   );
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_mongodb_instance",
     "⚠️ Destructive: Permanently delete a Cloud DB for MongoDB instance. Set confirm=true to execute.",
     {
@@ -578,17 +497,13 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete MongoDB instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vmongodb/v2/deleteCloudMongoDbInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete MongoDB instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vmongodb/v2/deleteCloudMongoDbInstance", apiParams);
+      return result;
     }
   );
 }

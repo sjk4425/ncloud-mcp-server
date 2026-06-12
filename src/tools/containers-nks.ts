@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * NKS (Ncloud Kubernetes Service) API Tools
@@ -16,40 +16,33 @@ import { toolText } from "./_response.js";
 export function registerContainersNksTools(server: McpServer, client: NcloudClient): void {
   // ─── Cluster Query Tools ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_list_clusters",
     "List all NKS (Ncloud Kubernetes Service) clusters in the current region",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/vnks/v2/clusters");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/vnks/v2/clusters");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_cluster",
     "Get detailed information about a specific NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}`);
     }
   );
 
 
   // ─── Cluster Create Tool ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_create_cluster",
     `Create a new NKS Kubernetes cluster. Use dryRun=true to preview without creating.
 
@@ -96,78 +89,75 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        // ─── G3/KVM pre-validation ────────────────────────────────────────────
-        const isG3 = params.clusterType?.includes("G003") || params.hypervisorCode?.toUpperCase() === "KVM";
+      // ─── G3/KVM pre-validation ────────────────────────────────────────────
+      const isG3 = params.clusterType?.includes("G003") || params.hypervisorCode?.toUpperCase() === "KVM";
 
-        // ─── Common pre-validation (applies to both G2 and G3) ────────────────
-        if (!params.isRegional && !params.zoneCode) {
+      // ─── Common pre-validation (applies to both G2 and G3) ────────────────
+      if (!params.isRegional && !params.zoneCode) {
+        return {
+          content: [{ type: "text" as const, text: "❌ 단일 존 클러스터(isRegional=false, 기본값) 생성 시 zoneCode는 필수입니다.\n\n클러스터 레벨에 zoneCode를 지정해주세요 (예: KR-2).\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다." }],
+          isError: true,
+        };
+      }
+
+      // softwareCode 형식 검증 (파이프 포함 여부)
+      if (params.nodePool && params.nodePool.length > 0) {
+        for (const pool of params.nodePool) {
+          if (pool.softwareCode && !pool.softwareCode.includes("|")) {
+            return {
+              content: [{ type: "text" as const, text: `❌ nodePool "${pool.name || "(unnamed)"}"의 softwareCode 형식이 올바르지 않습니다.\n\n입력값: ${pool.softwareCode}\n\nsoftwareCode는 반드시 ncloud_nks_get_server_images의 value 필드 전체를 사용해야 합니다.\n올바른 형식: 코드|이미지번호 (예: SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604)\n\n파이프(|) 뒤의 이미지 번호를 제거하지 마세요.` }],
+              isError: true,
+            };
+          }
+        }
+      }
+
+      if (isG3) {
+        if (!params.lbPrivateSubnetNo) {
           return {
-            content: [{ type: "text" as const, text: "❌ 단일 존 클러스터(isRegional=false, 기본값) 생성 시 zoneCode는 필수입니다.\n\n클러스터 레벨에 zoneCode를 지정해주세요 (예: KR-2).\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다." }],
+            content: [{ type: "text" as const, text: "❌ G3/KVM 클러스터 생성 시 lbPrivateSubnetNo는 필수입니다.\n\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다.\nPrivate Load Balancer용 서브넷 번호를 지정해주세요." }],
             isError: true,
           };
         }
 
-        // softwareCode 형식 검증 (파이프 포함 여부)
-        if (params.nodePool && params.nodePool.length > 0) {
-          for (const pool of params.nodePool) {
-            if (pool.softwareCode && !pool.softwareCode.includes("|")) {
-              return {
-                content: [{ type: "text" as const, text: `❌ nodePool "${pool.name || "(unnamed)"}"의 softwareCode 형식이 올바르지 않습니다.\n\n입력값: ${pool.softwareCode}\n\nsoftwareCode는 반드시 ncloud_nks_get_server_images의 value 필드 전체를 사용해야 합니다.\n올바른 형식: 코드|이미지번호 (예: SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604)\n\n파이프(|) 뒤의 이미지 번호를 제거하지 마세요.` }],
-                isError: true,
-              };
-            }
-          }
-        }
-
-        if (isG3) {
-          if (!params.lbPrivateSubnetNo) {
-            return {
-              content: [{ type: "text" as const, text: "❌ G3/KVM 클러스터 생성 시 lbPrivateSubnetNo는 필수입니다.\n\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다.\nPrivate Load Balancer용 서브넷 번호를 지정해주세요." }],
-              isError: true,
-            };
-          }
-
-          if (!params.hypervisorCode || params.hypervisorCode.toUpperCase() !== "KVM") {
-            return {
-              content: [{ type: "text" as const, text: "❌ G3 클러스터(clusterType에 G003 포함) 생성 시 hypervisorCode를 'KVM'으로 지정해야 합니다.\n\n미지정 시 API가 G2(XEN)로 해석하여 clusterType/k8sVersion 불일치 에러가 발생합니다." }],
-              isError: true,
-            };
-          }
-
-          if (params.k8sVersion && !params.k8sVersion.includes("-nks.2")) {
-            return {
-              content: [{ type: "text" as const, text: `❌ G3/KVM 클러스터에서는 nks.2 suffix 버전만 사용 가능합니다.\n\n입력값: ${params.k8sVersion}\n예시: 1.35.3-nks.2\n\nncloud_nks_get_versions(hypervisorCode='KVM')으로 사용 가능한 버전을 확인하세요.` }],
-              isError: true,
-            };
-          }
-        }
-        // ─── End pre-validation ───────────────────────────────────────────────
-
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: NKS Cluster Creation",
-            ...params,
-            dryRun: undefined,
-            message: "이 요청은 실제 클러스터를 생성하지 않습니다. dryRun=false로 호출하면 클러스터가 생성됩니다.",
-            ...(isG3 ? { g3Validation: "✅ G3/KVM 필수 파라미터 검증 통과" } : {}),
+        if (!params.hypervisorCode || params.hypervisorCode.toUpperCase() !== "KVM") {
+          return {
+            content: [{ type: "text" as const, text: "❌ G3 클러스터(clusterType에 G003 포함) 생성 시 hypervisorCode를 'KVM'으로 지정해야 합니다.\n\n미지정 시 API가 G2(XEN)로 해석하여 clusterType/k8sVersion 불일치 에러가 발생합니다." }],
+            isError: true,
           };
-          return toolText(preview);
         }
 
-        const { dryRun, ...body } = params;
-        const result = await client.requestRaw("POST", "/vnks/v2/clusters", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        if (params.k8sVersion && !params.k8sVersion.includes("-nks.2")) {
+          return {
+            content: [{ type: "text" as const, text: `❌ G3/KVM 클러스터에서는 nks.2 suffix 버전만 사용 가능합니다.\n\n입력값: ${params.k8sVersion}\n예시: 1.35.3-nks.2\n\nncloud_nks_get_versions(hypervisorCode='KVM')으로 사용 가능한 버전을 확인하세요.` }],
+            isError: true,
+          };
+        }
       }
+      // ─── End pre-validation ───────────────────────────────────────────────
+
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: NKS Cluster Creation",
+          ...params,
+          dryRun: undefined,
+          message: "이 요청은 실제 클러스터를 생성하지 않습니다. dryRun=false로 호출하면 클러스터가 생성됩니다.",
+          ...(isG3 ? { g3Validation: "✅ G3/KVM 필수 파라미터 검증 통과" } : {}),
+        };
+        return preview;
+      }
+
+      const { dryRun, ...body } = params;
+      const result = await client.requestRaw("POST", "/vnks/v2/clusters", undefined, body);
+      return result;
     }
   );
 
   // ─── Cluster Delete Tool ───────────────────────────────────────────────────
   // ⚠️ Destructive: DELETE method, confirm=true required, description has warning
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_delete_cluster",
     "⚠️ Destructive: Permanently delete an NKS Kubernetes cluster. Set confirm=true to execute.",
     {
@@ -175,22 +165,19 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete NKS Cluster [${params.clusterUuid}]. All node pools and workloads will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete NKS Cluster [${params.clusterUuid}]. All node pools and workloads will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}`);
+      return result ?? { success: true };
     }
   );
 
   // ─── Cluster Upgrade Tool ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_upgrade_cluster",
     "Upgrade the Kubernetes version of an NKS cluster. Uses PATCH with query parameters.",
     {
@@ -200,22 +187,19 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       maxUnavailable: z.number().optional().describe("Max nodes that can be unavailable during upgrade (default: 0)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
-        if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
-        if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/upgrade`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
+      if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
+      if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
+      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/upgrade`, queryParams);
+      return result;
     }
   );
 
 
   // ─── Cluster Configuration Tools ──────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_set_audit_log",
     "Configure audit log collection via Cloud Log Analytics for an NKS cluster",
     {
@@ -223,16 +207,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       audit: z.boolean({ required_error: "필수 파라미터 'audit'가 누락되었습니다." }).describe("Whether to enable audit log collection (true/false)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/log`, undefined, { audit: params.audit });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/log`, undefined, { audit: params.audit });
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_add_subnet",
     "Add subnets to an NKS cluster",
     {
@@ -240,16 +220,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       subnetNoList: z.array(z.number(), { required_error: "필수 파라미터 'subnetNoList'가 누락되었습니다." }).describe("List of subnet numbers to add"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/subnet`, undefined, { subnetNoList: params.subnetNoList });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/subnet`, undefined, { subnetNoList: params.subnetNoList });
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_set_oidc",
     "Configure OIDC (OpenID Connect) authentication for an NKS cluster",
     {
@@ -264,49 +240,38 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       requiredClaim: z.string().optional().describe("Required claim as key=value pair"),
     },
     async (params) => {
-      try {
-        const { clusterUuid, ...body } = params;
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/oidc`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { clusterUuid, ...body } = params;
+      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/oidc`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_oidc",
     "Get OIDC (OpenID Connect) provider configuration for an NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/oidc`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/oidc`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_ip_acl",
     "Get IP ACL configuration for an NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_set_ip_acl",
     "Configure IP ACL for an NKS cluster to restrict API server access",
     {
@@ -317,16 +282,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       }), { required_error: "필수 파라미터 'entries'가 누락되었습니다." }).describe("IP ACL entries"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`, undefined, { entries: params.entries });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`, undefined, { entries: params.entries });
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_set_return_protection",
     "Configure return (deletion) protection for an NKS cluster",
     {
@@ -334,16 +295,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       returnProtection: z.boolean({ required_error: "필수 파라미터 'returnProtection'이 누락되었습니다." }).describe("Enable/disable deletion protection"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/return-protection`, undefined, { returnProtection: params.returnProtection });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/return-protection`, undefined, { returnProtection: params.returnProtection });
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_lb_subnet",
     "Update load balancer subnet for an NKS cluster",
     {
@@ -352,17 +309,14 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       lbPublicSubnetNo: z.number().optional().describe("New LB public subnet number"),
     },
     async (params) => {
-      try {
-        const { clusterUuid, ...body } = params;
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/lb-subnet`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { clusterUuid, ...body } = params;
+      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/lb-subnet`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_secret_encryption",
     "Configure secret encryption for an NKS cluster",
     {
@@ -370,17 +324,14 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       kmsKeyTag: z.string().optional().describe("KMS key tag for secret encryption"),
     },
     async (params) => {
-      try {
-        const { clusterUuid, ...body } = params;
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/secret-encryption`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { clusterUuid, ...body } = params;
+      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/secret-encryption`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_auth_type",
     "Update authentication mode for an NKS cluster",
     {
@@ -388,70 +339,54 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       authType: z.string({ required_error: "필수 파라미터 'authType'가 누락되었습니다." }).describe("Auth type: API or CONFIG_MAP"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/auth-type`, undefined, { authType: params.authType });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/auth-type`, undefined, { authType: params.authType });
     }
   );
 
 
   // ─── Kubeconfig Tools ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_kubeconfig",
     "Retrieve the kubeconfig for a specified NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_reset_kubeconfig",
     "Reset the kubeconfig credentials for a specified NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
     }
   );
 
   // ─── Worker Node Tools ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_list_worker_nodes",
     "List worker nodes in an NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/nodes`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/nodes`);
     }
   );
 
   // ⚠️ Destructive: DELETE worker node, confirm=true required
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_delete_worker_node",
     "⚠️ Destructive: Delete a specific worker node from an NKS cluster. Set confirm=true to execute.",
     {
@@ -460,37 +395,30 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Worker Node [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/nodes/${params.instanceNo}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Worker Node [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/nodes/${params.instanceNo}`);
+      return result ?? { success: true };
     }
   );
 
   // ─── Node Pool Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_list_node_pools",
     "List all node pools in a specified NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/node-pool`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/node-pool`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_create_node_pool",
     "Create a new node pool in an NKS cluster. Use dryRun=true to preview.",
     {
@@ -512,21 +440,18 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, preview only"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = { label: "🔍 Dry-Run Preview: Node Pool Creation", ...params, dryRun: undefined, message: "dryRun=false로 호출하면 노드풀이 생성됩니다." };
-          return toolText(preview);
-        }
-        const { clusterUuid, dryRun, ...body } = params;
-        const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/node-pool`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = { label: "🔍 Dry-Run Preview: Node Pool Creation", ...params, dryRun: undefined, message: "dryRun=false로 호출하면 노드풀이 생성됩니다." };
+        return preview;
       }
+      const { clusterUuid, dryRun, ...body } = params;
+      const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/node-pool`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_node_pool",
     "Update node pool settings (node count or autoscale) in an NKS cluster",
     {
@@ -540,20 +465,17 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       }).optional().describe("Autoscale configuration"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {};
-        if (params.nodeCount !== undefined) body.nodeCount = params.nodeCount;
-        if (params.autoscale !== undefined) body.autoscale = params.autoscale;
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, unknown> = {};
+      if (params.nodeCount !== undefined) body.nodeCount = params.nodeCount;
+      if (params.autoscale !== undefined) body.autoscale = params.autoscale;
+      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`, undefined, body);
+      return result;
     }
   );
 
   // ⚠️ Destructive: DELETE node pool, confirm=true required
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_delete_node_pool",
     "⚠️ Destructive: Permanently delete a node pool from an NKS cluster. Set confirm=true to execute.",
     {
@@ -562,22 +484,19 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Node Pool [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Node Pool [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`);
+      return result ?? { success: true };
     }
   );
 
 
   // ─── Node Pool Label / Taint / Upgrade / Subnet ────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_node_pool_label",
     "Update labels on a node pool in an NKS cluster (PUT replaces all labels)",
     {
@@ -589,16 +508,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       }), { required_error: "필수 파라미터 'labels'가 누락되었습니다." }).describe("Label key/value pairs"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/labels`, undefined, { labels: params.labels });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/labels`, undefined, { labels: params.labels });
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_node_pool_taint",
     "Update taints on a node pool in an NKS cluster (PUT replaces all taints)",
     {
@@ -611,16 +526,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       }), { required_error: "필수 파라미터 'taints'가 누락되었습니다." }).describe("Taint key/value/effect objects"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/taints`, undefined, { taints: params.taints });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/taints`, undefined, { taints: params.taints });
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_upgrade_node_pool",
     "Upgrade the Kubernetes version of a node pool. Uses PATCH with query parameters.",
     {
@@ -631,19 +542,16 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       maxUnavailable: z.number().optional().describe("Max unavailable nodes during upgrade (default: 0)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
-        if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
-        if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/upgrade`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
+      if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
+      if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
+      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/upgrade`, queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_node_pool_subnet",
     "Update subnet for a node pool in an NKS cluster",
     {
@@ -652,34 +560,26 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       subnetNoList: z.array(z.number(), { required_error: "필수 파라미터 'subnetNoList'가 누락되었습니다." }).describe("New subnet number list"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/subnet`, undefined, { subnetNoList: params.subnetNoList });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/subnet`, undefined, { subnetNoList: params.subnetNoList });
     }
   );
 
   // ─── IAM Access Entry Tools ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_list_access_entries",
     "List IAM access entries for an NKS cluster",
     {
       clusterUuid: z.string({ required_error: "필수 파라미터 'clusterUuid'가 누락되었습니다." }).describe("UUID of the cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_access_entry",
     "Get a specific IAM access entry for an NKS cluster",
     {
@@ -687,16 +587,12 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       accessEntryNo: z.number({ required_error: "필수 파라미터 'accessEntryNo'가 누락되었습니다." }).describe("Access entry number"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_create_access_entry",
     "Create an IAM access entry for an NKS cluster",
     {
@@ -706,17 +602,14 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       type: z.string().optional().describe("Access entry type"),
     },
     async (params) => {
-      try {
-        const { clusterUuid, ...body } = params;
-        const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/access-entry`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { clusterUuid, ...body } = params;
+      const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/access-entry`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_update_access_entry",
     "Update an IAM access entry for an NKS cluster",
     {
@@ -725,18 +618,15 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       kubernetesGroups: z.array(z.string()).optional().describe("Kubernetes groups"),
     },
     async (params) => {
-      try {
-        const { clusterUuid, accessEntryNo, ...body } = params;
-        const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/access-entry/${accessEntryNo}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { clusterUuid, accessEntryNo, ...body } = params;
+      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/access-entry/${accessEntryNo}`, undefined, body);
+      return result;
     }
   );
 
   // ⚠️ Destructive: DELETE access entry, confirm=true required
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_delete_access_entry",
     "⚠️ Destructive: Delete an IAM access entry from an NKS cluster. Set confirm=true to execute.",
     {
@@ -745,21 +635,18 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will delete IAM Access Entry [${params.accessEntryNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will delete IAM Access Entry [${params.accessEntryNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
+      return result ?? { success: true };
     }
   );
 
   // ─── Reference/Query Tools (Versions, Images, Specs) ───────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_versions",
     "List available Kubernetes versions for NKS cluster creation",
     {
@@ -767,37 +654,31 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       isRegionalSupport: z.boolean().optional().describe("Filter only Regional (multi-zone) cluster supported versions"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
-        if (params.isRegionalSupport !== undefined) queryParams.isRegionalSupport = String(params.isRegionalSupport);
-        const result = await client.requestRaw("GET", "/vnks/v2/option/version", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
+      if (params.isRegionalSupport !== undefined) queryParams.isRegionalSupport = String(params.isRegionalSupport);
+      const result = await client.requestRaw("GET", "/vnks/v2/option/version", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_server_images",
     "List available server image types for NKS cluster/node pool creation",
     {
       hypervisorCode: z.string().optional().describe("Hypervisor type code filter: XEN (default) or KVM"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
-        const result = await client.requestRaw("GET", "/vnks/v2/option/server-image", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
+      const result = await client.requestRaw("GET", "/vnks/v2/option/server-image", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_nks_get_server_specs",
     "List available server specifications for NKS cluster/node pool creation. Requires softwareCode (from ncloud_nks_get_server_images) and zoneCode or zoneNo.",
     {
@@ -806,15 +687,11 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       zoneNo: z.string().optional().describe("Zone number. Required if zoneCode not provided."),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = { softwareCode: params.softwareCode };
-        if (params.zoneCode) queryParams.zoneCode = params.zoneCode;
-        if (params.zoneNo) queryParams.zoneNo = params.zoneNo;
-        const result = await client.requestRaw("GET", "/vnks/v2/option/server-product-code", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = { softwareCode: params.softwareCode };
+      if (params.zoneCode) queryParams.zoneCode = params.zoneCode;
+      if (params.zoneNo) queryParams.zoneNo = params.zoneNo;
+      const result = await client.requestRaw("GET", "/vnks/v2/option/server-product-code", queryParams);
+      return result;
     }
   );
 }

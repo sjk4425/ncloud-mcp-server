@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * SourceCommit API Tools
@@ -16,7 +16,8 @@ import { toolText } from "./_response.js";
 export function registerSourceCommitTools(server: McpServer, client: NcloudClient): void {
   // ─── Repository List ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_list_repos",
     "List all SourceCommit repositories. Supports filtering by name and pagination.",
     {
@@ -25,65 +26,54 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       pageSize: z.number().optional().describe("Number of items per page (1-N, displays entire list if not entered)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.repositoryName !== undefined) queryParams.repositoryName = params.repositoryName;
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      const queryParams: Record<string, string> = {};
+      if (params.repositoryName !== undefined) queryParams.repositoryName = params.repositoryName;
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
 
-        const result = await client.requestRaw("GET", "/api/v1/repository", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.requestRaw("GET", "/api/v1/repository", queryParams);
+      return result;
     }
   );
 
   // ─── Repository Detail (by Name) ──────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_get_repo",
     "Get detailed information about a specific SourceCommit repository by name",
     {
       repositoryName: z.string().describe("Name of the repository to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET",
           `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── Repository Detail (by ID) ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_get_repo_by_id",
     "Get detailed information about a specific SourceCommit repository by ID",
     {
       repositoryId: z.string().describe("Repository ID (from repository list)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET",
           `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── Repository Create ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_create_repo",
     "Create a new SourceCommit repository. Use dryRun=true to preview without creating.",
     {
@@ -94,47 +84,44 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the repository"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: SourceCommit Repository Creation",
-            repositoryName: params.name,
-            description: params.description ?? "(none)",
-            linked: {
-              FileSafer: params.fileSafer ?? false,
-              ObjectStorage: params.objectStorage ?? false,
-            },
-            message: "이 요청은 실제 저장소를 생성하지 않습니다. dryRun=false로 호출하면 저장소가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const body: Record<string, unknown> = { name: params.name };
-        if (params.description !== undefined) body.description = params.description;
-        const linked: Record<string, boolean> = {};
-        if (params.fileSafer !== undefined) linked.FileSafer = params.fileSafer;
-        if (params.objectStorage !== undefined) linked.ObjectStorage = params.objectStorage;
-        if (Object.keys(linked).length > 0) body.linked = linked;
-
-        const result = await client.requestRaw("POST", "/api/v1/repository", undefined, body);
-        const summary = {
-          리소스타입: "SourceCommit Repository",
-          저장소명: params.name,
-          설명: params.description ?? "(none)",
-          linked: linked,
-          상태: "created",
-          result,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: SourceCommit Repository Creation",
+          repositoryName: params.name,
+          description: params.description ?? "(none)",
+          linked: {
+            FileSafer: params.fileSafer ?? false,
+            ObjectStorage: params.objectStorage ?? false,
+          },
+          message: "이 요청은 실제 저장소를 생성하지 않습니다. dryRun=false로 호출하면 저장소가 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const body: Record<string, unknown> = { name: params.name };
+      if (params.description !== undefined) body.description = params.description;
+      const linked: Record<string, boolean> = {};
+      if (params.fileSafer !== undefined) linked.FileSafer = params.fileSafer;
+      if (params.objectStorage !== undefined) linked.ObjectStorage = params.objectStorage;
+      if (Object.keys(linked).length > 0) body.linked = linked;
+
+      const result = await client.requestRaw("POST", "/api/v1/repository", undefined, body);
+      const summary = {
+        리소스타입: "SourceCommit Repository",
+        저장소명: params.name,
+        설명: params.description ?? "(none)",
+        linked: linked,
+        상태: "created",
+        result,
+      };
+      return summary;
     }
   );
 
   // ─── Repository Edit (by Name) ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_edit_repo",
     "Edit SourceCommit repository settings (description, service integrations)",
     {
@@ -144,30 +131,27 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       objectStorage: z.boolean().optional().describe("Integrate Object Storage service (true/false)"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {};
-        if (params.description !== undefined) body.description = params.description;
-        const linked: Record<string, boolean> = {};
-        if (params.fileSafer !== undefined) linked.FileSafer = params.fileSafer;
-        if (params.objectStorage !== undefined) linked.ObjectStorage = params.objectStorage;
-        if (Object.keys(linked).length > 0) body.linked = linked;
+      const body: Record<string, unknown> = {};
+      if (params.description !== undefined) body.description = params.description;
+      const linked: Record<string, boolean> = {};
+      if (params.fileSafer !== undefined) linked.FileSafer = params.fileSafer;
+      if (params.objectStorage !== undefined) linked.ObjectStorage = params.objectStorage;
+      if (Object.keys(linked).length > 0) body.linked = linked;
 
-        const result = await client.requestRaw(
-          "PATCH",
-          `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`,
-          undefined,
-          body
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.requestRaw(
+        "PATCH",
+        `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`,
+        undefined,
+        body
+      );
+      return result;
     }
   );
 
   // ─── Repository Edit (by ID) ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_edit_repo_by_id",
     "Edit SourceCommit repository settings by ID (description, service integrations)",
     {
@@ -177,30 +161,27 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       objectStorage: z.boolean().optional().describe("Integrate Object Storage service (true/false)"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {};
-        if (params.description !== undefined) body.description = params.description;
-        const linked: Record<string, boolean> = {};
-        if (params.fileSafer !== undefined) linked.FileSafer = params.fileSafer;
-        if (params.objectStorage !== undefined) linked.ObjectStorage = params.objectStorage;
-        if (Object.keys(linked).length > 0) body.linked = linked;
+      const body: Record<string, unknown> = {};
+      if (params.description !== undefined) body.description = params.description;
+      const linked: Record<string, boolean> = {};
+      if (params.fileSafer !== undefined) linked.FileSafer = params.fileSafer;
+      if (params.objectStorage !== undefined) linked.ObjectStorage = params.objectStorage;
+      if (Object.keys(linked).length > 0) body.linked = linked;
 
-        const result = await client.requestRaw(
-          "PATCH",
-          `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`,
-          undefined,
-          body
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.requestRaw(
+        "PATCH",
+        `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`,
+        undefined,
+        body
+      );
+      return result;
     }
   );
 
   // ─── Repository Delete (by Name) ───────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_delete_repo",
     "⚠️ Destructive: Permanently delete a SourceCommit repository. Set confirm=true to execute.",
     {
@@ -208,25 +189,22 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete SourceCommit Repository [${params.repositoryName}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw(
-          "DELETE",
-          `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete SourceCommit Repository [${params.repositoryName}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw(
+        "DELETE",
+        `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`
+      );
+      return result;
     }
   );
 
   // ─── Repository Delete (by ID) ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_delete_repo_by_id",
     "⚠️ Destructive: Permanently delete a SourceCommit repository by ID. Set confirm=true to execute.",
     {
@@ -234,67 +212,56 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete SourceCommit Repository ID [${params.repositoryId}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw(
-          "DELETE",
-          `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete SourceCommit Repository ID [${params.repositoryId}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw(
+        "DELETE",
+        `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`
+      );
+      return result;
     }
   );
 
   // ─── Branch List ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_list_branches",
     "List all branches in a SourceCommit repository (includes default branch info)",
     {
       repositoryName: z.string().describe("Name of the repository"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET",
           `/api/v1/repository/${encodeURIComponent(params.repositoryName)}/branch`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── Tag List ──────────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_list_tags",
     "List all tags in a SourceCommit repository",
     {
       repositoryName: z.string().describe("Name of the repository"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "GET",
           `/api/v1/repository/${encodeURIComponent(params.repositoryName)}/tag`
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── Set Default Branch ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_sourcecommit_set_default_branch",
     "Set the default branch for a SourceCommit repository",
     {
@@ -302,18 +269,14 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       branchName: z.string().describe("Name of the branch to set as default"),
     },
     async (params) => {
-      try {
-        const body = { default: params.branchName };
-        const result = await client.requestRaw(
-          "POST",
-          `/api/v1/repository/${encodeURIComponent(params.repositoryName)}/branch/default`,
-          undefined,
-          body
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = { default: params.branchName };
+      const result = await client.requestRaw(
+        "POST",
+        `/api/v1/repository/${encodeURIComponent(params.repositoryName)}/branch/default`,
+        undefined,
+        body
+      );
+      return result;
     }
   );
 }

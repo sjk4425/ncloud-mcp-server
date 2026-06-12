@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Search Engine Service (SES) API
@@ -26,7 +26,8 @@ function getApiPrefix(regionCode: string): string {
 export function registerSearchEngineServiceTools(server: McpServer, client: NcloudClient): void {
   // ─── Cluster List ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_list_clusters",
     "List all Search Engine Service (Elasticsearch/OpenSearch) clusters in the current region",
     {
@@ -36,265 +37,223 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       pageSize: z.number().optional().describe("Page size (default: 10)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const queryParams: Record<string, string | number | boolean | undefined> = {};
-        if (params.inputText) queryParams["inputText"] = params.inputText;
-        if (params.vpcName) queryParams["vpcName"] = params.vpcName;
-        if (params.pageNo) queryParams["pageNo"] = params.pageNo;
-        if (params.pageSize) queryParams["pageSize"] = params.pageSize;
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfoList`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const queryParams: Record<string, string | number | boolean | undefined> = {};
+      if (params.inputText) queryParams["inputText"] = params.inputText;
+      if (params.vpcName) queryParams["vpcName"] = params.vpcName;
+      if (params.pageNo) queryParams["pageNo"] = params.pageNo;
+      if (params.pageSize) queryParams["pageSize"] = params.pageSize;
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfoList`, queryParams);
+      return result;
     }
   );
 
   // ─── Cluster Detail ────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_cluster_detail",
     "Get detailed information about a specific Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (from getClusterInfoList)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfo/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfo/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Cluster ACG List ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_cluster_acg",
     "Get ACG (Access Control Group) rules for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterAcgInfo/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterAcgInfo/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Cluster Node List ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_node_list",
     "Get node list for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterNodeList/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterNodeList/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Get Version List ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_versions",
     "Get available Search Engine (Elasticsearch/OpenSearch) versions",
     {},
     async () => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineVersionList`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineVersionList`);
+      return result;
     }
   );
 
   // ─── Get Server Generation List ───────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_server_generations",
     "Get available node server generations for Search Engine Service",
     {},
     async () => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineServerGenerationList`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineServerGenerationList`);
+      return result;
     }
   );
 
   // ─── Get Server Type (G2) ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_node_products",
     "Get available node server types (product codes) for Search Engine Service (G2)",
     {
       softwareProductCode: z.string().describe("OS product code (from getOsProductList)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/getNodeProductList`, undefined, {
-          softwareProductCode: params.softwareProductCode,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/getNodeProductList`, undefined, {
+        softwareProductCode: params.softwareProductCode,
+      });
+      return result;
     }
   );
 
   // ─── Get Server Type (G3) ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_server_specs",
     "Get available node server types for Search Engine Service (G3/KVM only)",
     {
       softwareProductCode: z.string().describe("OS product code (from getClusterServerImageList)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/getServerSpecList`, undefined, {
-          softwareProductCode: params.softwareProductCode,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/getServerSpecList`, undefined, {
+        softwareProductCode: params.softwareProductCode,
+      });
+      return result;
     }
   );
 
   // ─── Get OS Product List (G2) ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_os_products",
     "Get available OS types for Search Engine Service (G2)",
     {},
     async () => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getOsProductList`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getOsProductList`);
+      return result;
     }
   );
 
   // ─── Get OS Product List (G3) ─────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_cluster_server_images",
     "Get available OS types for Search Engine Service (G3/KVM only)",
     {},
     async () => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`);
+      return result;
     }
   );
 
   // ─── Get VPC List ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_vpc_list",
     "Get available VPC list for Search Engine Service cluster creation",
     {},
     async () => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getVpcList`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getVpcList`);
+      return result;
     }
   );
 
   // ─── Get Subnet List ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_subnet_list",
     "Get available subnet list for Search Engine Service cluster creation",
     {
       vpcNo: z.number().describe("VPC number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getSubnetList`, { vpcNo: params.vpcNo });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getSubnetList`, { vpcNo: params.vpcNo });
+      return result;
     }
   );
 
   // ─── Get Subnet List (G3) ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_subnet_list_g3",
     "Get available subnet list for Search Engine Service cluster creation (G3/KVM only)",
     {
       vpcNo: z.number().describe("VPC number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/getVpcAvailableSubnetList`, undefined, {
-          vpcNo: params.vpcNo,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/getVpcAvailableSubnetList`, undefined, {
+        vpcNo: params.vpcNo,
+      });
+      return result;
     }
   );
 
   // ─── Get Login Key List ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_login_keys",
     "Get authentication key list for SSH access to Search Engine Service manager nodes",
     {},
     async () => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getLoginKeyList`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getLoginKeyList`);
+      return result;
     }
   );
 
   // ─── Create Cluster (G2) ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_create_cluster",
     "Create a new Search Engine Service cluster (G2). Use dryRun=true to preview.",
     {
@@ -320,29 +279,26 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       dryRun: z.boolean().optional().default(false).describe("If true, preview only without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const { dryRun, ...rest } = params;
-          const preview = {
-            label: "Dry-Run Preview: SES Cluster Creation (G2)",
-            ...rest,
-            message: "This is a dry-run preview. Call again with dryRun=false to create.",
-          };
-          return toolText(preview);
-        }
-        const { dryRun, ...apiParams } = params;
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/createSearchEngineCluster`, undefined, apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const { dryRun, ...rest } = params;
+        const preview = {
+          label: "Dry-Run Preview: SES Cluster Creation (G2)",
+          ...rest,
+          message: "This is a dry-run preview. Call again with dryRun=false to create.",
+        };
+        return preview;
       }
+      const { dryRun, ...apiParams } = params;
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/createSearchEngineCluster`, undefined, apiParams);
+      return result;
     }
   );
 
   // ─── Create Cluster (G3/KVM) ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_create_cluster_g3",
     "Create a new Search Engine Service cluster (G3/KVM). Use dryRun=true to preview.",
     {
@@ -368,48 +324,42 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       dryRun: z.boolean().optional().default(false).describe("If true, preview only without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const { dryRun, ...rest } = params;
-          const preview = {
-            label: "Dry-Run Preview: SES Cluster Creation (G3/KVM)",
-            ...rest,
-            message: "This is a dry-run preview. Call again with dryRun=false to create.",
-          };
-          return toolText(preview);
-        }
-        const { dryRun, ...apiParams } = params;
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/createKvmSearchEngineCluster`, undefined, apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const { dryRun, ...rest } = params;
+        const preview = {
+          label: "Dry-Run Preview: SES Cluster Creation (G3/KVM)",
+          ...rest,
+          message: "This is a dry-run preview. Call again with dryRun=false to create.",
+        };
+        return preview;
       }
+      const { dryRun, ...apiParams } = params;
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/createKvmSearchEngineCluster`, undefined, apiParams);
+      return result;
     }
   );
 
   // ─── Restart Cluster ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_restart_cluster",
     "Restart a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/restartCluster/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/restartCluster/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Delete Cluster ────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_delete_cluster",
     "⚠️ Destructive: Permanently delete a Search Engine Service cluster. All data and indices will be lost. Set confirm=true to execute.",
     {
@@ -417,27 +367,24 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return {
-            content: [{
-              type: "text" as const,
-              text: `⚠️ This will permanently delete Search Engine Service cluster [${params.serviceGroupInstanceNo}]. All data and indices will be lost.\n\nTo execute, call this tool again with confirm=true.`,
-            }],
-          };
-        }
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("DELETE", `${prefix}/cluster/deleteSearchEngineCluster/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: `⚠️ This will permanently delete Search Engine Service cluster [${params.serviceGroupInstanceNo}]. All data and indices will be lost.\n\nTo execute, call this tool again with confirm=true.`,
+          }],
+        };
       }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("DELETE", `${prefix}/cluster/deleteSearchEngineCluster/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Add Node ──────────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_add_node",
     "Add data nodes to a Search Engine Service cluster",
     {
@@ -445,41 +392,35 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       addDataNodeCount: z.number().describe("Number of data nodes to add"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/changeCountOfDataNode`, undefined, {
-          serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-          addDataNodeCount: params.addDataNodeCount,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/changeCountOfDataNode`, undefined, {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+        addDataNodeCount: params.addDataNodeCount,
+      });
+      return result;
     }
   );
 
   // ─── Get Node Spec Detail ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_node_spec_detail",
     "Get server specifications for each node in a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeSpecDetail/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeSpecDetail/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Change Node Spec ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_change_node_spec",
     "Change server specifications for nodes in a Search Engine Service cluster",
     {
@@ -488,19 +429,16 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       productCode: z.string().describe("New server product code"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/changeSpecNode`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/changeSpecNode`, undefined, params);
+      return result;
     }
   );
 
   // ─── Change Disk Capacity ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_change_disk_size",
     "Change data node disk capacity for a Search Engine Service cluster",
     {
@@ -508,19 +446,16 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       dataNodeStorageSize: z.number().describe("New storage size in GB (100-2000, 10GB increment)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/changeClusterNodeDiskSize`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/changeClusterNodeDiskSize`, undefined, params);
+      return result;
     }
   );
 
   // ─── Reset Account Password ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_reset_password",
     "Reset the Search Engine admin account password",
     {
@@ -528,38 +463,32 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       searchEngineUserPassword: z.string().describe("New admin password (8-20 chars)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/resetSearchEngineUserPassword`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/resetSearchEngineUserPassword`, undefined, params);
+      return result;
     }
   );
 
   // ─── Dashboard ─────────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_dashboard",
     "Get dashboard information for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getDashboard/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getDashboard/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Monitoring ────────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_monitoring",
     "Get monitoring data for a Search Engine Service cluster or node",
     {
@@ -568,22 +497,19 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       endDateTime: z.string().optional().describe("End time (ISO 8601 format)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const queryParams: Record<string, string | number | boolean | undefined> = {
-          serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-        };
-        if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
-        if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getMonitoringData`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const queryParams: Record<string, string | number | boolean | undefined> = {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+      };
+      if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
+      if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getMonitoringData`, queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_os_monitoring",
     "Get OS-level monitoring data for a Search Engine Service node",
     {
@@ -593,44 +519,38 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       endDateTime: z.string().optional().describe("End time (ISO 8601 format)"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const queryParams: Record<string, string | number | boolean | undefined> = {
-          serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-          computeInstanceNo: params.computeInstanceNo,
-        };
-        if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
-        if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getOsMonitoringData`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const queryParams: Record<string, string | number | boolean | undefined> = {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+        computeInstanceNo: params.computeInstanceNo,
+      };
+      if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
+      if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getOsMonitoringData`, queryParams);
+      return result;
     }
   );
 
   // ─── Snapshot ──────────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_snapshot_buckets",
     "Get Object Storage bucket list available for storing cluster snapshots",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotBucketList`, {
-          serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotBucketList`, {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+      });
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_set_snapshot_api_key",
     "Set API authentication key for Object Storage access (for snapshots)",
     {
@@ -639,17 +559,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       secretAccessKey: z.string().describe("Object Storage secret key"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotApiKey`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotApiKey`, undefined, params);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_create_snapshot",
     "Create a snapshot of a Search Engine Service cluster",
     {
@@ -657,36 +574,30 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       bucketName: z.string().describe("Object Storage bucket name for snapshot storage"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/createSnapshot`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/createSnapshot`, undefined, params);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_snapshot_history",
     "Get snapshot creation history for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotHistory`, {
-          serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotHistory`, {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+      });
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_set_snapshot_schedule",
     "Set snapshot scheduling for a Search Engine Service cluster",
     {
@@ -695,55 +606,46 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       scheduleExpression: z.string().describe("Cron expression for scheduling"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotSchedule`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotSchedule`, undefined, params);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_unset_snapshot_schedule",
     "Unset (disable) snapshot scheduling for a Search Engine Service cluster. This only removes the schedule, not existing snapshots.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/removeSnapshotSchedule`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/removeSnapshotSchedule`, undefined, params);
+      return result;
     }
   );
 
   // ─── Import ────────────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_import_buckets",
     "Get Object Storage bucket list available for data import",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getImportBucketList`, {
-          serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getImportBucketList`, {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+      });
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_run_import",
     "Run data import from Object Storage to a Search Engine Service cluster",
     {
@@ -753,36 +655,30 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       indexName: z.string().describe("Target index name"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/runImport`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/runImport`, undefined, params);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_import_history",
     "Get data import history for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getImportHistory`, {
-          serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getImportHistory`, {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+      });
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_stop_import",
     "Stop a running data import operation",
     {
@@ -790,19 +686,16 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       importTaskId: z.string().describe("Import task ID to stop"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/stopImport`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/stopImport`, undefined, params);
+      return result;
     }
   );
 
   // ─── Version Upgrade ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_upgrade_version",
     "Upgrade Search Engine version for a cluster",
     {
@@ -810,17 +703,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       searchEngineVersionCode: z.string().describe("Target version code"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradeCluster`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradeCluster`, undefined, params);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_precheck_upgrade",
     "Pre-check before upgrading Search Engine version",
     {
@@ -828,36 +718,30 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       searchEngineVersionCode: z.string().describe("Target version code"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradePreCheck`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradePreCheck`, undefined, params);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_get_upgrade_progress",
     "Get version upgrade progress for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("GET", `${prefix}/cluster/getRollingUpgradeProgress/${params.serviceGroupInstanceNo}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getRollingUpgradeProgress/${params.serviceGroupInstanceNo}`);
+      return result;
     }
   );
 
   // ─── Change Node Type (Hot/Warm) ──────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_ses_change_node_type",
     "Change data node type (Hot/Warm) for a Search Engine Service cluster",
     {
@@ -866,13 +750,9 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       warmDataNodeCount: z.number().describe("Number of warm data nodes"),
     },
     async (params) => {
-      try {
-        const prefix = getApiPrefix(client.getRegionCode());
-        const result = await client.requestRaw("POST", `${prefix}/cluster/setHotWarmNode`, undefined, params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const prefix = getApiPrefix(client.getRegionCode());
+      const result = await client.requestRaw("POST", `${prefix}/cluster/setHotWarmNode`, undefined, params);
+      return result;
     }
   );
 }

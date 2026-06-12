@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerNetworkInterfaceTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_network_interfaces",
     "List all network interfaces in the current region",
     {
@@ -17,50 +18,38 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getNetworkInterfaceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getNetworkInterfaceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_network_interface_detail",
     "Get detailed information about a specific network interface",
     {
       networkInterfaceNo: z.string().describe("Network interface number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getNetworkInterfaceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getNetworkInterfaceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_flow_log_config",
     "Get FlowLog configuration list. Returns all FlowLog configurations or filters by network interface number.",
     {
       networkInterfaceNo: z.string().optional().describe("Network interface number to filter FlowLog configurations"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getFlowLogConfigurationList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getFlowLogConfigurationList", params);
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_network_interface",
     "Create a new network interface. Use dryRun=true to preview.",
     {
@@ -72,30 +61,27 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Network Interface Creation",
-            subnetNo: params.subnetNo,
-            accessControlGroupNoList: params.accessControlGroupNoList,
-            networkInterfaceName: params.networkInterfaceName ?? "(auto-generated)",
-            privateIp: params.privateIp ?? "(auto-assigned)",
-            message: "이 요청은 실제 네트워크 인터페이스를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/createNetworkInterface", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Network Interface Creation",
+          subnetNo: params.subnetNo,
+          accessControlGroupNoList: params.accessControlGroupNoList,
+          networkInterfaceName: params.networkInterfaceName ?? "(auto-generated)",
+          privateIp: params.privateIp ?? "(auto-assigned)",
+          message: "이 요청은 실제 네트워크 인터페이스를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+        };
+        return preview;
       }
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/createNetworkInterface", apiParams);
+      return result;
     }
   );
 
   // ─── Operation Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_attach_network_interface",
     "Attach a network interface to a server instance",
     {
@@ -103,16 +89,12 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       serverInstanceNo: z.string().describe("Server instance number to attach to"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/attachNetworkInterface", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/attachNetworkInterface", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_detach_network_interface",
     "Detach a network interface from a server instance",
     {
@@ -120,17 +102,13 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       serverInstanceNo: z.string().describe("Server instance number to detach from"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/detachNetworkInterface", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/detachNetworkInterface", params);
     }
   );
 
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_nic_acg",
     "Add access control groups (ACGs) to a network interface",
     {
@@ -138,16 +116,12 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       accessControlGroupNoList: z.array(z.string()).min(1).describe("List of ACG numbers to add"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/addNetworkInterfaceAccessControlGroup", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/addNetworkInterfaceAccessControlGroup", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_assign_secondary_ips",
     "Assign secondary IPs to a network interface. Provide either secondaryIpList (specific IPs) or secondaryIpCount (auto-assign count).",
     {
@@ -156,16 +130,12 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       secondaryIpCount: z.number().optional().describe("Number of secondary IPs to auto-assign"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/assignSecondaryIps", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/assignSecondaryIps", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_unassign_secondary_ips",
     "Unassign (release) secondary IPs from a network interface",
     {
@@ -173,16 +143,12 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       secondaryIpList: z.array(z.string()).min(1).describe("List of secondary IP addresses to unassign"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/unassignSecondaryIps", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/unassignSecondaryIps", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_enable_flow_log",
     "Enable FlowLog on a network interface. Captures network traffic logs and stores them in the specified bucket.",
     {
@@ -191,34 +157,26 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       flowLogStatusTypeCode: z.string().optional().describe("FlowLog status type code (ACCEPT, REJECT, ALL)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/enableFlowLog", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/enableFlowLog", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_disable_flow_log",
     "Disable FlowLog on a network interface. Stops capturing network traffic logs.",
     {
       networkInterfaceNo: z.string().describe("Network interface number to disable FlowLog on"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/disableFlowLog", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/disableFlowLog", params);
     }
   );
 
   // ─── Destructive Tools ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_nic_acg",
     "⚠️ DESTRUCTIVE: Remove access control groups (ACGs) from a network interface. Set confirm=true to execute.",
     {
@@ -227,21 +185,18 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will remove ACG(s) [${params.accessControlGroupNoList.join(", ")}] from NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/removeNetworkInterfaceAccessControlGroup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will remove ACG(s) [${params.accessControlGroupNoList.join(", ")}] from NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/removeNetworkInterfaceAccessControlGroup", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_network_interface",
     "⚠️ Destructive: Permanently delete a network interface. Set confirm=true to execute.",
     {
@@ -249,17 +204,13 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteNetworkInterface", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteNetworkInterface", apiParams);
+      return result;
     }
   );
 }

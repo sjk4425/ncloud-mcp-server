@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerNatGatewayTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_nat_gateways",
     "List all NAT Gateway instances in the current region",
     {
@@ -25,34 +26,26 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
       pageSize: z.number().optional().describe("Page size for paged results (required when pageNo is specified)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getNatGatewayInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getNatGatewayInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_nat_gateway_detail",
     "Get detailed information about a specific NAT Gateway",
     {
       natGatewayInstanceNo: z.string().describe("NAT Gateway instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getNatGatewayInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getNatGatewayInstanceDetail", params);
     }
   );
 
   // ─── Create Tool ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_nat_gateway",
     "Create a new NAT Gateway instance in a VPC. Supports both Public (PBLIP) and Private (PRVT) types.",
     {
@@ -67,18 +60,14 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
       privateIp: z.string().optional().describe("Private IP address. Ignored for PUBLIC subnet type. For PRIVATE subnet: auto-assigned if NULL, created with specified IP if provided."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/createNatGatewayInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/createNatGatewayInstance", params);
     }
   );
 
   // ─── Description Tool ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_nat_gateway_description",
     "Set or update the description of a NAT Gateway instance",
     {
@@ -86,18 +75,14 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
       natGatewayDescription: z.string({ required_error: "필수 파라미터 'natGatewayDescription'이 누락되었습니다." }).describe("New description for the NAT Gateway"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/setNatGatewayDescription", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/setNatGatewayDescription", params);
     }
   );
 
   // ─── Destructive Tool (with confirm gate) ──────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_nat_gateway",
     "⚠️ Destructive: Permanently delete a NAT Gateway instance. Set confirm=true to execute.",
     {
@@ -106,17 +91,13 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete NAT Gateway [${params.natGatewayInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vpc/v2/deleteNatGatewayInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete NAT Gateway [${params.natGatewayInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vpc/v2/deleteNatGatewayInstance", apiParams);
+      return result;
     }
   );
 }

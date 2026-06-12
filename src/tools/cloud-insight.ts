@@ -1,11 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerCloudInsightTools(server: McpServer, client: NcloudClient): void {
   // ncloud_query_monitoring_data — Query time-series monitoring data from Cloud Insight
-  server.tool(
+  defineTool(
+    server,
     "ncloud_query_monitoring_data",
     "Query time-series monitoring data from Cloud Insight. Returns metric data for a specific product and metric.",
     {
@@ -19,28 +20,25 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       dimensions: z.record(z.string()).optional().describe("Dimension filters as key-value pairs (e.g., {\"instanceNo\": \"12345\"})"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          cw_key: params.cw_key,
-          prodName: params.prodName,
-          metric: params.metric,
-          timeStart: params.timeStart,
-          timeEnd: params.timeEnd,
-        };
-        if (params.interval !== undefined) body.interval = params.interval;
-        if (params.aggregation !== undefined) body.aggregation = params.aggregation;
-        if (params.dimensions !== undefined) body.dimensions = params.dimensions;
+      const body: Record<string, unknown> = {
+        cw_key: params.cw_key,
+        prodName: params.prodName,
+        metric: params.metric,
+        timeStart: params.timeStart,
+        timeEnd: params.timeEnd,
+      };
+      if (params.interval !== undefined) body.interval = params.interval;
+      if (params.aggregation !== undefined) body.aggregation = params.aggregation;
+      if (params.dimensions !== undefined) body.dimensions = params.dimensions;
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/data/query", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/data/query", body);
+      return result;
     }
   );
 
   // ncloud_query_monitoring_data_multiple — Query multiple time-series monitoring data
-  server.tool(
+  defineTool(
+    server,
     "ncloud_query_monitoring_data_multiple",
     "Query multiple time-series monitoring data from Cloud Insight in a single request. Supports querying multiple metrics at once.",
     {
@@ -56,25 +54,22 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       aggregation: z.enum(["AVG", "MIN", "MAX", "SUM", "COUNT"]).optional().describe("Aggregation type (default: AVG)"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          metrics: params.metrics,
-          timeStart: params.timeStart,
-          timeEnd: params.timeEnd,
-        };
-        if (params.interval !== undefined) body.interval = params.interval;
-        if (params.aggregation !== undefined) body.aggregation = params.aggregation;
+      const body: Record<string, unknown> = {
+        metrics: params.metrics,
+        timeStart: params.timeStart,
+        timeEnd: params.timeEnd,
+      };
+      if (params.interval !== undefined) body.interval = params.interval;
+      if (params.aggregation !== undefined) body.aggregation = params.aggregation;
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/data/query/multiple", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/data/query/multiple", body);
+      return result;
     }
   );
 
   // ncloud_search_events — Search monitoring events
-  server.tool(
+  defineTool(
+    server,
     "ncloud_search_events",
     "Search and get monitoring events from Cloud Insight with filtering options.",
     {
@@ -87,27 +82,24 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       pageNum: z.number().optional().describe("Page number (default: 1)"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          startTime: params.startTime,
-          endTime: params.endTime,
-        };
-        if (params.prodKey !== undefined) body.prodKey = params.prodKey;
-        if (params.ruleGroupId !== undefined) body.ruleGroupId = params.ruleGroupId;
-        if (params.eventLevel !== undefined) body.eventLevel = params.eventLevel;
-        if (params.pageSize !== undefined) body.pageSize = params.pageSize;
-        if (params.pageNum !== undefined) body.pageNum = params.pageNum;
+      const body: Record<string, unknown> = {
+        startTime: params.startTime,
+        endTime: params.endTime,
+      };
+      if (params.prodKey !== undefined) body.prodKey = params.prodKey;
+      if (params.ruleGroupId !== undefined) body.ruleGroupId = params.ruleGroupId;
+      if (params.eventLevel !== undefined) body.eventLevel = params.eventLevel;
+      if (params.pageSize !== undefined) body.pageSize = params.pageSize;
+      if (params.pageNum !== undefined) body.pageNum = params.pageNum;
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/event/search", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/event/search", body);
+      return result;
     }
   );
 
   // ncloud_search_event_by_id — Get event details by event ID
-  server.tool(
+  defineTool(
+    server,
     "ncloud_search_event_by_id",
     "Get detailed information about a specific monitoring event by event ID and rule ID.",
     {
@@ -115,37 +107,30 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       ruleId: z.string().describe("Rule ID associated with the event"),
     },
     async (params) => {
-      try {
-        const body = {
-          eventId: params.eventId,
-          ruleId: params.ruleId,
-        };
+      const body = {
+        eventId: params.eventId,
+        ruleId: params.ruleId,
+      };
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/event/searchById", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/event/searchById", body);
+      return result;
     }
   );
 
   // ncloud_list_dashboards — Get Cloud Insight dashboard list
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_dashboards",
     "Get the list of Cloud Insight monitoring dashboards.",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/cw_fea/real/cw/api/chart/dashboard");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/cw_fea/real/cw/api/chart/dashboard");
     }
   );
 
   // ncloud_send_monitoring_data — Send custom monitoring data to Cloud Insight
-  server.tool(
+  defineTool(
+    server,
     "ncloud_send_monitoring_data",
     "Send custom JSON monitoring data to Cloud Insight for user-defined metrics.",
     {
@@ -161,22 +146,19 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       })).describe("Array of data entries to send"),
     },
     async (params) => {
-      try {
-        const body = {
-          prodKey: params.prodKey,
-          data: params.data,
-        };
+      const body = {
+        prodKey: params.prodKey,
+        data: params.data,
+      };
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/data", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/data", body);
+      return result;
     }
   );
 
   // ncloud_search_event_count — Search event count
-  server.tool(
+  defineTool(
+    server,
     "ncloud_search_event_count",
     "Get the count of monitoring events from Cloud Insight within a specified time range.",
     {
@@ -187,42 +169,35 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       eventLevel: z.enum(["CRITICAL", "WARNING", "INFO"]).optional().describe("Event severity level filter"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          startTime: params.startTime,
-          endTime: params.endTime,
-        };
-        if (params.prodKey !== undefined) body.prodKey = params.prodKey;
-        if (params.ruleGroupId !== undefined) body.ruleGroupId = params.ruleGroupId;
-        if (params.eventLevel !== undefined) body.eventLevel = params.eventLevel;
+      const body: Record<string, unknown> = {
+        startTime: params.startTime,
+        endTime: params.endTime,
+      };
+      if (params.prodKey !== undefined) body.prodKey = params.prodKey;
+      if (params.ruleGroupId !== undefined) body.ruleGroupId = params.ruleGroupId;
+      if (params.eventLevel !== undefined) body.eventLevel = params.eventLevel;
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/event/search/count", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/event/search/count", body);
+      return result;
     }
   );
 
   // ncloud_get_dashboard_widgets — Get dashboard widget list
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_dashboard_widgets",
     "Get the list of widgets for a specific Cloud Insight dashboard.",
     {
       dashboardId: z.string().describe("Dashboard ID to get widgets for"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/cw_fea/real/cw/api/chart/dashboard/${encodeURIComponent(params.dashboardId)}/widget`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/cw_fea/real/cw/api/chart/dashboard/${encodeURIComponent(params.dashboardId)}/widget`);
     }
   );
 
   // ncloud_get_dashboard_widget_image — Get dashboard widget image
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_dashboard_widget_image",
     "Download a dashboard widget image from Cloud Insight. Returns image data as base64.",
     {
@@ -230,17 +205,13 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       widgetId: z.string().describe("Widget ID to get image for"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/cw_fea/real/cw/api/chart/dashboard/${encodeURIComponent(params.dashboardId)}/widget/${encodeURIComponent(params.widgetId)}/image`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/cw_fea/real/cw/api/chart/dashboard/${encodeURIComponent(params.dashboardId)}/widget/${encodeURIComponent(params.widgetId)}/image`);
     }
   );
 
   // ncloud_query_widget_preview — Query widget data preview
-  server.tool(
+  defineTool(
+    server,
     "ncloud_query_widget_preview",
     "Query widget preview data from Cloud Insight by specifying metrics directly.",
     {
@@ -253,43 +224,36 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       dimensions: z.record(z.string()).optional().describe("Dimension filters as key-value pairs"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          prodKey: params.prodKey,
-          metric: params.metric,
-          timeStart: params.timeStart,
-          timeEnd: params.timeEnd,
-        };
-        if (params.interval !== undefined) body.interval = params.interval;
-        if (params.aggregation !== undefined) body.aggregation = params.aggregation;
-        if (params.dimensions !== undefined) body.dimensions = params.dimensions;
+      const body: Record<string, unknown> = {
+        prodKey: params.prodKey,
+        metric: params.metric,
+        timeStart: params.timeStart,
+        timeEnd: params.timeEnd,
+      };
+      if (params.interval !== undefined) body.interval = params.interval;
+      if (params.aggregation !== undefined) body.aggregation = params.aggregation;
+      if (params.dimensions !== undefined) body.dimensions = params.dimensions;
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/data/widget/preview", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/data/widget/preview", body);
+      return result;
     }
   );
 
   // ncloud_get_servers_top — Get top 5 servers by CPU/memory/filesystem usage
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_servers_top",
     "Get the top 5 servers by CPU, memory, or filesystem usage from Cloud Insight monitoring.",
     {
       metricType: z.enum(["cpu", "memory", "fs"]).describe("Metric type to rank servers by (cpu, memory, or fs)"),
     },
     async (params) => {
-      try {
-        const body = {
-          metricType: params.metricType,
-        };
+      const body = {
+        metricType: params.metricType,
+      };
 
-        const result = await client.postRequest("/cw_fea/real/cw/api/server/top", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.postRequest("/cw_fea/real/cw/api/server/top", body);
+      return result;
     }
   );
 }

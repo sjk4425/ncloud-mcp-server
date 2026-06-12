@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 // Cloud Log Analytics (NCP) API
 // Base host: https://cloudloganalytics.apigw.ntruss.com  (registry에서 주입)
@@ -15,7 +15,8 @@ function regionSeg(regionCode?: string): string {
 
 export function registerLogAnalyticsTools(server: McpServer, client: NcloudClient): void {
   // ncloud_search_logs — Search logs
-  server.tool(
+  defineTool(
+    server,
     "ncloud_search_logs",
     "Search collected logs in Cloud Log Analytics.",
     {
@@ -29,25 +30,22 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
       pageSize: z.number().optional().describe("Page size (10-100, default 10)"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {};
-        if (params.interval !== undefined) body.interval = params.interval;
-        if (params.keyword !== undefined) body.keyword = params.keyword;
-        if (params.logTypes !== undefined) body.logTypes = params.logTypes;
-        if (params.timestampFrom !== undefined) body.timestampFrom = params.timestampFrom;
-        if (params.timestampTo !== undefined) body.timestampTo = params.timestampTo;
-        if (params.pageNo !== undefined) body.pageNo = params.pageNo;
-        if (params.pageSize !== undefined) body.pageSize = params.pageSize;
-        const result = await client.requestRaw("POST", `/api/${regionSeg(params.regionCode)}-v1/logs/search`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, unknown> = {};
+      if (params.interval !== undefined) body.interval = params.interval;
+      if (params.keyword !== undefined) body.keyword = params.keyword;
+      if (params.logTypes !== undefined) body.logTypes = params.logTypes;
+      if (params.timestampFrom !== undefined) body.timestampFrom = params.timestampFrom;
+      if (params.timestampTo !== undefined) body.timestampTo = params.timestampTo;
+      if (params.pageNo !== undefined) body.pageNo = params.pageNo;
+      if (params.pageSize !== undefined) body.pageSize = params.pageSize;
+      const result = await client.requestRaw("POST", `/api/${regionSeg(params.regionCode)}-v1/logs/search`, undefined, body);
+      return result;
     }
   );
 
   // ncloud_list_log_servers — List servers that can collect logs (replaces fictional getLogSourceList)
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_log_servers",
     "List servers eligible for log collection in Cloud Log Analytics (includes per-server collection status).",
     {
@@ -57,51 +55,40 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
       pageSize: z.number().optional().describe("Page size (10-100, default 10)"),
     },
     async (params) => {
-      try {
-        const q: Record<string, number> = {};
-        if (params.pageNo !== undefined) q.pageNo = params.pageNo;
-        if (params.pageSize !== undefined) q.pageSize = params.pageSize;
-        const platform = params.platform ?? "vpc";
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/${platform}/servers`, q);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const q: Record<string, number> = {};
+      if (params.pageNo !== undefined) q.pageNo = params.pageNo;
+      if (params.pageSize !== undefined) q.pageSize = params.pageSize;
+      const platform = params.platform ?? "vpc";
+      const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/${platform}/servers`, q);
+      return result;
     }
   );
 
   // ncloud_get_log_count_total — Total log count
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_log_count_total",
     "Get the total collected log count in Cloud Log Analytics.",
     { regionCode: z.string().optional().describe("Region code (default kr)") },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/total`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/total`);
     }
   );
 
   // ncloud_get_log_count_recent — Recent log count
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_log_count_recent",
     "Get the recent log count in Cloud Log Analytics.",
     { regionCode: z.string().optional().describe("Region code (default kr)") },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/recent`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/recent`);
     }
   );
 
   // ncloud_get_log_count_by_period — Log count over an interval
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_log_count_by_period",
     "Get log counts over a time interval in Cloud Log Analytics.",
     {
@@ -111,21 +98,18 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
       interval: z.string().optional().describe("Bucket interval: 1d/1h/1m"),
     },
     async (params) => {
-      try {
-        const q: Record<string, string> = {};
-        if (params.startTime !== undefined) q.startTime = params.startTime;
-        if (params.endTime !== undefined) q.endTime = params.endTime;
-        if (params.interval !== undefined) q.interval = params.interval;
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/interval`, q);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const q: Record<string, string> = {};
+      if (params.startTime !== undefined) q.startTime = params.startTime;
+      if (params.endTime !== undefined) q.endTime = params.endTime;
+      if (params.interval !== undefined) q.interval = params.interval;
+      const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/interval`, q);
+      return result;
     }
   );
 
   // ncloud_get_log_count_by_type — Aggregated log count by server or log name
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_log_count_by_type",
     "Get aggregated log counts by type (server or log_name) in Cloud Log Analytics.",
     {
@@ -133,17 +117,13 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
       type: z.enum(["server", "log_name"]).describe("Aggregation type"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/aggregation`, { type: params.type });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/logs/count/aggregation`, { type: params.type });
     }
   );
 
   // ncloud_export_logs — Export logs to Object Storage
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_logs",
     "Export searched logs to an Object Storage bucket in Cloud Log Analytics.",
     {
@@ -156,23 +136,20 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
       regionNo: z.number().optional().describe("Region number"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = { bucketname: params.bucketname };
-        if (params.keyword !== undefined) body.keyword = params.keyword;
-        if (params.logTypes !== undefined) body.logTypes = params.logTypes;
-        if (params.timestampFrom !== undefined) body.timestampFrom = params.timestampFrom;
-        if (params.timestampTo !== undefined) body.timestampTo = params.timestampTo;
-        if (params.regionNo !== undefined) body.regionNo = params.regionNo;
-        const result = await client.requestRaw("POST", `/api/${regionSeg(params.regionCode)}-v1/logs/search/export`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, unknown> = { bucketname: params.bucketname };
+      if (params.keyword !== undefined) body.keyword = params.keyword;
+      if (params.logTypes !== undefined) body.logTypes = params.logTypes;
+      if (params.timestampFrom !== undefined) body.timestampFrom = params.timestampFrom;
+      if (params.timestampTo !== undefined) body.timestampTo = params.timestampTo;
+      if (params.regionNo !== undefined) body.regionNo = params.regionNo;
+      const result = await client.requestRaw("POST", `/api/${regionSeg(params.regionCode)}-v1/logs/search/export`, undefined, body);
+      return result;
     }
   );
 
   // ncloud_get_log_export_history — Export history
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_log_export_history",
     "Get the log export history in Cloud Log Analytics.",
     {
@@ -181,45 +158,33 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
       pageSize: z.number().optional().describe("Page size (20-100, default 20)"),
     },
     async (params) => {
-      try {
-        const q: Record<string, number> = {};
-        if (params.pageNo !== undefined) q.pageNo = params.pageNo;
-        if (params.pageSize !== undefined) q.pageSize = params.pageSize;
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/export/history`, q);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const q: Record<string, number> = {};
+      if (params.pageNo !== undefined) q.pageNo = params.pageNo;
+      if (params.pageSize !== undefined) q.pageSize = params.pageSize;
+      const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/export/history`, q);
+      return result;
     }
   );
 
   // ncloud_list_export_buckets — List Object Storage buckets available as export targets
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_export_buckets",
     "List Object Storage buckets available as log export targets in Cloud Log Analytics.",
     { regionCode: z.string().optional().describe("Region code (default kr)") },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/export/buckets`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/export/buckets`);
     }
   );
 
   // ncloud_get_log_usage — Capacity/usage
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_log_usage",
     "Get the Cloud Log Analytics storage capacity and usage.",
     { regionCode: z.string().optional().describe("Region code (default kr)") },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/capacity`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/${regionSeg(params.regionCode)}-v1/capacity`);
     }
   );
 }

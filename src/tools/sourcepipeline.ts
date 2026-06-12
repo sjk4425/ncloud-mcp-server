@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * SourcePipeline API
@@ -15,7 +15,8 @@ import { toolText } from "./_response.js";
 export function registerSourcePipelineTools(server: McpServer, client: NcloudClient): void {
   // ─── Pipeline CRUD ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_pipelines",
     "List SourcePipeline pipelines with optional pagination and name search",
     {
@@ -24,36 +25,29 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       projectName: z.string().optional().describe("Filter by pipeline name (partial match)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        if (params.projectName) queryParams.projectName = params.projectName;
-        const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      if (params.projectName) queryParams.projectName = params.projectName;
+      const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_pipeline",
     "Get detailed information about a specific SourcePipeline pipeline including tasks and triggers",
     {
       projectId: z.number().describe("Pipeline ID (from ncloud_list_pipelines)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${params.projectId}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_pipeline",
     "Create a new SourcePipeline pipeline with tasks and optional triggers",
     {
@@ -93,36 +87,33 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       dryRun: z.boolean().optional().default(false).describe("If true, returns preview without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: SourcePipeline Creation",
-            name: params.name,
-            description: params.description ?? "(none)",
-            taskCount: params.tasks.length,
-            tasks: params.tasks.map(t => ({ name: t.name, type: t.type })),
-            trigger: params.trigger ?? "(none)",
-            message: "dryRun=false로 호출하면 실제 파이프라인이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const body: Record<string, unknown> = {
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: SourcePipeline Creation",
           name: params.name,
-          tasks: params.tasks,
+          description: params.description ?? "(none)",
+          taskCount: params.tasks.length,
+          tasks: params.tasks.map(t => ({ name: t.name, type: t.type })),
+          trigger: params.trigger ?? "(none)",
+          message: "dryRun=false로 호출하면 실제 파이프라인이 생성됩니다.",
         };
-        if (params.description) body.description = params.description;
-        if (params.trigger) body.trigger = params.trigger;
-
-        const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const body: Record<string, unknown> = {
+        name: params.name,
+        tasks: params.tasks,
+      };
+      if (params.description) body.description = params.description;
+      if (params.trigger) body.trigger = params.trigger;
+
+      const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_update_pipeline",
     "Update an existing SourcePipeline pipeline (tasks and triggers)",
     {
@@ -161,22 +152,19 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       }).optional().describe("Trigger configuration"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          tasks: params.tasks,
-        };
-        if (params.description !== undefined) body.description = params.description;
-        if (params.trigger) body.trigger = params.trigger;
+      const body: Record<string, unknown> = {
+        tasks: params.tasks,
+      };
+      if (params.description !== undefined) body.description = params.description;
+      if (params.trigger) body.trigger = params.trigger;
 
-        const result = await client.requestRaw("PATCH", `/api/v1/project/${params.projectId}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = await client.requestRaw("PATCH", `/api/v1/project/${params.projectId}`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_pipeline",
     "⚠️ Destructive: Permanently delete a SourcePipeline pipeline. Set confirm=true to execute.",
     {
@@ -184,38 +172,31 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete SourcePipeline [${params.projectId}]. All pipeline configuration and execution history will be removed.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/project/${params.projectId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete SourcePipeline [${params.projectId}]. All pipeline configuration and execution history will be removed.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/project/${params.projectId}`);
+      return result;
     }
   );
 
   // ─── Pipeline Execution ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_run_pipeline",
     "Execute a SourcePipeline pipeline",
     {
       projectId: z.number().describe("Pipeline ID to run"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${params.projectId}/do`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${params.projectId}/do`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_cancel_pipeline",
     "Cancel a running SourcePipeline pipeline execution",
     {
@@ -223,18 +204,14 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       historyId: z.number().describe("Execution history ID to cancel (from ncloud_run_pipeline or ncloud_list_pipeline_history)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("POST", `/api/v1/project/${params.projectId}/history/${params.historyId}/cancel`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("POST", `/api/v1/project/${params.projectId}/history/${params.historyId}/cancel`);
     }
   );
 
   // ─── Pipeline History ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_pipeline_history",
     "Get execution history list for a SourcePipeline pipeline",
     {
@@ -243,19 +220,16 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       pageSize: z.number().optional().describe("Items per page (1~N)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}/history`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}/history`, queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_pipeline_history_detail",
     "Get detailed execution history for a specific pipeline run",
     {
@@ -263,34 +237,26 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       historyId: z.number().describe("Execution history ID"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}/history/${params.historyId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/project/${params.projectId}/history/${params.historyId}`);
     }
   );
 
   // ─── Trigger Timezone ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_pipeline_timezones",
     "Get available timezones for SourcePipeline schedule triggers",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/trigger/timezone");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/trigger/timezone");
     }
   );
 
   // ─── SourceCommit Integration ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_pipeline_list_sourcecommit_repos",
     "List available SourceCommit repositories for pipeline configuration",
     {
@@ -299,38 +265,31 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       searchWord: z.string().optional().describe("Filter by repository name (partial match)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", "/api/v1/sourcecommit/repository", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", "/api/v1/sourcecommit/repository", queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_pipeline_list_sourcecommit_branches",
     "List branches of a SourceCommit repository for pipeline configuration",
     {
       repositoryName: z.string().describe("SourceCommit repository name"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/sourcecommit/repository/${encodeURIComponent(params.repositoryName)}/branch`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/sourcecommit/repository/${encodeURIComponent(params.repositoryName)}/branch`);
     }
   );
 
   // ─── SourceBuild Integration ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_pipeline_list_sourcebuild_projects",
     "List available SourceBuild projects for pipeline task configuration",
     {
@@ -339,22 +298,19 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       searchWord: z.string().optional().describe("Filter by project name (partial match)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", "/api/v1/sourcebuild/project", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", "/api/v1/sourcebuild/project", queryParams);
+      return result;
     }
   );
 
   // ─── SourceDeploy Integration ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_pipeline_list_sourcedeploy_projects",
     "List available SourceDeploy projects for pipeline task configuration",
     {
@@ -363,20 +319,17 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       searchWord: z.string().optional().describe("Filter by project name (partial match)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", "/api/v1/sourcedeploy/project", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", "/api/v1/sourcedeploy/project", queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_pipeline_list_sourcedeploy_stages",
     "List available SourceDeploy stages for a project",
     {
@@ -386,20 +339,17 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       searchWord: z.string().optional().describe("Filter by stage name (partial match)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage`, queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_pipeline_list_sourcedeploy_scenarios",
     "List available SourceDeploy scenarios for a project stage",
     {
@@ -410,16 +360,12 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       searchWord: z.string().optional().describe("Filter by scenario name (partial match)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
-        if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage/${params.stageId}/scenario`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
+      if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage/${params.stageId}/scenario`, queryParams);
+      return result;
     }
   );
 }

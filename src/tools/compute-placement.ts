@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerComputePlacementTools(server: McpServer, client: NcloudClient): void {
   // ═══════════════════════════════════════════════════════════════════════════
@@ -10,7 +10,8 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
 
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_placement_groups",
     "List all placement groups in the current region",
     {
@@ -18,34 +19,26 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       placementGroupName: z.string().optional().describe("Filter by placement group name"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getPlacementGroupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getPlacementGroupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_placement_group_detail",
     "Get detailed information about a specific placement group",
     {
       placementGroupNo: z.string({ required_error: "필수 파라미터 'placementGroupNo'가 누락되었습니다." }).describe("Placement group number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getPlacementGroupDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getPlacementGroupDetail", params);
     }
   );
 
   // ─── Create Tool ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_placement_group",
     "Create a new placement group for physical server placement control",
     {
@@ -55,18 +48,14 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       placementGroupTypeCode: z.string().optional().describe("Placement group type code (default: AA - Anti-Affinity)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createPlacementGroup", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createPlacementGroup", params);
     }
   );
 
   // ─── Server Management Tools ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_placement_group_server",
     "Add a server instance to a placement group",
     {
@@ -74,16 +63,12 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       serverInstanceNo: z.string({ required_error: "필수 파라미터 'serverInstanceNo'가 누락되었습니다." }).describe("Server instance number to add"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/addPlacementGroupServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/addPlacementGroupServerInstance", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_placement_group_server",
     "⚠️ Destructive: Remove a server instance from a placement group. Set confirm=true to execute.",
     {
@@ -92,23 +77,20 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will remove server [${params.serverInstanceNo}] from placement group [${params.placementGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/removePlacementGroupServerInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will remove server [${params.serverInstanceNo}] from placement group [${params.placementGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/removePlacementGroupServerInstance", apiParams);
+      return result;
     }
   );
 
   // ─── Destructive Tool ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_placement_group",
     "⚠️ Destructive: Permanently delete a placement group. Set confirm=true to execute.",
     {
@@ -116,17 +98,13 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete placement group [${params.placementGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deletePlacementGroup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete placement group [${params.placementGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deletePlacementGroup", apiParams);
+      return result;
     }
   );
 
@@ -136,7 +114,8 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
 
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_fabric_clusters",
     "List all fabric clusters in the current region",
     {
@@ -144,50 +123,38 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       fabricClusterName: z.string().optional().describe("Filter by fabric cluster name"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getFabricClusterList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getFabricClusterList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_fabric_cluster_detail",
     "Get detailed information about a specific fabric cluster",
     {
       fabricClusterNo: z.string({ required_error: "필수 파라미터 'fabricClusterNo'가 누락되었습니다." }).describe("Fabric cluster number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getFabricClusterDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getFabricClusterDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_fabric_cluster_pools",
     "List available fabric cluster pools (physical resource pools)",
     {
       fabricClusterPoolNoList: z.array(z.string()).optional().describe("Filter by fabric cluster pool numbers"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/getFabricClusterPoolList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/getFabricClusterPoolList", params);
     }
   );
 
   // ─── Create Tool ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_fabric_cluster",
     "Create a new fabric cluster for dedicated physical server grouping",
     {
@@ -198,18 +165,14 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       fabricClusterDescription: z.string().optional().describe("Description for the fabric cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/createFabricCluster", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/createFabricCluster", params);
     }
   );
 
   // ─── Update Tool ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_update_fabric_cluster",
     "Update a fabric cluster's name or description",
     {
@@ -220,18 +183,14 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       fabricClusterDescription: z.string().optional().describe("New description for the fabric cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/updateFabricCluster", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/updateFabricCluster", params);
     }
   );
 
   // ─── Server Management Tool ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_fabric_cluster_servers",
     "Change server instances assigned to a fabric cluster",
     {
@@ -239,18 +198,14 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       serverInstanceNoList: z.array(z.string()).describe("List of server instance numbers to assign to the fabric cluster"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vserver/v2/changeFabricClusterServerInstances", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vserver/v2/changeFabricClusterServerInstances", params);
     }
   );
 
   // ─── Destructive Tool ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_fabric_cluster",
     "⚠️ Destructive: Permanently delete a fabric cluster. Set confirm=true to execute.",
     {
@@ -258,17 +213,13 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete fabric cluster [${params.fabricClusterNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vserver/v2/deleteFabricCluster", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete fabric cluster [${params.fabricClusterNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/deleteFabricCluster", apiParams);
+      return result;
     }
   );
 }

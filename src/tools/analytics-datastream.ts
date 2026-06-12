@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Data Stream API Tools
@@ -22,21 +22,18 @@ export function registerDataStreamTools(
   // Topic APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_get_topic_prefix",
     "Get the topic name prefix for the Data Stream service. The prefix is automatically prepended to topic names and is unique per account.",
     {},
     async () => {
-      try {
-        const result = await client.requestRaw("GET", "/api/v1/topic-prefix");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", "/api/v1/topic-prefix");
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_list_topics",
     "List all topics on the Data Stream serverless streaming service",
     {
@@ -45,36 +42,29 @@ export function registerDataStreamTools(
       searchText: z.string().optional().describe("Search by topic name or description"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | boolean | undefined> = {};
-        if (params.sortBy) queryParams.sortBy = params.sortBy;
-        if (params.descending !== undefined) queryParams.descending = params.descending;
-        if (params.searchText) queryParams.searchText = params.searchText;
-        const result = await client.requestRaw("GET", "/api/v1/topics", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | boolean | undefined> = {};
+      if (params.sortBy) queryParams.sortBy = params.sortBy;
+      if (params.descending !== undefined) queryParams.descending = params.descending;
+      if (params.searchText) queryParams.searchText = params.searchText;
+      const result = await client.requestRaw("GET", "/api/v1/topics", queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_get_topic",
     "Get detailed information of a specific Data Stream topic",
     {
       topicId: z.string().describe("Topic ID to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/topics/${params.topicId}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_create_topic",
     "Create a new topic on the Data Stream service. Topic name must include the account prefix (use get_topic_prefix first). Use dryRun=true to preview.",
     {
@@ -85,31 +75,28 @@ export function registerDataStreamTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "Dry-Run Preview: Data Stream Topic Creation",
-            name: params.name,
-            description: params.description ?? "(not set)",
-            partitions: params.partitions ?? 1,
-            retentionMs: params.retentionMs ?? 86400000,
-            message: "dryRun=false로 호출하면 토픽이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const body: Record<string, any> = { name: params.name };
-        if (params.description !== undefined) body.description = params.description;
-        if (params.partitions !== undefined) body.partitions = params.partitions;
-        if (params.retentionMs !== undefined) body.retentionMs = params.retentionMs;
-        const result = await client.requestRaw("POST", "/api/v1/topics", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "Dry-Run Preview: Data Stream Topic Creation",
+          name: params.name,
+          description: params.description ?? "(not set)",
+          partitions: params.partitions ?? 1,
+          retentionMs: params.retentionMs ?? 86400000,
+          message: "dryRun=false로 호출하면 토픽이 생성됩니다.",
+        };
+        return preview;
       }
+      const body: Record<string, any> = { name: params.name };
+      if (params.description !== undefined) body.description = params.description;
+      if (params.partitions !== undefined) body.partitions = params.partitions;
+      if (params.retentionMs !== undefined) body.retentionMs = params.retentionMs;
+      const result = await client.requestRaw("POST", "/api/v1/topics", undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_update_topic",
     "Update a Data Stream topic settings (partitions can only be increased, not decreased)",
     {
@@ -119,21 +106,18 @@ export function registerDataStreamTools(
       retentionMs: z.number().min(3600000).max(1296000000).describe("Message retention in ms"),
     },
     async (params) => {
-      try {
-        const body = {
-          description: params.description,
-          partitions: params.partitions,
-          retentionMs: params.retentionMs,
-        };
-        const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = {
+        description: params.description,
+        partitions: params.partitions,
+        retentionMs: params.retentionMs,
+      };
+      const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}`, undefined, body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_delete_topic",
     "⚠️ Destructive: Permanently delete a Data Stream topic. All messages in this topic will be lost. Set confirm=true to execute.",
     {
@@ -141,15 +125,11 @@ export function registerDataStreamTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete topic [${params.topicId}]. All messages will be lost.\nTo execute, call again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete topic [${params.topicId}]. All messages will be lost.\nTo execute, call again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}`);
+      return result;
     }
   );
 
@@ -157,23 +137,20 @@ export function registerDataStreamTools(
   // Connector APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_get_connector",
     "Get connector information for a Data Stream topic (one connector per topic)",
     {
       topicId: z.string().describe("Topic ID to query connector"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/connectors`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/topics/${params.topicId}/connectors`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_create_connector",
     "Create a connector (Object Storage sink) for a Data Stream topic. Only one connector per topic. Use dryRun=true to preview.",
     {
@@ -191,34 +168,31 @@ export function registerDataStreamTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "Dry-Run Preview: Data Stream Connector Creation",
-            topicId: params.topicId,
-            consumerSpec: params.consumerSpec,
-            exportType: params.exportType,
-            location: params.location,
-            includeTopicInPath: params.includeTopicInPath,
-            dateFormat: params.dateFormat,
-            roleNrn: params.roleNrn,
-            flushInterval: params.flushInterval ?? 10,
-            flushCount: params.flushCount ?? 5000,
-            schemaType: params.schemaType ?? "STRING",
-            message: "dryRun=false로 호출하면 커넥터가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const { topicId, dryRun, ...bodyParams } = params;
-        const result = await client.requestRaw("POST", `/api/v1/topics/${topicId}/connectors`, undefined, bodyParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "Dry-Run Preview: Data Stream Connector Creation",
+          topicId: params.topicId,
+          consumerSpec: params.consumerSpec,
+          exportType: params.exportType,
+          location: params.location,
+          includeTopicInPath: params.includeTopicInPath,
+          dateFormat: params.dateFormat,
+          roleNrn: params.roleNrn,
+          flushInterval: params.flushInterval ?? 10,
+          flushCount: params.flushCount ?? 5000,
+          schemaType: params.schemaType ?? "STRING",
+          message: "dryRun=false로 호출하면 커넥터가 생성됩니다.",
+        };
+        return preview;
       }
+      const { topicId, dryRun, ...bodyParams } = params;
+      const result = await client.requestRaw("POST", `/api/v1/topics/${topicId}/connectors`, undefined, bodyParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_update_connector",
     "Update a Data Stream connector settings",
     {
@@ -236,17 +210,14 @@ export function registerDataStreamTools(
       schemaType: z.enum(["STRING", "JSON", "AVRO", "PROTOBUF"]).optional().describe("Message value serialization (default: STRING)"),
     },
     async (params) => {
-      try {
-        const { topicId, connectorId, ...bodyParams } = params;
-        const result = await client.requestRaw("PUT", `/api/v1/topics/${topicId}/connectors/${connectorId}`, undefined, bodyParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { topicId, connectorId, ...bodyParams } = params;
+      const result = await client.requestRaw("PUT", `/api/v1/topics/${topicId}/connectors/${connectorId}`, undefined, bodyParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_delete_connector",
     "⚠️ Destructive: Delete a Data Stream connector. Set confirm=true to execute.",
     {
@@ -255,15 +226,11 @@ export function registerDataStreamTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will delete connector [${params.connectorId}] from topic [${params.topicId}].\nTo execute, call again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/connectors/${params.connectorId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will delete connector [${params.connectorId}] from topic [${params.topicId}].\nTo execute, call again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/connectors/${params.connectorId}`);
+      return result;
     }
   );
 
@@ -272,7 +239,8 @@ export function registerDataStreamTools(
   // Schema APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_create_schema",
     "Create a schema for a Data Stream topic (AVRO, JSON, or PROTOBUF)",
     {
@@ -281,17 +249,14 @@ export function registerDataStreamTools(
       schema: z.string().describe("Schema definition as JSON string"),
     },
     async (params) => {
-      try {
-        const body = { schemaType: params.schemaType, schema: params.schema };
-        const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas`, undefined, body);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = { schemaType: params.schemaType, schema: params.schema };
+      const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas`, undefined, body);
+      return result ?? { success: true };
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_list_schemas",
     "List schemas registered for a Data Stream topic",
     {
@@ -302,21 +267,18 @@ export function registerDataStreamTools(
       size: z.number().optional().describe("Page size (default: 10)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | undefined> = {};
-        if (params.schemaType) queryParams.schemaType = params.schemaType;
-        if (params.schemaId !== undefined) queryParams.schemaId = params.schemaId;
-        if (params.page !== undefined) queryParams.page = params.page;
-        if (params.size !== undefined) queryParams.size = params.size;
-        const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/schemas`, queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string | number | undefined> = {};
+      if (params.schemaType) queryParams.schemaType = params.schemaType;
+      if (params.schemaId !== undefined) queryParams.schemaId = params.schemaId;
+      if (params.page !== undefined) queryParams.page = params.page;
+      if (params.size !== undefined) queryParams.size = params.size;
+      const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/schemas`, queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_get_schema",
     "Get detailed schema definition for a specific schema resource",
     {
@@ -324,16 +286,12 @@ export function registerDataStreamTools(
       resourceId: z.string().describe("Schema resource ID (from list schemas response)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_delete_schema",
     "⚠️ Destructive: Delete a schema from a Data Stream topic. May affect message serialization/deserialization. Set confirm=true to execute.",
     {
@@ -342,35 +300,28 @@ export function registerDataStreamTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text: `⚠️ This will delete schema [${params.resourceId}] from topic [${params.topicId}]. This may affect message serialization.\nTo execute, call again with confirm=true.` }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text: `⚠️ This will delete schema [${params.resourceId}] from topic [${params.topicId}]. This may affect message serialization.\nTo execute, call again with confirm=true.` }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
+      return result ?? { success: true };
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_get_registry_config",
     "Get schema registry compatibility configuration for a Data Stream topic",
     {
       topicId: z.string().describe("Topic ID"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/registry-config`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/topics/${params.topicId}/registry-config`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_update_registry_config",
     "Update schema registry compatibility setting for a Data Stream topic",
     {
@@ -378,33 +329,26 @@ export function registerDataStreamTools(
       compatibility: z.boolean().describe("true: enable BACKWARD compatibility check, false: disable (NONE)"),
     },
     async (params) => {
-      try {
-        const body = { compatibility: params.compatibility };
-        const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}/registry-config`, undefined, body);
-        return toolText(result ?? { success: true });
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = { compatibility: params.compatibility };
+      const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}/registry-config`, undefined, body);
+      return result ?? { success: true };
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_get_registry_info",
     "Get schema registry endpoint and modifiability info for a Data Stream topic",
     {
       topicId: z.string().describe("Topic ID"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/registry-info`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/topics/${params.topicId}/registry-info`);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_check_schema_compatibility",
     "Check if a new schema is compatible with the latest existing schema for a Data Stream topic",
     {
@@ -413,13 +357,9 @@ export function registerDataStreamTools(
       schema: z.string().describe("New schema definition as JSON string to validate"),
     },
     async (params) => {
-      try {
-        const body = { schemaType: params.schemaType, schema: params.schema };
-        const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas/validate/compatibility/latest`, undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = { schemaType: params.schemaType, schema: params.schema };
+      const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas/validate/compatibility/latest`, undefined, body);
+      return result;
     }
   );
 
@@ -427,7 +367,8 @@ export function registerDataStreamTools(
   // Message API (different base URL: api.datastream.naverncp.com)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_datastream_send_message",
     "Send a message to a Data Stream topic. NOTE: Requires Sub Account credentials (main account keys are not allowed for this API).",
     {
@@ -437,18 +378,14 @@ export function registerDataStreamTools(
       partition: z.number().optional().describe("Specific partition index (0-based). If omitted, sent to random partition"),
     },
     async (params) => {
-      try {
-        const body: Record<string, any> = {
-          topic: params.topic,
-          key: params.key,
-          value: params.value,
-        };
-        if (params.partition !== undefined) body.partition = params.partition;
-        const result = await messageClient.requestRaw("POST", "/api/produce", undefined, body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, any> = {
+        topic: params.topic,
+        key: params.key,
+        value: params.value,
+      };
+      if (params.partition !== undefined) body.partition = params.partition;
+      const result = await messageClient.requestRaw("POST", "/api/produce", undefined, body);
+      return result;
     }
   );
 }

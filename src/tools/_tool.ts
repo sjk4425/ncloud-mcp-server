@@ -15,7 +15,7 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ZodRawShape } from "zod";
+import { z, ZodRawShape } from "zod";
 import { toolText } from "./_response.js";
 
 export interface ToolAnnotations {
@@ -103,25 +103,27 @@ function isToolResult(v: any): boolean {
  * @param handler raw 데이터(직렬화 전)를 반환하거나, 직접 만든 완성 응답을 반환한다.
  *                throw 된 에러는 `{ isError: true }` 텍스트 응답으로 변환된다.
  */
-export function defineTool(
+export function defineTool<Schema extends ZodRawShape>(
   server: McpServer,
   name: string,
   description: string,
-  schema: ZodRawShape,
-  handler: (params: any) => Promise<any>,
+  schema: Schema,
+  // SDK server.tool과 동일한 zod 추론 타입 — 핸들러 내부 콜백의 컨텍스트 타이핑 유지
+  handler: (params: z.objectOutputType<Schema, z.ZodTypeAny>) => Promise<any>,
   opts?: DefineToolOpts
 ): void {
   const annotations = { ...deriveAnnotations(name), ...opts?.annotations };
-  server.registerTool(
-    name,
-    { description, inputSchema: schema, annotations },
-    async (params: any) => {
-      try {
-        const result = await handler(params);
-        return isToolResult(result) ? result : toolText(result, opts?.prune !== undefined ? { prune: opts.prune } : undefined);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+  const wrapped = async (params: any) => {
+    try {
+      const result = await handler(params);
+      return isToolResult(result)
+        ? result
+        : toolText(result, opts?.prune !== undefined ? { prune: opts.prune } : undefined);
+    } catch (error: any) {
+      return { content: [{ type: "text" as const, text: error.message }], isError: true };
     }
-  );
+  };
+  // registerTool 제네릭(OutputArgs 기본값 없음 + zod 호환 셰이프)과 ZodRawShape 간
+  // 추론 충돌을 피하기 위해 호출만 단언 — 호출부 타입 안전성은 defineTool 시그니처가 보장.
+  (server.registerTool as any)(name, { description, inputSchema: schema, annotations }, wrapped);
 }

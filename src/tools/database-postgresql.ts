@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerDatabasePostgresqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_postgresql_instances",
     "List all Cloud DB for PostgreSQL instances in the current region",
     {
@@ -16,50 +17,38 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_postgresql_instance_detail",
     "Get detailed information about a specific Cloud DB for PostgreSQL instance",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_postgresql_backups",
     "List backups for a Cloud DB for PostgreSQL instance",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlBackupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlBackupList", params);
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_postgresql_instance",
     "Create a new Cloud DB for PostgreSQL instance. Use dryRun=true to preview without creating.",
     {
@@ -105,44 +94,41 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: PostgreSQL Instance Creation",
-            cloudPostgresqlServiceName: params.cloudPostgresqlServiceName,
-            vpcNo: params.vpcNo,
-            subnetNo: params.subnetNo,
-            cloudPostgresqlDatabaseName: params.cloudPostgresqlDatabaseName,
-            cloudPostgresqlUserName: params.cloudPostgresqlUserName,
-            isMultiZone: params.isMultiZone ?? false,
-            isBackup: params.isBackup ?? true,
-            cloudPostgresqlPort: params.cloudPostgresqlPort ?? 5432,
-            message: "이 요청은 실제 PostgreSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vpostgresql/v2/createCloudPostgresqlInstance", apiParams);
-        const instance = result.cloudPostgresqlInstanceList?.[0];
-        const summary = {
-          리소스타입: "PostgreSQL",
-          리소스ID: instance?.cloudPostgresqlInstanceNo ?? "unknown",
-          서비스명: params.cloudPostgresqlServiceName,
-          상태: instance?.cloudPostgresqlInstanceStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          VPC: params.vpcNo,
-          서브넷: params.subnetNo,
-          데이터베이스명: params.cloudPostgresqlDatabaseName,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: PostgreSQL Instance Creation",
+          cloudPostgresqlServiceName: params.cloudPostgresqlServiceName,
+          vpcNo: params.vpcNo,
+          subnetNo: params.subnetNo,
+          cloudPostgresqlDatabaseName: params.cloudPostgresqlDatabaseName,
+          cloudPostgresqlUserName: params.cloudPostgresqlUserName,
+          isMultiZone: params.isMultiZone ?? false,
+          isBackup: params.isBackup ?? true,
+          cloudPostgresqlPort: params.cloudPostgresqlPort ?? 5432,
+          message: "이 요청은 실제 PostgreSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vpostgresql/v2/createCloudPostgresqlInstance", apiParams);
+      const instance = result.cloudPostgresqlInstanceList?.[0];
+      const summary = {
+        리소스타입: "PostgreSQL",
+        리소스ID: instance?.cloudPostgresqlInstanceNo ?? "unknown",
+        서비스명: params.cloudPostgresqlServiceName,
+        상태: instance?.cloudPostgresqlInstanceStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        VPC: params.vpcNo,
+        서브넷: params.subnetNo,
+        데이터베이스명: params.cloudPostgresqlDatabaseName,
+      };
+      return summary;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_postgresql_read_replica",
     "Create a read replica for a Cloud DB for PostgreSQL instance",
     {
@@ -151,52 +137,40 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       cloudPostgresqlServerNamePrefix: z.string().optional().describe("Server name prefix for the read replica"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/createCloudPostgresqlReadReplicaInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/createCloudPostgresqlReadReplicaInstance", params);
     }
   );
 
   // ─── Operation Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_reboot_postgresql_server",
     "Reboot a Cloud DB for PostgreSQL server instance",
     {
       cloudPostgresqlServerInstanceNo: z.string().describe("Cloud PostgreSQL server instance number to reboot"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/rebootCloudPostgresqlServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/rebootCloudPostgresqlServerInstance", params);
     }
   );
 
   // ─── Database Management Tools ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_postgresql_databases",
     "List databases in a Cloud DB for PostgreSQL instance",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlDatabaseList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlDatabaseList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_postgresql_databases",
     "Add databases to a Cloud DB for PostgreSQL instance",
     {
@@ -206,42 +180,35 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       })).min(1).describe("List of databases to add"),
     },
     async (params) => {
-      try {
-        const { cloudPostgresqlInstanceNo, cloudPostgresqlDatabaseList } = params;
-        const requestParams: any = { cloudPostgresqlInstanceNo };
+      const { cloudPostgresqlInstanceNo, cloudPostgresqlDatabaseList } = params;
+      const requestParams: any = { cloudPostgresqlInstanceNo };
 
-        for (let i = 0; i < cloudPostgresqlDatabaseList.length; i++) {
-          const db = cloudPostgresqlDatabaseList[i];
-          requestParams[`cloudPostgresqlDatabaseList.${i + 1}.name`] = db.name;
-        }
-
-        const result = await client.request("/vpostgresql/v2/addCloudPostgresqlDatabaseList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudPostgresqlDatabaseList.length; i++) {
+        const db = cloudPostgresqlDatabaseList[i];
+        requestParams[`cloudPostgresqlDatabaseList.${i + 1}.name`] = db.name;
       }
+
+      const result = await client.request("/vpostgresql/v2/addCloudPostgresqlDatabaseList", requestParams);
+      return result;
     }
   );
 
   // ─── User Management Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_postgresql_users",
     "List users in a Cloud DB for PostgreSQL instance",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlUserList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlUserList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_postgresql_users",
     "Add users to a Cloud DB for PostgreSQL instance",
     {
@@ -252,25 +219,22 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       })).min(1).describe("List of users to add"),
     },
     async (params) => {
-      try {
-        const { cloudPostgresqlInstanceNo, cloudPostgresqlUserList } = params;
-        const requestParams: any = { cloudPostgresqlInstanceNo };
+      const { cloudPostgresqlInstanceNo, cloudPostgresqlUserList } = params;
+      const requestParams: any = { cloudPostgresqlInstanceNo };
 
-        for (let i = 0; i < cloudPostgresqlUserList.length; i++) {
-          const user = cloudPostgresqlUserList[i];
-          requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
-          requestParams[`cloudPostgresqlUserList.${i + 1}.password`] = user.password;
-        }
-
-        const result = await client.request("/vpostgresql/v2/addCloudPostgresqlUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudPostgresqlUserList.length; i++) {
+        const user = cloudPostgresqlUserList[i];
+        requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudPostgresqlUserList.${i + 1}.password`] = user.password;
       }
+
+      const result = await client.request("/vpostgresql/v2/addCloudPostgresqlUserList", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_change_postgresql_users",
     "Change user information (password) for a Cloud DB for PostgreSQL instance",
     {
@@ -281,27 +245,24 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       })).min(1).describe("List of users to modify"),
     },
     async (params) => {
-      try {
-        const { cloudPostgresqlInstanceNo, cloudPostgresqlUserList } = params;
-        const requestParams: any = { cloudPostgresqlInstanceNo };
+      const { cloudPostgresqlInstanceNo, cloudPostgresqlUserList } = params;
+      const requestParams: any = { cloudPostgresqlInstanceNo };
 
-        for (let i = 0; i < cloudPostgresqlUserList.length; i++) {
-          const user = cloudPostgresqlUserList[i];
-          requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
-          requestParams[`cloudPostgresqlUserList.${i + 1}.password`] = user.password;
-        }
-
-        const result = await client.request("/vpostgresql/v2/changeCloudPostgresqlUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      for (let i = 0; i < cloudPostgresqlUserList.length; i++) {
+        const user = cloudPostgresqlUserList[i];
+        requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudPostgresqlUserList.${i + 1}.password`] = user.password;
       }
+
+      const result = await client.request("/vpostgresql/v2/changeCloudPostgresqlUserList", requestParams);
+      return result;
     }
   );
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_postgresql_instance",
     "⚠️ Destructive: Permanently delete a Cloud DB for PostgreSQL instance. Set confirm=true to execute.",
     {
@@ -309,21 +270,18 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlInstance", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_postgresql_databases",
     "⚠️ Destructive: Delete databases from a Cloud DB for PostgreSQL instance. Set confirm=true to execute.",
     {
@@ -334,29 +292,26 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const names = params.cloudPostgresqlDatabaseList.map(db => db.name).join(", ");
-          const message = `⚠️ This will permanently delete databases [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, cloudPostgresqlInstanceNo, cloudPostgresqlDatabaseList } = params;
-        const requestParams: any = { cloudPostgresqlInstanceNo };
-
-        for (let i = 0; i < cloudPostgresqlDatabaseList.length; i++) {
-          const db = cloudPostgresqlDatabaseList[i];
-          requestParams[`cloudPostgresqlDatabaseList.${i + 1}.name`] = db.name;
-        }
-
-        const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlDatabaseList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const names = params.cloudPostgresqlDatabaseList.map(db => db.name).join(", ");
+        const message = `⚠️ This will permanently delete databases [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, cloudPostgresqlInstanceNo, cloudPostgresqlDatabaseList } = params;
+      const requestParams: any = { cloudPostgresqlInstanceNo };
+
+      for (let i = 0; i < cloudPostgresqlDatabaseList.length; i++) {
+        const db = cloudPostgresqlDatabaseList[i];
+        requestParams[`cloudPostgresqlDatabaseList.${i + 1}.name`] = db.name;
+      }
+
+      const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlDatabaseList", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_postgresql_users",
     "⚠️ Destructive: Delete users from a Cloud DB for PostgreSQL instance. Set confirm=true to execute.",
     {
@@ -367,29 +322,26 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const names = params.cloudPostgresqlUserList.map(u => u.name).join(", ");
-          const message = `⚠️ This will permanently delete users [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, cloudPostgresqlInstanceNo, cloudPostgresqlUserList } = params;
-        const requestParams: any = { cloudPostgresqlInstanceNo };
-
-        for (let i = 0; i < cloudPostgresqlUserList.length; i++) {
-          const user = cloudPostgresqlUserList[i];
-          requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
-        }
-
-        const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlUserList", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const names = params.cloudPostgresqlUserList.map(u => u.name).join(", ");
+        const message = `⚠️ This will permanently delete users [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, cloudPostgresqlInstanceNo, cloudPostgresqlUserList } = params;
+      const requestParams: any = { cloudPostgresqlInstanceNo };
+
+      for (let i = 0; i < cloudPostgresqlUserList.length; i++) {
+        const user = cloudPostgresqlUserList[i];
+        requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
+      }
+
+      const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlUserList", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_postgresql_read_replica",
     "⚠️ Destructive: Delete a Cloud DB for PostgreSQL Read Replica instance. Set confirm=true to execute.",
     {
@@ -397,39 +349,32 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete PostgreSQL Read Replica instance [${params.cloudPostgresqlReadReplicaInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlReadReplicaInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete PostgreSQL Read Replica instance [${params.cloudPostgresqlReadReplicaInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlReadReplicaInstance", apiParams);
+      return result;
     }
   );
 
   // ─── Reference/Query Tools (P3) ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_postgresql_image_products",
     "List available Cloud DB for PostgreSQL image product codes (engine versions)",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlImageProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlImageProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_postgresql_products",
     "List available Cloud DB for PostgreSQL server spec product codes for a given image product code",
     {
@@ -437,32 +382,24 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_postgresql_target_vpcs",
     "List VPCs available for Cloud DB for PostgreSQL instance creation",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlTargetVpcList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlTargetVpcList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_postgresql_target_subnets",
     "List subnets available for Cloud DB for PostgreSQL instance creation within a specific PostgreSQL instance",
     {
@@ -470,16 +407,12 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlTargetSubnetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlTargetSubnetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_postgresql_backup_details",
     "List detailed backup information (including file names) for a Cloud DB for PostgreSQL instance",
     {
@@ -487,32 +420,24 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlBackupDetailList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlBackupDetailList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_postgresql_buckets",
     "List Object Storage buckets available for Cloud DB for PostgreSQL (for backup export)",
     {
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getCloudPostgresqlBucketList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getCloudPostgresqlBucketList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_postgresql_logs",
     "List DB server log files for a Cloud DB for PostgreSQL server instance",
     {
@@ -520,16 +445,12 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/getDbServerLogList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/getDbServerLogList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_postgresql_backup",
     "Export a Cloud DB for PostgreSQL backup file to Object Storage. Use ncloud_list_postgresql_backup_details to get available file names.",
     {
@@ -540,16 +461,12 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       regionCode: z.string().optional().describe("Region code (default: current region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/exportBackupToObjectStorage", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/exportBackupToObjectStorage", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_postgresql_log",
     "Export a Cloud DB for PostgreSQL server log file to Object Storage. Use ncloud_list_postgresql_logs to get available log files.",
     {
@@ -561,12 +478,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       regionCode: z.string().optional().describe("Region code (default: current region)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpostgresql/v2/exportDbServerLogToObjectStorage", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpostgresql/v2/exportDbServerLogToObjectStorage", params);
     }
   );
 }

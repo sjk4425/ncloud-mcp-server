@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 import type { ClientFactory } from "./registry.js";
 
 const REGION_NAME_MAP: Record<string, string> = {
@@ -36,37 +36,30 @@ const RESOURCE_DETAIL_MAP: Record<string, { apiPath: string; paramKey: string }>
 
 export function registerCommonTools(server: McpServer, client: ClientFactory): void {
   // ncloud_get_regions — List available regions
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_regions",
     "List all available Ncloud regions",
     {},
     async () => {
-      try {
-        const result = await client().request("/vserver/v2/getRegionList");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client().request("/vserver/v2/getRegionList");
     }
   );
 
   // ncloud_get_zones — List available zones
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_zones",
     "List all available zones in the current region",
     {},
     async () => {
-      try {
-        const result = await client().request("/vserver/v2/getZoneList");
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client().request("/vserver/v2/getZoneList");
     }
   );
 
   // ncloud_set_region — Change active region
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_region",
     "Set the active Ncloud region by code (KR, JPN, SGN, USWN, DEN) or Korean name (한국, 일본, 싱가포르, 미국, 독일)",
     {
@@ -94,12 +87,13 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
           ],
         },
       };
-      return toolText(result);
+      return result;
     }
   );
 
   // ncloud_get_current_region — Get current active region
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_current_region",
     "Get the currently active Ncloud region code and name",
     {},
@@ -109,12 +103,13 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
         regionCode: code,
         regionName: REGION_CODE_MAP[code] ?? code,
       };
-      return toolText(result);
+      return result;
     }
   );
 
   // ncloud_get_operation_status — Check resource operation status
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_operation_status",
     "Check the current status of a recently created or modified resource by type and ID",
     {
@@ -133,29 +128,25 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
           isError: true,
         };
       }
-      try {
-        const result = await client().request(mapping.apiPath, { [mapping.paramKey]: resourceId });
-        // Extract status from the first list item in the response
-        const listKey = Object.keys(result).find((k) => Array.isArray(result[k]));
-        const item = listKey ? result[listKey][0] : undefined;
-        const status = item?.status?.code ?? item?.serverInstanceStatus?.code
-          ?? item?.vpcStatus?.code ?? item?.subnetStatus?.code
-          ?? item?.loadBalancerInstanceStatus?.code ?? item?.targetGroupStatus?.code
-          ?? item?.natGatewayInstanceStatus?.code ?? item?.cloudMysqlInstanceStatus?.code
-          ?? item?.blockStorageInstanceStatus?.code ?? item?.publicIpInstanceStatus?.code
-          ?? item?.accessControlGroupStatus?.code ?? item?.networkAclStatus?.code
-          ?? item?.autoScalingGroupStatus?.code ?? "unknown";
+      const result = await client().request(mapping.apiPath, { [mapping.paramKey]: resourceId });
+      // Extract status from the first list item in the response
+      const listKey = Object.keys(result).find((k) => Array.isArray(result[k]));
+      const item = listKey ? result[listKey][0] : undefined;
+      const status = item?.status?.code ?? item?.serverInstanceStatus?.code
+        ?? item?.vpcStatus?.code ?? item?.subnetStatus?.code
+        ?? item?.loadBalancerInstanceStatus?.code ?? item?.targetGroupStatus?.code
+        ?? item?.natGatewayInstanceStatus?.code ?? item?.cloudMysqlInstanceStatus?.code
+        ?? item?.blockStorageInstanceStatus?.code ?? item?.publicIpInstanceStatus?.code
+        ?? item?.accessControlGroupStatus?.code ?? item?.networkAclStatus?.code
+        ?? item?.autoScalingGroupStatus?.code ?? "unknown";
 
-        const isComplete = ["running", "run", "active", "set", "used", "created", "creat"].includes(status.toLowerCase());
-        const message = isComplete
-          ? `✅ 완료: ${resourceType} [${resourceId}] 정상 생성됨`
-          : `⏳ 진행 중: ${resourceType} [${resourceId}] - 현재 상태: ${status}`;
+      const isComplete = ["running", "run", "active", "set", "used", "created", "creat"].includes(status.toLowerCase());
+      const message = isComplete
+        ? `✅ 완료: ${resourceType} [${resourceId}] 정상 생성됨`
+        : `⏳ 진행 중: ${resourceType} [${resourceId}] - 현재 상태: ${status}`;
 
-        const response = { message, resourceType, resourceId, status };
-        return toolText(response);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = { message, resourceType, resourceId, status };
+      return response;
     }
   );
 }

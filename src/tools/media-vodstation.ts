@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerVodStationTools(server: McpServer, client: NcloudClient): void {
   // ─── Channel Query Tools ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_list_channels",
     "List all VOD Station streaming channels with pagination",
     {
@@ -14,34 +15,26 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       pageSizeNo: z.number().optional().describe("Number of items per page (default: 20)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/api/v2/channels", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/api/v2/channels", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_get_channel",
     "Get detailed information about a specific VOD Station channel",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID (e.g., vs-20250821095732-xxxxxxx)"),
     },
     async (params) => {
-      try {
-        const result = await client.request(`/api/v2/channels/${params.channelId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request(`/api/v2/channels/${params.channelId}`);
     }
   );
 
   // ─── Channel Create Tool ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_create_channel",
     "Create a new VOD Station streaming channel. Use dryRun=true to preview without creating.",
     {
@@ -57,59 +50,56 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the channel"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: VOD Station Channel Creation",
-            channelName: params.channelName,
-            storageBucketName: params.storageBucketName,
-            protocolList: params.protocolList,
-            segmentDuration: params.segmentDuration,
-            segmentDurationOption: params.segmentDurationOption,
-            accessPrivateFiles: params.accessPrivateFiles,
-            createCdn: params.createCdn,
-            cdnProfileId: params.cdnProfileId,
-            cdnRegionType: params.cdnRegionType,
-            message: "이 요청은 실제 채널을 생성하지 않습니다. dryRun=false로 호출하면 채널이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const body: any = {
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: VOD Station Channel Creation",
           channelName: params.channelName,
           storageBucketName: params.storageBucketName,
           protocolList: params.protocolList,
           segmentDuration: params.segmentDuration,
           segmentDurationOption: params.segmentDurationOption,
           accessPrivateFiles: params.accessPrivateFiles,
-          cdn: {
-            createCdn: params.createCdn,
-            cdnType: "GLOBAL_EDGE",
-            profileId: params.cdnProfileId,
-            regionType: params.cdnRegionType,
-          },
+          createCdn: params.createCdn,
+          cdnProfileId: params.cdnProfileId,
+          cdnRegionType: params.cdnRegionType,
+          message: "이 요청은 실제 채널을 생성하지 않습니다. dryRun=false로 호출하면 채널이 생성됩니다.",
         };
-
-        const result = await client.postRequest("/api/v2/channels", body);
-        const channel = result?.content || result;
-        const summary = {
-          리소스타입: "VOD Station Channel",
-          채널ID: channel?.id || "creating",
-          채널명: params.channelName,
-          버킷: params.storageBucketName,
-          프로토콜: params.protocolList,
-          상태: channel?.channelStatus || "CREATING",
-        };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const body: any = {
+        channelName: params.channelName,
+        storageBucketName: params.storageBucketName,
+        protocolList: params.protocolList,
+        segmentDuration: params.segmentDuration,
+        segmentDurationOption: params.segmentDurationOption,
+        accessPrivateFiles: params.accessPrivateFiles,
+        cdn: {
+          createCdn: params.createCdn,
+          cdnType: "GLOBAL_EDGE",
+          profileId: params.cdnProfileId,
+          regionType: params.cdnRegionType,
+        },
+      };
+
+      const result = await client.postRequest("/api/v2/channels", body);
+      const channel = result?.content || result;
+      const summary = {
+        리소스타입: "VOD Station Channel",
+        채널ID: channel?.id || "creating",
+        채널명: params.channelName,
+        버킷: params.storageBucketName,
+        프로토콜: params.protocolList,
+        상태: channel?.channelStatus || "CREATING",
+      };
+      return summary;
     }
   );
 
   // ─── Channel Delete Tool ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_delete_channel",
     "⚠️ Destructive: Permanently delete a VOD Station channel. Only channels in STOPPED status can be deleted. Set confirm=true to execute.",
     {
@@ -117,56 +107,45 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete VOD Station Channel [${params.channelId}]. Only channels in STOPPED status can be deleted. The integrated CDN will be maintained.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete VOD Station Channel [${params.channelId}]. Only channels in STOPPED status can be deleted. The integrated CDN will be maintained.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
+      return result;
     }
   );
 
   // ─── Channel Control Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_start_channel",
     "Start (resume) a VOD Station channel that is in STOPPED status",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to start"),
     },
     async (params) => {
-      try {
-        const result = await client.putRequest(`/api/v2/channels/${params.channelId}/start`, {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.putRequest(`/api/v2/channels/${params.channelId}/start`, {});
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_stop_channel",
     "Stop a VOD Station channel that is in READY status",
     {
       channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to stop"),
     },
     async (params) => {
-      try {
-        const result = await client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
     }
   );
 
   // ─── Category Tools ────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_list_categories",
     "List all VOD Station encoding categories",
     {
@@ -174,16 +153,12 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       pageSizeNo: z.number().optional().describe("Number of items per page (default: 20)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/api/v2/category", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/api/v2/category", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_vodstation_create_category",
     "Create a new VOD Station encoding category. Use dryRun=true to preview without creating.",
     {
@@ -198,48 +173,44 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the category"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: VOD Station Category Creation",
-            name: params.name,
-            bucketName: params.bucketName,
-            filePath: params.filePath,
-            encodingOptions: params.encodingOptions,
-            encodingOptionTemplateId: params.encodingOptionTemplateId,
-            thumbnail: params.thumbnail,
-            accessControl: params.accessControl,
-            message: "이 요청은 실제 카테고리를 생성하지 않습니다. dryRun=false로 호출하면 카테고리가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const body: any = {
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: VOD Station Category Creation",
           name: params.name,
+          bucketName: params.bucketName,
+          filePath: params.filePath,
+          encodingOptions: params.encodingOptions,
+          encodingOptionTemplateId: params.encodingOptionTemplateId,
           thumbnail: params.thumbnail,
-          output: {
-            bucketName: params.bucketName,
-            filePath: params.filePath,
-            accessControl: params.accessControl,
-          },
+          accessControl: params.accessControl,
+          message: "이 요청은 실제 카테고리를 생성하지 않습니다. dryRun=false로 호출하면 카테고리가 생성됩니다.",
         };
-        if (params.encodingOptions) body.encodingOptions = params.encodingOptions;
-        if (params.encodingOptionTemplateId) body.encodingOptionTemplateId = params.encodingOptionTemplateId;
-        if (params.notificationUrl) body.notificationUrl = params.notificationUrl;
-
-        const result = await client.postRequest("/api/v2/category", body);
-        const summary = {
-          리소스타입: "VOD Station Category",
-          카테고리명: params.name,
-          출력버킷: params.bucketName,
-          출력경로: params.filePath,
-          썸네일: params.thumbnail,
-          상태: "created",
-        };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const body: any = {
+        name: params.name,
+        thumbnail: params.thumbnail,
+        output: {
+          bucketName: params.bucketName,
+          filePath: params.filePath,
+          accessControl: params.accessControl,
+        },
+      };
+      if (params.encodingOptions) body.encodingOptions = params.encodingOptions;
+      if (params.encodingOptionTemplateId) body.encodingOptionTemplateId = params.encodingOptionTemplateId;
+      if (params.notificationUrl) body.notificationUrl = params.notificationUrl;
+
+      const result = await client.postRequest("/api/v2/category", body);
+      const summary = {
+        리소스타입: "VOD Station Category",
+        카테고리명: params.name,
+        출력버킷: params.bucketName,
+        출력경로: params.filePath,
+        썸네일: params.thumbnail,
+        상태: "created",
+      };
+      return summary;
     }
   );
 }

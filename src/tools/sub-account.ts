@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerSubAccountTools(server: McpServer, client: NcloudClient): void {
   // ─── Sub Account Query Tools ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_sub_accounts",
     "List all sub accounts (IAM users) in the organization",
     {
@@ -16,39 +17,32 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       searchWord: z.string().optional().describe("Search keyword"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.page !== undefined) queryParams.page = String(params.page);
-        if (params.size !== undefined) queryParams.size = String(params.size);
-        if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", "/api/v1/sub-accounts", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.page !== undefined) queryParams.page = String(params.page);
+      if (params.size !== undefined) queryParams.size = String(params.size);
+      if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", "/api/v1/sub-accounts", queryParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_sub_account_detail",
     "Get detailed information about a specific sub account",
     {
       subAccountId: z.string({ required_error: "필수 파라미터 'subAccountId'가 누락되었습니다." }).describe("Sub account ID to query"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw("GET", `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.requestRaw("GET", `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}`);
     }
   );
 
   // ─── Sub Account Create Tool ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_sub_account",
     "Create a new sub account (IAM user). Use dryRun=true to preview without creating.",
     {
@@ -65,33 +59,30 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the sub account"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Sub Account Creation",
-            loginId: params.loginId,
-            name: params.name,
-            email: params.email ?? "(none)",
-            canAPIGatewayAccess: params.canAPIGatewayAccess,
-            canConsoleAccess: params.canConsoleAccess,
-            needPasswordReset: params.needPasswordReset,
-            message: "이 요청은 실제 서브 계정을 생성하지 않습니다. dryRun=false로 호출하면 서브 계정이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...bodyParams } = params;
-        const result = await client.requestRaw("POST", "/api/v1/sub-accounts", undefined, bodyParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Sub Account Creation",
+          loginId: params.loginId,
+          name: params.name,
+          email: params.email ?? "(none)",
+          canAPIGatewayAccess: params.canAPIGatewayAccess,
+          canConsoleAccess: params.canConsoleAccess,
+          needPasswordReset: params.needPasswordReset,
+          message: "이 요청은 실제 서브 계정을 생성하지 않습니다. dryRun=false로 호출하면 서브 계정이 생성됩니다.",
+        };
+        return preview;
       }
+
+      const { dryRun, ...bodyParams } = params;
+      const result = await client.requestRaw("POST", "/api/v1/sub-accounts", undefined, bodyParams);
+      return result;
     }
   );
 
   // ─── Sub Account Delete Tool ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_sub_account",
     "⚠️ Destructive: Permanently delete a sub account. All associated permissions and access will be revoked. Set confirm=true to execute.",
     {
@@ -99,22 +90,19 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Sub Account [${params.subAccountId}]. All associated permissions and access will be revoked.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Sub Account [${params.subAccountId}]. All associated permissions and access will be revoked.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}`);
+      return result;
     }
   );
 
   // ─── Group Query Tools ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_groups",
     "List all IAM groups for managing sub account permissions",
     {
@@ -122,21 +110,18 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       size: z.number().optional().describe("Page output count (default: 10)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.page !== undefined) queryParams.page = String(params.page);
-        if (params.size !== undefined) queryParams.size = String(params.size);
-        const result = await client.requestRaw("GET", "/api/v1/groups", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.page !== undefined) queryParams.page = String(params.page);
+      if (params.size !== undefined) queryParams.size = String(params.size);
+      const result = await client.requestRaw("GET", "/api/v1/groups", queryParams);
+      return result;
     }
   );
 
   // ─── Group Create Tool ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_group",
     "Create a new IAM group. Use dryRun=true to preview without creating.",
     {
@@ -145,29 +130,26 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the group"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: IAM Group Creation",
-            groupName: params.groupName,
-            groupDescription: params.groupDescription ?? "(none)",
-            message: "이 요청은 실제 그룹을 생성하지 않습니다. dryRun=false로 호출하면 그룹이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...bodyParams } = params;
-        const result = await client.requestRaw("POST", "/api/v1/groups", undefined, bodyParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: IAM Group Creation",
+          groupName: params.groupName,
+          groupDescription: params.groupDescription ?? "(none)",
+          message: "이 요청은 실제 그룹을 생성하지 않습니다. dryRun=false로 호출하면 그룹이 생성됩니다.",
+        };
+        return preview;
       }
+
+      const { dryRun, ...bodyParams } = params;
+      const result = await client.requestRaw("POST", "/api/v1/groups", undefined, bodyParams);
+      return result;
     }
   );
 
   // ─── Group Delete Tool ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_group",
     "⚠️ Destructive: Permanently delete an IAM group. Set confirm=true to execute.",
     {
@@ -175,22 +157,19 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete IAM Group [${params.groupId}]. All members will lose group-based permissions.\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/groups/${encodeURIComponent(params.groupId)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete IAM Group [${params.groupId}]. All members will lose group-based permissions.\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/groups/${encodeURIComponent(params.groupId)}`);
+      return result;
     }
   );
 
   // ─── Policy Query Tools ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_policies",
     "List all available IAM policies",
     {
@@ -201,24 +180,21 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       searchWord: z.string().optional().describe("Search keyword"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.page !== undefined) queryParams.page = String(params.page);
-        if (params.size !== undefined) queryParams.size = String(params.size);
-        if (params.type) queryParams.type = params.type;
-        if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", "/api/v1/policies", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.page !== undefined) queryParams.page = String(params.page);
+      if (params.size !== undefined) queryParams.size = String(params.size);
+      if (params.type) queryParams.type = params.type;
+      if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", "/api/v1/policies", queryParams);
+      return result;
     }
   );
 
   // ─── Policy Attach Tool (Sub Account) ──────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_attach_policy_to_sub_account",
     "Assign IAM policies to a sub account",
     {
@@ -226,23 +202,19 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       policyIdList: z.array(z.string()).min(1, { message: "policyIdList는 최소 1개 이상의 정책 ID를 포함해야 합니다." }).describe("List of policy IDs to assign"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "POST",
           `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}/policies`,
           undefined,
           { policyIdList: params.policyIdList }
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── Policy Detach Tool (Sub Account) ──────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_detach_policy_from_sub_account",
     "⚠️ Destructive: Remove an IAM policy from a sub account. Set confirm=true to execute.",
     {
@@ -251,25 +223,22 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will detach policy [${params.policyId}] from sub account [${params.subAccountId}].\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw(
-          "DELETE",
-          `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}/policies/${encodeURIComponent(params.policyId)}`
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will detach policy [${params.policyId}] from sub account [${params.subAccountId}].\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw(
+        "DELETE",
+        `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}/policies/${encodeURIComponent(params.policyId)}`
+      );
+      return result;
     }
   );
 
   // ─── Policy Attach Tool (Group) ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_attach_policy_to_group",
     "Assign IAM policies to a group",
     {
@@ -277,23 +246,19 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       policyIdList: z.array(z.string()).min(1, { message: "policyIdList는 최소 1개 이상의 정책 ID를 포함해야 합니다." }).describe("List of policy IDs to assign"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "POST",
           `/api/v1/groups/${encodeURIComponent(params.groupId)}/policies`,
           undefined,
           { policyIdList: params.policyIdList }
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── Policy Detach Tool (Group) ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_detach_policy_from_group",
     "⚠️ Destructive: Remove an IAM policy from a group. Set confirm=true to execute.",
     {
@@ -302,25 +267,22 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will detach policy [${params.policyId}] from group [${params.groupId}].\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw(
-          "DELETE",
-          `/api/v1/groups/${encodeURIComponent(params.groupId)}/policies/${encodeURIComponent(params.policyId)}`
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will detach policy [${params.policyId}] from group [${params.groupId}].\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw(
+        "DELETE",
+        `/api/v1/groups/${encodeURIComponent(params.groupId)}/policies/${encodeURIComponent(params.policyId)}`
+      );
+      return result;
     }
   );
 
   // ─── Role Query Tools ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_roles",
     "List all IAM roles",
     {
@@ -330,23 +292,20 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       searchWord: z.string().optional().describe("Search keyword"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.page !== undefined) queryParams.page = String(params.page);
-        if (params.size !== undefined) queryParams.size = String(params.size);
-        if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
-        if (params.searchWord) queryParams.searchWord = params.searchWord;
-        const result = await client.requestRaw("GET", "/api/v1/roles", queryParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const queryParams: Record<string, string> = {};
+      if (params.page !== undefined) queryParams.page = String(params.page);
+      if (params.size !== undefined) queryParams.size = String(params.size);
+      if (params.searchColumn) queryParams.searchColumn = params.searchColumn;
+      if (params.searchWord) queryParams.searchWord = params.searchWord;
+      const result = await client.requestRaw("GET", "/api/v1/roles", queryParams);
+      return result;
     }
   );
 
   // ─── Role Create Tool ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_role",
     "Create a new IAM role. Use dryRun=true to preview without creating.",
     {
@@ -358,32 +317,29 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the role"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: IAM Role Creation",
-            roleName: params.roleName,
-            roleType: params.roleType,
-            isMyAccount: params.isMyAccount,
-            sessionExpirationSec: params.sessionExpirationSec ?? "(default)",
-            descCont: params.descCont ?? "(none)",
-            message: "이 요청은 실제 역할을 생성하지 않습니다. dryRun=false로 호출하면 역할이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...bodyParams } = params;
-        const result = await client.requestRaw("POST", "/api/v1/roles", undefined, bodyParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: IAM Role Creation",
+          roleName: params.roleName,
+          roleType: params.roleType,
+          isMyAccount: params.isMyAccount,
+          sessionExpirationSec: params.sessionExpirationSec ?? "(default)",
+          descCont: params.descCont ?? "(none)",
+          message: "이 요청은 실제 역할을 생성하지 않습니다. dryRun=false로 호출하면 역할이 생성됩니다.",
+        };
+        return preview;
       }
+
+      const { dryRun, ...bodyParams } = params;
+      const result = await client.requestRaw("POST", "/api/v1/roles", undefined, bodyParams);
+      return result;
     }
   );
 
   // ─── Role Delete Tool ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_role",
     "⚠️ Destructive: Permanently delete an IAM role. Set confirm=true to execute.",
     {
@@ -391,16 +347,12 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete IAM Role [${params.roleNo}].\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw("DELETE", `/api/v1/roles/${encodeURIComponent(params.roleNo)}`);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete IAM Role [${params.roleNo}].\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw("DELETE", `/api/v1/roles/${encodeURIComponent(params.roleNo)}`);
+      return result;
     }
   );
 }

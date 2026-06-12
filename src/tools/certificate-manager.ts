@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Certificate Manager API 1.0
@@ -21,7 +21,8 @@ import { toolText } from "./_response.js";
 export function registerCertificateManagerTools(server: McpServer, client: NcloudClient): void {
   // ─── 인증서 목록 조회 ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_certificates",
     "List all registered SSL/TLS certificates in Certificate Manager. Supports filtering by certificateName, certificateNo, or instanceNo.",
     {
@@ -30,28 +31,25 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
       instanceNo: z.number().optional().describe("Filter by instance number (Load Balancer, CDN+, Global Edge)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string | number | undefined> = {};
-        if (params.certificateName !== undefined) queryParams["certificateName"] = params.certificateName;
-        if (params.certificateNo !== undefined) queryParams["certificateNo"] = params.certificateNo;
-        if (params.instanceNo !== undefined) queryParams["instanceNo"] = params.instanceNo;
+      const queryParams: Record<string, string | number | undefined> = {};
+      if (params.certificateName !== undefined) queryParams["certificateName"] = params.certificateName;
+      if (params.certificateNo !== undefined) queryParams["certificateNo"] = params.certificateNo;
+      if (params.instanceNo !== undefined) queryParams["instanceNo"] = params.instanceNo;
 
-        const hasQuery = Object.values(queryParams).some((v) => v !== undefined);
-        const result = await client.requestRaw(
-          "GET",
-          "/api/v1/certificates",
-          hasQuery ? queryParams : undefined
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const hasQuery = Object.values(queryParams).some((v) => v !== undefined);
+      const result = await client.requestRaw(
+        "GET",
+        "/api/v1/certificates",
+        hasQuery ? queryParams : undefined
+      );
+      return result;
     }
   );
 
   // ─── 외부 인증서 등록 ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_register_external_certificate",
     "Register an external SSL certificate issued by a third-party CA (e.g. Let's Encrypt, ZeroSSL, DigiCert)",
     {
@@ -61,8 +59,7 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
       certificateChain: z.string().describe("PEM-encoded certificate chain (intermediate CA certificates)"),
     },
     async (params) => {
-      try {
-        const result = await client.requestRaw(
+      return client.requestRaw(
           "POST",
           "/api/v1/certificate/withExternal",
           undefined,
@@ -73,16 +70,13 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
             certificateChain: params.certificateChain,
           }
         );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
   // ─── 인증서 삭제 ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_certificate",
     "⚠️ Destructive: Permanently delete a registered certificate. Ensure it is not in use by any Load Balancer, CDN+, or Global Edge. Set confirm=true to execute.",
     {
@@ -91,25 +85,21 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = [
-            `⚠️ This will permanently delete Certificate #${params.certificateNo} (${params.certificateName}).`,
-            `Ensure it is not in use by any Load Balancer, CDN+, or Global Edge instance.`,
-            ``,
-            `To execute, call this tool again with confirm=true.`,
-          ].join("\n");
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const result = await client.requestRaw(
-          "DELETE",
-          `/api/v1/certificate/${params.certificateNo}`,
-          { certificateName: params.certificateName }
-        );
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = [
+          `⚠️ This will permanently delete Certificate #${params.certificateNo} (${params.certificateName}).`,
+          `Ensure it is not in use by any Load Balancer, CDN+, or Global Edge instance.`,
+          ``,
+          `To execute, call this tool again with confirm=true.`,
+        ].join("\n");
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const result = await client.requestRaw(
+        "DELETE",
+        `/api/v1/certificate/${params.certificateNo}`,
+        { certificateName: params.certificateName }
+      );
+      return result;
     }
   );
 }

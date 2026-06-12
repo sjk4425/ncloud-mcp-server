@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerRouteTableTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_route_tables",
     "List all route tables in the current region",
     {
@@ -16,32 +17,24 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       supportedSubnetTypeCode: z.string().optional().describe("Filter by supported subnet type (PUBLIC, PRIVATE)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getRouteTableList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getRouteTableList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_route_table_detail",
     "Get detailed information about a specific route table",
     {
       routeTableNo: z.string().describe("Route table number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getRouteTableDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getRouteTableDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_routes",
     "List all routes in a specific route table",
     {
@@ -49,18 +42,14 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       vpcNo: z.string().describe("VPC number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getRouteList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getRouteList", params);
     }
   );
 
   // ─── Create Tool ─────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_route_table",
     "Create a new route table in a VPC",
     {
@@ -72,18 +61,14 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       routeTableDescription: z.string().optional().describe("Description for the route table"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/createRouteTable", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/createRouteTable", params);
     }
   );
 
   // ─── Route Management Tool ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_route",
     "Add a route to a route table",
     {
@@ -97,21 +82,17 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       targetName: z.string().optional().describe("Target name"),
     },
     async (params) => {
-      try {
-        const { routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo, targetName } = params;
-        const requestParams: any = {
-          routeTableNo,
-          vpcNo,
-          "routeList.1.destinationCidrBlock": destinationCidrBlock,
-          "routeList.1.targetTypeCode": targetTypeCode,
-          "routeList.1.targetNo": targetNo,
-        };
-        if (targetName) requestParams["routeList.1.targetName"] = targetName;
-        const result = await client.request("/vpc/v2/addRoute", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo, targetName } = params;
+      const requestParams: any = {
+        routeTableNo,
+        vpcNo,
+        "routeList.1.destinationCidrBlock": destinationCidrBlock,
+        "routeList.1.targetTypeCode": targetTypeCode,
+        "routeList.1.targetNo": targetNo,
+      };
+      if (targetName) requestParams["routeList.1.targetName"] = targetName;
+      const result = await client.request("/vpc/v2/addRoute", requestParams);
+      return result;
     }
   );
 
@@ -119,23 +100,20 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
 
   // ─── Subnet Association Tools ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_route_table_subnets",
     "List subnets associated with a specific route table",
     {
       routeTableNo: z.string().describe("Route table number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/getRouteTableSubnetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/getRouteTableSubnetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_add_route_table_subnet",
     "Associate a subnet with a route table",
     {
@@ -144,22 +122,19 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       subnetNo: z.string({ required_error: "필수 파라미터 'subnetNo'가 누락되었습니다." }).describe("Subnet number to associate"),
     },
     async (params) => {
-      try {
-        const { routeTableNo, vpcNo, subnetNo } = params;
-        const requestParams: any = {
-          routeTableNo,
-          vpcNo,
-          "subnetNoList.1": subnetNo,
-        };
-        const result = await client.request("/vpc/v2/addRouteTableSubnet", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { routeTableNo, vpcNo, subnetNo } = params;
+      const requestParams: any = {
+        routeTableNo,
+        vpcNo,
+        "subnetNoList.1": subnetNo,
+      };
+      const result = await client.request("/vpc/v2/addRouteTableSubnet", requestParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_route_table_subnet",
     "⚠️ Destructive: Remove a subnet association from a route table. Set confirm=true to execute.",
     {
@@ -169,28 +144,25 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will remove Subnet [${params.subnetNo}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, routeTableNo, vpcNo, subnetNo } = params;
-        const requestParams: any = {
-          routeTableNo,
-          vpcNo,
-          "subnetNoList.1": subnetNo,
-        };
-        const result = await client.request("/vpc/v2/removeRouteTableSubnet", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will remove Subnet [${params.subnetNo}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, routeTableNo, vpcNo, subnetNo } = params;
+      const requestParams: any = {
+        routeTableNo,
+        vpcNo,
+        "subnetNoList.1": subnetNo,
+      };
+      const result = await client.request("/vpc/v2/removeRouteTableSubnet", requestParams);
+      return result;
     }
   );
 
   // ─── Description Tool ──────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_route_table_description",
     "Update the description of a route table",
     {
@@ -198,18 +170,14 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       routeTableDescription: z.string({ required_error: "필수 파라미터 'routeTableDescription'이 누락되었습니다." }).describe("New description for the route table"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vpc/v2/setRouteTableDescription", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vpc/v2/setRouteTableDescription", params);
     }
   );
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_route_table",
     "⚠️ Destructive: Permanently delete a route table. Set confirm=true to execute.",
     {
@@ -217,21 +185,18 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vpc/v2/deleteRouteTable", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vpc/v2/deleteRouteTable", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_remove_route",
     "⚠️ Destructive: Remove a route from a route table. Set confirm=true to execute.",
     {
@@ -245,24 +210,20 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently remove route [${params.destinationCidrBlock}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo } = params;
-        const requestParams: any = {
-          routeTableNo,
-          vpcNo,
-          "routeList.1.destinationCidrBlock": destinationCidrBlock,
-          "routeList.1.targetTypeCode": targetTypeCode,
-          "routeList.1.targetNo": targetNo,
-        };
-        const result = await client.request("/vpc/v2/removeRoute", requestParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently remove route [${params.destinationCidrBlock}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo } = params;
+      const requestParams: any = {
+        routeTableNo,
+        vpcNo,
+        "routeList.1.destinationCidrBlock": destinationCidrBlock,
+        "routeList.1.targetTypeCode": targetTypeCode,
+        "routeList.1.targetNo": targetNo,
+      };
+      const result = await client.request("/vpc/v2/removeRoute", requestParams);
+      return result;
     }
   );
 }

@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerAutoScalingTools(server: McpServer, client: NcloudClient): void {
   // ─── Launch Configuration Query Tools ──────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_launch_configs",
     "List all launch configurations for Auto Scaling in the current region",
     {
@@ -15,16 +16,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getLaunchConfigurationList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getLaunchConfigurationList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_launch_config_detail",
     "Get detailed information about a specific launch configuration for Auto Scaling",
     {
@@ -33,18 +30,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       }).describe("Launch configuration number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getLaunchConfigurationDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getLaunchConfigurationDetail", params);
     }
   );
 
   // ─── Launch Configuration Create Tool ──────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_launch_config",
     "Create a new launch configuration for Auto Scaling. Use dryRun=true to preview without creating.",
     {
@@ -64,32 +57,29 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Launch Configuration Creation",
-            serverImageProductCode: params.serverImageProductCode,
-            serverProductCode: params.serverProductCode,
-            launchConfigurationName: params.launchConfigurationName ?? "(auto-generated)",
-            loginKeyName: params.loginKeyName ?? "(none)",
-            initScriptNo: params.initScriptNo ?? "(none)",
-            isEncryptedVolume: params.isEncryptedVolume ?? false,
-            message: "이 요청은 실제 런치 설정을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vautoscaling/v2/createLaunchConfiguration", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Launch Configuration Creation",
+          serverImageProductCode: params.serverImageProductCode,
+          serverProductCode: params.serverProductCode,
+          launchConfigurationName: params.launchConfigurationName ?? "(auto-generated)",
+          loginKeyName: params.loginKeyName ?? "(none)",
+          initScriptNo: params.initScriptNo ?? "(none)",
+          isEncryptedVolume: params.isEncryptedVolume ?? false,
+          message: "이 요청은 실제 런치 설정을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+        };
+        return preview;
       }
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vautoscaling/v2/createLaunchConfiguration", apiParams);
+      return result;
     }
   );
 
   // ─── Launch Configuration Destructive Tool ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_launch_config",
     "⚠️ Destructive: Permanently delete a launch configuration. Set confirm=true to execute.",
     {
@@ -99,23 +89,20 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete LaunchConfiguration [${params.launchConfigurationNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vautoscaling/v2/deleteLaunchConfiguration", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete LaunchConfiguration [${params.launchConfigurationNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vautoscaling/v2/deleteLaunchConfiguration", apiParams);
+      return result;
     }
   );
 
   // ─── Auto Scaling Group Query Tools ────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_asgs",
     "List all Auto Scaling Groups in the current region",
     {
@@ -125,16 +112,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getAutoScalingGroupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getAutoScalingGroupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_asg_detail",
     "Get detailed information about a specific Auto Scaling Group",
     {
@@ -143,18 +126,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       }).describe("Auto Scaling Group number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getAutoScalingGroupDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getAutoScalingGroupDetail", params);
     }
   );
 
   // ─── Auto Scaling Group Create Tool ────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_asg",
     "Create a new Auto Scaling Group. Use dryRun=true to preview without creating.",
     {
@@ -183,34 +162,31 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Auto Scaling Group Creation",
-            launchConfigurationNo: params.launchConfigurationNo,
-            autoScalingGroupName: params.autoScalingGroupName ?? "(auto-generated)",
-            subnetNoList: params.subnetNoList,
-            minSize: params.minSize,
-            maxSize: params.maxSize,
-            desiredCapacity: params.desiredCapacity ?? params.minSize,
-            healthCheckTypeCode: params.healthCheckTypeCode ?? "SVR",
-            targetGroupNoList: params.targetGroupNoList ?? [],
-            message: "이 요청은 실제 Auto Scaling Group을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vautoscaling/v2/createAutoScalingGroup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Auto Scaling Group Creation",
+          launchConfigurationNo: params.launchConfigurationNo,
+          autoScalingGroupName: params.autoScalingGroupName ?? "(auto-generated)",
+          subnetNoList: params.subnetNoList,
+          minSize: params.minSize,
+          maxSize: params.maxSize,
+          desiredCapacity: params.desiredCapacity ?? params.minSize,
+          healthCheckTypeCode: params.healthCheckTypeCode ?? "SVR",
+          targetGroupNoList: params.targetGroupNoList ?? [],
+          message: "이 요청은 실제 Auto Scaling Group을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+        };
+        return preview;
       }
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vautoscaling/v2/createAutoScalingGroup", apiParams);
+      return result;
     }
   );
 
   // ─── Auto Scaling Group Destructive Tool ───────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_asg",
     "⚠️ Destructive: Permanently delete an Auto Scaling Group. Set confirm=true to execute.",
     {
@@ -220,23 +196,20 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vautoscaling/v2/deleteAutoScalingGroup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vautoscaling/v2/deleteAutoScalingGroup", apiParams);
+      return result;
     }
   );
 
   // ─── Auto Scaling Group Operation Tools ────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_set_desired_capacity",
     "Set the desired capacity for an Auto Scaling Group",
     {
@@ -248,18 +221,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       }).min(0).describe("Desired number of instances"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/setDesiredCapacity", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/setDesiredCapacity", params);
     }
   );
 
   // ─── Scaling Policy Tools ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_put_scaling_policy",
     "Create or update a scaling policy for an Auto Scaling Group",
     {
@@ -279,16 +248,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       minAdjustmentStep: z.number().optional().describe("Minimum adjustment step for percentage-based scaling"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/putScalingPolicy", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/putScalingPolicy", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_scaling_policies",
     "List all scaling policies for an Auto Scaling Group",
     {
@@ -299,16 +264,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getAutoScalingPolicyList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getAutoScalingPolicyList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_scaling_policy",
     "⚠️ Destructive: Delete a scaling policy from an Auto Scaling Group. Set confirm=true to execute.",
     {
@@ -321,23 +282,20 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete ScalingPolicy [${params.policyName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vautoscaling/v2/deleteScalingPolicy", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete ScalingPolicy [${params.policyName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vautoscaling/v2/deleteScalingPolicy", apiParams);
+      return result;
     }
   );
 
   // ─── Auto Scaling Group Update Tool ────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_update_asg",
     "Update an existing Auto Scaling Group configuration (e.g. min/max size, desired capacity, cooldown)",
     {
@@ -352,18 +310,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       healthCheckGracePeriod: z.number().optional().describe("Health check grace period in seconds"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/updateAutoScalingGroup", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/updateAutoScalingGroup", params);
     }
   );
 
   // ─── Execute Scaling Policy Tool ───────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_execute_policy",
     "Manually execute a scaling policy for an Auto Scaling Group",
     {
@@ -375,18 +329,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       }).describe("Scaling policy name to execute"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/executePolicy", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/executePolicy", params);
     }
   );
 
   // ─── Auto Scaling Activity Log Tool ────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_asg_activity_logs",
     "List activity logs (scaling actions) for an Auto Scaling Group",
     {
@@ -397,18 +347,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getAutoScalingActivityLogList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getAutoScalingActivityLogList", params);
     }
   );
 
   // ─── Suspend/Resume Processes Tools ────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_suspend_processes",
     "Suspend specific scaling processes for an Auto Scaling Group",
     {
@@ -420,16 +366,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       }).min(1).describe("List of scaling process codes to suspend"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/suspendProcesses", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/suspendProcesses", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_resume_processes",
     "Resume previously suspended scaling processes for an Auto Scaling Group",
     {
@@ -441,18 +383,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       }).min(1).describe("List of scaling process codes to resume"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/resumeProcesses", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/resumeProcesses", params);
     }
   );
 
   // ─── Scheduled Action Tools ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_put_scheduled_action",
     "Create or update a scheduled action for an Auto Scaling Group",
     {
@@ -470,16 +408,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       recurrenceInKST: z.string().optional().describe("Cron expression in KST (e.g. '0 9 * * 1-5' for weekdays at 9am KST)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/putScheduledUpdateGroupAction", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/putScheduledUpdateGroupAction", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_scheduled_actions",
     "List scheduled actions that have not yet been executed for an Auto Scaling Group",
     {
@@ -488,16 +422,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       }).describe("Auto Scaling Group number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getScheduledActionList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getScheduledActionList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_scheduled_action",
     "[⚠️ DESTRUCTIVE] Delete a scheduled action from an Auto Scaling Group. Set confirm=true to execute.",
     {
@@ -510,47 +440,35 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete ScheduledAction [${params.scheduledActionName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vautoscaling/v2/deleteScheduledAction", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete ScheduledAction [${params.scheduledActionName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vautoscaling/v2/deleteScheduledAction", apiParams);
+      return result;
     }
   );
 
   // ─── Reference Query Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_scaling_process_types",
     "List available scaling process types for Auto Scaling Groups",
     {},
     async () => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getScalingProcessTypeList", {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getScalingProcessTypeList", {});
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_adjustment_types",
     "List available adjustment type codes for Auto Scaling policy configuration",
     {},
     async () => {
-      try {
-        const result = await client.request("/vautoscaling/v2/getAdjustmentTypeList", {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vautoscaling/v2/getAdjustmentTypeList", {});
     }
   );
 }

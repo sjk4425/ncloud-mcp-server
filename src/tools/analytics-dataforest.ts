@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Data Forest — 빅데이터 분석 플랫폼 (Accounts & Apps 관리)
@@ -17,25 +17,22 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
   // Accounts API
   // ═══════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_check_account_name",
     "Check Data Forest account name availability and validity",
     {
       name: z.string().min(2).max(16).describe("Account name (lowercase + numbers + '-', 2-16 chars)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/checkAvailableName", {
+      return client.postRequest("/api/v2/accounts/checkAvailableName", {
           name: params.name,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_create_account",
     "Create a new Data Forest account",
     {
@@ -43,105 +40,81 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       password: z.string().min(8).max(20).describe("Account password (letters + numbers + special chars, 8-20 chars)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/create", {
+      return client.postRequest("/api/v2/accounts/create", {
           name: params.name,
           password: params.password,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_list_accounts",
     "List all Data Forest accounts",
     {},
     async () => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/getList", {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.postRequest("/api/v2/accounts/getList", {});
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_get_account_detail",
     "Get detailed information of a Data Forest account including HDFS quotas",
     {
       id: z.string().max(22).describe("Account unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/getDetail", {
+      return client.postRequest("/api/v2/accounts/getDetail", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_check_account_resource",
     "Check if a Data Forest account has any owned resources (before deletion)",
     {
       id: z.string().max(22).describe("Account unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/checkHasResource", {
+      return client.postRequest("/api/v2/accounts/checkHasResource", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_get_kerberos_keytab",
     "Download Kerberos keytab file for a Data Forest account (returns binary info)",
     {
       id: z.string().max(22).describe("Account unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/getKerberosKeytab", {
+      return client.postRequest("/api/v2/accounts/getKerberosKeytab", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_reset_kerberos_keytab",
     "Reset Kerberos keytab for a Data Forest account",
     {
       id: z.string().max(22).describe("Account unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/resetKerberosKeytab", {
+      return client.postRequest("/api/v2/accounts/resetKerberosKeytab", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_reset_password",
     "Reset password for a Data Forest account",
     {
@@ -149,19 +122,15 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       password: z.string().min(8).max(20).describe("New password (letters + numbers + special chars, 8-20 chars)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/resetPassword", {
+      return client.postRequest("/api/v2/accounts/resetPassword", {
           id: params.id,
           password: params.password,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_set_quota",
     "Change HDFS quota for a Data Forest account",
     {
@@ -171,21 +140,17 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       spaceTb: z.number().min(200).max(500).describe("Max storage in TB (200-500, 100TB increments, default: 200)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/accounts/setQuota", {
+      return client.postRequest("/api/v2/accounts/setQuota", {
           id: params.id,
           namespace: params.namespace,
           fileCountMillion: params.fileCountMillion,
           spaceTb: params.spaceTb,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_delete_account",
     "⚠️ Destructive: Delete a Data Forest account. Set confirm=true to execute. Check checkHasResource first.",
     {
@@ -193,22 +158,18 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to execute deletion"),
     },
     async (params) => {
-      try {
-        if (!params.id) {
-          return { content: [{ type: "text" as const, text: "Error: id is required." }], isError: true };
-        }
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text:
-            `⚠️ This will permanently delete Data Forest account [${params.id}].\n\nTo execute, call again with confirm=true.`
-          }] };
-        }
-        const result = await client.postRequest("/api/v2/accounts/delete", {
-          id: params.id,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.id) {
+        return { content: [{ type: "text" as const, text: "Error: id is required." }], isError: true };
       }
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text:
+          `⚠️ This will permanently delete Data Forest account [${params.id}].\n\nTo execute, call again with confirm=true.`
+        }] };
+      }
+      const result = await client.postRequest("/api/v2/accounts/delete", {
+        id: params.id,
+      });
+      return result;
     }
   );
 
@@ -216,7 +177,8 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
   // Apps API
   // ═══════════════════════════════════════════════════════════════════════
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_check_app_name",
     "Check Data Forest app name availability and validity",
     {
@@ -224,19 +186,15 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       name: z.string().min(3).max(15).describe("App name (lowercase + numbers + '-', 3-15 chars, no consecutive '-')"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/checkAvailableName", {
+      return client.postRequest("/api/v2/apps/checkAvailableName", {
           accountId: params.accountId,
           name: params.name,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_get_app_basic_setting",
     "Get default creation settings for a Data Forest app type (components, queues, limits)",
     {
@@ -244,51 +202,39 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       appTypeId: z.string().max(60).describe("App type and version (e.g. DEV-1.0.0, KAFKA-2.4.0)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/getAppBasicSetting", {
+      return client.postRequest("/api/v2/apps/getAppBasicSetting", {
           accountId: params.accountId,
           appTypeId: params.appTypeId,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_get_app_type_ids",
     "Get available Data Forest app type ID list (e.g. DEV-1.0.0, KAFKA-2.4.0, ZEPPELIN-0.10.1)",
     {},
     async () => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/getAppTypeIdList", {});
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.postRequest("/api/v2/apps/getAppTypeIdList", {});
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_get_app_type_template",
     "Get YARN service template for a Data Forest app type",
     {
       appTypeId: z.string().max(60).describe("App type and version (e.g. DEV-1.0.0)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/getAppTypeTemplate", {
+      return client.postRequest("/api/v2/apps/getAppTypeTemplate", {
           appTypeId: params.appTypeId,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_create_app",
     "Create a new Data Forest app (Kafka, Zeppelin, Spark, etc.)",
     {
@@ -307,62 +253,51 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       })).describe("App component configurations"),
     },
     async (params) => {
-      try {
-        const body: Record<string, unknown> = {
-          accountId: params.accountId,
-          queueName: params.queueName,
-          appTypeId: params.appTypeId,
-          name: params.name,
-          lifetime: params.lifetime,
-          components: params.components,
-        };
-        if (params.description) body.description = params.description;
-        if (params.dependentIds) body.dependentIds = params.dependentIds;
-        const result = await client.postRequest("/api/v2/apps/create", body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body: Record<string, unknown> = {
+        accountId: params.accountId,
+        queueName: params.queueName,
+        appTypeId: params.appTypeId,
+        name: params.name,
+        lifetime: params.lifetime,
+        components: params.components,
+      };
+      if (params.description) body.description = params.description;
+      if (params.dependentIds) body.dependentIds = params.dependentIds;
+      const result = await client.postRequest("/api/v2/apps/create", body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_list_apps",
     "List all apps for a Data Forest account",
     {
       accountId: z.string().max(22).describe("Account unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/getList", {
+      return client.postRequest("/api/v2/apps/getList", {
           search: { accountId: params.accountId },
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_get_app_detail",
     "Get detailed information of a Data Forest app (state, components, links)",
     {
       id: z.string().max(22).describe("App unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/getDetail", {
+      return client.postRequest("/api/v2/apps/getDetail", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_set_container_count",
     "Change container count for a Data Forest app component",
     {
@@ -371,20 +306,16 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       containerCount: z.number().min(1).describe("New container count"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/setContainerCount", {
+      return client.postRequest("/api/v2/apps/setContainerCount", {
           id: params.id,
           componentName: params.componentName,
           containerCount: params.containerCount,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_set_lifetime",
     "Change lifetime (running duration) for a Data Forest app",
     {
@@ -392,19 +323,15 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       lifetime: z.number().min(300).max(604800).describe("New lifetime in seconds (300-604800)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/setLifetime", {
+      return client.postRequest("/api/v2/apps/setLifetime", {
           id: params.id,
           lifetime: params.lifetime,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_kill_container",
     "Restart a specific container in a Data Forest app component",
     {
@@ -412,73 +339,57 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       containerName: z.string().max(60).describe("Container name (e.g. shell-0, broker-1)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/killContainer", {
+      return client.postRequest("/api/v2/apps/killContainer", {
           id: params.id,
           containerName: params.containerName,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_kill_master",
     "Restart the Application Master of a Data Forest app",
     {
       id: z.string().max(22).describe("App unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/killMaster", {
+      return client.postRequest("/api/v2/apps/killMaster", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_start_app",
     "Start a stopped Data Forest app",
     {
       id: z.string().max(22).describe("App unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/start", {
+      return client.postRequest("/api/v2/apps/start", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_stop_app",
     "Stop a running Data Forest app",
     {
       id: z.string().max(22).describe("App unique identifier (Base62-encoded UUID)"),
     },
     async (params) => {
-      try {
-        const result = await client.postRequest("/api/v2/apps/stop", {
+      return client.postRequest("/api/v2/apps/stop", {
           id: params.id,
         });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_dataforest_delete_app",
     "⚠️ Destructive: Delete a Data Forest app. Set confirm=true to execute.",
     {
@@ -486,22 +397,18 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to execute deletion"),
     },
     async (params) => {
-      try {
-        if (!params.id) {
-          return { content: [{ type: "text" as const, text: "Error: id is required." }], isError: true };
-        }
-        if (!params.confirm) {
-          return { content: [{ type: "text" as const, text:
-            `⚠️ This will permanently delete Data Forest app [${params.id}].\n\nTo execute, call again with confirm=true.`
-          }] };
-        }
-        const result = await client.postRequest("/api/v2/apps/delete", {
-          id: params.id,
-        });
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.id) {
+        return { content: [{ type: "text" as const, text: "Error: id is required." }], isError: true };
       }
+      if (!params.confirm) {
+        return { content: [{ type: "text" as const, text:
+          `⚠️ This will permanently delete Data Forest app [${params.id}].\n\nTo execute, call again with confirm=true.`
+        }] };
+      }
+      const result = await client.postRequest("/api/v2/apps/delete", {
+        id: params.id,
+      });
+      return result;
     }
   );
 }

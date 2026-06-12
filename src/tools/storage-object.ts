@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -263,24 +263,22 @@ function parseListMultipartUploadsXml(xml: string): {
 export function registerStorageObjectTools(server: McpServer, client: S3CompatibleClient): void {
   // ─── Bucket Query Tools ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_buckets",
     "List all Object Storage buckets in the current region",
     {},
     async () => {
-      try {
-        const response = await client.request({ method: "GET" });
-        const result = parseListBucketsXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({ method: "GET" });
+      const result = parseListBucketsXml(response.body);
+      return result;
     }
   );
 
   // ─── Bucket Create Tools ───────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_bucket",
     "Create a new Object Storage bucket. Use dryRun=true to preview.",
     {
@@ -290,33 +288,30 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Bucket Creation",
-            bucketName: params.bucketName,
-            region: client.getRegionCode(),
-            message: "이 요청은 실제 버킷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-        await client.request({ method: "PUT", bucket: params.bucketName });
-        const summary = {
-          리소스타입: "Bucket",
-          리소스명: params.bucketName,
-          리전: client.getRegionCode(),
-          상태: "created",
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Bucket Creation",
+          bucketName: params.bucketName,
+          region: client.getRegionCode(),
+          message: "이 요청은 실제 버킷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+      await client.request({ method: "PUT", bucket: params.bucketName });
+      const summary = {
+        리소스타입: "Bucket",
+        리소스명: params.bucketName,
+        리전: client.getRegionCode(),
+        상태: "created",
+      };
+      return summary;
     }
   );
 
   // ─── Bucket Destructive Tools ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_bucket",
     "⚠️ Destructive: Permanently delete an Object Storage bucket. The bucket must be empty. Set confirm=true to execute.",
     {
@@ -326,23 +321,20 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        await client.request({ method: "DELETE", bucket: params.bucketName });
-        const result = { message: `✅ 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      await client.request({ method: "DELETE", bucket: params.bucketName });
+      const result = { message: `✅ 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
+      return result;
     }
   );
 
   // ─── Object Query Tools ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_objects",
     "List objects in an Object Storage bucket",
     {
@@ -355,27 +347,24 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       marker: z.string().optional().describe("Marker for pagination (key to start after)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = {};
-        if (params.prefix) queryParams["prefix"] = params.prefix;
-        if (params.delimiter) queryParams["delimiter"] = params.delimiter;
-        if (params.maxKeys) queryParams["max-keys"] = String(params.maxKeys);
-        if (params.marker) queryParams["marker"] = params.marker;
+      const queryParams: Record<string, string> = {};
+      if (params.prefix) queryParams["prefix"] = params.prefix;
+      if (params.delimiter) queryParams["delimiter"] = params.delimiter;
+      if (params.maxKeys) queryParams["max-keys"] = String(params.maxKeys);
+      if (params.marker) queryParams["marker"] = params.marker;
 
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          queryParams,
-        });
-        const result = parseListObjectsXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        queryParams,
+      });
+      const result = parseListObjectsXml(response.body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_object",
     "Get (download) an object from an Object Storage bucket. Returns the object content as text.",
     {
@@ -387,30 +376,27 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Object key (path) to retrieve"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          key: params.key,
-        });
-        const result = {
-          bucket: params.bucketName,
-          key: params.key,
-          contentLength: response.headers.get("content-length"),
-          contentType: response.headers.get("content-type"),
-          lastModified: response.headers.get("last-modified"),
-          body: response.body,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        key: params.key,
+      });
+      const result = {
+        bucket: params.bucketName,
+        key: params.key,
+        contentLength: response.headers.get("content-length"),
+        contentType: response.headers.get("content-type"),
+        lastModified: response.headers.get("last-modified"),
+        body: response.body,
+      };
+      return result;
     }
   );
 
   // ─── Object Create/Update Tools ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_put_object",
     "Upload (put) an object to an Object Storage bucket. Use dryRun=true to preview.",
     {
@@ -427,49 +413,46 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually uploading"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Object Upload",
-            bucketName: params.bucketName,
-            key: params.key,
-            contentType: params.contentType ?? "application/octet-stream",
-            bodySize: `${params.body.length} bytes`,
-            message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const headers: Record<string, string> = {};
-        if (params.contentType) {
-          headers["content-type"] = params.contentType;
-        }
-
-        await client.request({
-          method: "PUT",
-          bucket: params.bucketName,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Object Upload",
+          bucketName: params.bucketName,
           key: params.key,
-          headers,
-          body: params.body,
-        });
-
-        const summary = {
-          리소스타입: "Object",
-          버킷: params.bucketName,
-          키: params.key,
-          크기: `${params.body.length} bytes`,
-          상태: "uploaded",
+          contentType: params.contentType ?? "application/octet-stream",
+          bodySize: `${params.body.length} bytes`,
+          message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const headers: Record<string, string> = {};
+      if (params.contentType) {
+        headers["content-type"] = params.contentType;
+      }
+
+      await client.request({
+        method: "PUT",
+        bucket: params.bucketName,
+        key: params.key,
+        headers,
+        body: params.body,
+      });
+
+      const summary = {
+        리소스타입: "Object",
+        버킷: params.bucketName,
+        키: params.key,
+        크기: `${params.body.length} bytes`,
+        상태: "uploaded",
+      };
+      return summary;
     }
   );
 
   // ─── Object Destructive Tools ──────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_object",
     "⚠️ Destructive: Permanently delete an object from an Object Storage bucket. Set confirm=true to execute.",
     {
@@ -482,27 +465,24 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        await client.request({
-          method: "DELETE",
-          bucket: params.bucketName,
-          key: params.key,
-        });
-        const result = { message: `✅ 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      await client.request({
+        method: "DELETE",
+        bucket: params.bucketName,
+        key: params.key,
+      });
+      const result = { message: `✅ 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
+      return result;
     }
   );
 
   // ─── Multipart Upload Tools ────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_initiate_multipart_upload",
     "Initiate a multipart upload for a large object in Object Storage",
     {
@@ -515,28 +495,25 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       contentType: z.string().optional().describe("Content-Type for the object"),
     },
     async (params) => {
-      try {
-        const headers: Record<string, string> = {};
-        if (params.contentType) {
-          headers["content-type"] = params.contentType;
-        }
-
-        const response = await client.request({
-          method: "POST",
-          bucket: params.bucketName,
-          key: params.key,
-          queryParams: { uploads: "" },
-          headers,
-        });
-        const result = parseInitiateMultipartXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      const headers: Record<string, string> = {};
+      if (params.contentType) {
+        headers["content-type"] = params.contentType;
       }
+
+      const response = await client.request({
+        method: "POST",
+        bucket: params.bucketName,
+        key: params.key,
+        queryParams: { uploads: "" },
+        headers,
+      });
+      const result = parseInitiateMultipartXml(response.body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_complete_multipart_upload",
     "Complete a multipart upload by assembling previously uploaded parts",
     {
@@ -555,41 +532,38 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       })).min(1).describe("List of parts with their part numbers and ETags"),
     },
     async (params) => {
-      try {
-        // Build the CompleteMultipartUpload XML body
-        const partsXml = params.parts
-          .map((p) => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${p.etag}</ETag></Part>`)
-          .join("");
-        const body = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
+      // Build the CompleteMultipartUpload XML body
+      const partsXml = params.parts
+        .map((p) => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${p.etag}</ETag></Part>`)
+        .join("");
+      const body = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
 
-        const response = await client.request({
-          method: "POST",
-          bucket: params.bucketName,
-          key: params.key,
-          queryParams: { uploadId: params.uploadId },
-          headers: { "content-type": "application/xml" },
-          body,
-        });
+      const response = await client.request({
+        method: "POST",
+        bucket: params.bucketName,
+        key: params.key,
+        queryParams: { uploadId: params.uploadId },
+        headers: { "content-type": "application/xml" },
+        body,
+      });
 
-        // Parse completion response
-        const locationMatch = response.body.match(/<Location>(.*?)<\/Location>/);
-        const keyMatch = response.body.match(/<Key>(.*?)<\/Key>/);
-        const etagMatch = response.body.match(/<ETag>(.*?)<\/ETag>/);
+      // Parse completion response
+      const locationMatch = response.body.match(/<Location>(.*?)<\/Location>/);
+      const keyMatch = response.body.match(/<Key>(.*?)<\/Key>/);
+      const etagMatch = response.body.match(/<ETag>(.*?)<\/ETag>/);
 
-        const result = {
-          location: locationMatch?.[1] ?? "",
-          bucket: params.bucketName,
-          key: keyMatch?.[1] ?? params.key,
-          etag: etagMatch?.[1] ?? "",
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = {
+        location: locationMatch?.[1] ?? "",
+        bucket: params.bucketName,
+        key: keyMatch?.[1] ?? params.key,
+        etag: etagMatch?.[1] ?? "",
+      };
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_upload_part",
     "Upload a part in a multipart upload. Use InitiateMultipartUpload first to get an uploadId, then upload parts, then CompleteMultipartUpload.",
     {
@@ -610,35 +584,32 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Content of this part to upload"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "PUT",
-          bucket: params.bucketName,
-          key: params.objectName,
-          queryParams: {
-            partNumber: String(params.partNumber),
-            uploadId: params.uploadId,
-          },
-          body: params.body,
-        });
-
-        const etag = response.headers.get("etag") ?? "";
-        const result = {
-          bucket: params.bucketName,
-          key: params.objectName,
+      const response = await client.request({
+        method: "PUT",
+        bucket: params.bucketName,
+        key: params.objectName,
+        queryParams: {
+          partNumber: String(params.partNumber),
           uploadId: params.uploadId,
-          partNumber: params.partNumber,
-          etag,
-          size: `${params.body.length} bytes`,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+        },
+        body: params.body,
+      });
+
+      const etag = response.headers.get("etag") ?? "";
+      const result = {
+        bucket: params.bucketName,
+        key: params.objectName,
+        uploadId: params.uploadId,
+        partNumber: params.partNumber,
+        etag,
+        size: `${params.body.length} bytes`,
+      };
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_parts",
     "List uploaded parts for a multipart upload in progress",
     {
@@ -653,22 +624,19 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Upload ID returned from initiate multipart upload"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          key: params.objectName,
-          queryParams: { uploadId: params.uploadId },
-        });
-        const result = parseListPartsXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        key: params.objectName,
+        queryParams: { uploadId: params.uploadId },
+      });
+      const result = parseListPartsXml(response.body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_abort_multipart_upload",
     "⚠️ Destructive: Abort a multipart upload and delete all uploaded parts. Set confirm=true to execute.",
     {
@@ -684,31 +652,28 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently abort multipart upload [${params.uploadId}] for object [${params.bucketName}/${params.objectName}] and delete all uploaded parts. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        await client.request({
-          method: "DELETE",
-          bucket: params.bucketName,
-          key: params.objectName,
-          queryParams: { uploadId: params.uploadId },
-        });
-        const result = {
-          message: `✅ 멀티파트 업로드 '${params.uploadId}'이(가) 중단되었습니다. 업로드된 파트가 삭제되었습니다.`,
-          bucket: params.bucketName,
-          key: params.objectName,
-          uploadId: params.uploadId,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently abort multipart upload [${params.uploadId}] for object [${params.bucketName}/${params.objectName}] and delete all uploaded parts. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      await client.request({
+        method: "DELETE",
+        bucket: params.bucketName,
+        key: params.objectName,
+        queryParams: { uploadId: params.uploadId },
+      });
+      const result = {
+        message: `✅ 멀티파트 업로드 '${params.uploadId}'이(가) 중단되었습니다. 업로드된 파트가 삭제되었습니다.`,
+        bucket: params.bucketName,
+        key: params.objectName,
+        uploadId: params.uploadId,
+      };
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_multipart_uploads",
     "List in-progress multipart uploads for a bucket",
     {
@@ -719,27 +684,24 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = { uploads: "" };
-        if (params.prefix) queryParams["prefix"] = params.prefix;
-        if (params.delimiter) queryParams["delimiter"] = params.delimiter;
+      const queryParams: Record<string, string> = { uploads: "" };
+      if (params.prefix) queryParams["prefix"] = params.prefix;
+      if (params.delimiter) queryParams["delimiter"] = params.delimiter;
 
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          queryParams,
-        });
-        const result = parseListMultipartUploadsXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        queryParams,
+      });
+      const result = parseListMultipartUploadsXml(response.body);
+      return result;
     }
   );
 
   // ─── ACL Management Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_bucket_acl",
     "Get the access control list (ACL) of an Object Storage bucket",
     {
@@ -748,21 +710,18 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Name of the bucket"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          queryParams: { acl: "" },
-        });
-        const result = parseAclXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        queryParams: { acl: "" },
+      });
+      const result = parseAclXml(response.body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_put_bucket_acl",
     "Set the access control list (ACL) of an Object Storage bucket using a canned ACL",
     {
@@ -774,28 +733,25 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
     },
     async (params) => {
-      try {
-        await client.request({
-          method: "PUT",
-          bucket: params.bucketName,
-          queryParams: { acl: "" },
-          headers: { "x-amz-acl": params.acl },
-        });
-        const result = {
-          message: `✅ 버킷 '${params.bucketName}'의 ACL이 '${params.acl}'로 설정되었습니다.`,
-          bucket: params.bucketName,
-          acl: params.acl,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      await client.request({
+        method: "PUT",
+        bucket: params.bucketName,
+        queryParams: { acl: "" },
+        headers: { "x-amz-acl": params.acl },
+      });
+      const result = {
+        message: `✅ 버킷 '${params.bucketName}'의 ACL이 '${params.acl}'로 설정되었습니다.`,
+        bucket: params.bucketName,
+        acl: params.acl,
+      };
+      return result;
     }
   );
 
   // ─── Object ACL Management Tools ────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_object_acl",
     "Get the access control list (ACL) of an object in Object Storage",
     {
@@ -807,22 +763,19 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Object key (path) to get ACL for"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          key: params.objectName,
-          queryParams: { acl: "" },
-        });
-        const result = parseAclXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        key: params.objectName,
+        queryParams: { acl: "" },
+      });
+      const result = parseAclXml(response.body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_put_object_acl",
     "Set the access control list (ACL) of an object in Object Storage using a canned ACL",
     {
@@ -837,30 +790,27 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
     },
     async (params) => {
-      try {
-        await client.request({
-          method: "PUT",
-          bucket: params.bucketName,
-          key: params.objectName,
-          queryParams: { acl: "" },
-          headers: { "x-amz-acl": params.acl },
-        });
-        const result = {
-          message: `✅ 오브젝트 '${params.bucketName}/${params.objectName}'의 ACL이 '${params.acl}'로 설정되었습니다.`,
-          bucket: params.bucketName,
-          object: params.objectName,
-          acl: params.acl,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      await client.request({
+        method: "PUT",
+        bucket: params.bucketName,
+        key: params.objectName,
+        queryParams: { acl: "" },
+        headers: { "x-amz-acl": params.acl },
+      });
+      const result = {
+        message: `✅ 오브젝트 '${params.bucketName}/${params.objectName}'의 ACL이 '${params.acl}'로 설정되었습니다.`,
+        bucket: params.bucketName,
+        object: params.objectName,
+        acl: params.acl,
+      };
+      return result;
     }
   );
 
   // ─── Versioning Management Tools ───────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_bucket_versioning",
     "Get the versioning state of an Object Storage bucket",
     {
@@ -869,21 +819,18 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Name of the bucket to check versioning status"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          queryParams: { versioning: "" },
-        });
-        const result = parseVersioningXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        queryParams: { versioning: "" },
+      });
+      const result = parseVersioningXml(response.body);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_put_bucket_versioning",
     "Set the versioning state of an Object Storage bucket (Enabled or Suspended)",
     {
@@ -895,28 +842,25 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Versioning status to set (Enabled | Suspended)"),
     },
     async (params) => {
-      try {
-        const body = `<VersioningConfiguration><Status>${params.status}</Status></VersioningConfiguration>`;
-        await client.request({
-          method: "PUT",
-          bucket: params.bucketName,
-          queryParams: { versioning: "" },
-          headers: { "content-type": "application/xml" },
-          body,
-        });
-        const result = {
-          message: `✅ 버킷 '${params.bucketName}'의 버전 관리가 '${params.status}'로 설정되었습니다.`,
-          bucket: params.bucketName,
-          versioningStatus: params.status,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = `<VersioningConfiguration><Status>${params.status}</Status></VersioningConfiguration>`;
+      await client.request({
+        method: "PUT",
+        bucket: params.bucketName,
+        queryParams: { versioning: "" },
+        headers: { "content-type": "application/xml" },
+        body,
+      });
+      const result = {
+        message: `✅ 버킷 '${params.bucketName}'의 버전 관리가 '${params.status}'로 설정되었습니다.`,
+        bucket: params.bucketName,
+        versioningStatus: params.status,
+      };
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_object_versions",
     "List all versions of objects in a versioning-enabled Object Storage bucket",
     {
@@ -930,30 +874,27 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       maxKeys: z.number().optional().describe("Maximum number of keys to return (default 1000)"),
     },
     async (params) => {
-      try {
-        const queryParams: Record<string, string> = { versions: "" };
-        if (params.prefix) queryParams["prefix"] = params.prefix;
-        if (params.delimiter) queryParams["delimiter"] = params.delimiter;
-        if (params.keyMarker) queryParams["key-marker"] = params.keyMarker;
-        if (params.versionIdMarker) queryParams["version-id-marker"] = params.versionIdMarker;
-        if (params.maxKeys) queryParams["max-keys"] = String(params.maxKeys);
+      const queryParams: Record<string, string> = { versions: "" };
+      if (params.prefix) queryParams["prefix"] = params.prefix;
+      if (params.delimiter) queryParams["delimiter"] = params.delimiter;
+      if (params.keyMarker) queryParams["key-marker"] = params.keyMarker;
+      if (params.versionIdMarker) queryParams["version-id-marker"] = params.versionIdMarker;
+      if (params.maxKeys) queryParams["max-keys"] = String(params.maxKeys);
 
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          queryParams,
-        });
-        const result = parseListObjectVersionsXml(response.body);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        queryParams,
+      });
+      const result = parseListObjectVersionsXml(response.body);
+      return result;
     }
   );
 
   // ─── Object Restore Tools ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_restore_object",
     "Restore an object stored in Archive class to make it accessible. The restored copy is available for the specified number of days.",
     {
@@ -969,32 +910,29 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         .describe("Number of days to keep the restored copy accessible"),
     },
     async (params) => {
-      try {
-        const body = `<RestoreRequest><Days>${params.days}</Days></RestoreRequest>`;
-        await client.request({
-          method: "POST",
-          bucket: params.bucketName,
-          key: params.objectName,
-          queryParams: { restore: "" },
-          headers: { "content-type": "application/xml" },
-          body,
-        });
-        const result = {
-          message: `✅ 오브젝트 '${params.bucketName}/${params.objectName}' 복원이 요청되었습니다. 복원 완료까지 수 시간이 소요될 수 있습니다.`,
-          bucket: params.bucketName,
-          object: params.objectName,
-          restoreDays: params.days,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const body = `<RestoreRequest><Days>${params.days}</Days></RestoreRequest>`;
+      await client.request({
+        method: "POST",
+        bucket: params.bucketName,
+        key: params.objectName,
+        queryParams: { restore: "" },
+        headers: { "content-type": "application/xml" },
+        body,
+      });
+      const result = {
+        message: `✅ 오브젝트 '${params.bucketName}/${params.objectName}' 복원이 요청되었습니다. 복원 완료까지 수 시간이 소요될 수 있습니다.`,
+        bucket: params.bucketName,
+        object: params.objectName,
+        restoreDays: params.days,
+      };
+      return result;
     }
   );
 
   // ─── Bucket Location Tools ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_bucket_location",
     "Get the region (location constraint) of an Object Storage bucket",
     {
@@ -1003,27 +941,24 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Name of the bucket to get location for"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "GET",
-          bucket: params.bucketName,
-          queryParams: { location: "" },
-        });
-        const locationMatch = response.body.match(/<LocationConstraint>(.*?)<\/LocationConstraint>/);
-        const result = {
-          bucket: params.bucketName,
-          location: locationMatch?.[1] ?? "",
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const response = await client.request({
+        method: "GET",
+        bucket: params.bucketName,
+        queryParams: { location: "" },
+      });
+      const locationMatch = response.body.match(/<LocationConstraint>(.*?)<\/LocationConstraint>/);
+      const result = {
+        bucket: params.bucketName,
+        location: locationMatch?.[1] ?? "",
+      };
+      return result;
     }
   );
 
   // ─── Object Operations Tools ───────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_copy_object",
     "Copy an object within the same bucket or between different buckets in Object Storage",
     {
@@ -1038,33 +973,30 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Source object in the format /{sourceBucket}/{sourceKey}"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "PUT",
-          bucket: params.bucketName,
-          key: params.objectName,
-          headers: { "x-amz-copy-source": params.copySource },
-        });
+      const response = await client.request({
+        method: "PUT",
+        bucket: params.bucketName,
+        key: params.objectName,
+        headers: { "x-amz-copy-source": params.copySource },
+      });
 
-        // Parse CopyObjectResult XML
-        const lastModifiedMatch = response.body.match(/<LastModified>(.*?)<\/LastModified>/);
-        const etagMatch = response.body.match(/<ETag>(.*?)<\/ETag>/);
+      // Parse CopyObjectResult XML
+      const lastModifiedMatch = response.body.match(/<LastModified>(.*?)<\/LastModified>/);
+      const etagMatch = response.body.match(/<ETag>(.*?)<\/ETag>/);
 
-        const result = {
-          bucket: params.bucketName,
-          key: params.objectName,
-          copySource: params.copySource,
-          lastModified: lastModifiedMatch?.[1] ?? "",
-          etag: etagMatch?.[1] ?? "",
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = {
+        bucket: params.bucketName,
+        key: params.objectName,
+        copySource: params.copySource,
+        lastModified: lastModifiedMatch?.[1] ?? "",
+        etag: etagMatch?.[1] ?? "",
+      };
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_head_object",
     "Retrieve metadata of an object without returning the object body (HEAD request)",
     {
@@ -1076,31 +1008,28 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Object key (path) to get metadata for"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "HEAD",
-          bucket: params.bucketName,
-          key: params.objectName,
-        });
+      const response = await client.request({
+        method: "HEAD",
+        bucket: params.bucketName,
+        key: params.objectName,
+      });
 
-        const result: Record<string, string | null> = {
-          bucket: params.bucketName,
-          key: params.objectName,
-          contentLength: response.headers.get("content-length"),
-          contentType: response.headers.get("content-type"),
-          lastModified: response.headers.get("last-modified"),
-          etag: response.headers.get("etag"),
-          acceptRanges: response.headers.get("accept-ranges"),
-          storageClass: response.headers.get("x-amz-storage-class"),
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result: Record<string, string | null> = {
+        bucket: params.bucketName,
+        key: params.objectName,
+        contentLength: response.headers.get("content-length"),
+        contentType: response.headers.get("content-type"),
+        lastModified: response.headers.get("last-modified"),
+        etag: response.headers.get("etag"),
+        acceptRanges: response.headers.get("accept-ranges"),
+        storageClass: response.headers.get("x-amz-storage-class"),
+      };
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_multiple_objects",
     "⚠️ Destructive: Delete multiple objects from an Object Storage bucket in a single request. Set confirm=true to execute.",
     {
@@ -1113,60 +1042,57 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete ${params.objectKeys.length} object(s) from Bucket [${params.bucketName}]:\n${params.objectKeys.map((k) => `  - ${k}`).join("\n")}\n\nDo you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-
-        const objectsXml = params.objectKeys
-          .map((key) => `<Object><Key>${key}</Key></Object>`)
-          .join("");
-        const body = `<Delete><Quiet>false</Quiet>${objectsXml}</Delete>`;
-
-        const contentMd5 = crypto.createHash("md5").update(body).digest("base64");
-
-        const response = await client.request({
-          method: "POST",
-          bucket: params.bucketName,
-          queryParams: { delete: "" },
-          headers: {
-            "content-type": "application/xml",
-            "content-md5": contentMd5,
-          },
-          body,
-        });
-
-        // Parse DeleteResult XML
-        const deleted: string[] = [];
-        const errors: Array<{ key: string; code: string; message: string }> = [];
-
-        const deletedMatches = response.body.matchAll(/<Deleted><Key>(.*?)<\/Key><\/Deleted>/g);
-        for (const match of deletedMatches) {
-          deleted.push(match[1]);
-        }
-
-        const errorMatches = response.body.matchAll(
-          /<Error><Key>(.*?)<\/Key><Code>(.*?)<\/Code><Message>(.*?)<\/Message><\/Error>/g
-        );
-        for (const match of errorMatches) {
-          errors.push({ key: match[1], code: match[2], message: match[3] });
-        }
-
-        const result = {
-          message: `✅ ${deleted.length}개 오브젝트가 삭제되었습니다.${errors.length > 0 ? ` ${errors.length}개 실패.` : ""}`,
-          bucket: params.bucketName,
-          deleted,
-          errors: errors.length > 0 ? errors : undefined,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete ${params.objectKeys.length} object(s) from Bucket [${params.bucketName}]:\n${params.objectKeys.map((k) => `  - ${k}`).join("\n")}\n\nDo you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+
+      const objectsXml = params.objectKeys
+        .map((key) => `<Object><Key>${key}</Key></Object>`)
+        .join("");
+      const body = `<Delete><Quiet>false</Quiet>${objectsXml}</Delete>`;
+
+      const contentMd5 = crypto.createHash("md5").update(body).digest("base64");
+
+      const response = await client.request({
+        method: "POST",
+        bucket: params.bucketName,
+        queryParams: { delete: "" },
+        headers: {
+          "content-type": "application/xml",
+          "content-md5": contentMd5,
+        },
+        body,
+      });
+
+      // Parse DeleteResult XML
+      const deleted: string[] = [];
+      const errors: Array<{ key: string; code: string; message: string }> = [];
+
+      const deletedMatches = response.body.matchAll(/<Deleted><Key>(.*?)<\/Key><\/Deleted>/g);
+      for (const match of deletedMatches) {
+        deleted.push(match[1]);
+      }
+
+      const errorMatches = response.body.matchAll(
+        /<Error><Key>(.*?)<\/Key><Code>(.*?)<\/Code><Message>(.*?)<\/Message><\/Error>/g
+      );
+      for (const match of errorMatches) {
+        errors.push({ key: match[1], code: match[2], message: match[3] });
+      }
+
+      const result = {
+        message: `✅ ${deleted.length}개 오브젝트가 삭제되었습니다.${errors.length > 0 ? ` ${errors.length}개 실패.` : ""}`,
+        bucket: params.bucketName,
+        deleted,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_head_bucket",
     "Check if a bucket exists and you have permission to access it (HEAD request, returns headers only)",
     {
@@ -1175,22 +1101,18 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }).describe("Name of the bucket to check"),
     },
     async (params) => {
-      try {
-        const response = await client.request({
-          method: "HEAD",
-          bucket: params.bucketName,
-        });
+      const response = await client.request({
+        method: "HEAD",
+        bucket: params.bucketName,
+      });
 
-        const result = {
-          bucket: params.bucketName,
-          exists: true,
-          region: response.headers.get("x-amz-bucket-region"),
-          statusCode: response.status,
-        };
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const result = {
+        bucket: params.bucketName,
+        exists: true,
+        region: response.headers.get("x-amz-bucket-region"),
+        statusCode: response.status,
+      };
+      return result;
     }
   );
 }

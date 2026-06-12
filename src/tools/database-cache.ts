@@ -1,12 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { toolText } from "./_response.js";
+import { defineTool } from "./_tool.js";
 
 export function registerDatabaseCacheTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_instances",
     "List all Cloud DB for Cache (Redis/Valkey) instances in the current region",
     {
@@ -16,50 +17,38 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheInstanceList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheInstanceList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_cache_instance_detail",
     "Get detailed information about a specific Cloud DB for Cache (Redis/Valkey) instance",
     {
       cloudCacheInstanceNo: z.string().describe("Cloud Cache instance number to query"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheInstanceDetail", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheInstanceDetail", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_backups",
     "List backups for a Cloud DB for Cache (Redis/Valkey) instance",
     {
       cloudCacheInstanceNo: z.string().describe("Cloud Cache instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheBackupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheBackupList", params);
     }
   );
 
   // ─── Config Group Tools ────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_config_groups",
     "List all Cloud Cache config groups",
     {
@@ -67,16 +56,12 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheConfigGroupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheConfigGroupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_cache_config_group",
     "Create a new Cloud Cache config group. Use dryRun=true to preview without creating.",
     {
@@ -90,28 +75,25 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the config group"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Cache Config Group Creation",
-            cloudCacheConfigGroupName: params.cloudCacheConfigGroupName,
-            cloudCacheImageProductCode: params.cloudCacheImageProductCode,
-            description: params.description,
-            message: "이 요청은 실제 Config Group을 생성하지 않습니다. dryRun=false로 호출하면 Config Group이 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vcache/v2/createCloudCacheConfigGroup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Cache Config Group Creation",
+          cloudCacheConfigGroupName: params.cloudCacheConfigGroupName,
+          cloudCacheImageProductCode: params.cloudCacheImageProductCode,
+          description: params.description,
+          message: "이 요청은 실제 Config Group을 생성하지 않습니다. dryRun=false로 호출하면 Config Group이 생성됩니다.",
+        };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vcache/v2/createCloudCacheConfigGroup", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_cache_config_group",
     "⚠️ Destructive: Permanently delete a Cloud Cache config group. Set confirm=true to execute.",
     {
@@ -119,23 +101,20 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Cache config group [${params.cloudCacheConfigGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vcache/v2/deleteCloudCacheConfigGroup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Cache config group [${params.cloudCacheConfigGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vcache/v2/deleteCloudCacheConfigGroup", apiParams);
+      return result;
     }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_cache_instance",
     "Create a new Cloud DB for Cache (Redis/Valkey) instance. Use dryRun=true to preview without creating.",
     {
@@ -162,67 +141,60 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      try {
-        if (params.dryRun) {
-          const preview = {
-            label: "🔍 Dry-Run Preview: Cache Instance Creation",
-            cloudCacheServiceName: params.cloudCacheServiceName,
-            vpcNo: params.vpcNo,
-            subnetNo: params.subnetNo,
-            cloudCacheImageProductCode: params.cloudCacheImageProductCode,
-            cloudCacheProductCode: params.cloudCacheProductCode,
-            cloudCacheConfigGroupNo: params.cloudCacheConfigGroupNo,
-            cloudCachePort: params.cloudCachePort ?? 6379,
-            isBackup: params.isBackup ?? true,
-            isAutomaticFailover: params.isAutomaticFailover,
-            shardCount: params.shardCount,
-            shardCopyCount: params.shardCopyCount,
-            message: "이 요청은 실제 Cache 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
-          };
-          return toolText(preview);
-        }
-
-        const { dryRun, ...apiParams } = params;
-        const result = await client.request("/vcache/v2/createCloudCacheInstance", apiParams);
-        const instance = result.cloudCacheInstanceList?.[0];
-        const summary = {
-          리소스타입: "Cache (Redis/Valkey)",
-          리소스ID: instance?.cloudCacheInstanceNo ?? "unknown",
-          서비스명: params.cloudCacheServiceName,
-          상태: instance?.cloudCacheInstanceStatus?.codeName ?? "creating",
-          생성시각: instance?.createDate ?? new Date().toISOString(),
-          VPC: params.vpcNo,
-          서브넷: params.subnetNo,
-          포트: params.cloudCachePort ?? 6379,
+      if (params.dryRun) {
+        const preview = {
+          label: "🔍 Dry-Run Preview: Cache Instance Creation",
+          cloudCacheServiceName: params.cloudCacheServiceName,
+          vpcNo: params.vpcNo,
+          subnetNo: params.subnetNo,
+          cloudCacheImageProductCode: params.cloudCacheImageProductCode,
+          cloudCacheProductCode: params.cloudCacheProductCode,
+          cloudCacheConfigGroupNo: params.cloudCacheConfigGroupNo,
+          cloudCachePort: params.cloudCachePort ?? 6379,
+          isBackup: params.isBackup ?? true,
+          isAutomaticFailover: params.isAutomaticFailover,
+          shardCount: params.shardCount,
+          shardCopyCount: params.shardCopyCount,
+          message: "이 요청은 실제 Cache 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
         };
-        return toolText(summary);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+        return preview;
       }
+
+      const { dryRun, ...apiParams } = params;
+      const result = await client.request("/vcache/v2/createCloudCacheInstance", apiParams);
+      const instance = result.cloudCacheInstanceList?.[0];
+      const summary = {
+        리소스타입: "Cache (Redis/Valkey)",
+        리소스ID: instance?.cloudCacheInstanceNo ?? "unknown",
+        서비스명: params.cloudCacheServiceName,
+        상태: instance?.cloudCacheInstanceStatus?.codeName ?? "creating",
+        생성시각: instance?.createDate ?? new Date().toISOString(),
+        VPC: params.vpcNo,
+        서브넷: params.subnetNo,
+        포트: params.cloudCachePort ?? 6379,
+      };
+      return summary;
     }
   );
 
   // ─── Operation Tools ───────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_reboot_cache_server",
     "Reboot a Cloud DB for Cache server instance",
     {
       cloudCacheServerInstanceNo: z.string().describe("Cloud Cache server instance number to reboot"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/rebootCloudCacheServerInstance", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/rebootCloudCacheServerInstance", params);
     }
   );
 
   // ─── Manual Backup Tools ─────────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_manual_backups",
     "List manual backups for Cloud DB for Cache instances",
     {
@@ -231,16 +203,12 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheManualBackupList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheManualBackupList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_manual_backup_details",
     "Get detailed information about a specific Cloud Cache manual backup",
     {
@@ -249,16 +217,12 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       }).describe("Cloud Cache manual backup number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheManualBackupDetailList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheManualBackupDetailList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_create_cache_manual_backup",
     "Create a manual backup for a Cloud DB for Cache instance",
     {
@@ -270,16 +234,12 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       }).describe("Manual backup name"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/createCloudCacheManualBackup", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/createCloudCacheManualBackup", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_cache_manual_backup",
     "⚠️ Destructive: Permanently delete a Cloud Cache manual backup. Set confirm=true to execute.",
     {
@@ -289,23 +249,20 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Cache manual backup [${params.cloudCacheManualBackupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vcache/v2/deleteCloudCacheManualBackup", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Cache manual backup [${params.cloudCacheManualBackupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vcache/v2/deleteCloudCacheManualBackup", apiParams);
+      return result;
     }
   );
 
   // ─── Operation Tools (P2) ──────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_flush_cache_server",
     "⚠️ Destructive: Permanently deletes ALL data from a Cloud Cache server (FlushAll). Set confirm=true to execute.",
     {
@@ -315,21 +272,18 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete ALL data from Cache server [${params.cloudCacheServerInstanceNo}]. This action cannot be undone. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vcache/v2/flushAllCloudCacheServerInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete ALL data from Cache server [${params.cloudCacheServerInstanceNo}]. This action cannot be undone. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vcache/v2/flushAllCloudCacheServerInstance", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_export_cache_backup",
     "Export a Cloud Cache backup file to Object Storage",
     {
@@ -346,21 +300,18 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       cloudCacheExportObjectList: z.array(z.string()).describe("List of full object names to export"),
     },
     async (params) => {
-      try {
-        const { cloudCacheExportObjectList, ...rest } = params;
-        const apiParams: Record<string, any> = { ...rest };
-        cloudCacheExportObjectList.forEach((name, idx) => {
-          apiParams[`cloudCacheExportObjectList.${idx + 1}.fullObjectName`] = name;
-        });
-        const result = await client.request("/vcache/v2/exportBackupToObjectStorage", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      const { cloudCacheExportObjectList, ...rest } = params;
+      const apiParams: Record<string, any> = { ...rest };
+      cloudCacheExportObjectList.forEach((name, idx) => {
+        apiParams[`cloudCacheExportObjectList.${idx + 1}.fullObjectName`] = name;
+      });
+      const result = await client.request("/vcache/v2/exportBackupToObjectStorage", apiParams);
+      return result;
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_backup_details",
     "List detailed backup information for a Cloud Cache server instance (includes file paths)",
     {
@@ -372,34 +323,26 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       }).describe("Cloud Cache server instance number"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheBackupDetailList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheBackupDetailList", params);
     }
   );
 
   // ─── Reference Tools (P3) ─────────────────────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_cache_image_products",
     "List available Cloud Cache image product codes (Redis/Valkey versions)",
     {
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheImageProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheImageProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_cache_products",
     "List available Cloud Cache server spec product codes for a given image",
     {
@@ -408,32 +351,24 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       }).describe("Cloud Cache image product code"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheProductList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheProductList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_cache_target_vpcs",
     "List VPCs available for Cloud DB for Cache",
     {
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheTargetVpcList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheTargetVpcList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_get_cache_target_subnets",
     "List subnets available for Cloud DB for Cache within a specific instance",
     {
@@ -443,50 +378,38 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheTargetSubnetList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheTargetSubnetList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_config_group_versions",
     "List available Cloud Cache config group versions",
     {
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheConfigGroupVersionList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheConfigGroupVersionList", params);
     }
   );
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_list_cache_buckets",
     "List Object Storage buckets available for Cloud DB for Cache backup export",
     {
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
     async (params) => {
-      try {
-        const result = await client.request("/vcache/v2/getCloudCacheBucketList", params);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
-      }
+      return client.request("/vcache/v2/getCloudCacheBucketList", params);
     }
   );
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 
-  server.tool(
+  defineTool(
+    server,
     "ncloud_delete_cache_instance",
     "⚠️ Destructive: Permanently delete a Cloud DB for Cache (Redis/Valkey) instance. Set confirm=true to execute.",
     {
@@ -494,17 +417,13 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      try {
-        if (!params.confirm) {
-          const message = `⚠️ This will permanently delete Cache instance [${params.cloudCacheInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-          return { content: [{ type: "text" as const, text: message }] };
-        }
-        const { confirm, ...apiParams } = params;
-        const result = await client.request("/vcache/v2/deleteCloudCacheInstance", apiParams);
-        return toolText(result);
-      } catch (error: any) {
-        return { content: [{ type: "text" as const, text: error.message }], isError: true };
+      if (!params.confirm) {
+        const message = `⚠️ This will permanently delete Cache instance [${params.cloudCacheInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        return { content: [{ type: "text" as const, text: message }] };
       }
+      const { confirm, ...apiParams } = params;
+      const result = await client.request("/vcache/v2/deleteCloudCacheInstance", apiParams);
+      return result;
     }
   );
 }
