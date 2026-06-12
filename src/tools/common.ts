@@ -88,7 +88,9 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
         },
       };
       return result;
-    }
+    },
+    // 휴리스틱 오버라이드: 외부 API 호출 없이 서버 로컬 상태(활성 리전)만 변경
+    { annotations: { readOnlyHint: false, openWorldHint: false } }
   );
 
   // ncloud_get_current_region — Get current active region
@@ -104,7 +106,9 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
         regionName: REGION_CODE_MAP[code] ?? code,
       };
       return result;
-    }
+    },
+    // 휴리스틱 오버라이드: 외부 API 호출 없이 서버 로컬 상태만 조회
+    { annotations: { openWorldHint: false } }
   );
 
   // ncloud_get_operation_status — Check resource operation status
@@ -146,7 +150,7 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
         : `⏳ 진행 중: ${resourceType} [${resourceId}] - 현재 상태: ${status}`;
 
       const response = { message, resourceType, resourceId, status };
-      return response;
+      return response;
     }
   );
 }

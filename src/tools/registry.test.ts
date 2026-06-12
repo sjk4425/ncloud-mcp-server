@@ -101,6 +101,39 @@ describe("registry: 전 도구 구조 불변식 (자동 전수 점검)", () => {
       .map((t) => t.name);
     expect(missing).toEqual([]);
   });
+
+  // ─── MCP tool annotations 불변식 (defineTool 휴리스틱, DESIGN_mid-term §3) ────
+
+  it("모든 도구는 registerTool 경유로 annotations를 가진다 (server.tool 직접 호출 0건)", () => {
+    const noAnnotations = tools.filter((t) => t.annotations === undefined).map((t) => t.name);
+    expect(noAnnotations).toEqual([]);
+  });
+
+  it("파괴적 이름 패턴(delete/terminate/remove/destroy) 도구는 destructiveHint === true", () => {
+    const destructiveRe = /(delete|terminate|remove|destroy)/i;
+    const wrong = tools
+      .filter((t) => destructiveRe.test(t.name))
+      .filter((t) => t.annotations?.destructiveHint !== true)
+      .map((t) => t.name);
+    expect(wrong).toEqual([]);
+  });
+
+  it("readOnlyHint: true 도구에 destructiveHint: true가 공존하지 않는다", () => {
+    const conflicted = tools
+      .filter((t) => t.annotations?.readOnlyHint === true && t.annotations?.destructiveHint === true)
+      .map((t) => t.name);
+    expect(conflicted).toEqual([]);
+  });
+
+  // 기존 hook이 하던 검사를 테스트로 승격 — 표기 변형(⚠️ Destructive / [⚠️ DESTRUCTIVE]) 허용
+  it("파괴적 도구 description에 ⚠️ Destructive 경고 문구가 존재한다", () => {
+    const destructiveRe = /(delete|terminate|remove|destroy)/i;
+    const missing = tools
+      .filter((t) => destructiveRe.test(t.name))
+      .filter((t) => !(t.description && t.description.includes("⚠️") && /destructive/i.test(t.description)))
+      .map((t) => t.name);
+    expect(missing).toEqual([]);
+  });
 });
 
 describe("makeClientFactory: setRegionAll 전파 (Task 4)", () => {

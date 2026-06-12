@@ -33,58 +33,46 @@ export interface DefineToolOpts {
   prune?: boolean;
 }
 
+/** 동사 토큰 → annotations 카테고리. 토큰 단위 정확 일치(부분 문자열 아님). */
+const VERB_ANNOTATIONS: Record<string, ToolAnnotations> = {};
+for (const v of ["get", "list", "describe", "search", "query", "check", "export",
+  // head(존재 확인), download(다운로드), verify/test(검사), encrypt/decrypt/sign(무상태 연산)
+  "head", "download", "verify", "test", "encrypt", "decrypt", "sign"]) {
+  VERB_ANNOTATIONS[v] = { readOnlyHint: true };
+}
+for (const v of ["delete", "terminate", "remove", "destroy", "revoke", "purge", "disconnect",
+  // kill(강제 종료), flush(캐시 데이터 삭제)
+  "kill", "flush"]) {
+  VERB_ANNOTATIONS[v] = { destructiveHint: true, idempotentHint: true };
+}
+for (const v of ["create", "add", "register", "request"]) {
+  // idempotent 아님 — 재호출 시 중복 생성 가능
+  VERB_ANNOTATIONS[v] = { destructiveHint: false };
+}
+for (const v of ["update", "set", "modify", "change", "associate", "disassociate", "attach", "detach",
+  // enable/disable(토글), cancel(취소), apply(구성 적용) — 재호출해도 같은 결과
+  "enable", "disable", "cancel", "apply",
+  // 데이터 손실이 없는 라이프사이클 조작 — 파괴적으로 보지 않는다
+  "start", "stop", "restart", "reboot", "resume", "suspend"]) {
+  VERB_ANNOTATIONS[v] = { destructiveHint: false, idempotentHint: true };
+}
+
 /**
- * 도구 이름(동사 접두)에서 annotations를 도출한다.
+ * 도구 이름에서 annotations를 도출한다.
+ *
+ * 서비스 접두사가 붙는 이름(예: `ncloud_apigw_delete_stage`)이 많아 첫 토큰이 아니라
+ * **토큰들 중 처음 등장하는 알려진 동사**로 판정한다.
  *
  * 스펙 기본값이 `destructiveHint=true`(write일 때)이므로, 비파괴 write 도구에
  * `destructiveHint: false`를 명시하는 것이 실질적으로 가장 중요하다.
  * 휴리스틱과 실제 동작이 다른 도구는 `defineTool`의 `opts.annotations`로 오버라이드.
  */
 export function deriveAnnotations(name: string): ToolAnnotations {
-  const verb = name.replace(/^ncloud_/, "").split("_")[0];
-  switch (verb) {
-    case "get":
-    case "list":
-    case "describe":
-    case "search":
-    case "query":
-    case "check":
-    case "export":
-      return { readOnlyHint: true };
-    case "delete":
-    case "terminate":
-    case "remove":
-    case "destroy":
-    case "revoke":
-    case "purge":
-    case "disconnect":
-      return { destructiveHint: true, idempotentHint: true };
-    case "create":
-    case "add":
-    case "register":
-    case "request":
-      // idempotent 아님 — 재호출 시 중복 생성 가능
-      return { destructiveHint: false };
-    case "update":
-    case "set":
-    case "modify":
-    case "change":
-    case "associate":
-    case "disassociate":
-    case "attach":
-    case "detach":
-      return { destructiveHint: false, idempotentHint: true };
-    case "start":
-    case "stop":
-    case "restart":
-    case "reboot":
-    case "resume":
-    case "suspend":
-      // 데이터 손실이 없는 라이프사이클 조작 — 파괴적으로 보지 않는다
-      return { destructiveHint: false, idempotentHint: true };
-    default:
-      return {};
+  for (const token of name.replace(/^ncloud_/, "").split("_")) {
+    const found = VERB_ANNOTATIONS[token];
+    if (found) return found;
   }
+  return {};
 }
 
 /** 핸들러가 이미 완성된 MCP 응답({ content: [...] })을 반환했는지 판별. */
