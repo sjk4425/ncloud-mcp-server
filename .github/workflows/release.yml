@@ -41,14 +41,30 @@ jobs:
       - run: npm run build
       - run: npm test
 
-      # Trusted Publishing(OIDC): 토큰/OTP 불필요, provenance 자동 첨부
+      # Trusted Publishing(OIDC): 토큰/OTP 불필요, provenance 자동 첨부.
+      # 같은 버전이 이미 게시돼 있으면 건너뛴다 — 후속 스텝 실패로 인한 재실행을 멱등하게.
       - name: Publish to npm
-        run: npm publish
-
-      - name: Install mcp-publisher
         run: |
-          URL=$(curl -fsSL https://api.github.com/repos/modelcontextprotocol/registry/releases/latest \
+          TAG="${GITHUB_REF_NAME#v}"
+          if npm view "ncloud-mcp-server@$TAG" version >/dev/null 2>&1; then
+            echo "ncloud-mcp-server@$TAG already on npm — skipping publish."
+          else
+            npm publish
+          fi
+
+      # 비인증 GitHub API는 공용 러너 IP에서 레이트리밋에 걸린다 — GITHUB_TOKEN으로 인증 + 빈 URL 가드
+      - name: Install mcp-publisher
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          URL=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/modelcontextprotocol/registry/releases/latest \
             | grep -o '"browser_download_url": *"[^"]*linux_amd64.tar.gz"' | grep -o 'https[^"]*')
+          if [ -z "$URL" ]; then
+            echo "::error::mcp-publisher 다운로드 URL을 찾지 못했습니다 (API 응답/자산 이름 확인 필요)."
+            exit 1
+          fi
+          echo "downloading: $URL"
           curl -fsSL "$URL" | tar xz mcp-publisher
 
       - name: Publish to MCP registry
