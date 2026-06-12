@@ -57,9 +57,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 주의: registry_linux_amd64.tar.gz 자산도 있으므로 파일명까지 정확히 매치해야 한다
           URL=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
             https://api.github.com/repos/modelcontextprotocol/registry/releases/latest \
-            | grep -o '"browser_download_url": *"[^"]*linux_amd64.tar.gz"' | grep -o 'https[^"]*')
+            | grep -o '"browser_download_url": *"[^"]*/mcp-publisher_linux_amd64\.tar\.gz"' \
+            | grep -o 'https[^"]*' | head -1)
           if [ -z "$URL" ]; then
             echo "::error::mcp-publisher 다운로드 URL을 찾지 못했습니다 (API 응답/자산 이름 확인 필요)."
             exit 1
