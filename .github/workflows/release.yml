@@ -1,0 +1,57 @@
+name: Release
+
+# v* 태그 push 한 번으로 npm + MCP 레지스트리 동시 배포.
+# 사전 1회 설정(필수): npmjs.com → ncloud-mcp-server 패키지 설정 → Trusted Publisher에
+# 이 저장소의 GitHub Actions(release.yml)를 등록해야 npm publish가 토큰/OTP 없이 동작한다.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  id-token: write # npm Trusted Publishing(OIDC) + mcp-publisher github-oidc 로그인
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      # npm Trusted Publishing은 npm 11.5.1+ 필요 (Node 22 동봉 npm은 10.x)
+      - run: npm install -g npm@latest
+
+      - name: Verify tag matches package.json and server.json versions
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          SRV=$(node -p "require('./server.json').version")
+          SRVPKG=$(node -p "require('./server.json').packages[0].version")
+          echo "tag=$TAG package.json=$PKG server.json=$SRV server.json(packages[0])=$SRVPKG"
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$SRV" ] || [ "$TAG" != "$SRVPKG" ]; then
+            echo "::error::버전 불일치 — 태그/package.json/server.json을 맞춘 뒤 다시 태그하세요."
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      # Trusted Publishing(OIDC): 토큰/OTP 불필요, provenance 자동 첨부
+      - name: Publish to npm
+        run: npm publish
+
+      - name: Install mcp-publisher
+        run: |
+          URL=$(curl -fsSL https://api.github.com/repos/modelcontextprotocol/registry/releases/latest \
+            | grep -o '"browser_download_url": *"[^"]*linux_amd64.tar.gz"' | grep -o 'https[^"]*')
+          curl -fsSL "$URL" | tar xz mcp-publisher
+
+      - name: Publish to MCP registry
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

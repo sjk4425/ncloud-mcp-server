@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-06-12
+
+> Internal-architecture release. No public tool name/schema/group-key changes — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.2.1).
+
+### Added
+- **MCP tool annotations** on all 1,035 tools (`readOnlyHint` / `destructiveHint` / `idempotentHint`), derived from a verb-token heuristic with per-tool overrides (e.g. `ncloud_set_region` is marked local-only via `openWorldHint: false`). MCP clients can now apply auto-approval/confirmation UX based on standard metadata instead of parsing description text. Annotations are hints per the MCP spec — the existing `confirm` parameter gate and `⚠️ Destructive` description warnings on destructive tools are kept as a second line of defense.
+- **CI**: GitHub Actions workflow (build + test on Node 20.x/22.x) with README badges.
+- **Release automation**: tag-triggered workflow (`v*`) that verifies tag == `package.json` == `server.json` versions, then publishes to npm (Trusted Publishing/OIDC, provenance) and the MCP registry (`mcp-publisher` GitHub OIDC login). Requires a one-time Trusted Publisher registration on npmjs.com.
+- **Registry invariant tests**: 4 new checks — every tool carries annotations; destructive-named tools have `destructiveHint: true`; `readOnlyHint` and `destructiveHint` never co-exist; destructive tools keep the `⚠️ Destructive` description warning (promoted from a local hook to a test).
+
+### Changed
+- **Internal**: all ~1,035 tool registrations migrated from `server.tool()` to a common `defineTool()` wrapper (`src/tools/_tool.ts`) via a TypeScript-AST codemod (999 auto-converted, 1 manual). The wrapper centralizes the try/catch error envelope, `toolText()` serialization, and annotation derivation; handlers now return raw data (completed `{ content }` responses such as dry-run previews and confirm prompts pass through untouched). Public behavior is unchanged; net −3,473 lines.
+
 ## [1.2.1] - 2026-06-12
 
 > Reliability & internal-consistency patch. No public tool name/schema/group-key changes.

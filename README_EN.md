@@ -33,6 +33,8 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 
 > ℹ️ Each category maps 1:1 to a `NCLOUD_TOOL_GROUPS` group key. To load only a subset of tools, see the [Tool Group Selection](#tool-group-selection-optional) table below.
 
+Every tool carries standard MCP **tool annotations** (`readOnlyHint`/`destructiveHint`/`idempotentHint`), so supporting clients can auto-approve read-only tools and show confirmation UX for destructive ones. The `confirm` parameter gate on destructive tools is kept as a second line of defense.
+
 ## Prerequisites
 
 - Node.js 20+
