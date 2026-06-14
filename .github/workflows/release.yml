@@ -25,15 +25,19 @@ jobs:
       # npm Trusted Publishing은 npm 11.5.1+ 필요 (Node 22 동봉 npm은 10.x)
       - run: npm install -g npm@latest
 
-      - name: Verify tag matches package.json and server.json versions
+      - name: Verify tag matches package.json, package-lock.json and server.json versions
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           PKG=$(node -p "require('./package.json').version")
           SRV=$(node -p "require('./server.json').version")
           SRVPKG=$(node -p "require('./server.json').packages[0].version")
-          echo "tag=$TAG package.json=$PKG server.json=$SRV server.json(packages[0])=$SRVPKG"
-          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$SRV" ] || [ "$TAG" != "$SRVPKG" ]; then
-            echo "::error::버전 불일치 — 태그/package.json/server.json을 맞춘 뒤 다시 태그하세요."
+          # package-lock.json은 최상단(.version)과 루트 패키지(.packages[''].version) 두 곳에 버전이 있다.
+          # 버전 범프 시 npm install 누락으로 lock이 옛 버전에 남는 드리프트를 여기서 잡는다.
+          LOCK=$(node -p "require('./package-lock.json').version")
+          LOCKROOT=$(node -p "require('./package-lock.json').packages[''].version")
+          echo "tag=$TAG package.json=$PKG package-lock.json=$LOCK package-lock(root)=$LOCKROOT server.json=$SRV server.json(packages[0])=$SRVPKG"
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$LOCK" ] || [ "$TAG" != "$LOCKROOT" ] || [ "$TAG" != "$SRV" ] || [ "$TAG" != "$SRVPKG" ]; then
+            echo "::error::버전 불일치 — 태그/package.json/package-lock.json/server.json을 맞춘 뒤(npm install로 lock 동기화) 다시 태그하세요."
             exit 1
           fi
 
