@@ -80,7 +80,7 @@ npm run build
 | `NCLOUD_API_URL` | - | API base URL | `https://ncloud.apigw.ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage project ID | - |
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage domain ID | - |
-| `NCLOUD_TOOL_GROUPS` | - | Select which tool groups to load. All groups ON when unset (details in [Tool Group Selection](#tool-group-selection-optional) below) | all |
+| `NCLOUD_TOOL_GROUPS` | - | Select which tool groups to load at startup. All groups ON when unset. Include the `dynamic` keyword to start with core groups only and allow mid-session expansion; any other value is locked (details in [Tool Group Selection](#tool-group-selection-optional) below) | all |
 | `NCLOUD_RESPONSE_PRUNE` | - | When `1`, globally strips empty values (`null`/`""`/`[]`/`{}`) from responses | `0` |
 | `NCLOUD_TIMEOUT_MS` | - | API request timeout in milliseconds. On timeout the call is aborted and a friendly message is returned (HTTP 429 is auto-retried up to 2 times) | `30000` |
 
@@ -126,20 +126,95 @@ Add to your `mcp.json` (or equivalent MCP config file):
 
 ## Tool Group Selection (Optional)
 
-> The default setup loads **all** tools (~1,000) and works out of the box. Read this section **only if you want to reduce the number of tools**.
+> The default setup loads **all** tools (~1,000) and works out of the box. **Want everything? Just leave this unset** — unset means "all groups," same as before. Read this section only if you want to *start light (recommended: `dynamic`) or load a subset of tools*.
 
-**What is it?** This server exposes ~1,000 tools. With `NCLOUD_TOOL_GROUPS` you can **load only the service groups you need**, so the AI sees fewer tools at once — lowering token cost and improving tool-selection accuracy.
+**Why?** With everything on, tool definitions alone occupy a large chunk of session context (`tools/list` ≈ 694 KB / ~177k tokens). With `NCLOUD_TOOL_GROUPS` you load only the groups you need, so the AI sees fewer tools at once — lowering token cost and improving tool-selection accuracy. Set it by adding one `NCLOUD_TOOL_GROUPS` line to the `env` of your `mcp.json`. (`common` holds shared Region/Zone tools and is always included automatically.)
 
-> 💡 **Want everything? Just leave this unset.** Unset means "all groups" and behaves exactly as before. The options below are only needed when you want a subset.
+### At a glance — which value to use
 
-**How to use it?** Add a single `NCLOUD_TOOL_GROUPS` line to the `env` of the `mcp.json` above, listing the group keys you want, comma-separated. (`common` holds shared Region/Zone tools and is always included automatically.)
+| What you want | Setting | Behavior |
+|---|---|---|
+| **(recommended)** start light, auto-expand when needed | `dynamic` | core set on at startup, the rest enabled mid-session on demand |
+| Use a specific group daily | `dynamic,analytics` | core set **+ analytics on from the start**, the rest expandable |
+| Everything on from the start | (unset) or `all` | all 14 groups ON (legacy behavior) |
+| Exactly these groups, no runtime expansion | `compute,network` | only those — runtime expansion **locked** |
+| Everything except a few | `all,-billing` | all but billing (`-`-excluded group is also refused for enable) |
 
-| Value | Result |
-|---|---|
-| (unset) | **All groups ON** — default, same as before |
-| `compute,network` | Only compute + network (+ auto common) |
-| `compute,network,billing` | Only those three |
-| `all,-billing` | Everything except billing (`-` means "exclude") |
+> **Key rule:** mid-session expansion is on **only when the `dynamic` keyword is present.** Listing groups without `dynamic` (e.g. `compute,network`) means "exactly these" — a **locked** state; `all`/unset already has everything on, so expansion is moot. The full list of group keys is in **Fine-grained control** below.
+
+### Recommended: `dynamic` (dynamic groups)
+
+Instead of loading everything, the server **starts light with only the core groups** and **enables a group mid-session, without a restart**, whenever the AI is asked about another service.
+
+```json
+{
+  "mcpServers": {
+    "ncloud": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ACCESS_KEY": "your-access-key",
+        "NCLOUD_SECRET_KEY": "your-secret-key",
+        "NCLOUD_REGION": "KR",
+        "NCLOUD_TOOL_GROUPS": "dynamic"
+      }
+    }
+  }
+}
+```
+
+> **In one line:** `dynamic` = "**expansion mode on** + start light with the core set." Groups you don't use aren't loaded upfront (saving tokens) and are enabled only when needed.
+
+- ON at startup: `common` + `compute` + `network` + `database` (~367 tools / ~65k tokens — a 63% reduction vs. all-on)
+- The AI reaches the remaining groups through always-on meta tools:
+  - `ncloud_list_tool_groups` — list all 14 groups with services, tool counts, and current on/off status
+  - `ncloud_enable_tool_group` — activate a group at runtime (idempotent)
+
+**`dynamic` vs `all` — what's different**
+
+| | Loaded at startup | Unused groups | Tokens (startup) |
+|---|---|---|---|
+| `all` / (unset) | **all 14** groups | already on | ~177k |
+| `dynamic` | core set only | enabled **when needed** | ~65k |
+
+Both let you eventually use every group, but `dynamic` loads "core first, the rest on demand," keeping the startup context light. That saving is the whole point of `dynamic`.
+
+**Flow** (e.g. a Live Station request)
+
+```
+1. Server starts: core groups + meta tools only
+2. User: "Show my Live Station channels"
+3. AI: finds the media group in the catalog → ncloud_enable_tool_group("media")
+4. Server: registers media tools + sends tools/list_changed → client refreshes its tool list
+5. AI: calls the now-visible Live Station tool → continues
+```
+
+- Enabled state lasts **for the session only** (the next session resets to the default).
+- **Adding a group key to `dynamic` makes that group ON immediately at startup** (not enabled on demand). E.g. `dynamic,analytics` turns on the core set **plus analytics from the start**, leaving only the other groups for runtime enable. List the groups you use daily this way to skip the enable call.
+
+**Client compatibility** — dynamically added tools appear immediately only if the client supports the `tools/list_changed` notification.
+
+| Client | `tools/list_changed` | Notes |
+|---|---|---|
+| Claude Code | ✅ Supported (verified) | New tools callable in the same session right after enable |
+| Claude Desktop | ✅ Supported (MCP standard) | unverified |
+| **Kiro** | ❌ Not applied (verified) | enable succeeds but new tools stay invisible until restart — see note below |
+| Cursor | ⚠️ Unverified | may require a manual refresh on tool-list changes — self-test recommended |
+| Codex | ⚠️ Unverified | self-test recommended |
+
+> 💡 **For any client not listed (or marked "unverified"), you can check in 30 seconds.** Set `NCLOUD_TOOL_GROUPS=dynamic`, then ask the AI *"enable the media group and list my Live Station channels."* If the new tool gets called in the same session → supported; if the AI can't find it → unsupported, so pre-list the groups instead.
+
+> **On clients that don't apply `list_changed` (e.g. Kiro), `dynamic`'s mid-session expansion does not work** — enable succeeds but the new tools never appear in the tool list, so they can't be called. In that case, **pre-list** the groups you use — e.g. start them on with `dynamic,governance,media`, or use an explicit list (`compute,network,...`) or `all`. (The enable response gives the same fallback: add the group to `NCLOUD_TOOL_GROUPS` and restart.) Falling back is exactly today's experience — no regression.
+
+> ℹ️ **Permission boundary:** exposing an MCP tool does not grant permission. Actual Ncloud authorization is ultimately bounded by your Access Key's Sub Account permissions. Dynamic loading does not bypass existing safeguards (confirm gates, destructive warnings).
+
+### Fine-grained control — specific groups only / locked
+
+Listing group keys *without* `dynamic` turns on **only those groups** and locks runtime expansion (for strict / least-privilege environments). E.g. `"NCLOUD_TOOL_GROUPS": "compute,network,billing"`. You can also exclude a group with `-` (e.g. `all,-billing`); an excluded group is refused for dynamic enable too (operator security boundary).
+
+> At startup the server logs which groups were loaded:
+> `ncloud-mcp-server: 4개 그룹 등록 (common, compute, network, billing)`
+> Unknown keys are ignored with a warning.
 
 **Group key → included services**
 
@@ -162,29 +237,6 @@ Add to your `mcp.json` (or equivalent MCP config file):
 | `common` *(always ON)* | Region / Zone shared |
 
 > ℹ️ **Group key changes (v1.2.0):** `integration` was renamed to `application`, and `global` was split into `cdn` (Global Edge) and `network` (Global DNS/Traffic Manager). Old keys are not auto-aliased — switch to the new keys (specifying an old key prints a guidance message on the server and is ignored).
-
-**Example** (`mcp.json` — e.g. only compute, network, billing):
-
-```json
-{
-  "mcpServers": {
-    "ncloud": {
-      "command": "npx",
-      "args": ["-y", "ncloud-mcp-server"],
-      "env": {
-        "NCLOUD_ACCESS_KEY": "your-access-key",
-        "NCLOUD_SECRET_KEY": "your-secret-key",
-        "NCLOUD_REGION": "KR",
-        "NCLOUD_TOOL_GROUPS": "compute,network,billing"
-      }
-    }
-  }
-}
-```
-
-> At startup the server logs which groups were loaded:
-> `ncloud-mcp-server: 4개 그룹 등록 (common, compute, network, billing)`
-> Unknown keys are ignored with a warning.
 
 ## Usage Examples
 

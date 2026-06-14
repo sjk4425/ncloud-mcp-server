@@ -80,7 +80,7 @@ npm run build
 | `NCLOUD_API_URL` | - | API 기본 URL | `https://ncloud.apigw.ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage 프로젝트 ID | - |
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage 도메인 ID | - |
-| `NCLOUD_TOOL_GROUPS` | - | 로딩할 도구 그룹 선택. 미설정 시 전체 ON (자세히는 아래 [도구 그룹 선택](#도구-그룹-선택-선택) 참조) | 전체 |
+| `NCLOUD_TOOL_GROUPS` | - | 시작 시 로딩할 도구 그룹 선택. 미설정 시 전체 ON. `dynamic`을 포함하면 핵심 그룹만 켜고 세션 중 확장 허용(그 외 값은 잠금) (자세히는 아래 [도구 그룹 선택](#도구-그룹-선택-선택) 참조) | 전체 |
 | `NCLOUD_RESPONSE_PRUNE` | - | `1`이면 응답에서 빈 값(`null`/`""`/`[]`/`{}`)을 전역 제거 | `0` |
 | `NCLOUD_TIMEOUT_MS` | - | API 요청 타임아웃(밀리초). 초과 시 호출이 중단되고 안내 메시지를 반환 (HTTP 429는 최대 2회 자동 재시도) | `30000` |
 
@@ -126,20 +126,95 @@ npm run build
 
 ## 도구 그룹 선택 (선택)
 
-> 기본 설정만으로 전체 도구(약 1,000개)가 모두 동작합니다. 이 섹션은 **도구 수를 줄이고 싶을 때만** 보면 됩니다.
+> 기본 설정만으로 전체 도구(약 1,000개)가 모두 동작합니다. **그냥 다 쓰고 싶다면 이 변수를 설정하지 마세요** — 미설정이 곧 "전체 ON"이며 기존과 동일하게 동작합니다. 아래는 *시작 컨텍스트를 가볍게 하거나(권장: `dynamic`), 도구를 일부만 켜고 싶을 때*만 보면 됩니다.
 
-**무엇인가요?** 이 서버에는 도구가 약 1,000개 있습니다. `NCLOUD_TOOL_GROUPS`로 **필요한 서비스 그룹만 켜면**, AI가 한 번에 보는 도구 수가 줄어 토큰 비용이 절감되고 도구 선택 정확도가 올라갑니다.
+**왜 필요한가요?** 전체 ON이면 도구 정의만으로 세션 컨텍스트를 크게 점유합니다(`tools/list` ≈ 694KB / 약 177k 토큰). `NCLOUD_TOOL_GROUPS`로 필요한 그룹만 켜면 AI가 한 번에 보는 도구 수가 줄어 토큰 비용이 절감되고 도구 선택 정확도가 올라갑니다. 설정은 `mcp.json`의 `env`에 `NCLOUD_TOOL_GROUPS` 한 줄을 추가하면 됩니다. (`common`은 Region/Zone 공통 도구라 항상 자동 포함)
 
-> 💡 **그냥 다 쓰고 싶다면 이 변수를 설정하지 마세요.** 미설정이 곧 "전체 사용"이며 기존과 동일하게 동작합니다. 아래는 *일부만 켜고 싶을 때*만 필요합니다.
+### 한눈에 — 어떤 값을 쓸까
 
-**어떻게 쓰나요?** 위 `mcp.json`의 `env`에 `NCLOUD_TOOL_GROUPS` 한 줄을 추가하고, 켜고 싶은 그룹 key를 쉼표로 나열합니다. (`common`은 Region/Zone 공통 도구라 항상 자동 포함됩니다.)
+| 원하는 것 | 설정값 | 동작 |
+|---|---|---|
+| **(권장)** 가볍게 시작하고 필요할 때 자동 확장 | `dynamic` | 핵심 세트로 시작, 나머지는 세션 중 자동으로 켜짐 |
+| 특정 그룹을 매일 사용 | `dynamic,analytics` | 핵심 세트 **+ analytics를 시작부터** ON, 나머지는 확장 가능 |
+| 처음부터 전부 켜두기 | (미설정) 또는 `all` | 14개 그룹 전부 ON (기존 동작) |
+| 정해준 그룹만, 런타임 확장 금지 | `compute,network` | 그 그룹만 — 런타임 확장 **잠금** |
+| 전체에서 일부만 제외 | `all,-billing` | billing 빼고 전부 (`-`로 뺀 그룹은 enable도 차단) |
 
-| 쓰고 싶은 값 | 결과 |
-|---|---|
-| (미설정) | **전체 그룹 ON** — 기본값, 기존 동작과 동일 |
-| `compute,network` | compute + network 그룹만 (+ 자동 common) |
-| `compute,network,billing` | 세 그룹만 |
-| `all,-billing` | 전체에서 billing만 빼고 (`-`는 "제외") |
+> **핵심 규칙:** **`dynamic` 키워드가 있을 때만** 세션 중 그룹 확장이 켜집니다. `dynamic` 없이 그룹을 나열하면(예: `compute,network`) "딱 이것만"을 의미하는 **잠금**이 되고, `all`/미설정은 이미 전부 켜져 있어 확장이 무의미합니다(더 켤 그룹 없음). 사용 가능한 전체 그룹 key 목록은 아래 **세부 제어**의 표를 참조하세요.
+
+### 권장: `dynamic` (동적 그룹)
+
+전체를 다 켜는 대신 **핵심 그룹만 켠 채 가볍게 시작**하고, AI가 다른 서비스를 요청받으면 **서버 재시작 없이 세션 중에 해당 그룹을 자동으로 켭니다.**
+
+```json
+{
+  "mcpServers": {
+    "ncloud": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ACCESS_KEY": "your-access-key",
+        "NCLOUD_SECRET_KEY": "your-secret-key",
+        "NCLOUD_REGION": "KR",
+        "NCLOUD_TOOL_GROUPS": "dynamic"
+      }
+    }
+  }
+}
+```
+
+> **한 줄 요약:** `dynamic` = "**확장 모드 ON** + 핵심 세트로 가볍게 시작". 안 쓰는 그룹은 처음에 안 올려 토큰을 아끼고, 필요할 때만 자동으로 켭니다.
+
+- 시작 ON: `common` + `compute` + `network` + `database` (약 367개 도구 / 약 65k 토큰 — 전체 대비 63% 절감)
+- AI는 항상 켜져 있는 메타 도구로 나머지 그룹에 도달합니다:
+  - `ncloud_list_tool_groups` — 14개 그룹의 서비스·도구 수·현재 ON/OFF 조회
+  - `ncloud_enable_tool_group` — 그룹을 런타임에 활성화 (멱등)
+
+**`dynamic` vs `all` — 무엇이 다른가**
+
+| | 시작 시 로딩 | 안 쓰는 그룹 | 토큰(시작) |
+|---|---|---|---|
+| `all` / (미설정) | 14개 그룹 **전부** | 이미 다 켜져 있음 | ~177k |
+| `dynamic` | 핵심 세트만 | **필요할 때** 자동으로 켜짐 | ~65k |
+
+둘 다 결국 모든 그룹을 쓸 수 있지만, `dynamic`은 "처음엔 핵심만, 나머지는 쓸 때" 방식이라 시작 컨텍스트가 가볍습니다. 이 절감이 `dynamic`의 존재 이유입니다.
+
+**동작 흐름** (예: Live Station 요청)
+
+```
+1. 서버 시작: 핵심 그룹 + 메타 도구만 ON
+2. 사용자: "Live Station 채널 목록 보여줘"
+3. AI: 카탈로그에서 media 그룹 확인 → ncloud_enable_tool_group("media")
+4. 서버: media 도구 등록 + tools/list_changed 통지 → 클라이언트 도구 목록 갱신
+5. AI: 새로 나타난 Live Station 도구 호출 → 작업 계속
+```
+
+- 켜진 상태는 **세션 동안만** 유지됩니다(다음 세션은 기본값으로 리셋).
+- **`dynamic`에 그룹 키를 더하면 그 그룹은 "시작 즉시 ON"입니다**(나중에 동적으로 붙는 게 아님). 예: `dynamic,analytics`는 핵심 세트 **+ analytics를 처음부터** 켜고 나머지만 확장 대상으로 둡니다. 매일 쓰는 그룹은 이렇게 적어두면 enable 호출 없이 바로 씁니다.
+
+**클라이언트 호환성** — 동적 추가된 도구가 즉시 나타나려면 클라이언트가 `tools/list_changed` 통지를 지원해야 합니다.
+
+| 클라이언트 | `tools/list_changed` | 비고 |
+|---|---|---|
+| Claude Code | ✅ 지원 (검증) | enable 즉시 같은 세션에서 새 도구 호출 가능 |
+| Claude Desktop | ✅ 지원 (MCP 표준) | 미검증 |
+| Kiro | ❌ 미반영 (검증) | enable 해도 재시작 전까지 새 도구가 안 보임 — 아래 안내 참고 |
+| Cursor | ⚠️ 미검증 | 도구 목록 변경에 수동 새로고침이 필요할 수 있음 — 자가 검증 권장 |
+| Codex | ⚠️ 미검증 | 자가 검증 권장 |
+
+> 💡 **표에 없거나 "미검증"인 클라이언트는 30초만에 직접 확인할 수 있습니다.** `NCLOUD_TOOL_GROUPS=dynamic`으로 설정 후 AI에게 *"media 그룹 켜고 Live Station 채널 목록 보여줘"*라고 요청 → **새 도구가 그 세션에서 호출되면 지원**, AI가 도구를 못 찾으면 **미지원**이니 그룹을 미리 나열하는 방식으로 쓰면 됩니다.
+
+> **list_changed 미지원 클라이언트(예: Kiro)에서는 `dynamic`의 세션 중 자동 확장이 동작하지 않습니다.** enable은 되지만 새 도구가 도구 목록에 안 떠 호출할 수 없습니다. 이 경우 자주 쓰는 그룹을 **미리 나열**하세요 — 예: `dynamic,governance,media`처럼 시작부터 켜거나, 명시 리스트(`compute,network,...`)·`all`로 설정. (enable 응답도 같은 폴백을 안내합니다: `NCLOUD_TOOL_GROUPS`에 그룹을 추가하고 재시작.) 폴백 시 기존과 동일한 경험으로 회귀하므로 악화는 없습니다.
+
+> ℹ️ **권한 경계:** MCP 도구가 노출된다고 권한이 부여되는 것은 아닙니다. Ncloud 측 실제 권한은 Access Key의 Sub Account 권한이 최종 경계입니다. 동적 로딩은 confirm 게이트·destructive 경고 등 기존 안전장치를 우회하지 않습니다.
+
+### 세부 제어 — 특정 그룹만 켜기 / 잠금
+
+`dynamic` 없이 그룹 key를 쉼표로 나열하면 **그 그룹만** 켜지고 런타임 확장이 잠깁니다(엄격 운영·최소 권한 환경용). 예: `"NCLOUD_TOOL_GROUPS": "compute,network,billing"`. `all,-billing`처럼 `-`로 특정 그룹을 제외할 수도 있으며, 제외된 그룹은 동적 enable도 거부됩니다(운영자 보안 경계).
+
+> 서버 시작 시 어떤 그룹이 로딩됐는지 로그로 확인할 수 있습니다:
+> `ncloud-mcp-server: 4개 그룹 등록 (common, compute, network, billing)`
+> 잘못된 key는 무시되고 경고만 출력됩니다.
 
 **그룹 key → 포함 서비스**
 
@@ -162,29 +237,6 @@ npm run build
 | `common` *(항상 ON)* | Region / Zone 공통 |
 
 > ℹ️ **그룹 key 변경 안내 (v1.2.0):** `integration` → `application`으로 이름이 바뀌었고, `global`은 `cdn`(Global Edge)과 `network`(Global DNS/Traffic Manager)로 나뉘었습니다. 옛 key는 자동 호환되지 않으니 새 key로 변경하세요(옛 key를 지정하면 서버가 안내 메시지를 출력하고 무시합니다).
-
-**설정 예시** (`mcp.json` — 예: compute·network·billing만 사용):
-
-```json
-{
-  "mcpServers": {
-    "ncloud": {
-      "command": "npx",
-      "args": ["-y", "ncloud-mcp-server"],
-      "env": {
-        "NCLOUD_ACCESS_KEY": "your-access-key",
-        "NCLOUD_SECRET_KEY": "your-secret-key",
-        "NCLOUD_REGION": "KR",
-        "NCLOUD_TOOL_GROUPS": "compute,network,billing"
-      }
-    }
-  }
-}
-```
-
-> 서버 시작 시 어떤 그룹이 로딩됐는지 로그로 확인할 수 있습니다:
-> `ncloud-mcp-server: 4개 그룹 등록 (common, compute, network, billing)`
-> 잘못된 key는 무시되고 경고만 출력됩니다.
 
 ## 사용 예시
 

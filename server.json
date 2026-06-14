@@ -6,12 +6,12 @@
     "url": "https://github.com/sjk4425/ncloud-mcp-server",
     "source": "github"
   },
-  "version": "1.3.0",
+  "version": "1.4.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "ncloud-mcp-server",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "transport": {
         "type": "stdio"
       },
@@ -38,7 +38,7 @@
           "name": "NCLOUD_REGION"
         },
         {
-          "description": "Comma-separated tool groups to load, e.g. 'compute,network,billing' or 'all,-billing'. Unset = all groups. common is always on.",
+          "description": "Comma-separated tool groups to load at startup, e.g. 'compute,network,billing' or 'all,-billing'. Unset = all groups. Include the 'dynamic' keyword to start with the core set (common+compute+network+database) AND allow mid-session expansion via the ncloud_enable_tool_group meta tool; without 'dynamic', the listed groups are locked (no runtime expansion). A '-'-excluded group is also refused for dynamic enable. common is always on.",
           "isRequired": false,
           "format": "string",
           "isSecret": false,

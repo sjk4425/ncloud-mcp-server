@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { makeClientFactory, resolveGroups, registerGroups, TOOL_GROUPS } from "./registry.js";
+import {
+  makeClientFactory,
+  resolveGroups,
+  registerGroups,
+  planGroups,
+  GroupManager,
+  DEFAULT_GROUP_KEYS,
+  TOOL_GROUPS,
+} from "./registry.js";
 
 // 전 도구를 가짜 서버에 등록시켜 구조 불변식을 검사한다(API 호출·비용 없음).
 interface CapturedTool {
@@ -166,5 +174,189 @@ describe("makeClientFactory: setRegionAll 전파 (Task 4)", () => {
     const a = factory("https://cw.apigw.ntruss.com");
     const b = factory("https://cw.apigw.ntruss.com");
     expect(a).toBe(b);
+  });
+});
+
+// ─── 동적 그룹 로딩 (v1.4.0, DESIGN_long-term-dynamic-groups.md §3) ─────────────
+describe("동적 그룹 로딩: planGroups / GroupManager", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  // tools 를 수집하는 가짜 서버 + GroupManager 를 만든다.
+  function makeManager(rawEnv: string | undefined) {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({
+          name,
+          description: config?.description ?? null,
+          schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null,
+          annotations: config?.annotations,
+          hasHandler: typeof handler === "function",
+        });
+      },
+      tool: () => {
+        throw new Error("server.tool 직접 호출 금지 — defineTool 경유여야 함");
+      },
+    };
+    const plan = planGroups(rawEnv);
+    const manager = new GroupManager(
+      {
+        server: fakeServer,
+        client: makeClientFactory(creds, "KR"),
+        regionCode: "KR",
+        creds,
+        env: { ...process.env, NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
+      },
+      plan
+    );
+    return { manager, captured, names: () => captured.map((t) => t.name) };
+  }
+
+  it("dynamic 키워드는 기본 세트(common + DEFAULT_GROUP_KEYS)만 시작 ON 한다", () => {
+    const { manager } = makeManager("dynamic");
+    manager.start();
+    expect(manager.enabledGroupKeys().sort()).toEqual(["common", ...DEFAULT_GROUP_KEYS].sort());
+  });
+
+  it("start: dynamic 모드는 메타 도구 2개를 등록한다", () => {
+    const { manager, names } = makeManager("dynamic");
+    manager.start();
+    expect(names()).toContain("ncloud_list_tool_groups");
+    expect(names()).toContain("ncloud_enable_tool_group");
+  });
+
+  it("enable 흐름: 기본 세트 시작 → enable('analytics') → 도구 등록, 증가분 = 그룹 도구 수", () => {
+    const { manager, names } = makeManager("dynamic");
+    manager.start();
+    const before = names().length;
+    const out = manager.enable("analytics");
+    expect(out.status).toBe("enabled");
+    expect(out.registeredToolCount).toBeGreaterThan(0);
+    expect(names().length - before).toBe(out.registeredToolCount);
+    expect(manager.enabledGroupKeys()).toContain("analytics");
+    expect(names().some((n) => n.startsWith("ncloud_"))).toBe(true);
+  });
+
+  it("sampleTools 는 첫 N개 쏠림이 아니라 그룹 전반을 고루 대표한다", () => {
+    const { manager } = makeManager("dynamic");
+    manager.start();
+    // governance: Activity Tracer → Cloud Advisor → Resource Manager → Sub Account 순 등록.
+    // 단순 slice(0,5)면 앞쪽 모듈(get/advisor)에만 쏠리던 케이스.
+    const out = manager.enable("governance");
+    expect(out.status).toBe("enabled");
+    const sample = out.sampleTools ?? [];
+    expect(sample.length).toBeGreaterThan(0);
+    // 토큰(두 번째)별 분포가 고루 퍼져야 한다(첫 모듈 쏠림이면 1~2종에 그침).
+    const buckets = new Set(sample.map((n) => n.split("_")[1]));
+    expect(buckets.size).toBeGreaterThanOrEqual(4);
+  });
+
+  it("멱등: 같은 그룹 2회 enable → 중복 등록 0, 정상 응답", () => {
+    const { manager, names } = makeManager("dynamic");
+    manager.start();
+    manager.enable("analytics");
+    const after1 = names().length;
+    const out2 = manager.enable("analytics");
+    expect(out2.status).toBe("already-enabled");
+    expect(out2.registeredToolCount).toBe(0);
+    expect(names().length).toBe(after1);
+  });
+
+  it("차단: all,-billing 에서 enable('billing') → 거부 응답 + 미등록", () => {
+    const { manager, names } = makeManager("all,-billing");
+    manager.start();
+    expect(manager.enabledGroupKeys()).not.toContain("billing");
+    const before = names().length;
+    const out = manager.enable("billing");
+    expect(out.status).toBe("blocked");
+    expect(names().length).toBe(before);
+    expect(names().some((n) => n.startsWith("ncloud_billing") || n.includes("list_price"))).toBe(false);
+  });
+
+  it("미지원(unknown) key: enable('nope') → unknown + 사용 가능 목록 (moved 아님)", () => {
+    const { manager } = makeManager("dynamic");
+    manager.start();
+    const out = manager.enable("nope");
+    expect(out.status).toBe("unknown");
+    expect(out.availableGroups).toBeDefined();
+    expect(out.availableGroups!.length).toBeGreaterThan(0);
+  });
+
+  it("moved key: enable('integration') → moved (unknown 과 분리)", () => {
+    const { manager } = makeManager("dynamic");
+    manager.start();
+    const out = manager.enable("integration");
+    expect(out.status).toBe("moved");
+    expect(out.message).toMatch(/application/);
+  });
+
+  it("명시 리스트(dynamic 없음)는 잠금 — 메타 도구 미등록 (확장 불가)", () => {
+    const { manager, names } = makeManager("compute,network");
+    manager.start();
+    expect(manager.enabledGroupKeys().sort()).toEqual(["common", "compute", "network"].sort());
+    expect(names()).not.toContain("ncloud_enable_tool_group");
+    expect(names()).not.toContain("ncloud_list_tool_groups");
+  });
+
+  it("dynamic 은 확장 ON(메타 등록), 같은 시작 집합이라도 명시 리스트는 잠금", () => {
+    const dyn = makeManager("dynamic");
+    dyn.manager.start();
+    expect(dyn.names()).toContain("ncloud_enable_tool_group");
+
+    const locked = makeManager("compute,network,database"); // dynamic 의 시작 집합과 동일하지만 잠금
+    locked.manager.start();
+    expect(locked.names()).not.toContain("ncloud_enable_tool_group");
+  });
+
+  it("all 모드(전부 ON)에서는 enable 대상이 없어 메타 도구 미등록", () => {
+    const { manager, names } = makeManager(undefined); // 미설정 = 전체 ON
+    manager.start();
+    expect(manager.enableableKeys()).toEqual([]);
+    expect(names()).not.toContain("ncloud_enable_tool_group");
+  });
+
+  it("catalog: 14개 그룹 + status(enabled/available/blocked) + 도구 수", () => {
+    const { manager } = makeManager("all,-billing");
+    manager.start();
+    const cat = manager.catalog();
+    expect(cat.groups.length).toBe(TOOL_GROUPS.filter((g) => !g.always).length);
+    const billing = cat.groups.find((g) => g.key === "billing");
+    expect(billing?.status).toBe("blocked");
+    const analytics = cat.groups.find((g) => g.key === "analytics");
+    expect(analytics?.status).toBe("enabled"); // all 로 켜짐
+    expect(analytics?.toolCount).toBeGreaterThan(0);
+  });
+
+  // §3: 전수 불변식이 "동적으로 켜진 도구"에도 동일 적용 — enable 경유 경로로 captureAllTools 재수행
+  describe("enable 경유 경로의 전수 불변식", () => {
+    const { manager, captured } = makeManager("dynamic");
+    manager.start();
+    // 기본 세트 외 모든 그룹을 동적 enable 해 전 도구를 enable 경로로 수집
+    for (const key of manager.enableableKeys()) manager.enable(key);
+
+    it("enable 경유로도 1000개 이상 등록된다", () => {
+      expect(captured.length).toBeGreaterThan(1000);
+    });
+    it("모든 도구는 ncloud_ 접두사", () => {
+      expect(captured.filter((t) => !t.name.startsWith("ncloud_")).map((t) => t.name)).toEqual([]);
+    });
+    it("모든 도구는 스키마·핸들러·annotations 를 가진다", () => {
+      expect(captured.filter((t) => t.schemaKeys === null).map((t) => t.name)).toEqual([]);
+      expect(captured.filter((t) => !t.hasHandler).map((t) => t.name)).toEqual([]);
+      expect(captured.filter((t) => t.annotations === undefined).map((t) => t.name)).toEqual([]);
+    });
+    it("파괴적 도구는 confirm 파라미터 + destructiveHint", () => {
+      const re = /(delete|terminate|remove|destroy)/i;
+      const noConfirm = captured
+        .filter((t) => re.test(t.name))
+        .filter((t) => !(t.schemaKeys && t.schemaKeys.includes("confirm")))
+        .map((t) => t.name);
+      expect(noConfirm).toEqual([]);
+      const wrongHint = captured
+        .filter((t) => re.test(t.name))
+        .filter((t) => t.annotations?.destructiveHint !== true)
+        .map((t) => t.name);
+      expect(wrongHint).toEqual([]);
+    });
   });
 });

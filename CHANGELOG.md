@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-06-14
+
+> Dynamic tool-group loading. **Default behavior is unchanged** — leaving `NCLOUD_TOOL_GROUPS` unset still loads all 1,035 tools, exactly as before. The new behavior is opt-in via `NCLOUD_TOOL_GROUPS=dynamic`. Design: `docs/DESIGN_long-term-dynamic-groups.md`.
+
+### Added
+- **Dynamic tool groups** — the server can now enable tool groups at runtime, in-session, without a restart. Two always-on meta tools drive it: `ncloud_list_tool_groups` (catalog: 14 groups with services, tool counts, and current enabled/available/blocked status) and `ncloud_enable_tool_group` (activate a group; idempotent; the group catalog is embedded in the tool description so the model can pick the right group without a prior list call). On enable, the group's tools register and the SDK emits `tools/list_changed`.
+- **`NCLOUD_TOOL_GROUPS=dynamic`** opt-in keyword — starts with core IaaS groups only (`common` + `compute` + `network` + `database`, ~367 tools / ~65k tokens) instead of all 1,035 (~177k tokens), a 63% context reduction, with every other group one `ncloud_enable_tool_group` call away. Combine with extra groups (e.g. `dynamic,analytics`) to also start them on.
+- **Expansion is gated by the `dynamic` keyword.** Listing groups without it (e.g. `compute,network`), or using `all`/unset, is a **locked** state — the model cannot enable more groups at runtime (for strict / least-privilege environments). This replaces the need for a separate disable switch; there is no `NCLOUD_DYNAMIC_GROUPS` env.
+- **Security boundary**: a group excluded via `-key` (e.g. `all,-billing`) is also refused for dynamic enable — an operator's intent to withhold a group cannot be reversed by the model at runtime.
+- **Notification debounce**: the server is constructed with `debouncedNotificationMethods: ["notifications/tools/list_changed"]`, collapsing the burst of per-tool notifications during a group enable into a single `list_changed` (measured: enabling a 205-tool group emits exactly 1 notification).
+- **Tests**: enable flow / idempotency / `-key` block / unknown-vs-moved key / locked-list (no `dynamic`) / full structural invariants re-checked through the dynamic-enable path. README KR/EN gain a "Dynamic groups" section with a client-compatibility table.
+
+### Notes
+- list_changed support is client-dependent. Claude Code/Desktop support it; Kiro/Cursor are under real-world validation. If unsupported, the enable response returns a fallback hint (restart with `NCLOUD_TOOL_GROUPS=all`) — i.e. no regression vs. today.
+- v2.0.0 (planned) will flip the unset default to the core set and remove the `MOVED_GROUP_KEYS` deprecation shim.
+
 ## [1.3.0] - 2026-06-12
 
 > Internal-architecture release. No public tool name/schema/group-key changes — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.2.1).
