@@ -223,16 +223,12 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       if (!params.serviceGroupInstanceNo) {
         return { content: [{ type: "text" as const, text: "Error: serviceGroupInstanceNo is required." }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text:
-          `⚠️ This will permanently delete CDSS cluster [${params.serviceGroupInstanceNo}]. All data will be lost.\n\nTo execute, call again with confirm=true.`
-        }] };
-      }
       const result = await client.deleteRequest(
         `${prefix}/cluster/deleteCDSSCluster/${params.serviceGroupInstanceNo}`
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete CDSS cluster [${params.serviceGroupInstanceNo}]. All data will be lost.\n\nTo execute, call again with confirm=true.` } }
   );
 
   // ─── Node Management Tools ───────────────────────────────────────────
@@ -608,16 +604,12 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       if (!params.configGroupNo) {
         return { content: [{ type: "text" as const, text: "Error: configGroupNo is required." }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text:
-          `⚠️ This will delete Config Group [${params.configGroupNo}].\n\nTo execute, call again with confirm=true.`
-        }] };
-      }
       const result = await client.deleteRequest(
         `${prefix}/configGroup/deleteConfigGroup/${params.configGroupNo}`
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will delete Config Group [${params.configGroupNo}].\n\nTo execute, call again with confirm=true.` } }
   );
 
   // ─── Rolling Restart & Upgrade Tools ──────────────────────────────────

@@ -122,7 +122,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         서브넷: params.subnetNo,
         클러스터타입: params.clusterTypeCode,
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -258,7 +258,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }
 
       const result = await client.request("/vmongodb/v2/addCloudMongoDbUserList", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -286,7 +286,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }
 
       const result = await client.request("/vmongodb/v2/changeCloudMongoDbUserList", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -304,11 +304,6 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const userNames = params.cloudMongoDbUserList.map(u => u.name).join(", ");
-        const message = `⚠️ This will permanently delete MongoDB users [${userNames}] from instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
       const requestParams: any = { cloudMongoDbInstanceNo };
 
@@ -318,7 +313,15 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }
 
       const result = await client.request("/vmongodb/v2/deleteCloudMongoDbUserList", requestParams);
-      return result;
+      return result;
+    },
+    {
+      destructive: {
+        message: (params) => {
+          const userNames = params.cloudMongoDbUserList.map((u: any) => u.name).join(", ");
+          return `⚠️ This will permanently delete MongoDB users [${userNames}] from instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        },
+      },
     }
   );
 
@@ -381,7 +384,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }
 
       const result = await client.request("/vmongodb/v2/exportBackupToObjectStorage", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -414,7 +417,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       }
 
       const result = await client.request("/vmongodb/v2/exportDbServerLogToObjectStorage", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -497,13 +500,10 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete MongoDB instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmongodb/v2/deleteCloudMongoDbInstance", apiParams);
-      return result;
-    }
+      return result;
+    },
+    { destructive: { noun: "MongoDB instance", describe: (params) => params.cloudMongoDbInstanceNo } }
   );
 }

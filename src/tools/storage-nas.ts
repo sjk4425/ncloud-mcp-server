@@ -89,14 +89,11 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete NAS Volume [${params.nasVolumeInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/deleteNasVolumeInstances", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "NAS Volume", describe: (params) => params.nasVolumeInstanceNoList.join(", ") } }
   );
 
   // ─── NAS Volume Size Change ────────────────────────────────────────────────
@@ -155,14 +152,11 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove access control for server instances [${params.serverInstanceNoList.join(", ")}] from NAS Volume [${params.nasVolumeInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/removeNasVolumeAccessControl", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove access control for server instances [${params.serverInstanceNoList.join(", ")}] from NAS Volume [${params.nasVolumeInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -264,14 +258,11 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete NAS Snapshot [${params.nasVolumeSnapshotInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/deleteNasVolumeSnapshot", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "NAS Snapshot", describe: (params) => params.nasVolumeSnapshotInstanceNo } }
   );
 
   // ─── NAS Volume Snapshot Configuration Tools ───────────────────────────────
@@ -313,13 +304,10 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will restore NAS Volume [${params.nasVolumeInstanceNo}] to Snapshot [${params.nasVolumeSnapshotNo}]. Current data will be overwritten with the snapshot data. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/restoreNasVolumeWithSnapshot", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will restore NAS Volume [${params.nasVolumeInstanceNo}] to Snapshot [${params.nasVolumeSnapshotNo}]. Current data will be overwritten with the snapshot data. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

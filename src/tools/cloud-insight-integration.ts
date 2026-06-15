@@ -104,17 +104,10 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete integration [${params.integrationId}]. To execute, call this tool again with confirm=true.`,
-          }],
-        };
-      }
       // 삭제 API는 id 문자열의 JSON 배열을 body로 받는다
       const result = await client.postRequest(`${BASE}/delete`, [params.integrationId]);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete integration [${params.integrationId}]. To execute, call this tool again with confirm=true.` } }
   );
 }

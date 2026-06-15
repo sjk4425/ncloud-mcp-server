@@ -350,14 +350,11 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete MSSQL instance [${params.cloudMssqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmssql/v2/deleteCloudMssqlInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "MSSQL instance", describe: (params) => params.cloudMssqlInstanceNo } }
   );
 
   defineTool(
@@ -369,13 +366,10 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete MSSQL server instance [${params.cloudMssqlServerInstanceNo}] (Slave only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmssql/v2/deleteCloudMssqlServerInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete MSSQL server instance [${params.cloudMssqlServerInstanceNo}] (Slave only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

@@ -73,13 +73,10 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Container Registry [${params.registryName}]. All images and tags will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/delete`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Container Registry [${params.registryName}]. All images and tags will be destroyed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Image Query Tools ─────────────────────────────────────────────────────
@@ -143,13 +140,10 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Image [${params.imageName}] from Registry [${params.registryName}]. All associated tags will be removed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/images/${params.imageName}/delete`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Image [${params.imageName}] from Registry [${params.registryName}]. All associated tags will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Tag Query Tools ───────────────────────────────────────────────────────
@@ -198,12 +192,9 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Tag [${params.tag}] from Image [${params.imageName}] in Registry [${params.registryName}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.request(`/ncr/api/v2/repositories/${params.registryName}/images/${params.imageName}/tags/${params.tag}/delete`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Tag [${params.tag}] from Image [${params.imageName}] in Registry [${params.registryName}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

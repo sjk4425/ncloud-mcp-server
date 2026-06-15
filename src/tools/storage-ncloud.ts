@@ -479,10 +479,6 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete all lifecycle rules from Bucket [${params.bucketName}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
 
       await client.request({
         method: "DELETE",
@@ -492,7 +488,8 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
 
       const result = { message: `✅ 버킷 '${params.bucketName}'의 라이프사이클 규칙이 삭제되었습니다.` };
       return result;
-    }
+    },
+    { destructive: { noun: "all lifecycle rules from Bucket", describe: (params) => params.bucketName } }
   );
 
   // ─── CORS Query Tools ──────────────────────────────────────────────────────
@@ -582,10 +579,6 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete all CORS rules from Bucket [${params.bucketName}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
 
       await client.request({
         method: "DELETE",
@@ -595,7 +588,8 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
 
       const result = { message: `✅ 버킷 '${params.bucketName}'의 CORS 설정이 삭제되었습니다.` };
       return result;
-    }
+    },
+    { destructive: { noun: "all CORS rules from Bucket", describe: (params) => params.bucketName } }
   );
 
   // ─── Encryption Query Tools ────────────────────────────────────────────────
@@ -667,10 +661,6 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete the default encryption configuration from Bucket [${params.bucketName}]. New objects will no longer be encrypted by default. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
 
       await client.request({
         method: "DELETE",
@@ -680,7 +670,8 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
 
       const result = { message: `✅ 버킷 '${params.bucketName}'의 기본 암호화 설정이 삭제되었습니다.` };
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete the default encryption configuration from Bucket [${params.bucketName}]. New objects will no longer be encrypted by default. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -747,14 +738,11 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Ncloud Storage Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       await client.request({ method: "DELETE", bucket: params.bucketName });
       const result = { message: `✅ Ncloud Storage 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Ncloud Storage Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Head Bucket ───────────────────────────────────────────────────────────
@@ -999,10 +987,6 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}] from Ncloud Storage. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       await client.request({
         method: "DELETE",
         bucket: params.bucketName,
@@ -1010,7 +994,8 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       });
       const result = { message: `✅ Ncloud Storage 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}] from Ncloud Storage. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Delete Objects (Multi) ────────────────────────────────────────────────
@@ -1029,10 +1014,6 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ${params.keys.length} objects from Ncloud Storage Bucket [${params.bucketName}]:\n${params.keys.map((k) => `  - ${k}`).join("\n")}\n\nDo you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
 
       const objectsXml = params.keys.map((k) => `<Object><Key>${k}</Key></Object>`).join("");
       const xmlBody = `<?xml version="1.0" encoding="UTF-8"?><Delete><Quiet>false</Quiet>${objectsXml}</Delete>`;
@@ -1052,6 +1033,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         response: response.body,
       };
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ${params.keys.length} objects from Ncloud Storage Bucket [${params.bucketName}]:\n${params.keys.map((k: any) => `  - ${k}`).join("\n")}\n\nDo you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

@@ -67,13 +67,10 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Global DNS Domain [${params.domainId}] and all associated records.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/domain/${params.domainId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Global DNS Domain [${params.domainId}] and all associated records.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -97,13 +94,10 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will rollback Global DNS Domain [${params.domainId}] to the previously applied state. All pending changes will be discarded.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw("PUT", `/dns/v1/ncpdns/domain/${params.domainId}/rollback`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will rollback Global DNS Domain [${params.domainId}] to the previously applied state. All pending changes will be discarded.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
 
@@ -189,13 +183,10 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ${params.recordIds.length} DNS record(s) from Domain [${params.domainId}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, { recordIds: params.recordIds });
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ${params.recordIds.length} DNS record(s) from Domain [${params.domainId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(

@@ -367,18 +367,11 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete Search Engine Service cluster [${params.serviceGroupInstanceNo}]. All data and indices will be lost.\n\nTo execute, call this tool again with confirm=true.`,
-          }],
-        };
-      }
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("DELETE", `${prefix}/cluster/deleteSearchEngineCluster/${params.serviceGroupInstanceNo}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Search Engine Service cluster [${params.serviceGroupInstanceNo}]. All data and indices will be lost.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Add Node ──────────────────────────────────────────────────────────────

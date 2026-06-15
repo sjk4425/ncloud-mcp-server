@@ -153,14 +153,11 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Network ACL [${params.networkAclNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vpc/v2/deleteNetworkAcl", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Network ACL", describe: (params) => params.networkAclNo } }
   );
 
   defineTool(
@@ -178,10 +175,6 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently remove inbound rule (priority: ${params.priority}) from Network ACL [${params.networkAclNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, networkAclNo, priority, protocolTypeCode, ruleActionCode, ipBlock, denyAllowGroupNo, portRange } = params;
       const requestParams: any = {
         networkAclNo,
@@ -194,7 +187,8 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
       const result = await client.request("/vpc/v2/removeNetworkAclInboundRule", requestParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently remove inbound rule (priority: ${params.priority}) from Network ACL [${params.networkAclNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -212,10 +206,6 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently remove outbound rule (priority: ${params.priority}) from Network ACL [${params.networkAclNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, networkAclNo, priority, protocolTypeCode, ruleActionCode, ipBlock, denyAllowGroupNo, portRange } = params;
       const requestParams: any = {
         networkAclNo,
@@ -228,7 +218,8 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
       const result = await client.request("/vpc/v2/removeNetworkAclOutboundRule", requestParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently remove outbound rule (priority: ${params.priority}) from Network ACL [${params.networkAclNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Network ACL Description ─────────────────────────────────────────────
@@ -297,14 +288,11 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Deny-Allow Group [${params.networkAclDenyAllowGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vpc/v2/deleteNetworkAclDenyAllowGroup", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Deny-Allow Group", describe: (params) => params.networkAclDenyAllowGroupNo } }
   );
 
   defineTool(

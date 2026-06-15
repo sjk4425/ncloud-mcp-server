@@ -332,17 +332,10 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete SourceBuild project [${params.projectId}] and all build history.\n\nTo execute, call again with confirm=true.`,
-          }],
-        };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/project/${encodeURIComponent(params.projectId)}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete SourceBuild project [${params.projectId}] and all build history.\n\nTo execute, call again with confirm=true.` } }
   );
 
   // ─── Build Execution ───────────────────────────────────────────────────────
@@ -381,14 +374,6 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().default(false).describe("Must be true to execute the cancel operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will cancel build [${params.buildId}] of project [${params.projectId}].\n\nTo execute, call again with confirm=true.`,
-          }],
-        };
-      }
       const result = await client.requestRaw(
         "DELETE",
         `/api/v1/project/${encodeURIComponent(params.projectId)}/build`,
@@ -396,7 +381,8 @@ export function registerSourceBuildTools(server: McpServer, client: NcloudClient
         { buildId: params.buildId }
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will cancel build [${params.buildId}] of project [${params.projectId}].\n\nTo execute, call again with confirm=true.` } }
   );
 
   // ─── Build Environment Query ───────────────────────────────────────────────

@@ -109,14 +109,6 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute deletion. If false or omitted, returns a confirmation prompt."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete Cloud Insight Rule Group [${params.ruleGroupId}]. All associated monitoring alerts will be stopped. Do you want to proceed? (yes/no)\n\nTo confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = {
         ruleGroupId: params.ruleGroupId,
@@ -124,7 +116,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/delete", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Cloud Insight Rule Group [${params.ruleGroupId}]. All associated monitoring alerts will be stopped. Do you want to proceed? (yes/no)\n\nTo confirm, call this tool again with confirm=true.` } }
   );
 
   // ncloud_list_monitor_groups — Get monitoring target group list
@@ -240,19 +233,12 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete monitor group [${params.monitorGroupId}]. To confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = { monitorGroupId: params.monitorGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/delete", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete monitor group [${params.monitorGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
 
   // ncloud_create_metrics_group — Create a rule template (metrics group)
@@ -338,19 +324,12 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete metrics group [${params.metricsGroupId}]. To confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = { metricsGroupId: params.metricsGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/delete", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete metrics group [${params.metricsGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
 
   // ncloud_update_rule_group — Update an event rule group
@@ -473,14 +452,6 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute removal."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will remove resource [${params.resourceId}] from all associated event rules. To confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = {
         prodKey: params.prodKey,
@@ -488,7 +459,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/resource/remove", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove resource [${params.resourceId}] from all associated event rules. To confirm, call this tool again with confirm=true.` } }
   );
 
   // ncloud_get_rules_by_metrics_group — Get rules by metrics group IDs
@@ -532,14 +504,6 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete rule group [${params.ruleGroupId}]. To confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = {
         prodKey: params.prodKey,
@@ -547,7 +511,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/deleteByProdKeyAndId", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete rule group [${params.ruleGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
 
   // ncloud_delete_metrics_group_by_id — Delete metrics group by product key and ID
@@ -561,14 +526,6 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete metrics group [${params.metricsGroupId}]. To confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = {
         prodKey: params.prodKey,
@@ -576,7 +533,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/deleteByProdKeyAndId", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete metrics group [${params.metricsGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
 
   // ncloud_delete_metrics_group_force — Force delete all rules related to a metrics group
@@ -589,19 +547,12 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute force deletion."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete ALL event rules related to metrics group [${params.metricsGroupId}]. This is irreversible. To confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = { metricsGroupId: params.metricsGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/deleteForce", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ALL event rules related to metrics group [${params.metricsGroupId}]. This is irreversible. To confirm, call this tool again with confirm=true.` } }
   );
 
   // ncloud_delete_monitor_group_force — Force delete all rules related to a monitor group
@@ -614,18 +565,11 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().describe("Must be true to execute force deletion."),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: `⚠️ This will permanently delete ALL event rules related to monitor group [${params.monitorGroupId}]. This is irreversible. To confirm, call this tool again with confirm=true.`,
-          }],
-        };
-      }
 
       const body = { monitorGroupId: params.monitorGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/deleteForce", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ALL event rules related to monitor group [${params.monitorGroupId}]. This is irreversible. To confirm, call this tool again with confirm=true.` } }
   );
 }

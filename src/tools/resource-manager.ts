@@ -76,10 +76,6 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
       confirm: z.boolean().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `\u26a0\ufe0f This will remove tag [${params.tagKey}${params.tagValue ? `=${params.tagValue}` : ""}] from ${params.nrnList.length} resource(s).\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
 
       const body: Record<string, unknown> = {
         nrnList: params.nrnList,
@@ -89,7 +85,8 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
 
       const result = await client.deleteRequest("/api/v1/resource-tags", body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `\u26a0\ufe0f This will remove tag [${params.tagKey}${params.tagValue ? `=${params.tagValue}` : ""}] from ${params.nrnList.length} resource(s).\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ncloud_resource_list_groups — List resource groups
@@ -148,10 +145,6 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
       confirm: z.boolean().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `\u26a0\ufe0f This will remove ${params.nrnList.length} resource(s) from group [${params.groupId}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
 
       const body = {
         nrnList: params.nrnList,
@@ -164,6 +157,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
         body
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `\u26a0\ufe0f This will remove ${params.nrnList.length} resource(s) from group [${params.groupId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

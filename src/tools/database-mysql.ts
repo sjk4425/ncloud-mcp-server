@@ -440,14 +440,11 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete MySQL server instance [${params.cloudMysqlServerInstanceNo}] (Slave/Recovery only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlServerInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete MySQL server instance [${params.cloudMysqlServerInstanceNo}] (Slave/Recovery only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -459,14 +456,11 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "MySQL instance", describe: (params) => params.cloudMysqlInstanceNo } }
   );
 
   defineTool(
@@ -479,14 +473,11 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete databases [${params.cloudMysqlDatabaseNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlDatabaseList", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete databases [${params.cloudMysqlDatabaseNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -499,14 +490,11 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete users [${params.cloudMysqlUserNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlUserList", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete users [${params.cloudMysqlUserNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Export Tools ──────────────────────────────────────────────────────────

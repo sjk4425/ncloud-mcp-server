@@ -124,13 +124,10 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete API Gateway Stage [${params.stageId}] from Product [${params.productId}]. All deployments on this stage will be removed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.request(`/api/v1/products/${encodeURIComponent(params.productId)}/stages/${encodeURIComponent(params.stageId)}/delete`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete API Gateway Stage [${params.stageId}] from Product [${params.productId}]. All deployments on this stage will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── API Key Tools ─────────────────────────────────────────────────────────
@@ -195,13 +192,10 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete API Key [${params.apiKeyId}]. Any stages subscribed with this key will lose access.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.request(`/api/v1/api-keys/${encodeURIComponent(params.apiKeyId)}/delete`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete API Key [${params.apiKeyId}]. Any stages subscribed with this key will lose access.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Usage Plan Tool ───────────────────────────────────────────────────────

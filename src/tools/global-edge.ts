@@ -56,13 +56,10 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Global Edge Profile [${params.profileId}]. All edges under this profile must be deleted first.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.deleteRequest(`/api/v1/profiles/${params.profileId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Global Edge Profile [${params.profileId}]. All edges under this profile must be deleted first.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Edge Query Tools ──────────────────────────────────────────────────────
@@ -257,13 +254,10 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Global Edge [${params.edgeId}]. The edge must be in Stopped status. All cached content will be purged.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.deleteRequest(`/api/v1/cdn-edges/${params.edgeId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Global Edge [${params.edgeId}]. The edge must be in Stopped status. All cached content will be purged.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Purge Tool ────────────────────────────────────────────────────────────
@@ -417,12 +411,9 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Global Edge Certificate [${params.certificateId}]. The certificate must not be in use by any edge.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.deleteRequest(`/api/v1/certificate/provisioning/${params.certificateId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Global Edge Certificate [${params.certificateId}]. The certificate must not be in use by any edge.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

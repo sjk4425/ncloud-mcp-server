@@ -152,14 +152,11 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteAccessControlGroup", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "ACG", describe: (params) => params.accessControlGroupNo } }
   );
 
   defineTool(
@@ -176,10 +173,6 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently remove inbound rule from ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange } = params;
       const requestParams: any = {
         vpcNo,
@@ -197,7 +190,8 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       }
       const result = await client.request("/vserver/v2/removeAccessControlGroupInboundRule", requestParams);
       return result;
-    }
+    },
+    { destructive: { action: "remove", noun: "inbound rule from ACG", describe: (params) => params.accessControlGroupNo } }
   );
 
   defineTool(
@@ -214,10 +208,6 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently remove outbound rule from ACG [${params.accessControlGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, vpcNo, accessControlGroupNo, protocolTypeCode, ipBlock, accessControlGroupSequence, portRange } = params;
       const requestParams: any = {
         vpcNo,
@@ -235,6 +225,7 @@ export function registerAcgTools(server: McpServer, client: NcloudClient): void 
       }
       const result = await client.request("/vserver/v2/removeAccessControlGroupOutboundRule", requestParams);
       return result;
-    }
+    },
+    { destructive: { action: "remove", noun: "outbound rule from ACG", describe: (params) => params.accessControlGroupNo } }
   );
 }

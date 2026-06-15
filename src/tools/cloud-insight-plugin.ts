@@ -65,14 +65,12 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will remove process plugins [${params.configList.join(", ")}] from instance [${params.instanceNo}]. To execute, call again with confirm=true.` }] };
-      }
       const body: Record<string, unknown> = { instanceNo: params.instanceNo, configList: params.configList };
       if (params.type !== undefined) body.type = params.type;
       const result = await client.postRequest(`${CW_SERVER}/process/remove`, body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove process plugins [${params.configList.join(", ")}] from instance [${params.instanceNo}]. To execute, call again with confirm=true.` } }
   );
 
   defineTool(
@@ -141,14 +139,12 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will remove port plugins [${params.portList.join(", ")}] from instance [${params.instanceNo}]. To execute, call again with confirm=true.` }] };
-      }
       const body: Record<string, unknown> = { instanceNo: params.instanceNo, portList: params.portList };
       if (params.type !== undefined) body.type = params.type;
       const result = await client.postRequest(`${CW_SERVER}/port/remove`, body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove port plugins [${params.portList.join(", ")}] from instance [${params.instanceNo}]. To execute, call again with confirm=true.` } }
   );
 
   defineTool(
@@ -217,14 +213,12 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will remove file plugins [${params.configList.join(", ")}] from instance [${params.instanceNo}]. To execute, call again with confirm=true.` }] };
-      }
       const body: Record<string, unknown> = { instanceNo: params.instanceNo, configList: params.configList };
       if (params.type !== undefined) body.type = params.type;
       const result = await client.postRequest(`${CW_SERVER}/file/remove`, body);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove file plugins [${params.configList.join(", ")}] from instance [${params.instanceNo}]. To execute, call again with confirm=true.` } }
   );
 
   defineTool(
@@ -332,12 +326,10 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete custom resource [${params.resourceId}]. To execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `${CW}/custom/resource/${params.resourceId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete custom resource [${params.resourceId}]. To execute, call again with confirm=true.` } }
   );
 
   // ─── Schema ─────────────────────────────────────────────────────────────
@@ -416,12 +408,10 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete custom schema [${params.prodName} / ${params.cw_key}]. To execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `${CW}/schema`, { cw_key: params.cw_key, prodName: params.prodName });
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete custom schema [${params.prodName} / ${params.cw_key}]. To execute, call again with confirm=true.` } }
   );
 
   // ─── Extended metric ─────────────────────────────────────────────────────
@@ -565,11 +555,9 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete maintenance schedule [${params.maintenanceId}]. To execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `${CW}/planned-maintenances/${params.maintenanceId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete maintenance schedule [${params.maintenanceId}]. To execute, call again with confirm=true.` } }
   );
 }

@@ -89,14 +89,11 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete LaunchConfiguration [${params.launchConfigurationNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteLaunchConfiguration", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "LaunchConfiguration", describe: (params) => params.launchConfigurationNo } }
   );
 
   // ─── Auto Scaling Group Query Tools ────────────────────────────────────────
@@ -196,14 +193,11 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteAutoScalingGroup", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "AutoScalingGroup", describe: (params) => params.autoScalingGroupNo } }
   );
 
   // ─── Auto Scaling Group Operation Tools ────────────────────────────────────
@@ -282,14 +276,11 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ScalingPolicy [${params.policyName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteScalingPolicy", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ScalingPolicy [${params.policyName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Auto Scaling Group Update Tool ────────────────────────────────────────
@@ -440,14 +431,11 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ScheduledAction [${params.scheduledActionName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteScheduledAction", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ScheduledAction [${params.scheduledActionName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Reference Query Tools ─────────────────────────────────────────────────

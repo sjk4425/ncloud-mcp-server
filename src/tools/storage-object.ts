@@ -271,7 +271,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     async () => {
       const response = await client.request({ method: "GET" });
       const result = parseListBucketsXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -304,7 +304,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         리전: client.getRegionCode(),
         상태: "created",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -321,14 +321,11 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       await client.request({ method: "DELETE", bucket: params.bucketName });
       const result = { message: `✅ 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
-      return result;
-    }
+      return result;
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Object Query Tools ────────────────────────────────────────────────────
@@ -359,7 +356,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams,
       });
       const result = parseListObjectsXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -389,7 +386,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         lastModified: response.headers.get("last-modified"),
         body: response.body,
       };
-      return result;
+      return result;
     }
   );
 
@@ -445,7 +442,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         크기: `${params.body.length} bytes`,
         상태: "uploaded",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -465,18 +462,15 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       await client.request({
         method: "DELETE",
         bucket: params.bucketName,
         key: params.key,
       });
       const result = { message: `✅ 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
-      return result;
-    }
+      return result;
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Multipart Upload Tools ────────────────────────────────────────────────
@@ -508,7 +502,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         headers,
       });
       const result = parseInitiateMultipartXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -558,7 +552,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         key: keyMatch?.[1] ?? params.key,
         etag: etagMatch?.[1] ?? "",
       };
-      return result;
+      return result;
     }
   );
 
@@ -604,7 +598,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         etag,
         size: `${params.body.length} bytes`,
       };
-      return result;
+      return result;
     }
   );
 
@@ -631,7 +625,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams: { uploadId: params.uploadId },
       });
       const result = parseListPartsXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -652,10 +646,6 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently abort multipart upload [${params.uploadId}] for object [${params.bucketName}/${params.objectName}] and delete all uploaded parts. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       await client.request({
         method: "DELETE",
         bucket: params.bucketName,
@@ -668,8 +658,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         key: params.objectName,
         uploadId: params.uploadId,
       };
-      return result;
-    }
+      return result;
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently abort multipart upload [${params.uploadId}] for object [${params.bucketName}/${params.objectName}] and delete all uploaded parts. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -694,7 +685,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams,
       });
       const result = parseListMultipartUploadsXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -716,7 +707,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams: { acl: "" },
       });
       const result = parseAclXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -744,7 +735,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         bucket: params.bucketName,
         acl: params.acl,
       };
-      return result;
+      return result;
     }
   );
 
@@ -770,7 +761,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams: { acl: "" },
       });
       const result = parseAclXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -803,7 +794,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         object: params.objectName,
         acl: params.acl,
       };
-      return result;
+      return result;
     }
   );
 
@@ -825,7 +816,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams: { versioning: "" },
       });
       const result = parseVersioningXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -855,7 +846,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         bucket: params.bucketName,
         versioningStatus: params.status,
       };
-      return result;
+      return result;
     }
   );
 
@@ -887,7 +878,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams,
       });
       const result = parseListObjectVersionsXml(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -925,7 +916,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         object: params.objectName,
         restoreDays: params.days,
       };
-      return result;
+      return result;
     }
   );
 
@@ -951,7 +942,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         bucket: params.bucketName,
         location: locationMatch?.[1] ?? "",
       };
-      return result;
+      return result;
     }
   );
 
@@ -991,7 +982,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         lastModified: lastModifiedMatch?.[1] ?? "",
         etag: etagMatch?.[1] ?? "",
       };
-      return result;
+      return result;
     }
   );
 
@@ -1024,7 +1015,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         acceptRanges: response.headers.get("accept-ranges"),
         storageClass: response.headers.get("x-amz-storage-class"),
       };
-      return result;
+      return result;
     }
   );
 
@@ -1042,10 +1033,6 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ${params.objectKeys.length} object(s) from Bucket [${params.bucketName}]:\n${params.objectKeys.map((k) => `  - ${k}`).join("\n")}\n\nDo you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
 
       const objectsXml = params.objectKeys
         .map((key) => `<Object><Key>${key}</Key></Object>`)
@@ -1087,8 +1074,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         deleted,
         errors: errors.length > 0 ? errors : undefined,
       };
-      return result;
-    }
+      return result;
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ${params.objectKeys.length} object(s) from Bucket [${params.bucketName}]:\n${params.objectKeys.map((k: any) => `  - ${k}`).join("\n")}\n\nDo you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -1112,7 +1100,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         region: response.headers.get("x-amz-bucket-region"),
         statusCode: response.status,
       };
-      return result;
+      return result;
     }
   );
 }

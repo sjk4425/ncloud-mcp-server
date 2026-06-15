@@ -172,13 +172,10 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete SourcePipeline [${params.projectId}]. All pipeline configuration and execution history will be removed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/project/${params.projectId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete SourcePipeline [${params.projectId}]. All pipeline configuration and execution history will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Pipeline Execution ─────────────────────────────────────────────────────

@@ -189,16 +189,13 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete SourceCommit Repository [${params.repositoryName}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw(
         "DELETE",
         `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete SourceCommit Repository [${params.repositoryName}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Repository Delete (by ID) ─────────────────────────────────────────────
@@ -212,16 +209,13 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete SourceCommit Repository ID [${params.repositoryId}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw(
         "DELETE",
         `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete SourceCommit Repository ID [${params.repositoryId}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Branch List ───────────────────────────────────────────────────────────

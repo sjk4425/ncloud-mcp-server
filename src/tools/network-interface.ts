@@ -185,14 +185,11 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove ACG(s) [${params.accessControlGroupNoList.join(", ")}] from NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/removeNetworkInterfaceAccessControlGroup", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove ACG(s) [${params.accessControlGroupNoList.join(", ")}] from NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -204,13 +201,10 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteNetworkInterface", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "NetworkInterface", describe: (params) => params.networkInterfaceNo } }
   );
 }

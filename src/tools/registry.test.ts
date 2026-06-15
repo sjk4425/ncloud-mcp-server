@@ -142,6 +142,49 @@ describe("registry: 전 도구 구조 불변식 (자동 전수 점검)", () => {
       .map((t) => t.name);
     expect(missing).toEqual([]);
   });
+
+  // ─── confirm 게이트 ↔ destructiveHint 불변식 (DESIGN_post-1.4.0 §2, v1.5.0) ───
+  //
+  // confirm 게이트가 defineTool(`destructive` 옵션)로 추출된 뒤의 핵심 불변식.
+  // 게이트의 단일 진실 공급원은 이제 annotations(`destructiveHint`)와 `confirm` 파라미터다.
+
+  // 의도적으로 confirm 게이트를 두지 않는 파괴-동사 도구의 명시적 예외 목록.
+  // (데이터 삭제가 아니라 라이프사이클/캐시/인증서 조작 — 원 설계상 비게이트)
+  const CONFIRM_GATE_ALLOWLIST = new Set([
+    "ncloud_dataforest_kill_container", // 실행 중 컨테이너 강제 종료(재기동 가능)
+    "ncloud_dataforest_kill_master", // 마스터 프로세스 강제 종료(재기동 가능)
+    "ncloud_edge_purge", // CDN 캐시 무효화(데이터 손실 아님)
+    "ncloud_pca_revoke_end_cert", // 인증서 폐기(별도 도구 흐름)
+  ]);
+
+  it("confirm 파라미터를 가진 도구는 destructiveHint: true를 가진다 (게이트 ⇒ 파괴 힌트)", () => {
+    const wrong = tools
+      .filter((t) => t.schemaKeys?.includes("confirm"))
+      .filter((t) => t.annotations?.destructiveHint !== true)
+      .map((t) => t.name);
+    expect(wrong).toEqual([]);
+  });
+
+  it("destructiveHint: true 도구는 confirm 게이트를 가진다 (allowlist 제외)", () => {
+    // 새 파괴 도구를 confirm 없이 추가하면(=destructiveHint만 부여) 여기서 잡힌다.
+    const missing = tools
+      .filter((t) => t.annotations?.destructiveHint === true)
+      .filter((t) => !t.schemaKeys?.includes("confirm"))
+      .filter((t) => !CONFIRM_GATE_ALLOWLIST.has(t.name))
+      .map((t) => t.name);
+    expect(missing).toEqual([]);
+  });
+
+  it("allowlist는 실재하고 비게이트 상태다 (목록이 낡지 않도록)", () => {
+    // allowlist에 올렸으나 이제 게이트가 생겼거나(불필요) 사라진 도구(오타)를 잡는다.
+    const stale: string[] = [];
+    for (const name of CONFIRM_GATE_ALLOWLIST) {
+      const t = tools.find((x) => x.name === name);
+      if (!t) stale.push(`${name} (도구 없음)`);
+      else if (t.schemaKeys?.includes("confirm")) stale.push(`${name} (confirm 생김 → allowlist 불필요)`);
+    }
+    expect(stale).toEqual([]);
+  });
 });
 
 describe("makeClientFactory: setRegionAll 전파 (Task 4)", () => {

@@ -89,13 +89,10 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete VPC [${params.vpcNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       return client.request("/vpc/v2/deleteVpc", apiParams);
-    }
+    },
+    { destructive: { noun: "VPC", describe: (params) => params.vpcNo } }
   );
 
   // ─── Subnet Query Tools ────────────────────────────────────────────────────
@@ -204,12 +201,9 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Subnet [${params.subnetNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       return client.request("/vpc/v2/deleteSubnet", apiParams);
-    }
+    },
+    { destructive: { noun: "Subnet", describe: (params) => params.subnetNo } }
   );
 }

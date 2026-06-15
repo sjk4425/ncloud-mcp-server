@@ -106,17 +106,14 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Archive Container [${params.containerName}]. The container must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       await client.request({
         method: "DELETE",
         container: params.containerName,
       });
       const result = { message: `✅ Archive 컨테이너 '${params.containerName}'이(가) 삭제되었습니다.` };
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Archive Container [${params.containerName}]. The container must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Container Metadata Tools ──────────────────────────────────────────────
@@ -351,10 +348,6 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Archive Object [${params.containerName}/${params.objectName}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       await client.request({
         method: "DELETE",
         container: params.containerName,
@@ -362,6 +355,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
       });
       const result = { message: `✅ Archive 오브젝트 '${params.containerName}/${params.objectName}'이(가) 삭제되었습니다.` };
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Archive Object [${params.containerName}/${params.objectName}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

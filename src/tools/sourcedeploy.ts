@@ -57,12 +57,10 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete SourceDeploy Project [${params.projectId}]. All stages, scenarios, and deployment history will be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete SourceDeploy Project [${params.projectId}]. All stages, scenarios, and deployment history will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Stage Tools ───────────────────────────────────────────────────────────
@@ -142,12 +140,10 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Stage [${params.stageId}] from Project [${params.projectId}]. All scenarios in this stage will also be removed.\n\nTo execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Stage [${params.stageId}] from Project [${params.projectId}]. All scenarios in this stage will also be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Scenario Tools ────────────────────────────────────────────────────────
@@ -224,12 +220,10 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Scenario [${params.scenarioId}] from Stage [${params.stageId}].\n\nTo execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Scenario [${params.scenarioId}] from Stage [${params.stageId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Deployment Execution Tools ────────────────────────────────────────────

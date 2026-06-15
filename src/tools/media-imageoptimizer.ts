@@ -99,13 +99,10 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Image Optimizer Project [${params.projectId}]. All transformation rules will be removed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.deleteRequest(`/api/v2/projects/${params.projectId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Image Optimizer Project [${params.projectId}]. All transformation rules will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Transformation Rule Tools ─────────────────────────────────────────────
@@ -193,12 +190,9 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Rule [${params.ruleId}] from Project [${params.projectId}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.deleteRequest(`/api/v2/projects/${params.projectId}/rules/${params.ruleId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Rule [${params.ruleId}] from Project [${params.projectId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

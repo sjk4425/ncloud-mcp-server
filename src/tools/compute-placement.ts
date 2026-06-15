@@ -77,14 +77,11 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove server [${params.serverInstanceNo}] from placement group [${params.placementGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/removePlacementGroupServerInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove server [${params.serverInstanceNo}] from placement group [${params.placementGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Destructive Tool ──────────────────────────────────────────────────────
@@ -98,14 +95,11 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete placement group [${params.placementGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deletePlacementGroup", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "placement group", describe: (params) => params.placementGroupNo } }
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -213,13 +207,10 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete fabric cluster [${params.fabricClusterNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteFabricCluster", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "fabric cluster", describe: (params) => params.fabricClusterNo } }
   );
 }

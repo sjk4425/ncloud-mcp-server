@@ -190,12 +190,10 @@ export function registerDataFlowTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete workflow [${params.workflowId}].\nTo execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/workflows/${params.workflowId}`);
       return result ?? { success: true };
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete workflow [${params.workflowId}].\nTo execute, call again with confirm=true.` } }
   );
 
   defineTool(
@@ -387,12 +385,10 @@ export function registerDataFlowTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete job [${params.jobId}].\nTo execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/jobs/${params.jobId}`);
       return result ?? { success: true };
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete job [${params.jobId}].\nTo execute, call again with confirm=true.` } }
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -479,11 +475,9 @@ export function registerDataFlowTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete trigger [${params.triggerId}].\nTo execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/triggers/${params.triggerId}`);
       return result ?? { success: true };
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete trigger [${params.triggerId}].\nTo execute, call again with confirm=true.` } }
   );
 }

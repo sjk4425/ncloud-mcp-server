@@ -90,13 +90,10 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Sub Account [${params.subAccountId}]. All associated permissions and access will be revoked.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Sub Account [${params.subAccountId}]. All associated permissions and access will be revoked.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Group Query Tools ─────────────────────────────────────────────────────
@@ -157,13 +154,10 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete IAM Group [${params.groupId}]. All members will lose group-based permissions.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/groups/${encodeURIComponent(params.groupId)}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete IAM Group [${params.groupId}]. All members will lose group-based permissions.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Policy Query Tools ────────────────────────────────────────────────────
@@ -223,16 +217,13 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will detach policy [${params.policyId}] from sub account [${params.subAccountId}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw(
         "DELETE",
         `/api/v1/sub-accounts/${encodeURIComponent(params.subAccountId)}/policies/${encodeURIComponent(params.policyId)}`
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will detach policy [${params.policyId}] from sub account [${params.subAccountId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Policy Attach Tool (Group) ────────────────────────────────────────────
@@ -267,16 +258,13 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will detach policy [${params.policyId}] from group [${params.groupId}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw(
         "DELETE",
         `/api/v1/groups/${encodeURIComponent(params.groupId)}/policies/${encodeURIComponent(params.policyId)}`
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will detach policy [${params.policyId}] from group [${params.groupId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Role Query Tools ──────────────────────────────────────────────────────
@@ -347,12 +335,9 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete IAM Role [${params.roleNo}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/roles/${encodeURIComponent(params.roleNo)}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete IAM Role [${params.roleNo}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

@@ -125,12 +125,10 @@ export function registerDataStreamTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete topic [${params.topicId}]. All messages will be lost.\nTo execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete topic [${params.topicId}]. All messages will be lost.\nTo execute, call again with confirm=true.` } }
   );
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -226,12 +224,10 @@ export function registerDataStreamTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will delete connector [${params.connectorId}] from topic [${params.topicId}].\nTo execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/connectors/${params.connectorId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will delete connector [${params.connectorId}] from topic [${params.topicId}].\nTo execute, call again with confirm=true.` } }
   );
 
 
@@ -300,12 +296,10 @@ export function registerDataStreamTools(
       confirm: z.boolean().optional().default(false).describe("Must be true to execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will delete schema [${params.resourceId}] from topic [${params.topicId}]. This may affect message serialization.\nTo execute, call again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
       return result ?? { success: true };
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will delete schema [${params.resourceId}] from topic [${params.topicId}]. This may affect message serialization.\nTo execute, call again with confirm=true.` } }
   );
 
   defineTool(

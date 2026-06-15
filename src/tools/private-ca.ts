@@ -119,12 +119,10 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete Private CA [${params.caTag}] and destroy its private key (irreversible). To execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/ca/${params.caTag}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Private CA [${params.caTag}] and destroy its private key (irreversible). To execute, call this tool again with confirm=true.` } }
   );
 
   // ncloud_pca_get_ca_chain — Get CA Chain
@@ -221,12 +219,10 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will delete the OCSP configuration for CA [${params.caTag}] and remove the OCSP URL from all its issued certificates. To execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/api/v1/ca/${params.caTag}/urls`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will delete the OCSP configuration for CA [${params.caTag}] and remove the OCSP URL from all its issued certificates. To execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Sub CA Management ────────────────────────────────────────────────────────

@@ -85,14 +85,11 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Target Group(s) [${params.targetGroupNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/deleteTargetGroups", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Target Group(s)", describe: (params) => params.targetGroupNoList.join(", ") } }
   );
 
   // ─── Target Management Tools ───────────────────────────────────────────────
@@ -142,14 +139,11 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove Target(s) [${params.targetNoList.join(", ")}] from Target Group [${params.targetGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/removeTarget", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove Target(s) [${params.targetNoList.join(", ")}] from Target Group [${params.targetGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Target Group Configuration Tools ──────────────────────────────────────

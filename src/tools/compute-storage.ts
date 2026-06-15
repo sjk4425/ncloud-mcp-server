@@ -185,14 +185,11 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete BlockStorage [${params.blockStorageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteBlockStorageInstances", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "BlockStorage", describe: (params) => params.blockStorageInstanceNoList.join(", ") } }
   );
 
   // ─── Snapshot Query Tools ──────────────────────────────────────────────────
@@ -262,13 +259,10 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Snapshot [${params.blockStorageSnapshotInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteBlockStorageSnapshotInstances", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Snapshot", describe: (params) => params.blockStorageSnapshotInstanceNoList.join(", ") } }
   );
 }

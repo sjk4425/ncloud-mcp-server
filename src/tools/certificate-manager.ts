@@ -85,21 +85,18 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = [
-          `⚠️ This will permanently delete Certificate #${params.certificateNo} (${params.certificateName}).`,
-          `Ensure it is not in use by any Load Balancer, CDN+, or Global Edge instance.`,
-          ``,
-          `To execute, call this tool again with confirm=true.`,
-        ].join("\n");
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const result = await client.requestRaw(
         "DELETE",
         `/api/v1/certificate/${params.certificateNo}`,
         { certificateName: params.certificateName }
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => [
+          `⚠️ This will permanently delete Certificate #${params.certificateNo} (${params.certificateName}).`,
+          `Ensure it is not in use by any Load Balancer, CDN+, or Global Edge instance.`,
+          ``,
+          `To execute, call this tool again with confirm=true.`,
+        ].join("\n") } }
   );
 }

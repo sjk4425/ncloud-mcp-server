@@ -123,7 +123,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         서브넷: params.subnetNo,
         데이터베이스명: params.cloudPostgresqlDatabaseName,
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -189,7 +189,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       }
 
       const result = await client.request("/vpostgresql/v2/addCloudPostgresqlDatabaseList", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -229,7 +229,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       }
 
       const result = await client.request("/vpostgresql/v2/addCloudPostgresqlUserList", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -255,7 +255,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       }
 
       const result = await client.request("/vpostgresql/v2/changeCloudPostgresqlUserList", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -270,14 +270,11 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlInstance", apiParams);
-      return result;
-    }
+      return result;
+    },
+    { destructive: { noun: "PostgreSQL instance", describe: (params) => params.cloudPostgresqlInstanceNo } }
   );
 
   defineTool(
@@ -292,11 +289,6 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const names = params.cloudPostgresqlDatabaseList.map(db => db.name).join(", ");
-        const message = `⚠️ This will permanently delete databases [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, cloudPostgresqlInstanceNo, cloudPostgresqlDatabaseList } = params;
       const requestParams: any = { cloudPostgresqlInstanceNo };
 
@@ -306,7 +298,15 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       }
 
       const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlDatabaseList", requestParams);
-      return result;
+      return result;
+    },
+    {
+      destructive: {
+        message: (params) => {
+          const names = params.cloudPostgresqlDatabaseList.map((db: any) => db.name).join(", ");
+          return `⚠️ This will permanently delete databases [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        },
+      },
     }
   );
 
@@ -322,11 +322,6 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const names = params.cloudPostgresqlUserList.map(u => u.name).join(", ");
-        const message = `⚠️ This will permanently delete users [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, cloudPostgresqlInstanceNo, cloudPostgresqlUserList } = params;
       const requestParams: any = { cloudPostgresqlInstanceNo };
 
@@ -336,7 +331,15 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       }
 
       const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlUserList", requestParams);
-      return result;
+      return result;
+    },
+    {
+      destructive: {
+        message: (params) => {
+          const names = params.cloudPostgresqlUserList.map((u: any) => u.name).join(", ");
+          return `⚠️ This will permanently delete users [${names}] from PostgreSQL instance [${params.cloudPostgresqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
+        },
+      },
     }
   );
 
@@ -349,14 +352,11 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete PostgreSQL Read Replica instance [${params.cloudPostgresqlReadReplicaInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vpostgresql/v2/deleteCloudPostgresqlReadReplicaInstance", apiParams);
-      return result;
-    }
+      return result;
+    },
+    { destructive: { noun: "PostgreSQL Read Replica instance", describe: (params) => params.cloudPostgresqlReadReplicaInstanceNo } }
   );
 
   // ─── Reference/Query Tools (P3) ────────────────────────────────────────────

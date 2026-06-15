@@ -225,12 +225,10 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (!params.keyTag || params.keyTag.trim().length === 0) {
         return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete KMS key [${params.keyTag}]. This is irreversible. To execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete KMS key [${params.keyTag}]. This is irreversible. To execute, call this tool again with confirm=true.` } }
   );
 
 
@@ -475,12 +473,10 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (!params.keyTag || !params.ruleId) {
         return { content: [{ type: "text" as const, text: "Error: keyTag and ruleId are required" }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will delete ACL rule [${params.ruleId}] from KMS key [${params.keyTag}]. To execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}/ip-acl/rules/${params.ruleId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will delete ACL rule [${params.ruleId}] from KMS key [${params.keyTag}]. To execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Token Generator ──────────────────────────────────────────────────────────
@@ -537,12 +533,10 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (!params.keyTag || params.keyTag.trim().length === 0) {
         return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will delete the token generator for KMS key [${params.keyTag}] and invalidate all existing tokens. To execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}/token-generator`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will delete the token generator for KMS key [${params.keyTag}] and invalidate all existing tokens. To execute, call this tool again with confirm=true.` } }
   );
 
   // ncloud_kms_create_token_set — Create token set (access + refresh tokens)

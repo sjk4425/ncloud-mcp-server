@@ -101,14 +101,11 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Cache config group [${params.cloudCacheConfigGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/deleteCloudCacheConfigGroup", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Cache config group", describe: (params) => params.cloudCacheConfigGroupNo } }
   );
 
   // ─── Create Tools ──────────────────────────────────────────────────────────
@@ -249,14 +246,11 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Cache manual backup [${params.cloudCacheManualBackupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/deleteCloudCacheManualBackup", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Cache manual backup", describe: (params) => params.cloudCacheManualBackupNo } }
   );
 
   // ─── Operation Tools (P2) ──────────────────────────────────────────────────
@@ -272,14 +266,11 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ALL data from Cache server [${params.cloudCacheServerInstanceNo}]. This action cannot be undone. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/flushAllCloudCacheServerInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete ALL data from Cache server [${params.cloudCacheServerInstanceNo}]. This action cannot be undone. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -417,13 +408,10 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Cache instance [${params.cloudCacheInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/deleteCloudCacheInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Cache instance", describe: (params) => params.cloudCacheInstanceNo } }
   );
 }

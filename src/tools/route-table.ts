@@ -144,10 +144,6 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove Subnet [${params.subnetNo}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, routeTableNo, vpcNo, subnetNo } = params;
       const requestParams: any = {
         routeTableNo,
@@ -156,7 +152,8 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       };
       const result = await client.request("/vpc/v2/removeRouteTableSubnet", requestParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove Subnet [${params.subnetNo}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Description Tool ──────────────────────────────────────────────────────
@@ -185,14 +182,11 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vpc/v2/deleteRouteTable", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Route Table", describe: (params) => params.routeTableNo } }
   );
 
   defineTool(
@@ -210,10 +204,6 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently remove route [${params.destinationCidrBlock}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo } = params;
       const requestParams: any = {
         routeTableNo,
@@ -224,6 +214,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       };
       const result = await client.request("/vpc/v2/removeRoute", requestParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently remove route [${params.destinationCidrBlock}] from Route Table [${params.routeTableNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

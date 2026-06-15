@@ -161,16 +161,12 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       if (!params.id) {
         return { content: [{ type: "text" as const, text: "Error: id is required." }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text:
-          `⚠️ This will permanently delete Data Forest account [${params.id}].\n\nTo execute, call again with confirm=true.`
-        }] };
-      }
       const result = await client.postRequest("/api/v2/accounts/delete", {
         id: params.id,
       });
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Data Forest account [${params.id}].\n\nTo execute, call again with confirm=true.` } }
   );
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -400,15 +396,11 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       if (!params.id) {
         return { content: [{ type: "text" as const, text: "Error: id is required." }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text:
-          `⚠️ This will permanently delete Data Forest app [${params.id}].\n\nTo execute, call again with confirm=true.`
-        }] };
-      }
       const result = await client.postRequest("/api/v2/apps/delete", {
         id: params.id,
       });
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Data Forest app [${params.id}].\n\nTo execute, call again with confirm=true.` } }
   );
 }

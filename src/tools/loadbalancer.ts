@@ -141,14 +141,11 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Load Balancer(s) [${params.loadBalancerInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/deleteLoadBalancerInstances", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "Load Balancer(s)", describe: (params) => params.loadBalancerInstanceNoList.join(", ") } }
   );
 
   // ─── Load Balancer Configuration Tools ──────────────────────────────────────
@@ -278,14 +275,11 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("⚠️ DESTRUCTIVE: Must be true to actually execute the certificate removal"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove SSL certificate [${params.sslCertificateNo}] from Listener [${params.loadBalancerListenerNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/removeLoadBalancerListenerCertificate", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove SSL certificate [${params.sslCertificateNo}] from Listener [${params.loadBalancerListenerNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -363,13 +357,10 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete Listener(s) [${params.loadBalancerListenerNoList.join(", ")}] from Load Balancer [${params.loadBalancerInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/deleteLoadBalancerListeners", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Listener(s) [${params.loadBalancerListenerNoList.join(", ")}] from Load Balancer [${params.loadBalancerInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 }

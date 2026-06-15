@@ -345,15 +345,11 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to execute deletion"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{ type: "text" as const, text: `⚠️ This will permanently delete Cloud Hadoop cluster [${params.cloudHadoopInstanceNo}]. All data will be lost.\n\nCall again with confirm=true to proceed.` }],
-        };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vhadoop/v2/deleteCloudHadoopInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete Cloud Hadoop cluster [${params.cloudHadoopInstanceNo}]. All data will be lost.\n\nCall again with confirm=true to proceed.` } }
   );
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -478,14 +474,10 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to execute deletion"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return {
-          content: [{ type: "text" as const, text: `⚠️ This will permanently delete notebook [${params.cloudHadoopNotebookInstanceNo}].\n\nCall again with confirm=true to proceed.` }],
-        };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vhadoop/v2/deleteCloudHadoopNotebookInstance", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete notebook [${params.cloudHadoopNotebookInstanceNo}].\n\nCall again with confirm=true to proceed.` } }
   );
 }

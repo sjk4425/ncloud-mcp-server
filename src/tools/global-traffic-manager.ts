@@ -85,12 +85,10 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete GTM Profile (Domain) [${params.domainId}].\n\nTo execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/gtm/v1/domains/${params.domainId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete GTM Profile (Domain) [${params.domainId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Traffic Policy Tools ───────────────────────────────────────────────────
@@ -229,12 +227,10 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete GTM Policy [${params.policyId}].\n\nTo execute, call this tool again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/gtm/v1/policies/${params.policyId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete GTM Policy [${params.policyId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -330,12 +326,10 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will delete health check for GTM Policy [${params.policyId}].\n\nCall again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/gtm/v1/policies/${params.policyId}/health-check`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will delete health check for GTM Policy [${params.policyId}].\n\nCall again with confirm=true.` } }
   );
 
   defineTool(
@@ -459,12 +453,10 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text: `⚠️ This will permanently delete GTM Geo/CIDR Map [${params.mapId}].\n\nCall again with confirm=true.` }] };
-      }
       const result = await client.requestRaw("DELETE", `/gtm/v1/maps/${params.mapId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will permanently delete GTM Geo/CIDR Map [${params.mapId}].\n\nCall again with confirm=true.` } }
   );
 
   defineTool(

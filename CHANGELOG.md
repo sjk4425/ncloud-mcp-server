@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-06-15
+
+> Internal-architecture release (same spirit as 1.3.0). **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.4.0). The confirm-gate boilerplate extraction is the natural follow-up to the 1.3.0 `defineTool` try/catch consolidation.
+
+### Changed
+- **Internal**: the destructive-tool `confirm` gate — the `if (!params.confirm) { …return prompt… }` block duplicated across **148 sites / 54 modules** — is now handled by a `destructive` option on the `defineTool` wrapper (`src/tools/_tool.ts`). The wrapper injects the `confirm` parameter (when not already declared), returns the warning prompt when `confirm` is falsy, strips `confirm` from the params passed to the handler, and forces `destructiveHint: true`. Migrated via a TypeScript-AST codemod (`scripts/codemod-confirm-gate.mjs`); the warning text is built from a unified template for the canonical single-identifier case (`{ noun, describe, action? }`) and preserved verbatim via a `message` builder for tools with multiple identifiers, non-delete verbs, or extra safety warnings. Public behavior is unchanged.
+
+### Added
+- **Registry invariant tests** (`registry.test.ts`): a tool with a `confirm` parameter must carry `destructiveHint: true`; a tool with `destructiveHint: true` must have a `confirm` gate unless explicitly allowlisted (catches a new destructive tool added without a gate); plus an allowlist-staleness guard. The intentional non-gated set is 4 tools (`*_kill_container`, `*_kill_master`, `edge_purge`, `pca_revoke_end_cert` — lifecycle/cache/cert ops, not data deletion).
+- **Wrapper behavior tests** (`_tool.test.ts`): confirm injection, gate prompt, confirm stripping, `message` precedence over the structured template, and a verb-heuristic regression guard.
+
+### Fixed
+- Removed a stray untracked `src/tools/certificate-manager.ts.bak` from the source tree.
+
 ## [1.4.0] - 2026-06-14
 
 > Dynamic tool-group loading. **Default behavior is unchanged** — leaving `NCLOUD_TOOL_GROUPS` unset still loads all 1,035 tools, exactly as before. The new behavior is opt-in via `NCLOUD_TOOL_GROUPS=dynamic`. Design: `docs/DESIGN_long-term-dynamic-groups.md`.

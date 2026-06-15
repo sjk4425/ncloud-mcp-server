@@ -143,13 +143,9 @@ export function registerDataQueryTools(server: McpServer, client: NcloudClient):
       if (!params.executionId) {
         return { content: [{ type: "text" as const, text: "Error: executionId is required." }], isError: true };
       }
-      if (!params.confirm) {
-        return { content: [{ type: "text" as const, text:
-          `⚠️ This will cancel query execution [${params.executionId}]. Partial results may be lost.\n\nTo execute, call again with confirm=true.`
-        }] };
-      }
       const result = await client.deleteRequest(`/api/v2/queries/${params.executionId}`);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will cancel query execution [${params.executionId}]. Partial results may be lost.\n\nTo execute, call again with confirm=true.` } }
   );
 }

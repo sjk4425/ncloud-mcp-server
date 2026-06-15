@@ -26,11 +26,54 @@ export interface ToolAnnotations {
   openWorldHint?: boolean;
 }
 
+/**
+ * 파괴적 도구의 confirm 게이트 설정.
+ *
+ * 지정 시 `defineTool` 래퍼가:
+ *  1. `confirm` 파라미터를 inputSchema에 주입(이미 선언돼 있으면 그대로 둔다).
+ *  2. 핸들러 실행 전 `params.confirm`이 falsy면 경고 응답을 반환(핸들러 미실행).
+ *  3. 통과 시 `confirm`을 제거한 params를 핸들러에 전달.
+ *  4. annotations에 `destructiveHint: true`를 자동 부여.
+ *
+ * 경고 문구는 두 방식 중 하나로 만든다:
+ *  - 구조형(`noun`/`describe`/`action`): 표준 템플릿으로 통일된 문구를 생성한다.
+ *    `⚠️ This will permanently {action} {noun} [{ids}]. To execute, call this tool again with confirm=true.`
+ *  - 커스텀(`message`): 표준 템플릿으로 표현할 수 없는 경고(다중 식별자·복원/분리 등
+ *    비-delete 동작·추가 안전 경고)는 전체 문구를 직접 만든다. 지정 시 구조형보다 우선.
+ */
+export interface DestructiveOpts {
+  /** 경고 문구의 리소스 명사. 예: "Server", "ServerImage". (구조형) */
+  noun?: string;
+  /** 경고 문구의 `[ ]`에 표시할 식별자를 params에서 뽑는 함수. (구조형) */
+  describe?: (params: any) => string;
+  /** 표준 템플릿의 동사. 기본값 "delete". 예: "terminate", "remove". (구조형) */
+  action?: string;
+  /** 전체 경고 문구를 직접 만드는 함수. 지정 시 구조형 필드를 무시하고 이 문구를 사용. */
+  message?: (params: any) => string;
+}
+
 export interface DefineToolOpts {
   /** 휴리스틱 결과를 덮어쓸 명시적 annotations. */
   annotations?: ToolAnnotations;
   /** toolText prune 옵션 전달. */
   prune?: boolean;
+  /** 지정 시: confirm 파라미터 자동 주입 + 게이트 + destructiveHint. */
+  destructive?: DestructiveOpts;
+}
+
+/** 주입용 표준 confirm 스키마 — 도구가 confirm을 직접 선언하지 않은 경우에만 사용. */
+const CONFIRM_SCHEMA = z
+  .boolean()
+  .optional()
+  .default(false)
+  .describe("Must be true to actually execute the destructive operation");
+
+/** confirm 게이트 경고 문구를 만든다. message(커스텀) 우선, 없으면 구조형 표준 템플릿. */
+function buildConfirmMessage(opts: DestructiveOpts, params: any): string {
+  if (opts.message) return opts.message(params);
+  const action = opts.action ?? "delete";
+  const ids = opts.describe ? opts.describe(params) : "";
+  return `⚠️ This will permanently ${action} ${opts.noun} [${ids}]. To execute, call this tool again with confirm=true.`;
 }
 
 /** 동사 토큰 → annotations 카테고리. 토큰 단위 정확 일치(부분 문자열 아님). */
@@ -100,10 +143,28 @@ export function defineTool<Schema extends ZodRawShape>(
   handler: (params: z.objectOutputType<Schema, z.ZodTypeAny>) => Promise<any>,
   opts?: DefineToolOpts
 ): void {
-  const annotations = { ...deriveAnnotations(name), ...opts?.annotations };
+  // destructive 도구는 destructiveHint를 강제(명시 opts.annotations가 있으면 그것이 우선).
+  const annotations = {
+    ...deriveAnnotations(name),
+    ...(opts?.destructive ? { destructiveHint: true } : {}),
+    ...opts?.annotations,
+  };
+  // confirm 파라미터 주입 — 이미 선언돼 있으면 그대로 둔다(스냅샷 schemaKeys 불변).
+  const inputSchema: ZodRawShape =
+    opts?.destructive && !("confirm" in schema) ? { ...schema, confirm: CONFIRM_SCHEMA } : schema;
   const wrapped = async (params: any) => {
     try {
-      const result = await handler(params);
+      if (opts?.destructive && !params?.confirm) {
+        // 게이트 미통과 — 경고 문구만 반환하고 핸들러는 실행하지 않는다.
+        return { content: [{ type: "text" as const, text: buildConfirmMessage(opts.destructive, params) }] };
+      }
+      // 통과 시 confirm을 제거한 params를 핸들러에 전달(핸들러가 API로 confirm을 흘리지 않도록).
+      let handlerParams = params;
+      if (opts?.destructive && params && typeof params === "object" && "confirm" in params) {
+        const { confirm, ...rest } = params;
+        handlerParams = rest;
+      }
+      const result = await handler(handlerParams);
       return isToolResult(result)
         ? result
         : toolText(result, opts?.prune !== undefined ? { prune: opts.prune } : undefined);
@@ -113,5 +174,5 @@ export function defineTool<Schema extends ZodRawShape>(
   };
   // registerTool 제네릭(OutputArgs 기본값 없음 + zod 호환 셰이프)과 ZodRawShape 간
   // 추론 충돌을 피하기 위해 호출만 단언 — 호출부 타입 안전성은 defineTool 시그니처가 보장.
-  (server.registerTool as any)(name, { description, inputSchema: schema, annotations }, wrapped);
+  (server.registerTool as any)(name, { description, inputSchema, annotations }, wrapped);
 }

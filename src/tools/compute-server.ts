@@ -295,14 +295,11 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently terminate Server [${params.serverInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/terminateServerInstances", apiParams);
       return result;
-    }
+    },
+    { destructive: { action: "terminate", noun: "Server", describe: (params) => params.serverInstanceNoList.join(", ") } }
   );
 
   defineTool(
@@ -314,14 +311,11 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete ServerImage [${params.serverImageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteServerImageInstances", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "ServerImage", describe: (params) => params.serverImageInstanceNoList.join(", ") } }
   );
 
   defineTool(
@@ -333,14 +327,11 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will permanently delete MemberServerImage [${params.memberServerImageInstanceNoList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteMemberServerImageInstances", apiParams);
       return result;
-    }
+    },
+    { destructive: { noun: "MemberServerImage", describe: (params) => params.memberServerImageInstanceNoList.join(", ") } }
   );
 
 
@@ -440,14 +431,11 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove sharing permission for ServerImage [${params.serverImageNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/removeServerImageSharingPermission", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove sharing permission for ServerImage [${params.serverImageNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   defineTool(
@@ -486,14 +474,11 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `⚠️ This will remove sharing permission for MemberServerImage [${params.memberServerImageInstanceNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/removeMemberServerImageSharingPermission", apiParams);
       return result;
-    }
+    },
+    { destructive: { message: (params) => `⚠️ This will remove sharing permission for MemberServerImage [${params.memberServerImageInstanceNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
 }

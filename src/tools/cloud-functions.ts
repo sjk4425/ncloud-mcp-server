@@ -89,10 +89,6 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `\u26a0\ufe0f This will permanently delete Cloud Functions package [${params.packageName}]. All actions within this package will also be removed.\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const queryParams: Record<string, string> = {
         platform: params.platform,
       };
@@ -102,7 +98,8 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
         queryParams
       );
       return result;
-    }
+    },
+    { destructive: { message: (params) => `\u26a0\ufe0f This will permanently delete Cloud Functions package [${params.packageName}]. All actions within this package will also be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Action Management Tools ───────────────────────────────────────────────
@@ -251,10 +248,6 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `\u26a0\ufe0f This will permanently delete Cloud Functions action [${params.actionName}] from package [${params.packageName}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const queryParams: Record<string, string> = {
         platform: params.platform,
       };
@@ -264,7 +257,8 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
         queryParams
       );
       return result ? toolText(result) : { content: [{ type: "text" as const, text: "Action deleted successfully (204 No Content)" }] };
-    }
+    },
+    { destructive: { message: (params) => `\u26a0\ufe0f This will permanently delete Cloud Functions action [${params.actionName}] from package [${params.packageName}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Action Invocation Tools ───────────────────────────────────────────────
@@ -407,10 +401,6 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `\u26a0\ufe0f This will permanently delete Cloud Functions trigger [${params.triggerName}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const queryParams: Record<string, string> = {
         platform: params.platform,
       };
@@ -420,7 +410,8 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
         queryParams
       );
       return result ? toolText(result) : { content: [{ type: "text" as const, text: "Trigger deleted successfully (204 No Content)" }] };
-    }
+    },
+    { destructive: { message: (params) => `\u26a0\ufe0f This will permanently delete Cloud Functions trigger [${params.triggerName}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Trigger-Action Linking Tools ──────────────────────────────────────────
@@ -464,10 +455,6 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       confirm: z.boolean().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      if (!params.confirm) {
-        const message = `\u26a0\ufe0f This will unlink action [${params.actionName}] from trigger [${params.triggerName}].\n\nTo execute, call this tool again with confirm=true.`;
-        return { content: [{ type: "text" as const, text: message }] };
-      }
       const queryParams: Record<string, string> = {
         platform: params.platform,
         actionName: params.actionName,
@@ -478,7 +465,8 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
         queryParams
       );
       return result ? toolText(result) : { content: [{ type: "text" as const, text: "Action unlinked from trigger successfully (204 No Content)" }] };
-    }
+    },
+    { destructive: { message: (params) => `\u26a0\ufe0f This will unlink action [${params.actionName}] from trigger [${params.triggerName}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Activation (Execution History) Tools ──────────────────────────────────
