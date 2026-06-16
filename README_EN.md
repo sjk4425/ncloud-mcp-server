@@ -82,7 +82,8 @@ npm run build
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage domain ID | - |
 | `NCLOUD_TOOL_GROUPS` | - | Select which tool groups to load at startup. All groups ON when unset. Include the `dynamic` keyword to start with core groups only and allow mid-session expansion; any other value is locked (details in [Tool Group Selection](#tool-group-selection-optional) below) | all |
 | `NCLOUD_RESPONSE_PRUNE` | - | When `1`, globally strips empty values (`null`/`""`/`[]`/`{}`) from responses | `0` |
-| `NCLOUD_TIMEOUT_MS` | - | API request timeout in milliseconds. On timeout the call is aborted and a friendly message is returned (HTTP 429 is auto-retried up to 2 times) | `30000` |
+| `NCLOUD_TIMEOUT_MS` | - | API request timeout in milliseconds. On timeout the call is aborted and a friendly message is returned (HTTP 429 is always auto-retried up to 2 times; read-only query tools also retry 503/504 and network errors) | `30000` |
+| `NCLOUD_LANG` | - | Language for client error messages. `en` for English, otherwise/unset is Korean | `ko` |
 
 ## MCP Client Configuration
 

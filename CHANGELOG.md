@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-06-16
+
+> Reliability & UX release. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0). New behavior is either scoped to read-only tools or opt-in via env. Design: `docs/DESIGN_post-1.4.0-improvements.md` §4·§6.
+
+### Added
+- **Read-only retry expansion** — query tools now also retry on **HTTP 503/504 and network/timeout errors** (same exponential backoff + jitter as the existing 429 path, max 2 attempts). Writes (create/delete/modify) are unchanged — still 429-only — to preserve non-idempotent safety. The read/write distinction reuses the `readOnlyHint` annotation already derived by `defineTool`: a read-only handler runs inside an `AsyncLocalStorage` retry context (`src/client/_retry-context.ts`) that `NcloudClient.fetchWithRetry` reads, so no handler or call-site code changed.
+- **Error message i18n** (`NCLOUD_LANG`) — client error messages (HTTP 401/403/413/429/503/504, JSON parse failure, empty body, gateway/service errors, timeout) are now available in English. `NCLOUD_LANG=en` selects English; unset/other keeps Korean (default, unchanged). Messages were extracted into a single `src/client/messages.ts` module with parallel `ko`/`en` bundles.
+
+### Notes
+- Public behavior with default settings is unchanged: Korean error messages by default, and writes still retry only on 429. `NCLOUD_LANG` defaulting to `en` is under consideration for v2.0.0.
+
 ## [1.5.0] - 2026-06-15
 
 > Internal-architecture release (same spirit as 1.3.0). **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.4.0). The confirm-gate boilerplate extraction is the natural follow-up to the 1.3.0 `defineTool` try/catch consolidation.

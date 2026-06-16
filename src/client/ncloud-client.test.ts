@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fc from "fast-check";
 import { NcloudClient } from "./ncloud-client.js";
+import { withRetryContext } from "./_retry-context.js";
 
 // NcloudClient는 응답 본문을 response.text() 로 읽어 JSON.parse 한다(.json() 미사용).
 // mock 응답에는 반드시 text()가 있어야 한다.
@@ -834,5 +835,153 @@ describe("NcloudClient 단위 테스트: 타임아웃 + 재시도 (Task 3)", () 
       client.request("/vserver/v2/getServerInstanceList", {})
     ).rejects.toThrow("요청 제한 초과");
     expect(call).toBe(3); // 최초 1 + 재시도 2
+  });
+});
+
+// ─── 읽기 전용 도구 재시도 확대 (v1.6.0 Task 4, DESIGN_post-1.4.0 §4) ──────────
+// defineTool 이 readOnly 핸들러를 withRetryContext({ retryOn5xx: true }) 로 감싸는 것을
+// 시뮬레이션해, 클라이언트가 컨텍스트를 보고 503/504/네트워크 오류를 재시도하는지 검증한다.
+describe("NcloudClient 단위 테스트: 읽기 전용 5xx/네트워크 재시도 (Task 4)", () => {
+  let client: NcloudClient;
+  beforeEach(() => {
+    client = new NcloudClient({
+      accessKey: "testKey",
+      secretKey: "testSecret",
+      baseUrl: "https://ncloud.apigw.ntruss.com",
+      regionCode: "KR",
+    });
+  });
+
+  it("읽기 전용 컨텍스트: 503 → 1회 재시도 후 성공", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      call++;
+      if (call === 1) return rawResponse({ status: 503, text: "", headers: { "retry-after": "0" } });
+      return rawResponse({ status: 200, text: JSON.stringify({ getServerInstanceListResponse: { returnCode: "0" } }) });
+    }));
+
+    const result = await withRetryContext({ retryOn5xx: true }, () =>
+      client.request("/vserver/v2/getServerInstanceList", {})
+    );
+    expect(call).toBe(2);
+    expect(result).toEqual({ returnCode: "0" });
+  });
+
+  it("읽기 전용 컨텍스트: 504 가 계속되면 maxRetries(2)까지 재시도 후 에러 (call=3)", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      call++;
+      return rawResponse({ status: 504, text: "", headers: { "retry-after": "0" } });
+    }));
+
+    await expect(
+      withRetryContext({ retryOn5xx: true }, () =>
+        client.request("/vserver/v2/getServerInstanceList", {})
+      )
+    ).rejects.toThrow(); // 504 → "요청 시간 초과" (ko)
+    expect(call).toBe(3); // 최초 1 + 재시도 2
+  });
+
+  it("읽기 전용 컨텍스트: 네트워크 오류 → 재시도 후 성공", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      call++;
+      if (call === 1) throw new TypeError("network failure");
+      return rawResponse({ status: 200, text: JSON.stringify({ getServerInstanceListResponse: { returnCode: "0" } }) });
+    }));
+
+    const result = await withRetryContext({ retryOn5xx: true }, () =>
+      client.request("/vserver/v2/getServerInstanceList", {})
+    );
+    expect(call).toBe(2);
+    expect(result).toEqual({ returnCode: "0" });
+  });
+
+  it("컨텍스트 없음(쓰기·직접 호출 가정): 503 → 재시도하지 않고 즉시 에러 (call=1)", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      call++;
+      return rawResponse({ status: 503, text: "" });
+    }));
+
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow();
+    expect(call).toBe(1); // 503 은 컨텍스트 없으면 재시도 없음
+  });
+
+  it("쓰기(POST)는 읽기 전용 컨텍스트 밖이라 503 재시도 없음 (call=1)", async () => {
+    let call = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      call++;
+      return rawResponse({ status: 503, text: "" });
+    }));
+
+    await expect(client.postRequest("/some/create", { name: "x" })).rejects.toThrow();
+    expect(call).toBe(1);
+  });
+});
+
+// ─── 에러 메시지 i18n (v1.6.0 Task 6, DESIGN_post-1.4.0 §6) ────────────────────
+describe("NcloudClient 단위 테스트: 에러 메시지 i18n (NCLOUD_LANG)", () => {
+  let client: NcloudClient;
+  beforeEach(() => {
+    client = new NcloudClient({
+      accessKey: "testKey",
+      secretKey: "testSecret",
+      baseUrl: "https://ncloud.apigw.ntruss.com",
+    });
+    process.env.NCLOUD_LANG = "en";
+  });
+  afterEach(() => {
+    delete process.env.NCLOUD_LANG;
+  });
+
+  it("NCLOUD_LANG=en: 401 → 영문 인증 실패 메시지", async () => {
+    vi.stubGlobal("fetch", createMockFetch({}, 401));
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow(
+      "Authentication failed"
+    );
+  });
+
+  it("NCLOUD_LANG=en: 403 → 영문 접근 거부 메시지", async () => {
+    vi.stubGlobal("fetch", createMockFetch({}, 403));
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow(
+      "Access denied"
+    );
+  });
+
+  it("NCLOUD_LANG=en: 429 → 영문 rate limit 메시지", async () => {
+    vi.stubGlobal("fetch", createMockFetch({}, 429));
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow(
+      "Rate limit exceeded"
+    );
+  });
+
+  it("NCLOUD_LANG=en: 503 → 영문 service unavailable 메시지", async () => {
+    vi.stubGlobal("fetch", createMockFetch({}, 503));
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow(
+      "Service unavailable"
+    );
+  });
+
+  it("NCLOUD_LANG=en: 504 → 영문 gateway timeout 메시지", async () => {
+    vi.stubGlobal("fetch", createMockFetch({}, 504));
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow(
+      "Gateway timeout"
+    );
+  });
+
+  it("NCLOUD_LANG=en: JSON 파싱 실패 → 영문 메시지", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => rawResponse({ status: 200, text: "not json{" })));
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow(
+      "Failed to parse API response"
+    );
+  });
+
+  it("NCLOUD_LANG 미설정(기본 ko): 401 → 한국어 메시지 보존", async () => {
+    delete process.env.NCLOUD_LANG;
+    vi.stubGlobal("fetch", createMockFetch({}, 401));
+    await expect(client.request("/vserver/v2/getServerInstanceList", {})).rejects.toThrow(
+      "인증 실패"
+    );
   });
 });

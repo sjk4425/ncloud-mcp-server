@@ -7,6 +7,8 @@
  * 설계: DESIGN_short-term-improvements.md §3
  */
 
+import { messages } from "./messages.js";
+
 /** 요청 타임아웃(ms). 기본 30s, env `NCLOUD_TIMEOUT_MS`로 오버라이드. */
 export function getTimeoutMs(): number {
   const raw = process.env.NCLOUD_TIMEOUT_MS;
@@ -24,9 +26,7 @@ export async function fetchWithTimeout(url: string, options: RequestInit): Promi
     return await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
   } catch (err: any) {
     if (err?.name === "TimeoutError" || err?.name === "AbortError") {
-      throw new Error(
-        `API 호출 시간 초과(${Math.round(timeoutMs / 1000)}s): ${url} — 네트워크 또는 Ncloud 게이트웨이 상태를 확인하세요.`
-      );
+      throw new Error(messages().timeout(Math.round(timeoutMs / 1000), url));
     }
     throw err;
   }

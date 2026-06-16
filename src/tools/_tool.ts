@@ -17,6 +17,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z, ZodRawShape } from "zod";
 import { toolText } from "./_response.js";
+import { withRetryContext } from "../client/_retry-context.js";
 
 export interface ToolAnnotations {
   title?: string;
@@ -152,6 +153,8 @@ export function defineTool<Schema extends ZodRawShape>(
   // confirm 파라미터 주입 — 이미 선언돼 있으면 그대로 둔다(스냅샷 schemaKeys 불변).
   const inputSchema: ZodRawShape =
     opts?.destructive && !("confirm" in schema) ? { ...schema, confirm: CONFIRM_SCHEMA } : schema;
+  // 읽기 전용 도구는 client 호출을 503/504/네트워크 재시도 컨텍스트로 감싼다(DESIGN_post-1.4.0 §4).
+  const readOnly = annotations.readOnlyHint === true;
   const wrapped = async (params: any) => {
     try {
       if (opts?.destructive && !params?.confirm) {
@@ -164,7 +167,9 @@ export function defineTool<Schema extends ZodRawShape>(
         const { confirm, ...rest } = params;
         handlerParams = rest;
       }
-      const result = await handler(handlerParams);
+      const result = readOnly
+        ? await withRetryContext({ retryOn5xx: true }, () => handler(handlerParams))
+        : await handler(handlerParams);
       return isToolResult(result)
         ? result
         : toolText(result, opts?.prune !== undefined ? { prune: opts.prune } : undefined);

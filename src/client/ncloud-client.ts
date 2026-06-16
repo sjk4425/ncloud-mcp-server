@@ -1,5 +1,7 @@
 import { generateSignature } from "../auth/signature.js";
 import { fetchWithTimeout } from "./_timeout.js";
+import { getRetryContext } from "./_retry-context.js";
+import { messages } from "./messages.js";
 
 export interface NcloudClientConfig {
   accessKey: string;
@@ -11,15 +13,6 @@ export interface NcloudClientConfig {
 export interface NcloudApiParams {
   [key: string]: string | number | boolean | string[] | undefined;
 }
-
-const ERROR_MESSAGES: Record<number, string> = {
-  401: "인증 실패: Access Key 또는 Secret Key가 올바르지 않습니다. 환경 변수 NCLOUD_ACCESS_KEY, NCLOUD_SECRET_KEY를 확인하세요.",
-  403: "접근 거부: 해당 서비스에 대한 접근 권한이 없습니다. 서비스 이용 신청 여부 및 Sub Account 권한을 확인하세요.",
-  413: "요청 크기 초과: 요청 본문이 너무 큽니다.",
-  429: "요청 제한 초과: 잠시 후 다시 시도해주세요.",
-  503: "서비스 일시 불가: Ncloud API 엔드포인트에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
-  504: "요청 시간 초과: Ncloud API 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.",
-};
 
 export class NcloudClient {
   private readonly accessKey: string;
@@ -72,10 +65,12 @@ export class NcloudClient {
   }
 
   /**
-   * 타임아웃 + 보수적 재시도를 적용한 fetch.
+   * 타임아웃 + 재시도를 적용한 fetch.
    * - 타임아웃: `AbortSignal.timeout`. 초과 시 사용자 친화 메시지로 변환.
-   * - 재시도: HTTP 429에만 (요청이 서버 도달 전 거절 — 멱등성 안전). 그 외 상태코드/네트워크 에러는 재시도하지 않는다.
-   *   Ncloud는 생성/삭제도 GET이 많아 "GET이므로 안전" 가정이 성립하지 않으므로 보수적으로 시작한다(DESIGN §3).
+   * - 재시도(기본): HTTP 429에만 (요청이 서버 도달 전 거절 — 멱등성 안전). 그 외 상태코드/네트워크 에러는
+   *   재시도하지 않는다. Ncloud는 생성/삭제도 GET이 많아 "GET이므로 안전" 가정이 성립하지 않으므로 보수적이다.
+   * - 재시도(읽기 전용): 활성 `RetryContext.retryOn5xx`(= `defineTool`이 readOnly 핸들러를 감쌈)이면
+   *   조회 호출은 멱등하므로 503·504·네트워크 오류도 429와 동일 백오프로 재시도한다(DESIGN_post-1.4.0 §4).
    * @param buildOptions 시도마다 호출 — 재시도 시 timestamp가 달라지므로 인증 헤더를 매번 재생성해야 한다.
    */
   private async fetchWithRetry(
@@ -84,15 +79,37 @@ export class NcloudClient {
   ): Promise<Response> {
     const url = `${this.baseUrl}${urlPath}`;
     const maxRetries = 2;
+    const retryOn5xx = getRetryContext()?.retryOn5xx === true;
+    const debug = process.env.NCLOUD_DEBUG === "1";
     let attempt = 0;
     while (true) {
-      const response = await fetchWithTimeout(url, buildOptions());
+      let response: Response;
+      try {
+        response = await fetchWithTimeout(url, buildOptions());
+      } catch (err) {
+        // 네트워크/타임아웃 오류 — 읽기 전용 호출일 때만 재시도(쓰기는 비멱등 위험 보존).
+        if (retryOn5xx && attempt < maxRetries) {
+          const delay = this.computeBackoff(attempt, null);
+          if (debug) {
+            // eslint-disable-next-line no-console
+            console.error(`[NCLOUD_DEBUG] 네트워크 오류 — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${url}`);
+          }
+          await this.sleep(delay);
+          attempt++;
+          continue;
+        }
+        throw err;
+      }
 
-      if (response.status === 429 && attempt < maxRetries) {
+      // 429는 항상 재시도. 503·504는 읽기 전용 컨텍스트에서만.
+      const retryable =
+        response.status === 429 ||
+        (retryOn5xx && (response.status === 503 || response.status === 504));
+      if (retryable && attempt < maxRetries) {
         const delay = this.computeBackoff(attempt, response.headers?.get("retry-after") ?? null);
-        if (process.env.NCLOUD_DEBUG === "1") {
+        if (debug) {
           // eslint-disable-next-line no-console
-          console.error(`[NCLOUD_DEBUG] HTTP 429 — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${url}`);
+          console.error(`[NCLOUD_DEBUG] HTTP ${response.status} — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${url}`);
         }
         await this.sleep(delay);
         attempt++;
@@ -111,7 +128,7 @@ export class NcloudClient {
     try {
       body = JSON.parse(responseText);
     } catch {
-      throw new Error(`API 응답 파싱 실패: HTTP ${status}\n\n응답: ${responseText.substring(0, 500)}`);
+      throw new Error(messages().parseFailure(status, responseText.substring(0, 500)));
     }
     if (!ok || body.error || body.responseError) {
       this.handleErrorResponse(status, body);
@@ -155,7 +172,7 @@ export class NcloudClient {
       if (response.ok) {
         return { returnCode: "0", returnMessage: "Success", totalCount: 0 };
       }
-      throw new Error(`API 호출 실패: HTTP ${response.status} (빈 응답)`);
+      throw new Error(messages().emptyBody(response.status));
     }
 
     return this.parseBodyAndHandle(responseText, response.status, response.ok);
@@ -233,8 +250,7 @@ export class NcloudClient {
         const v = response.headers.get(k);
         if (v) diag.push(`${k}: ${v}`);
       }
-      const diagStr = diag.length > 0 ? `\n  진단 헤더: ${diag.join(" | ")}` : "";
-      throw new Error(`API 호출 실패: HTTP ${response.status} (빈 응답)${diagStr}`);
+      throw new Error(messages().emptyBody(response.status, diag.length > 0 ? diag.join(" | ") : undefined));
     }
 
     return this.parseBodyAndHandle(responseText, response.status, response.ok);
@@ -264,30 +280,26 @@ export class NcloudClient {
   }
 
   private handleErrorResponse(status: number, body: any): never {
+    const msg = messages();
+
     // Format 1: API Gateway error
     if (body.error) {
       const { errorCode, message } = body.error;
-      throw new Error(
-        `API 호출 실패\n\n에러 코드: ${errorCode}\n메시지: ${message}`
-      );
+      throw new Error(msg.apiFailure(errorCode, message));
     }
 
     // Format 2: Service-level error
     if (body.responseError) {
       const { returnCode, returnMessage } = body.responseError;
-      throw new Error(
-        `API 호출 실패\n\n에러 코드: ${returnCode}\n메시지: ${returnMessage}`
-      );
+      throw new Error(msg.apiFailure(returnCode, returnMessage));
     }
 
     // HTTP status code based error
-    const knownMessage = ERROR_MESSAGES[status];
+    const knownMessage = msg.httpStatus[status];
     if (knownMessage) {
       throw new Error(knownMessage);
     }
 
-    throw new Error(
-      `API 호출 실패: HTTP ${status}\n\n응답: ${JSON.stringify(body)}`
-    );
+    throw new Error(msg.unknownStatus(status, JSON.stringify(body)));
   }
 }
