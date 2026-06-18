@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { defineTool } from "./_tool.js";
+import { L, deletedMessage, dryRunMessage, requiredError } from "./_messages.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -375,7 +376,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Get the lifecycle configuration rules for a Ncloud Storage bucket. Returns storage class transition rules, expiration rules, and abort incomplete multipart upload rules.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to retrieve lifecycle configuration for"),
     },
     async (params) => {
@@ -397,7 +398,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Set lifecycle configuration rules for a Ncloud Storage bucket. Supports storage class transitions (STANDARD, STANDARD_IA, GLACIER) and object expiration. Use dryRun=true to preview the configuration.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to set lifecycle configuration for"),
       rules: z.array(z.object({
         id: z.string().describe("Unique identifier for the rule"),
@@ -414,7 +415,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         }).optional().describe("Object expiration rule"),
         abortIncompleteMultipartUploadDays: z.number().optional().describe("Number of days after which incomplete multipart uploads are aborted"),
       })).min(1, {
-        message: "최소 1개 이상의 라이프사이클 규칙이 필요합니다.",
+        message: L({ ko: "최소 1개 이상의 라이프사이클 규칙이 필요합니다.", en: "At least one lifecycle rule is required." }),
       }).describe("Array of lifecycle rules to apply"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually applying the configuration"),
     },
@@ -437,7 +438,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
               : undefined,
             abortIncompleteMultipartUploadDays: rule.abortIncompleteMultipartUploadDays,
           })),
-          message: "이 요청은 실제 라이프사이클 규칙을 적용하지 않습니다. dryRun=false로 호출하면 적용됩니다.",
+          message: dryRunMessage({ ko: "라이프사이클 규칙", en: "lifecycle rule" }, "apply"),
         };
         return preview;
       }
@@ -453,7 +454,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       });
 
       const summary = {
-        message: `✅ 버킷 '${params.bucketName}'의 라이프사이클 규칙이 설정되었습니다.`,
+        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 라이프사이클 규칙이 설정되었습니다.`, en: `✅ Lifecycle rules for bucket '${params.bucketName}' have been set.` }),
         bucket: params.bucketName,
         rulesApplied: params.rules.length,
         rules: params.rules.map((rule) => ({
@@ -474,7 +475,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Delete all lifecycle configuration rules from a Ncloud Storage bucket. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to delete lifecycle configuration from"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -486,7 +487,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         queryParams: { lifecycle: "" },
       });
 
-      const result = { message: `✅ 버킷 '${params.bucketName}'의 라이프사이클 규칙이 삭제되었습니다.` };
+      const result = { message: deletedMessage({ ko: `버킷 '${params.bucketName}'의 라이프사이클 규칙`, en: `the lifecycle rules of bucket '${params.bucketName}'` }) };
       return result;
     },
     { destructive: { noun: "all lifecycle rules from Bucket", describe: (params) => params.bucketName } }
@@ -500,7 +501,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Get the CORS (Cross-Origin Resource Sharing) configuration for a Ncloud Storage bucket. Returns allowed origins, methods, headers, and max age settings.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to retrieve CORS configuration for"),
     },
     async (params) => {
@@ -522,20 +523,20 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Set CORS (Cross-Origin Resource Sharing) configuration for a Ncloud Storage bucket. Defines which origins, methods, and headers are allowed for cross-origin requests.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to set CORS configuration for"),
       corsRules: z.array(z.object({
         allowedOrigins: z.array(z.string()).min(1, {
-          message: "최소 1개 이상의 allowedOrigins가 필요합니다.",
+          message: L({ ko: "최소 1개 이상의 allowedOrigins가 필요합니다.", en: "At least one allowedOrigins entry is required." }),
         }).describe("List of origins allowed to make cross-origin requests (e.g., 'https://example.com' or '*')"),
         allowedMethods: z.array(z.enum(["GET", "PUT", "POST", "DELETE", "HEAD"])).min(1, {
-          message: "최소 1개 이상의 allowedMethods가 필요합니다.",
+          message: L({ ko: "최소 1개 이상의 allowedMethods가 필요합니다.", en: "At least one allowedMethods entry is required." }),
         }).describe("HTTP methods allowed for cross-origin requests"),
         allowedHeaders: z.array(z.string()).optional().describe("Headers allowed in preflight requests (e.g., 'Content-Type', 'Authorization', or '*')"),
         exposeHeaders: z.array(z.string()).optional().describe("Response headers exposed to the browser (e.g., 'x-amz-request-id', 'ETag')"),
         maxAgeSeconds: z.number().optional().describe("Time in seconds the browser can cache preflight response (e.g., 3600)"),
       })).min(1, {
-        message: "최소 1개 이상의 CORS 규칙이 필요합니다.",
+        message: L({ ko: "최소 1개 이상의 CORS 규칙이 필요합니다.", en: "At least one CORS rule is required." }),
       }).describe("Array of CORS rules to apply to the bucket"),
     },
     async (params) => {
@@ -550,7 +551,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       });
 
       const summary = {
-        message: `✅ 버킷 '${params.bucketName}'의 CORS 설정이 적용되었습니다.`,
+        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 CORS 설정이 적용되었습니다.`, en: `✅ The CORS configuration for bucket '${params.bucketName}' has been applied.` }),
         bucket: params.bucketName,
         rulesApplied: params.corsRules.length,
         rules: params.corsRules.map((rule, index) => ({
@@ -574,7 +575,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Delete the CORS configuration from a Ncloud Storage bucket. This will remove all cross-origin access rules. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to delete CORS configuration from"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -586,7 +587,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         queryParams: { cors: "" },
       });
 
-      const result = { message: `✅ 버킷 '${params.bucketName}'의 CORS 설정이 삭제되었습니다.` };
+      const result = { message: deletedMessage({ ko: `버킷 '${params.bucketName}'의 CORS 설정`, en: `the CORS configuration of bucket '${params.bucketName}'` }) };
       return result;
     },
     { destructive: { noun: "all CORS rules from Bucket", describe: (params) => params.bucketName } }
@@ -600,7 +601,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Get the default server-side encryption (SSE) configuration for a Ncloud Storage bucket. Returns the encryption algorithm applied to new objects by default.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to retrieve encryption configuration for"),
     },
     async (params) => {
@@ -622,10 +623,10 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Set the default server-side encryption (SSE) configuration for a Ncloud Storage bucket. All new objects will be encrypted with the specified algorithm.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to set encryption configuration for"),
       sseAlgorithm: z.enum(["AES256"], {
-        required_error: "필수 파라미터 'sseAlgorithm'이 누락되었습니다.",
+        required_error: requiredError("sseAlgorithm"),
       }).describe("Server-side encryption algorithm (AES256)"),
     },
     async (params) => {
@@ -640,7 +641,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       });
 
       const summary = {
-        message: `✅ 버킷 '${params.bucketName}'의 기본 암호화가 '${params.sseAlgorithm}'로 설정되었습니다.`,
+        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 기본 암호화가 '${params.sseAlgorithm}'로 설정되었습니다.`, en: `✅ Default encryption for bucket '${params.bucketName}' has been set to '${params.sseAlgorithm}'.` }),
         bucket: params.bucketName,
         sseAlgorithm: params.sseAlgorithm,
       };
@@ -656,7 +657,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Delete the default server-side encryption (SSE) configuration from a Ncloud Storage bucket. New objects will no longer be encrypted by default. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to delete encryption configuration from"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -668,7 +669,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         queryParams: { encryption: "" },
       });
 
-      const result = { message: `✅ 버킷 '${params.bucketName}'의 기본 암호화 설정이 삭제되었습니다.` };
+      const result = { message: deletedMessage({ ko: `버킷 '${params.bucketName}'의 기본 암호화 설정`, en: `the default encryption configuration of bucket '${params.bucketName}'` }) };
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete the default encryption configuration from Bucket [${params.bucketName}]. New objects will no longer be encrypted by default. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
@@ -700,7 +701,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Create a new Ncloud Storage bucket. Use dryRun=true to preview.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to create"),
       dryRun: z.boolean().optional().default(true).describe("If true (default), returns a preview without actually creating the bucket"),
     },
@@ -710,7 +711,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           label: "🔍 Dry-Run Preview: Ncloud Storage Bucket Creation",
           bucketName: params.bucketName,
           region: client.getRegionCode(),
-          message: "이 요청은 실제 버킷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "버킷", en: "bucket" }),
         };
         return preview;
       }
@@ -733,13 +734,13 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Permanently delete a Ncloud Storage bucket. The bucket must be empty. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       await client.request({ method: "DELETE", bucket: params.bucketName });
-      const result = { message: `✅ Ncloud Storage 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
+      const result = { message: deletedMessage({ ko: `Ncloud Storage 버킷 '${params.bucketName}'`, en: `Ncloud Storage bucket '${params.bucketName}'` }) };
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Ncloud Storage Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
@@ -753,7 +754,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Check if a Ncloud Storage bucket exists and retrieve its metadata (region, access permissions)",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to check"),
     },
     async (params) => {
@@ -788,7 +789,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "List objects in a Ncloud Storage bucket",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       prefix: z.string().optional().describe("Limits results to keys beginning with this prefix"),
       delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
@@ -820,13 +821,13 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Upload (put) an object to a Ncloud Storage bucket. Use dryRun=true to preview.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) to upload to"),
       body: z.string({
-        required_error: "필수 파라미터 'body'가 누락되었습니다.",
+        required_error: requiredError("body"),
       }).describe("Content to upload as the object body"),
       contentType: z.string().optional().describe("Content-Type header for the object (e.g., 'text/plain', 'application/json')"),
       dryRun: z.boolean().optional().default(true).describe("If true (default), returns a preview without actually uploading"),
@@ -839,7 +840,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
           key: params.key,
           contentType: params.contentType ?? "application/octet-stream",
           bodySize: `${params.body.length} bytes`,
-          message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
+          message: dryRunMessage({ ko: "오브젝트", en: "object" }, "upload"),
         };
         return preview;
       }
@@ -876,10 +877,10 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Get (download) an object from a Ncloud Storage bucket. Returns the object content as text.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) to retrieve"),
     },
     async (params) => {
@@ -908,10 +909,10 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Get metadata of an object in a Ncloud Storage bucket without downloading the body",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) to check"),
     },
     async (params) => {
@@ -941,13 +942,13 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "Copy an object within Ncloud Storage",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Destination bucket name"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Destination object key (path)"),
       copySource: z.string({
-        required_error: "필수 파라미터 'copySource'가 누락되었습니다.",
+        required_error: requiredError("copySource"),
       }).describe("Source object path in format: /{sourceBucket}/{sourceKey}"),
     },
     async (params) => {
@@ -979,10 +980,10 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Permanently delete an object from a Ncloud Storage bucket. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -992,7 +993,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         bucket: params.bucketName,
         key: params.key,
       });
-      const result = { message: `✅ Ncloud Storage 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
+      const result = { message: deletedMessage({ ko: `Ncloud Storage 오브젝트 '${params.bucketName}/${params.key}'`, en: `Ncloud Storage object '${params.bucketName}/${params.key}'` }) };
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}] from Ncloud Storage. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
@@ -1006,10 +1007,10 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Permanently delete multiple objects from a Ncloud Storage bucket. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       keys: z.array(z.string(), {
-        required_error: "필수 파라미터 'keys'가 누락되었습니다.",
+        required_error: requiredError("keys"),
       }).describe("Array of object keys to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -1029,7 +1030,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       });
 
       const result = {
-        message: `✅ Ncloud Storage 버킷 '${params.bucketName}'에서 ${params.keys.length}개 오브젝트가 삭제되었습니다.`,
+        message: L({ ko: `✅ Ncloud Storage 버킷 '${params.bucketName}'에서 ${params.keys.length}개 오브젝트가 삭제되었습니다.`, en: `✅ ${params.keys.length} object(s) have been deleted from Ncloud Storage bucket '${params.bucketName}'.` }),
         response: response.body,
       };
       return result;

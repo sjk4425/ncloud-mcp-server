@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import { defineTool } from "./_tool.js";
+import { deletedMessage, dryRunMessage, requiredError } from "./_messages.js";
 
 /**
  * Parse JSON array response from Swift (when format=json is specified).
@@ -53,7 +54,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         queryParams,
       });
       const result = parseJsonResponse(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -65,7 +66,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "Create a new container in Archive Storage. Use dryRun=true to preview.",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container to create"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
@@ -75,7 +76,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           label: "🔍 Dry-Run Preview: Archive Container Creation",
           containerName: params.containerName,
           region: client.getRegionCode(),
-          message: "이 요청은 실제 컨테이너를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "컨테이너", en: "container" }),
         };
         return preview;
       }
@@ -89,7 +90,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         리전: client.getRegionCode(),
         상태: "created",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -101,7 +102,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "⚠️ Destructive: Permanently delete an empty container from Archive Storage. The container must be empty. Set confirm=true to execute.",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -110,8 +111,8 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         method: "DELETE",
         container: params.containerName,
       });
-      const result = { message: `✅ Archive 컨테이너 '${params.containerName}'이(가) 삭제되었습니다.` };
-      return result;
+      const result = { message: deletedMessage({ ko: `Archive 컨테이너 '${params.containerName}'`, en: `Archive container '${params.containerName}'` }) };
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Archive Container [${params.containerName}]. The container must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -124,7 +125,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "Get metadata for an Archive Storage container (object count, bytes used, custom metadata)",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container"),
     },
     async (params) => {
@@ -139,7 +140,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         bytesUsed: response.headers.get("x-container-bytes-used") ?? "0",
         metadata,
       };
-      return result;
+      return result;
     }
   );
 
@@ -151,7 +152,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "List objects in an Archive Storage container",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container"),
       limit: z.number().optional().describe("Maximum number of objects to return"),
       marker: z.string().optional().describe("Object name to start listing after (for pagination)"),
@@ -171,7 +172,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         queryParams,
       });
       const result = parseJsonResponse(response.body);
-      return result;
+      return result;
     }
   );
 
@@ -181,10 +182,10 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "Download (GET) an object from an Archive Storage container. Returns the object content as text.",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object name (path) to download"),
     },
     async (params) => {
@@ -202,7 +203,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         etag: response.headers.get("etag"),
         body: response.body,
       };
-      return result;
+      return result;
     }
   );
 
@@ -214,10 +215,10 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "Get metadata for an object in Archive Storage (size, content-type, custom metadata)",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object name (path) to inspect"),
     },
     async (params) => {
@@ -236,7 +237,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         etag: response.headers.get("etag"),
         metadata,
       };
-      return result;
+      return result;
     }
   );
 
@@ -248,13 +249,13 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "Upload (PUT) an object to an Archive Storage container. Use dryRun=true to preview.",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object name (path) to upload to"),
       body: z.string({
-        required_error: "필수 파라미터 'body'가 누락되었습니다.",
+        required_error: requiredError("body"),
       }).describe("Content to upload as the object body"),
       contentType: z.string().optional().describe("Content-Type for the object (e.g., 'text/plain', 'application/json')"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually uploading"),
@@ -267,7 +268,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           objectName: params.objectName,
           contentType: params.contentType ?? "application/octet-stream",
           bodySize: `${params.body.length} bytes`,
-          message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
+          message: dryRunMessage({ ko: "오브젝트", en: "object" }, "upload"),
         };
         return preview;
       }
@@ -293,7 +294,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         etag: response.headers.get("etag") ?? "",
         상태: "uploaded",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -305,13 +306,13 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "Copy an object to another location within Archive Storage",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Source container name"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Source object name"),
       destination: z.string({
-        required_error: "필수 파라미터 'destination'이 누락되었습니다.",
+        required_error: requiredError("destination"),
       }).describe("Destination path in format: /{destContainer}/{destObject}"),
     },
     async (params) => {
@@ -328,7 +329,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         destination: params.destination,
         상태: "copied",
       };
-      return result;
+      return result;
     }
   );
 
@@ -340,10 +341,10 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "⚠️ Destructive: Permanently delete an object from an Archive Storage container. Set confirm=true to execute.",
     {
       containerName: z.string({
-        required_error: "필수 파라미터 'containerName'이 누락되었습니다.",
+        required_error: requiredError("containerName"),
       }).describe("Name of the container"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object name (path) to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -353,8 +354,8 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         container: params.containerName,
         object: params.objectName,
       });
-      const result = { message: `✅ Archive 오브젝트 '${params.containerName}/${params.objectName}'이(가) 삭제되었습니다.` };
-      return result;
+      const result = { message: deletedMessage({ ko: `Archive 오브젝트 '${params.containerName}/${params.objectName}'`, en: `Archive object '${params.containerName}/${params.objectName}'` }) };
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Archive Object [${params.containerName}/${params.objectName}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );

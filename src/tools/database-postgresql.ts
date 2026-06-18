@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerDatabasePostgresqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -53,28 +54,28 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "Create a new Cloud DB for PostgreSQL instance. Use dryRun=true to preview without creating.",
     {
       cloudPostgresqlServiceName: z.string({
-        required_error: "필수 파라미터 'cloudPostgresqlServiceName'이 누락되었습니다.",
+        required_error: requiredError("cloudPostgresqlServiceName"),
       }).describe("PostgreSQL service name (3-20 chars, lowercase letters and numbers)"),
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'이 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number"),
       subnetNo: z.string({
-        required_error: "필수 파라미터 'subnetNo'이 누락되었습니다.",
+        required_error: requiredError("subnetNo"),
       }).describe("Subnet number"),
       cloudPostgresqlDatabaseName: z.string({
-        required_error: "필수 파라미터 'cloudPostgresqlDatabaseName'이 누락되었습니다.",
+        required_error: requiredError("cloudPostgresqlDatabaseName"),
       }).describe("Initial database name"),
       cloudPostgresqlUserName: z.string({
-        required_error: "필수 파라미터 'cloudPostgresqlUserName'이 누락되었습니다.",
+        required_error: requiredError("cloudPostgresqlUserName"),
       }).describe("Initial user name"),
       cloudPostgresqlUserPassword: z.string({
-        required_error: "필수 파라미터 'cloudPostgresqlUserPassword'이 누락되었습니다.",
+        required_error: requiredError("cloudPostgresqlUserPassword"),
       }).describe("Initial user password"),
       cloudPostgresqlServerNamePrefix: z.string({
-        required_error: "필수 파라미터 'cloudPostgresqlServerNamePrefix'이 누락되었습니다.",
+        required_error: requiredError("cloudPostgresqlServerNamePrefix"),
       }).describe("Server name prefix"),
       clientCidr: z.string({
-        required_error: "필수 파라미터 'clientCidr'이 누락되었습니다.",
+        required_error: requiredError("clientCidr"),
       }).describe("Client CIDR for access control"),
       cloudPostgresqlImageProductCode: z.string().optional().describe("PostgreSQL image product code"),
       cloudPostgresqlProductCode: z.string().optional().describe("PostgreSQL server product (spec) code"),
@@ -105,7 +106,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
           isMultiZone: params.isMultiZone ?? false,
           isBackup: params.isBackup ?? true,
           cloudPostgresqlPort: params.cloudPostgresqlPort ?? 5432,
-          message: "이 요청은 실제 PostgreSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
+          message: dryRunMessage({ ko: "PostgreSQL 인스턴스", en: "PostgreSQL instance" }),
         };
         return preview;
       }

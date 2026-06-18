@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { maxLenMessage, requiredError } from "./_messages.js";
 
 export function registerNatGatewayTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -49,11 +50,11 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_create_nat_gateway",
     "Create a new NAT Gateway instance in a VPC. Supports both Public (PBLIP) and Private (PRVT) types.",
     {
-      vpcNo: z.string({ required_error: "필수 파라미터 'vpcNo'가 누락되었습니다." }).describe("VPC number to create NAT Gateway in (from getVpcList)"),
-      zoneCode: z.string({ required_error: "필수 파라미터 'zoneCode'가 누락되었습니다." }).describe("Zone code (e.g., KR-1, KR-2)"),
+      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number to create NAT Gateway in (from getVpcList)"),
+      zoneCode: z.string({ required_error: requiredError("zoneCode") }).describe("Zone code (e.g., KR-1, KR-2)"),
       subnetNo: z.string().optional().describe("NATGW-type subnet number. If NULL, creates a PUBLIC-type NATGW subnet automatically. If specified, creates NAT Gateway according to the subnet's subnetTypeCode (PUBLIC or PRIVATE)."),
       natGatewayName: z.string().max(30, {
-        message: "잘못된 파라미터: 'natGatewayName'은 30자 이하여야 합니다.",
+        message: maxLenMessage("natGatewayName", 30),
       }).optional().describe("NAT Gateway name (3-30 chars, English letters/numbers/hyphens, must start with letter and end with letter or number)"),
       natGatewayDescription: z.string().optional().describe("Description for the NAT Gateway (max 1000 bytes)"),
       publicIpInstanceNo: z.string().optional().describe("Public IP instance number. Ignored for PRIVATE subnet type. For PUBLIC subnet: auto-created if NULL, assigned if specified."),
@@ -71,8 +72,8 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_set_nat_gateway_description",
     "Set or update the description of a NAT Gateway instance",
     {
-      natGatewayInstanceNo: z.string({ required_error: "필수 파라미터 'natGatewayInstanceNo'가 누락되었습니다." }).describe("NAT Gateway instance number"),
-      natGatewayDescription: z.string({ required_error: "필수 파라미터 'natGatewayDescription'이 누락되었습니다." }).describe("New description for the NAT Gateway"),
+      natGatewayInstanceNo: z.string({ required_error: requiredError("natGatewayInstanceNo") }).describe("NAT Gateway instance number"),
+      natGatewayDescription: z.string({ required_error: requiredError("natGatewayDescription") }).describe("New description for the NAT Gateway"),
     },
     async (params) => {
       return client.request("/vpc/v2/setNatGatewayDescription", params);
@@ -86,14 +87,14 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_delete_nat_gateway",
     "⚠️ Destructive: Permanently delete a NAT Gateway instance. Set confirm=true to execute.",
     {
-      natGatewayInstanceNo: z.string({ required_error: "필수 파라미터 'natGatewayInstanceNo'가 누락되었습니다." }).describe("NAT Gateway instance number to delete"),
+      natGatewayInstanceNo: z.string({ required_error: requiredError("natGatewayInstanceNo") }).describe("NAT Gateway instance number to delete"),
       returnPublicIpInstance: z.boolean().optional().describe("Also return (release) the public IP instance assigned to the public NAT Gateway. Default: true"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vpc/v2/deleteNatGatewayInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "NAT Gateway", describe: (params) => params.natGatewayInstanceNo } }
   );

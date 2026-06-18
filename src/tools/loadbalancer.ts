@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, maxLenMessage, requiredError } from "./_messages.js";
 
 export function registerLoadBalancerTools(server: McpServer, client: NcloudClient): void {
   // ─── Load Balancer Query Tools ─────────────────────────────────────────────
@@ -43,18 +44,18 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "Create a new load balancer instance. Use dryRun=true to preview without creating.",
     {
       loadBalancerTypeCode: z.string({
-        required_error: "필수 파라미터 'loadBalancerTypeCode'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerTypeCode"),
       }).describe("Load balancer type (APPLICATION, NETWORK, NETWORK_PROXY)"),
       loadBalancerNetworkTypeCode: z.string().optional().describe("Network type (PUBLIC or PRIVATE). Default: PUBLIC"),
       loadBalancerName: z.string().max(30, {
-        message: "잘못된 파라미터: 'loadBalancerName'은 30자 이하여야 합니다.",
+        message: maxLenMessage("loadBalancerName", 30),
       }).optional().describe("Load balancer name (max 30 characters)"),
       loadBalancerDescription: z.string().optional().describe("Load balancer description"),
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'가 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number"),
       subnetNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'subnetNoList'가 누락되었습니다.",
+        required_error: requiredError("subnetNoList"),
       }).describe("List of subnet numbers for the load balancer (one LB-only subnet per zone)"),
       throughputTypeCode: z.string().optional().describe("Throughput type (SMALL, MEDIUM, LARGE, XLARGE for ALB/NProxy; DYNAMIC for NLB)"),
       idleTimeout: z.number().optional().describe("Idle timeout in seconds (1-3600, default: 60). Cannot be set for NETWORK type"),
@@ -67,7 +68,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
         tlsMinVersionTypeCode: z.string().optional().describe("TLS minimum version (TLSV10, TLSV11, TLSV12, TLSV13). Only for HTTPS/TLS"),
         cipherSuiteList: z.array(z.string()).optional().describe("List of cipher suites. Only for HTTPS/TLS"),
       }), {
-        required_error: "필수 파라미터 'listenerList'가 누락되었습니다.",
+        required_error: requiredError("listenerList"),
       }).describe("List of listener configurations"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the load balancer"),
     },
@@ -82,7 +83,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
           subnetNoList: params.subnetNoList,
           listenerCount: params.listenerList.length,
           listeners: params.listenerList.map((l) => `${l.protocolTypeCode}:${l.port} → TG:${l.targetGroupNo}`),
-          message: "이 요청은 실제 로드 밸런서를 생성하지 않습니다. dryRun=false로 호출하면 로드 밸런서가 생성됩니다.",
+          message: dryRunMessage({ ko: "로드 밸런서", en: "load balancer" }),
         };
         return preview;
       }
@@ -124,7 +125,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
         도메인: instance?.loadBalancerDomain ?? "pending",
         리스너설정: params.listenerList.map((l) => `${l.protocolTypeCode}:${l.port}`).join(", "),
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -136,14 +137,14 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "⚠️ Destructive: Permanently delete load balancer instances. Set confirm=true to execute.",
     {
       loadBalancerInstanceNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'loadBalancerInstanceNoList'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerInstanceNoList"),
       }).describe("List of load balancer instance numbers to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/deleteLoadBalancerInstances", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "Load Balancer(s)", describe: (params) => params.loadBalancerInstanceNoList.join(", ") } }
   );
@@ -156,7 +157,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "Change load balancer instance configuration (idle timeout, throughput type)",
     {
       loadBalancerInstanceNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerInstanceNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerInstanceNo"),
       }).describe("Load balancer instance number"),
       idleTimeout: z.number().optional().describe("Idle timeout in seconds (1-3600, default: 60). Cannot be set for NETWORK type"),
       throughputTypeCode: z.string().optional().describe("Throughput type code (SMALL, MEDIUM, LARGE, XLARGE for ALB/NProxy; DYNAMIC for NLB)"),
@@ -172,10 +173,10 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "Set or update the description of a load balancer instance",
     {
       loadBalancerInstanceNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerInstanceNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerInstanceNo"),
       }).describe("Load balancer instance number"),
       loadBalancerDescription: z.string({
-        required_error: "필수 파라미터 'loadBalancerDescription'이 누락되었습니다.",
+        required_error: requiredError("loadBalancerDescription"),
       }).describe("New description for the load balancer"),
     },
     async (params) => {
@@ -189,10 +190,10 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "Set subnets for a load balancer instance",
     {
       loadBalancerInstanceNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerInstanceNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerInstanceNo"),
       }).describe("Load balancer instance number"),
       subnetNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'subnetNoList'가 누락되었습니다.",
+        required_error: requiredError("subnetNoList"),
       }).describe("List of subnet numbers to assign to the load balancer"),
     },
     async (params) => {
@@ -208,13 +209,13 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "Change load balancer listener configuration (protocol, port, SSL, TLS settings)",
     {
       loadBalancerListenerNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerListenerNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerListenerNo"),
       }).describe("Load balancer listener number"),
       protocolTypeCode: z.string({
-        required_error: "필수 파라미터 'protocolTypeCode'가 누락되었습니다.",
+        required_error: requiredError("protocolTypeCode"),
       }).describe("Listener protocol type (HTTP, HTTPS, TCP, UDP, TLS)"),
       port: z.number({
-        required_error: "필수 파라미터 'port'가 누락되었습니다.",
+        required_error: requiredError("port"),
       }).describe("Listener port number (1-65534)"),
       useHttp2: z.boolean().optional().describe("Whether to use HTTP/2 protocol (only for HTTPS listener)"),
       sslCertificateNo: z.string().optional().describe("SSL certificate number (required for HTTPS/TLS)"),
@@ -234,7 +235,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "List rules registered to a load balancer listener",
     {
       loadBalancerListenerNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerListenerNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerListenerNo"),
       }).describe("Load balancer listener number"),
     },
     async (params) => {
@@ -250,10 +251,10 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "Add an SNI-based TLS certificate to a load balancer listener",
     {
       loadBalancerListenerNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerListenerNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerListenerNo"),
       }).describe("Load balancer listener number"),
       sslCertificateNo: z.string({
-        required_error: "필수 파라미터 'sslCertificateNo'가 누락되었습니다.",
+        required_error: requiredError("sslCertificateNo"),
       }).describe("SSL certificate number to add"),
     },
     async (params) => {
@@ -267,17 +268,17 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "⚠️ DESTRUCTIVE: Remove an SNI-based TLS certificate from a load balancer listener. Set confirm=true to execute.",
     {
       loadBalancerListenerNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerListenerNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerListenerNo"),
       }).describe("Load balancer listener number"),
       sslCertificateNo: z.string({
-        required_error: "필수 파라미터 'sslCertificateNo'가 누락되었습니다.",
+        required_error: requiredError("sslCertificateNo"),
       }).describe("SSL certificate number to remove"),
       confirm: z.boolean().optional().default(false).describe("⚠️ DESTRUCTIVE: Must be true to actually execute the certificate removal"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/removeLoadBalancerListenerCertificate", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will remove SSL certificate [${params.sslCertificateNo}] from Listener [${params.loadBalancerListenerNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -288,7 +289,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "List TLS certificates associated with a load balancer listener",
     {
       loadBalancerListenerNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerListenerNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerListenerNo"),
       }).describe("Load balancer listener number"),
     },
     async (params) => {
@@ -304,7 +305,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "List all listeners for a specific load balancer",
     {
       loadBalancerInstanceNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerInstanceNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerInstanceNo"),
       }).describe("Load balancer instance number"),
     },
     async (params) => {
@@ -320,16 +321,16 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "Create a new listener for a load balancer",
     {
       loadBalancerInstanceNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerInstanceNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerInstanceNo"),
       }).describe("Load balancer instance number"),
       protocolTypeCode: z.string({
-        required_error: "필수 파라미터 'protocolTypeCode'가 누락되었습니다.",
+        required_error: requiredError("protocolTypeCode"),
       }).describe("Listener protocol type (HTTP, HTTPS, TCP, UDP, TLS)"),
       port: z.number({
-        required_error: "필수 파라미터 'port'가 누락되었습니다.",
+        required_error: requiredError("port"),
       }).describe("Listener port number (1-65534)"),
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number for default rule"),
       useHttp2: z.boolean().optional().describe("Whether to use HTTP/2 protocol (only for HTTPS listener)"),
       sslCertificateNo: z.string().optional().describe("SSL certificate number (required for HTTPS/TLS)"),
@@ -349,17 +350,17 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "⚠️ Destructive: Delete listeners from a load balancer. Set confirm=true to execute.",
     {
       loadBalancerInstanceNo: z.string({
-        required_error: "필수 파라미터 'loadBalancerInstanceNo'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerInstanceNo"),
       }).describe("Load balancer instance number"),
       loadBalancerListenerNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'loadBalancerListenerNoList'가 누락되었습니다.",
+        required_error: requiredError("loadBalancerListenerNoList"),
       }).describe("List of listener numbers to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/deleteLoadBalancerListeners", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Listener(s) [${params.loadBalancerListenerNoList.join(", ")}] from Load Balancer [${params.loadBalancerInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );

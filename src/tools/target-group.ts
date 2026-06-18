@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { maxLenMessage, requiredError } from "./_messages.js";
 
 export function registerTargetGroupTools(server: McpServer, client: NcloudClient): void {
   // ─── Target Group Query Tools ──────────────────────────────────────────────
@@ -28,7 +29,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "Get detailed information about a specific target group",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number to query"),
     },
     async (params) => {
@@ -44,16 +45,16 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "Create a new target group for a load balancer",
     {
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'가 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number"),
       targetGroupName: z.string().max(30, {
-        message: "잘못된 파라미터: 'targetGroupName'은 30자 이하여야 합니다.",
+        message: maxLenMessage("targetGroupName", 30),
       }).optional().describe("Target group name (max 30 characters)"),
       targetGroupProtocolTypeCode: z.string({
-        required_error: "필수 파라미터 'targetGroupProtocolTypeCode'가 누락되었습니다.",
+        required_error: requiredError("targetGroupProtocolTypeCode"),
       }).describe("Target group protocol type (HTTP, HTTPS, TCP, PROXY_TCP)"),
       targetTypeCode: z.string({
-        required_error: "필수 파라미터 'targetTypeCode'가 누락되었습니다.",
+        required_error: requiredError("targetTypeCode"),
       }).describe("Target type code (VSVR)"),
       targetGroupPort: z.number().optional().describe("Target group port number"),
       targetGroupDescription: z.string().optional().describe("Target group description"),
@@ -80,14 +81,14 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "⚠️ Destructive: Permanently delete target groups. Set confirm=true to execute.",
     {
       targetGroupNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'targetGroupNoList'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNoList"),
       }).describe("List of target group numbers to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/deleteTargetGroups", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "Target Group(s)", describe: (params) => params.targetGroupNoList.join(", ") } }
   );
@@ -100,7 +101,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "List all targets in a specific target group",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number"),
     },
     async (params) => {
@@ -114,10 +115,10 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "Add targets (server instances) to a target group",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number"),
       targetNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'targetNoList'가 누락되었습니다.",
+        required_error: requiredError("targetNoList"),
       }).describe("List of target (server instance) numbers to add"),
     },
     async (params) => {
@@ -131,17 +132,17 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "⚠️ Destructive: Remove targets from a target group. Set confirm=true to execute.",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number"),
       targetNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'targetNoList'가 누락되었습니다.",
+        required_error: requiredError("targetNoList"),
       }).describe("List of target (server instance) numbers to remove"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vloadbalancer/v2/removeTarget", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will remove Target(s) [${params.targetNoList.join(", ")}] from Target Group [${params.targetGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -154,7 +155,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "Change target group configuration (algorithm, sticky session, proxy protocol)",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number"),
       algorithmTypeCode: z.string().optional().describe("Load balancing algorithm type code (RR, SIPHS, LC, MH). HTTP/HTTPS/PROXY_TCP: RR|SIPHS|LC, TCP/UDP: RR|MH"),
       useStickySession: z.boolean().optional().describe("Whether to enable per-session access (true/false). Available for TCP, UDP, HTTP, HTTPS protocols"),
@@ -171,7 +172,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "Change target group health check configuration",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number"),
       healthCheckPort: z.number().optional().describe("Health check port number (1-65534, default: 80)"),
       healthCheckUrlPath: z.string().optional().describe("Health check URL path (for HTTP/HTTPS, starts with /)"),
@@ -191,10 +192,10 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "Set or update the description of a target group",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number"),
       targetGroupDescription: z.string({
-        required_error: "필수 파라미터 'targetGroupDescription'가 누락되었습니다.",
+        required_error: requiredError("targetGroupDescription"),
       }).describe("Target group description"),
     },
     async (params) => {
@@ -208,10 +209,10 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "Set targets for a target group (replaces all existing targets with the specified list)",
     {
       targetGroupNo: z.string({
-        required_error: "필수 파라미터 'targetGroupNo'가 누락되었습니다.",
+        required_error: requiredError("targetGroupNo"),
       }).describe("Target group number"),
       targetNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'targetNoList'가 누락되었습니다.",
+        required_error: requiredError("targetNoList"),
       }).describe("List of target (server instance) numbers to set (replaces existing targets)"),
     },
     async (params) => {

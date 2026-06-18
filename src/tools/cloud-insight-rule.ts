@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { L, requiredError } from "./_messages.js";
 
 export function registerCloudInsightRuleTools(server: McpServer, client: NcloudClient): void {
   // ncloud_list_rule_groups — Get event rule group list
@@ -10,9 +11,9 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_list_rule_groups",
     "Get the list of Cloud Insight event rule groups for monitoring alerts.",
     {
-      prodKey: z.string({ required_error: "필수 파라미터 'prodKey'가 누락되었습니다." }).describe("Product key (cw_key) to filter rule groups (required)"),
-      pageSize: z.number({ required_error: "필수 파라미터 'pageSize'가 누락되었습니다." }).describe("Number of results per page (required)"),
-      pageNum: z.number({ required_error: "필수 파라미터 'pageNum'이 누락되었습니다." }).describe("Page number (required, starts from 1)"),
+      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) to filter rule groups (required)"),
+      pageSize: z.number({ required_error: requiredError("pageSize") }).describe("Number of results per page (required)"),
+      pageNum: z.number({ required_error: requiredError("pageNum") }).describe("Page number (required, starts from 1)"),
       search: z.string().optional().describe("Search keyword to filter rule groups"),
     },
     async (params) => {
@@ -24,7 +25,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       if (params.search !== undefined) body.search = params.search;
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/ruleGrp/query", body);
-      return result;
+      return result;
     }
   );
 
@@ -42,7 +43,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/detail", body);
-      return result;
+      return result;
     }
   );
 
@@ -73,7 +74,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     async (params) => {
       if (params.dryRun) {
         const preview = {
-          label: "📋 생성 예상 결과 (미리보기 - 실제 생성되지 않음)",
+          label: L({ ko: "📋 생성 예상 결과 (미리보기 - 실제 생성되지 않음)", en: "📋 Expected result (preview — nothing is actually created)" }),
           리소스타입: "Cloud Insight Rule Group",
           그룹명: params.groupName,
           대상서비스: params.prodKey,
@@ -95,7 +96,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       if (params.recipientNotification !== undefined) body.recipientNotification = params.recipientNotification;
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/create", body);
-      return result;
+      return result;
     }
   );
 
@@ -115,7 +116,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/delete", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Cloud Insight Rule Group [${params.ruleGroupId}]. All associated monitoring alerts will be stopped. Do you want to proceed? (yes/no)\n\nTo confirm, call this tool again with confirm=true.` } }
   );
@@ -126,7 +127,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_list_monitor_groups",
     "Get the list of Cloud Insight monitoring target groups for a specific product.",
     {
-      prodKey: z.string({ required_error: "필수 파라미터 'prodKey'가 누락되었습니다." }).describe("Product key (cw_key) to get monitor groups for (required, use ncloud_get_schema_keys to find available keys)"),
+      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) to get monitor groups for (required, use ncloud_get_schema_keys to find available keys)"),
     },
     async (params) => {
       return client.requestRaw("GET", `/cw_fea/real/cw/api/rule/group/monitor/${encodeURIComponent(params.prodKey)}`);
@@ -146,7 +147,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       if (params.prodKey !== undefined) body.prodKey = params.prodKey;
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/list", body);
-      return result;
+      return result;
     }
   );
 
@@ -179,7 +180,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/create", body);
-      return result;
+      return result;
     }
   );
 
@@ -197,7 +198,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/detail", body);
-      return result;
+      return result;
     }
   );
 
@@ -219,7 +220,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       if (params.resourceList !== undefined) body.resourceList = params.resourceList;
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/update", body);
-      return result;
+      return result;
     }
   );
 
@@ -236,7 +237,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
       const body = { monitorGroupId: params.monitorGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/delete", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete monitor group [${params.monitorGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
@@ -266,7 +267,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/create", body);
-      return result;
+      return result;
     }
   );
 
@@ -281,7 +282,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     async (params) => {
       const body = { metricsGroupId: params.metricsGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/detail", body);
-      return result;
+      return result;
     }
   );
 
@@ -310,7 +311,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       if (params.metricList !== undefined) body.metricList = params.metricList;
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/update", body);
-      return result;
+      return result;
     }
   );
 
@@ -327,7 +328,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
       const body = { metricsGroupId: params.metricsGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/delete", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete metrics group [${params.metricsGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
@@ -366,7 +367,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       if (params.cfgRuleList !== undefined) body.cfgRuleList = params.cfgRuleList;
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/update", body);
-      return result;
+      return result;
     }
   );
 
@@ -402,7 +403,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       if (params.recipientNotification !== undefined) body.recipientNotification = params.recipientNotification;
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/createDirectly", body);
-      return result;
+      return result;
     }
   );
 
@@ -422,7 +423,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       };
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/copy", body);
-      return result;
+      return result;
     }
   );
 
@@ -437,7 +438,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     async (params) => {
       const body = { prodKey: params.prodKey };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metric/search", body);
-      return result;
+      return result;
     }
   );
 
@@ -458,7 +459,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         resourceId: params.resourceId,
       };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/resource/remove", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will remove resource [${params.resourceId}] from all associated event rules. To confirm, call this tool again with confirm=true.` } }
   );
@@ -474,7 +475,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     async (params) => {
       const body = { metricsGroupIds: params.metricsGroupIds };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/byMetricGroupIds", body);
-      return result;
+      return result;
     }
   );
 
@@ -489,7 +490,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     async (params) => {
       const body = { monitorGroupIds: params.monitorGroupIds };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/byMonitorGroupIds", body);
-      return result;
+      return result;
     }
   );
 
@@ -510,7 +511,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         ruleGroupId: params.ruleGroupId,
       };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/deleteByProdKeyAndId", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete rule group [${params.ruleGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
@@ -532,7 +533,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         metricsGroupId: params.metricsGroupId,
       };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/deleteByProdKeyAndId", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete metrics group [${params.metricsGroupId}]. To confirm, call this tool again with confirm=true.` } }
   );
@@ -550,7 +551,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
       const body = { metricsGroupId: params.metricsGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/metrics/deleteForce", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete ALL event rules related to metrics group [${params.metricsGroupId}]. This is irreversible. To confirm, call this tool again with confirm=true.` } }
   );
@@ -568,7 +569,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
       const body = { monitorGroupId: params.monitorGroupId };
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/monitor/deleteForce", body);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete ALL event rules related to monitor group [${params.monitorGroupId}]. This is irreversible. To confirm, call this tool again with confirm=true.` } }
   );

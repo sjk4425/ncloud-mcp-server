@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerLiveStationTools(server: McpServer, client: NcloudClient): void {
   // ─── Channel Query Tools ───────────────────────────────────────────────────
@@ -24,7 +25,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_get_channel",
     "Get detailed information about a specific Live Station channel including streaming URLs and CDN settings",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID (e.g., ls-20250820xxxxxx)"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID (e.g., ls-20250820xxxxxx)"),
     },
     async (params) => {
       return client.request(`/api/v2/channels/${params.channelId}`);
@@ -38,16 +39,16 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_create_channel",
     "Create a new Live Station channel for live streaming. Use dryRun=true to preview without creating.",
     {
-      channelName: z.string({ required_error: "필수 파라미터 'channelName'이 누락되었습니다." }).describe("Channel name (3-20 chars, Korean/English/numbers/_)"),
+      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars, Korean/English/numbers/_)"),
       envType: z.enum(["REAL", "DEV", "STAGE"]).optional().default("REAL").describe("Channel environment type"),
       outputProtocol: z.enum(["HLS", "LL_HLS", "HLS,DASH"]).optional().default("HLS").describe("Output protocol: HLS, LL_HLS (low-latency), or HLS,DASH (both)"),
-      createCdn: z.boolean({ required_error: "필수 파라미터 'createCdn'이 누락되었습니다." }).describe("Whether to create a new CDN (true) or use existing (false)"),
-      cdnProfileId: z.number({ required_error: "필수 파라미터 'cdnProfileId'가 누락되었습니다." }).describe("Global Edge profile ID"),
+      createCdn: z.boolean({ required_error: requiredError("createCdn") }).describe("Whether to create a new CDN (true) or use existing (false)"),
+      cdnProfileId: z.number({ required_error: requiredError("cdnProfileId") }).describe("Global Edge profile ID"),
       cdnRegionType: z.enum(["KOREA", "JAPAN", "GLOBAL"]).optional().describe("CDN service region (required when createCdn=true)"),
       cdnDomain: z.string().optional().describe("Existing Global Edge domain (required when createCdn=false)"),
       cdnInstanceNo: z.number().optional().describe("Existing Global Edge instance ID (required when createCdn=false)"),
-      qualitySetId: z.number({ required_error: "필수 파라미터 'qualitySetId'가 누락되었습니다." }).describe("Image quality setting ID (from quality settings list)"),
-      useDvr: z.boolean({ required_error: "필수 파라미터 'useDvr'가 누락되었습니다." }).describe("Time machine (DVR) setting: true to enable rewind"),
+      qualitySetId: z.number({ required_error: requiredError("qualitySetId") }).describe("Image quality setting ID (from quality settings list)"),
+      useDvr: z.boolean({ required_error: requiredError("useDvr") }).describe("Time machine (DVR) setting: true to enable rewind"),
       timemachineMin: z.number().optional().describe("Time machine allowance in minutes (360, required if useDvr=true)"),
       immediateOnAir: z.boolean().optional().default(false).describe("Auto-recording on stream start"),
       recordType: z.enum(["NO_RECORD", "AUTO_UPLOAD", "MANUAL_UPLOAD"]).optional().default("NO_RECORD").describe("Recording storage type"),
@@ -73,7 +74,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
           recordType: params.recordType,
           isStreamFailOver: params.isStreamFailOver,
           drmEnabledYn: params.drmEnabledYn,
-          message: "이 요청은 실제 채널을 생성하지 않습니다. dryRun=false로 호출하면 채널이 생성됩니다.",
+          message: dryRunMessage({ ko: "채널", en: "channel" }),
         };
         return preview;
       }
@@ -117,7 +118,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
         녹화: params.recordType,
         상태: channel?.channelStatus || "CREATING",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -128,12 +129,12 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_delete_channel",
     "⚠️ Destructive: Permanently terminate a Live Station channel. End broadcast streaming before terminating. Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to terminate"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to terminate"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently terminate Live Station Channel [${params.channelId}]. Created snapshots will also be deleted. The integrated CDN will be maintained.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -160,7 +161,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_get_service_url",
     "Get the streaming service URLs (publish/play) for a Live Station channel",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to get service URLs for"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to get service URLs for"),
     },
     async (params) => {
       return client.request(`/api/v2/channels/${params.channelId}/serviceUrls`);
@@ -174,12 +175,12 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_stop_channel",
     "⚠️ Destructive: Stop a Live Station channel. The channel will be suspended and streaming will be interrupted. Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to stop"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to stop"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const result = await client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will stop Live Station Channel [${params.channelId}]. Streaming will be interrupted.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -189,7 +190,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_resume_channel",
     "Resume a stopped Live Station channel to make it active again for streaming",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to resume"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to resume"),
     },
     async (params) => {
       return client.putRequest(`/api/v2/channels/${params.channelId}/resume`, {});
@@ -201,7 +202,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_update_channel",
     "Update configuration of a Live Station channel (CDN, quality, recording, DVR settings)",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to update"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to update"),
       channelName: z.string().optional().describe("New channel name (3-20 chars)"),
       qualitySetId: z.number().optional().describe("New image quality setting ID"),
       useDvr: z.boolean().optional().describe("Time machine (DVR) setting"),
@@ -233,7 +234,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
         };
       }
       const result = await client.putRequest(`/api/v2/channels/${channelId}`, body);
-      return result;
+      return result;
     }
   );
 
@@ -244,7 +245,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_start_record",
     "Start manual recording for a Live Station channel that is currently streaming",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to start recording"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to start recording"),
     },
     async (params) => {
       return client.putRequest(`/api/v2/channels/${params.channelId}/record/start`, {});
@@ -256,7 +257,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_stop_record",
     "Stop manual recording for a Live Station channel",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to stop recording"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to stop recording"),
     },
     async (params) => {
       return client.putRequest(`/api/v2/channels/${params.channelId}/record/stop`, {});

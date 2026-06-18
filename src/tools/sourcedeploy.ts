@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 export function registerSourceDeployTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Tools ─────────────────────────────────────────────────────────
@@ -21,7 +22,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -38,12 +39,12 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
         const preview = {
           label: "🔍 Dry-Run Preview: SourceDeploy Project Creation",
           projectName: params.name,
-          message: "이 요청은 실제 배포 프로젝트를 생성하지 않습니다. dryRun=false로 호출하면 프로젝트가 생성됩니다.",
+          message: dryRunMessage({ ko: "배포 프로젝트", en: "deployment project" }),
         };
         return preview;
       }
       const result = await client.requestRaw("POST", "/api/v1/project", undefined, { name: params.name });
-      return result;
+      return result;
     }
   );
 
@@ -58,7 +59,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     },
     async (params) => {
       const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete SourceDeploy Project [${params.projectId}]. All stages, scenarios, and deployment history will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -104,7 +105,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       const body = { name: params.name, type: params.type, config: params.config };
       const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -125,7 +126,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       if (params.type) body.type = params.type;
       if (params.config) body.config = params.config;
       const result = await client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -141,7 +142,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     },
     async (params) => {
       const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Stage [${params.stageId}] from Project [${params.projectId}]. All scenarios in this stage will also be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -189,7 +190,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     async (params) => {
       const body = { name: params.name, ...params.config };
       const result = await client.requestRaw("POST", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -221,7 +222,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     },
     async (params) => {
       const result = await client.deleteRequest(`/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Scenario [${params.scenarioId}] from Stage [${params.stageId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -317,7 +318,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       const result = await client.requestRaw("GET", `/api/v1/project/${encodeURIComponent(params.projectId)}/history`, queryParams);
-      return result;
+      return result;
     }
   );
 

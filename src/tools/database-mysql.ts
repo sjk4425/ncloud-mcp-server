@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -180,28 +181,28 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     {
       // ── Required parameters ──
       cloudMysqlServiceName: z.string({
-        required_error: "필수 파라미터 'cloudMysqlServiceName'이 누락되었습니다.",
+        required_error: requiredError("cloudMysqlServiceName"),
       }).describe("MySQL service name (3-30 chars, letters, numbers, Korean, '-')"),
       cloudMysqlServerNamePrefix: z.string({
-        required_error: "필수 파라미터 'cloudMysqlServerNamePrefix'이 누락되었습니다.",
+        required_error: requiredError("cloudMysqlServerNamePrefix"),
       }).describe("Server name prefix (3-20 chars, starts with letter, ends with letter/number, allows '-')"),
       cloudMysqlUserName: z.string({
-        required_error: "필수 파라미터 'cloudMysqlUserName'이 누락되었습니다.",
+        required_error: requiredError("cloudMysqlUserName"),
       }).describe("DB user account ID (3-16 chars, starts with letter, allows letters/numbers/'-'/'_')"),
       cloudMysqlUserPassword: z.string({
-        required_error: "필수 파라미터 'cloudMysqlUserPassword'이 누락되었습니다.",
+        required_error: requiredError("cloudMysqlUserPassword"),
       }).describe("DB user password (8-20 chars, must include letter+number+special char)"),
       hostIp: z.string({
-        required_error: "필수 파라미터 'hostIp'이 누락되었습니다.",
+        required_error: requiredError("hostIp"),
       }).describe("Host IP for MySQL access (e.g. '%' for all, '1.1.1.1', '1.1.1.%', '1.1.1.0/24'). Use '%25' for '%' in GET requests."),
       cloudMysqlDatabaseName: z.string({
-        required_error: "필수 파라미터 'cloudMysqlDatabaseName'이 누락되었습니다.",
+        required_error: requiredError("cloudMysqlDatabaseName"),
       }).describe("Initial database name (1-30 chars, starts with letter)"),
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'이 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number (getCloudMysqlTargetVpcList)"),
       subnetNo: z.string({
-        required_error: "필수 파라미터 'subnetNo'이 누락되었습니다.",
+        required_error: requiredError("subnetNo"),
       }).describe("Subnet number for primary NIC (getCloudMysqlTargetSubnetList)"),
       // ── Optional parameters ──
       regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to first region."),
@@ -243,7 +244,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
           cloudMysqlPort: params.cloudMysqlPort ?? 3306,
           engineVersionCode: params.engineVersionCode ?? "(latest)",
           isDeleteProtection: params.isDeleteProtection ?? false,
-          message: "이 요청은 실제 MySQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
+          message: dryRunMessage({ ko: "MySQL 인스턴스", en: "MySQL instance" }),
         };
         return preview;
       }
@@ -263,7 +264,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         고가용성: instance?.isHa ?? params.isHa ?? true,
         멀티존: instance?.isMultiZone ?? params.isMultiZone ?? false,
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -324,7 +325,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       }
 
       const result = await client.request("/vmysql/v2/addCloudMysqlUserList", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -408,7 +409,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       }
 
       const result = await client.request("/vmysql/v2/changeCloudMysqlUserList", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -442,7 +443,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlServerInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete MySQL server instance [${params.cloudMysqlServerInstanceNo}] (Slave/Recovery only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -458,7 +459,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "MySQL instance", describe: (params) => params.cloudMysqlInstanceNo } }
   );
@@ -475,7 +476,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlDatabaseList", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete databases [${params.cloudMysqlDatabaseNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -492,7 +493,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/deleteCloudMysqlUserList", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete users [${params.cloudMysqlUserNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );

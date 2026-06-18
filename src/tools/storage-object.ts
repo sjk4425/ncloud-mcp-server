@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { defineTool } from "./_tool.js";
+import { L, deletedMessage, dryRunMessage, requiredError } from "./_messages.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -283,7 +284,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Create a new Object Storage bucket. Use dryRun=true to preview.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to create"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
@@ -293,7 +294,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           label: "🔍 Dry-Run Preview: Bucket Creation",
           bucketName: params.bucketName,
           region: client.getRegionCode(),
-          message: "이 요청은 실제 버킷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "버킷", en: "bucket" }),
         };
         return preview;
       }
@@ -316,13 +317,13 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Permanently delete an Object Storage bucket. The bucket must be empty. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       await client.request({ method: "DELETE", bucket: params.bucketName });
-      const result = { message: `✅ 버킷 '${params.bucketName}'이(가) 삭제되었습니다.` };
+      const result = { message: deletedMessage({ ko: `버킷 '${params.bucketName}'`, en: `bucket '${params.bucketName}'` }) };
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Bucket [${params.bucketName}]. The bucket must be empty. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
@@ -336,7 +337,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "List objects in an Object Storage bucket",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       prefix: z.string().optional().describe("Limits results to keys beginning with this prefix"),
       delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
@@ -366,10 +367,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Get (download) an object from an Object Storage bucket. Returns the object content as text.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) to retrieve"),
     },
     async (params) => {
@@ -398,13 +399,13 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Upload (put) an object to an Object Storage bucket. Use dryRun=true to preview.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) to upload to"),
       body: z.string({
-        required_error: "필수 파라미터 'body'가 누락되었습니다.",
+        required_error: requiredError("body"),
       }).describe("Content to upload as the object body"),
       contentType: z.string().optional().describe("Content-Type header for the object (e.g., 'text/plain', 'application/json')"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually uploading"),
@@ -417,7 +418,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           key: params.key,
           contentType: params.contentType ?? "application/octet-stream",
           bodySize: `${params.body.length} bytes`,
-          message: "이 요청은 실제 오브젝트를 업로드하지 않습니다. dryRun=false로 호출하면 업로드됩니다.",
+          message: dryRunMessage({ ko: "오브젝트", en: "object" }, "upload"),
         };
         return preview;
       }
@@ -454,10 +455,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Permanently delete an object from an Object Storage bucket. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -467,7 +468,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         bucket: params.bucketName,
         key: params.key,
       });
-      const result = { message: `✅ 오브젝트 '${params.bucketName}/${params.key}'이(가) 삭제되었습니다.` };
+      const result = { message: deletedMessage({ ko: `오브젝트 '${params.bucketName}/${params.key}'`, en: `object '${params.bucketName}/${params.key}'` }) };
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Object [${params.bucketName}/${params.key}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
@@ -481,10 +482,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Initiate a multipart upload for a large object in Object Storage",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) for the multipart upload"),
       contentType: z.string().optional().describe("Content-Type for the object"),
     },
@@ -512,13 +513,13 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Complete a multipart upload by assembling previously uploaded parts",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       key: z.string({
-        required_error: "필수 파라미터 'key'가 누락되었습니다.",
+        required_error: requiredError("key"),
       }).describe("Object key (path) for the multipart upload"),
       uploadId: z.string({
-        required_error: "필수 파라미터 'uploadId'가 누락되었습니다.",
+        required_error: requiredError("uploadId"),
       }).describe("Upload ID returned from initiate multipart upload"),
       parts: z.array(z.object({
         partNumber: z.number().describe("Part number (1-based)"),
@@ -562,19 +563,19 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Upload a part in a multipart upload. Use InitiateMultipartUpload first to get an uploadId, then upload parts, then CompleteMultipartUpload.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object key (path) for the multipart upload"),
       uploadId: z.string({
-        required_error: "필수 파라미터 'uploadId'가 누락되었습니다.",
+        required_error: requiredError("uploadId"),
       }).describe("Upload ID returned from initiate multipart upload"),
       partNumber: z.number({
-        required_error: "필수 파라미터 'partNumber'가 누락되었습니다.",
+        required_error: requiredError("partNumber"),
       }).min(1).max(10000).describe("Part number (1 to 10000)"),
       body: z.string({
-        required_error: "필수 파라미터 'body'가 누락되었습니다.",
+        required_error: requiredError("body"),
       }).describe("Content of this part to upload"),
     },
     async (params) => {
@@ -608,13 +609,13 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "List uploaded parts for a multipart upload in progress",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object key (path) for the multipart upload"),
       uploadId: z.string({
-        required_error: "필수 파라미터 'uploadId'가 누락되었습니다.",
+        required_error: requiredError("uploadId"),
       }).describe("Upload ID returned from initiate multipart upload"),
     },
     async (params) => {
@@ -635,13 +636,13 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Abort a multipart upload and delete all uploaded parts. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object key (path) for the multipart upload"),
       uploadId: z.string({
-        required_error: "필수 파라미터 'uploadId'가 누락되었습니다.",
+        required_error: requiredError("uploadId"),
       }).describe("Upload ID of the multipart upload to abort"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -653,7 +654,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         queryParams: { uploadId: params.uploadId },
       });
       const result = {
-        message: `✅ 멀티파트 업로드 '${params.uploadId}'이(가) 중단되었습니다. 업로드된 파트가 삭제되었습니다.`,
+        message: L({ ko: `✅ 멀티파트 업로드 '${params.uploadId}'이(가) 중단되었습니다. 업로드된 파트가 삭제되었습니다.`, en: `✅ Multipart upload '${params.uploadId}' has been aborted. Uploaded parts have been deleted.` }),
         bucket: params.bucketName,
         key: params.objectName,
         uploadId: params.uploadId,
@@ -669,7 +670,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "List in-progress multipart uploads for a bucket",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       prefix: z.string().optional().describe("Limits results to uploads for keys beginning with this prefix"),
       delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
@@ -697,7 +698,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Get the access control list (ACL) of an Object Storage bucket",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
     },
     async (params) => {
@@ -717,10 +718,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Set the access control list (ACL) of an Object Storage bucket using a canned ACL",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       acl: z.enum(["private", "public-read", "public-read-write", "authenticated-read"], {
-        required_error: "필수 파라미터 'acl'이 누락되었습니다.",
+        required_error: requiredError("acl"),
       }).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
     },
     async (params) => {
@@ -731,7 +732,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         headers: { "x-amz-acl": params.acl },
       });
       const result = {
-        message: `✅ 버킷 '${params.bucketName}'의 ACL이 '${params.acl}'로 설정되었습니다.`,
+        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 ACL이 '${params.acl}'로 설정되었습니다.`, en: `✅ The ACL of bucket '${params.bucketName}' has been set to '${params.acl}'.` }),
         bucket: params.bucketName,
         acl: params.acl,
       };
@@ -747,10 +748,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Get the access control list (ACL) of an object in Object Storage",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket containing the object"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object key (path) to get ACL for"),
     },
     async (params) => {
@@ -771,13 +772,13 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Set the access control list (ACL) of an object in Object Storage using a canned ACL",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket containing the object"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object key (path) to set ACL for"),
       acl: z.enum(["private", "public-read", "public-read-write", "authenticated-read"], {
-        required_error: "필수 파라미터 'acl'이 누락되었습니다.",
+        required_error: requiredError("acl"),
       }).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
     },
     async (params) => {
@@ -789,7 +790,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         headers: { "x-amz-acl": params.acl },
       });
       const result = {
-        message: `✅ 오브젝트 '${params.bucketName}/${params.objectName}'의 ACL이 '${params.acl}'로 설정되었습니다.`,
+        message: L({ ko: `✅ 오브젝트 '${params.bucketName}/${params.objectName}'의 ACL이 '${params.acl}'로 설정되었습니다.`, en: `✅ The ACL of object '${params.bucketName}/${params.objectName}' has been set to '${params.acl}'.` }),
         bucket: params.bucketName,
         object: params.objectName,
         acl: params.acl,
@@ -806,7 +807,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Get the versioning state of an Object Storage bucket",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to check versioning status"),
     },
     async (params) => {
@@ -826,10 +827,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Set the versioning state of an Object Storage bucket (Enabled or Suspended)",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       status: z.enum(["Enabled", "Suspended"], {
-        required_error: "필수 파라미터 'status'가 누락되었습니다.",
+        required_error: requiredError("status"),
       }).describe("Versioning status to set (Enabled | Suspended)"),
     },
     async (params) => {
@@ -842,7 +843,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         body,
       });
       const result = {
-        message: `✅ 버킷 '${params.bucketName}'의 버전 관리가 '${params.status}'로 설정되었습니다.`,
+        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 버전 관리가 '${params.status}'로 설정되었습니다.`, en: `✅ Versioning for bucket '${params.bucketName}' has been set to '${params.status}'.` }),
         bucket: params.bucketName,
         versioningStatus: params.status,
       };
@@ -856,7 +857,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "List all versions of objects in a versioning-enabled Object Storage bucket",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       prefix: z.string().optional().describe("Limits results to keys beginning with this prefix"),
       delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
@@ -890,14 +891,14 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Restore an object stored in Archive class to make it accessible. The restored copy is available for the specified number of days.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket containing the archived object"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Key (path) of the archived object to restore"),
       days: z.number({
-        required_error: "필수 파라미터 'days'가 누락되었습니다.",
-      }).min(1, { message: "잘못된 파라미터: 'days'는 1 이상이어야 합니다." })
+        required_error: requiredError("days"),
+      }).min(1, { message: L({ ko: "잘못된 파라미터: 'days'는 1 이상이어야 합니다.", en: "Invalid parameter: 'days' must be 1 or greater." }) })
         .describe("Number of days to keep the restored copy accessible"),
     },
     async (params) => {
@@ -911,7 +912,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         body,
       });
       const result = {
-        message: `✅ 오브젝트 '${params.bucketName}/${params.objectName}' 복원이 요청되었습니다. 복원 완료까지 수 시간이 소요될 수 있습니다.`,
+        message: L({ ko: `✅ 오브젝트 '${params.bucketName}/${params.objectName}' 복원이 요청되었습니다. 복원 완료까지 수 시간이 소요될 수 있습니다.`, en: `✅ Restore of object '${params.bucketName}/${params.objectName}' has been requested. It may take several hours to complete.` }),
         bucket: params.bucketName,
         object: params.objectName,
         restoreDays: params.days,
@@ -928,7 +929,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Get the region (location constraint) of an Object Storage bucket",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to get location for"),
     },
     async (params) => {
@@ -954,13 +955,13 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Copy an object within the same bucket or between different buckets in Object Storage",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Destination bucket name"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Destination object key (path)"),
       copySource: z.string({
-        required_error: "필수 파라미터 'copySource'가 누락되었습니다.",
+        required_error: requiredError("copySource"),
       }).describe("Source object in the format /{sourceBucket}/{sourceKey}"),
     },
     async (params) => {
@@ -992,10 +993,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Retrieve metadata of an object without returning the object body (HEAD request)",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       objectName: z.string({
-        required_error: "필수 파라미터 'objectName'이 누락되었습니다.",
+        required_error: requiredError("objectName"),
       }).describe("Object key (path) to get metadata for"),
     },
     async (params) => {
@@ -1025,10 +1026,10 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "⚠️ Destructive: Delete multiple objects from an Object Storage bucket in a single request. Set confirm=true to execute.",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket"),
       objectKeys: z.array(z.string()).min(1, {
-        message: "잘못된 파라미터: 'objectKeys'는 최소 1개 이상의 키를 포함해야 합니다.",
+        message: L({ ko: "잘못된 파라미터: 'objectKeys'는 최소 1개 이상의 키를 포함해야 합니다.", en: "Invalid parameter: 'objectKeys' must contain at least one key." }),
       }).describe("Array of object keys to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -1069,7 +1070,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       }
 
       const result = {
-        message: `✅ ${deleted.length}개 오브젝트가 삭제되었습니다.${errors.length > 0 ? ` ${errors.length}개 실패.` : ""}`,
+        message: L({ ko: `✅ ${deleted.length}개 오브젝트가 삭제되었습니다.${errors.length > 0 ? ` ${errors.length}개 실패.` : ""}`, en: `✅ ${deleted.length} object(s) have been deleted.${errors.length > 0 ? ` ${errors.length} failed.` : ""}` }),
         bucket: params.bucketName,
         deleted,
         errors: errors.length > 0 ? errors : undefined,
@@ -1085,7 +1086,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "Check if a bucket exists and you have permission to access it (HEAD request, returns headers only)",
     {
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Name of the bucket to check"),
     },
     async (params) => {

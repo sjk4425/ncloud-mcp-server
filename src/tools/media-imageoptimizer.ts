@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerImageOptimizerTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Query Tools ───────────────────────────────────────────────────
@@ -24,7 +25,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     "ncloud_imageoptimizer_get_project",
     "Get detailed information about a specific Image Optimizer project",
     {
-      projectId: z.string({ required_error: "필수 파라미터 'projectId'가 누락되었습니다." }).describe("Project ID to query"),
+      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID to query"),
     },
     async (params) => {
       return client.request(`/api/v2/projects/${params.projectId}`);
@@ -38,8 +39,8 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     "ncloud_imageoptimizer_create_project",
     "Create a new Image Optimizer project. Use dryRun=true to preview without creating.",
     {
-      projectName: z.string({ required_error: "필수 파라미터 'projectName'이 누락되었습니다." }).describe("Project name"),
-      bucketName: z.string({ required_error: "필수 파라미터 'bucketName'이 누락되었습니다." }).describe("Object Storage bucket name for source images"),
+      projectName: z.string({ required_error: requiredError("projectName") }).describe("Project name"),
+      bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Object Storage bucket name for source images"),
       createCdn: z.boolean().optional().default(true).describe("Whether to auto-create a Global Edge CDN"),
       cdnProfileId: z.number().optional().describe("Global Edge profile ID (required when createCdn=true)"),
       cdnRegionType: z.enum(["KOREA", "JAPAN", "GLOBAL"]).optional().describe("CDN service region (required when createCdn=true)"),
@@ -56,7 +57,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
           createCdn: params.createCdn,
           cdnProfileId: params.cdnProfileId,
           cdnRegionType: params.cdnRegionType,
-          message: "이 요청은 실제 프로젝트를 생성하지 않습니다. dryRun=false로 호출하면 프로젝트가 생성됩니다.",
+          message: dryRunMessage({ ko: "프로젝트", en: "project" }),
         };
         return preview;
       }
@@ -84,7 +85,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
         CDN생성: params.createCdn,
         상태: project?.projectStatus || "CREATING",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -95,12 +96,12 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     "ncloud_imageoptimizer_delete_project",
     "⚠️ Destructive: Permanently delete an Image Optimizer project. Set confirm=true to execute.",
     {
-      projectId: z.string({ required_error: "필수 파라미터 'projectId'가 누락되었습니다." }).describe("Project ID to delete"),
+      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const result = await client.deleteRequest(`/api/v2/projects/${params.projectId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Image Optimizer Project [${params.projectId}]. All transformation rules will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -112,14 +113,14 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     "ncloud_imageoptimizer_list_rules",
     "List all transformation rules for an Image Optimizer project",
     {
-      projectId: z.string({ required_error: "필수 파라미터 'projectId'가 누락되었습니다." }).describe("Project ID to list rules for"),
+      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID to list rules for"),
       pageNo: z.number().optional().describe("Page number (default: 1)"),
       pageSizeNo: z.number().optional().describe("Number of items per page (default: 20)"),
     },
     async (params) => {
       const { projectId, ...queryParams } = params;
       const result = await client.request(`/api/v2/projects/${projectId}/rules`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -128,8 +129,8 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     "ncloud_imageoptimizer_create_rule",
     "Create a new transformation rule for an Image Optimizer project. Use dryRun=true to preview without creating.",
     {
-      projectId: z.string({ required_error: "필수 파라미터 'projectId'가 누락되었습니다." }).describe("Project ID to add the rule to"),
-      ruleName: z.string({ required_error: "필수 파라미터 'ruleName'이 누락되었습니다." }).describe("Rule name"),
+      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID to add the rule to"),
+      ruleName: z.string({ required_error: requiredError("ruleName") }).describe("Rule name"),
       resizeType: z.enum(["f", "w", "h", "fw", "fh", "wh", "h_wm"]).optional().describe("Resize type: f(fit), w(width), h(height), fw(force width), fh(force height), wh(width+height), h_wm(height with watermark)"),
       width: z.number().optional().describe("Target width in pixels"),
       height: z.number().optional().describe("Target height in pixels"),
@@ -150,7 +151,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
           quality: params.quality,
           format: params.format,
           autorotate: params.autorotate,
-          message: "이 요청은 실제 규칙을 생성하지 않습니다. dryRun=false로 호출하면 규칙이 생성됩니다.",
+          message: dryRunMessage({ ko: "규칙", en: "rule" }),
         };
         return preview;
       }
@@ -176,7 +177,7 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
         포맷: params.format || "original",
         상태: "created",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -185,13 +186,13 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
     "ncloud_imageoptimizer_delete_rule",
     "⚠️ Destructive: Delete a transformation rule from an Image Optimizer project. Set confirm=true to execute.",
     {
-      projectId: z.string({ required_error: "필수 파라미터 'projectId'가 누락되었습니다." }).describe("Project ID containing the rule"),
-      ruleId: z.string({ required_error: "필수 파라미터 'ruleId'가 누락되었습니다." }).describe("Rule ID to delete"),
+      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID containing the rule"),
+      ruleId: z.string({ required_error: requiredError("ruleId") }).describe("Rule ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const result = await client.deleteRequest(`/api/v2/projects/${params.projectId}/rules/${params.ruleId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Rule [${params.ruleId}] from Project [${params.projectId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );

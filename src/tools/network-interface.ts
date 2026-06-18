@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 export function registerNetworkInterfaceTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -68,13 +69,13 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
           accessControlGroupNoList: params.accessControlGroupNoList,
           networkInterfaceName: params.networkInterfaceName ?? "(auto-generated)",
           privateIp: params.privateIp ?? "(auto-assigned)",
-          message: "이 요청은 실제 네트워크 인터페이스를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "네트워크 인터페이스", en: "network interface" }),
         };
         return preview;
       }
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vserver/v2/createNetworkInterface", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -187,7 +188,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/removeNetworkInterfaceAccessControlGroup", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will remove ACG(s) [${params.accessControlGroupNoList.join(", ")}] from NetworkInterface [${params.networkInterfaceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -203,7 +204,7 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteNetworkInterface", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "NetworkInterface", describe: (params) => params.networkInterfaceNo } }
   );

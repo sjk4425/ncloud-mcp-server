@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, L } from "./_messages.js";
 
 export function registerComputeServerTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -144,9 +145,9 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
           loginKeyName: params.loginKeyName ?? "(none)",
           initScriptNo: params.initScriptNo ?? "(none)",
           feeSystemTypeCode: params.feeSystemTypeCode ?? "MTRAT",
-          message: "이 요청은 실제 서버를 생성하지 않습니다. dryRun=false로 호출하면 서버가 생성됩니다.",
-          hint_KVM: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수",
-          hint_XEN: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode",
+          message: dryRunMessage({ ko: "서버", en: "server" }),
+          hint_KVM: L({ ko: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수", en: "KVM (Gen3) server: serverImageNo + serverSpecCode combination required" }),
+          hint_XEN: L({ ko: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode", en: "XEN (Gen2) server: serverImageProductCode + serverProductCode, or serverImageNo + serverSpecCode" }),
         };
         return preview;
       }
@@ -186,7 +187,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         서브넷: params.subnetNo,
         사설IP: instance?.privateIp ?? "pending",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -297,7 +298,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/terminateServerInstances", apiParams);
-      return result;
+      return result;
     },
     { destructive: { action: "terminate", noun: "Server", describe: (params) => params.serverInstanceNoList.join(", ") } }
   );
@@ -313,7 +314,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteServerImageInstances", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "ServerImage", describe: (params) => params.serverImageInstanceNoList.join(", ") } }
   );
@@ -329,7 +330,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteMemberServerImageInstances", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "MemberServerImage", describe: (params) => params.memberServerImageInstanceNoList.join(", ") } }
   );
@@ -433,7 +434,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/removeServerImageSharingPermission", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will remove sharing permission for ServerImage [${params.serverImageNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -476,7 +477,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/removeMemberServerImageSharingPermission", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will remove sharing permission for MemberServerImage [${params.memberServerImageInstanceNo}] from accounts [${params.targetLoginIdList.join(", ")}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );

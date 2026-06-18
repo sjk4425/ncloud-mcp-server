@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { requiredError } from "./_messages.js";
 
 export function registerGlobalDnsTools(server: McpServer, client: NcloudClient): void {
   // ─── Domain Management Tools ─────────────────────────────────────────────────
@@ -11,8 +12,8 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_list_domains",
     "List Global DNS domains with pagination. Returns Spring Page structure (content, pageable, totalElements).",
     {
-      page: z.number({ required_error: "필수 파라미터 'page'가 누락되었습니다." }).describe("Page number (0-based)"),
-      size: z.number({ required_error: "필수 파라미터 'size'가 누락되었습니다." }).describe("Number of items per page"),
+      page: z.number({ required_error: requiredError("page") }).describe("Page number (0-based)"),
+      size: z.number({ required_error: requiredError("size") }).describe("Number of items per page"),
       domainName: z.string().optional().describe("Filter by domain name"),
     },
     async (params) => {
@@ -33,7 +34,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_get_domain_detail",
     "Get detailed information about a specific Global DNS domain",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to query"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to query"),
     },
     async (params) => {
       return client.requestRaw("GET", `/dns/v1/ncpdns/domain/${params.domainId}`);
@@ -45,7 +46,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_create_domain",
     "Create a new Global DNS domain",
     {
-      name: z.string({ required_error: "필수 파라미터 'name'이 누락되었습니다." }).describe("Domain name (e.g., example.com)"),
+      name: z.string({ required_error: requiredError("name") }).describe("Domain name (e.g., example.com)"),
       comment: z.string().optional().describe("Optional comment for the domain"),
     },
     async (params) => {
@@ -63,7 +64,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_delete_domain",
     "⚠️ Destructive: Permanently delete a Global DNS domain. All records under this domain will be removed. Set confirm=true to execute.",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to delete"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -78,7 +79,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_apply_domain",
     "Apply pending changes to a Global DNS domain (publish DNS records)",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to apply"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to apply"),
     },
     async (params) => {
       return client.requestRaw("PUT", `/dns/v1/ncpdns/domain/${params.domainId}/apply`);
@@ -90,7 +91,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_rollback_domain",
     "⚠️ Destructive: Rollback a Global DNS domain to the previously applied state. Pending changes will be discarded. Set confirm=true to execute.",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to rollback"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to rollback"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -108,9 +109,9 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_list_records",
     "List DNS records for a specific Global DNS domain with pagination",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to list records for"),
-      page: z.number({ required_error: "필수 파라미터 'page'가 누락되었습니다." }).describe("Page number (0-based)"),
-      size: z.number({ required_error: "필수 파라미터 'size'가 누락되었습니다." }).describe("Number of items per page"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to list records for"),
+      page: z.number({ required_error: requiredError("page") }).describe("Page number (0-based)"),
+      size: z.number({ required_error: requiredError("size") }).describe("Number of items per page"),
       recordType: z.enum(["A", "AAAA", "CNAME", "MX", "PTR", "SPF", "TXT", "NS", "SRV", "CAA", "DS"]).optional().describe("Filter by record type"),
       searchContent: z.string().optional().describe("Search filter for record content"),
     },
@@ -135,7 +136,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_create_records",
     "Create DNS records for a specific Global DNS domain",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to create records for"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to create records for"),
       records: z.array(z.object({
         host: z.string().describe("Record host name"),
         type: z.string().describe("Record type (A, AAAA, CNAME, MX, PTR, SPF, TXT, NS, SRV, CAA, DS)"),
@@ -144,7 +145,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
         aliasId: z.number().optional().describe("Alias ID (optional)"),
         lbId: z.number().optional().describe("Load Balancer ID (optional)"),
         lbRegionCode: z.string().optional().describe("Load Balancer region code (optional)"),
-      }), { required_error: "필수 파라미터 'records'가 누락되었습니다." }).describe("Array of DNS records to create"),
+      }), { required_error: requiredError("records") }).describe("Array of DNS records to create"),
     },
     async (params) => {
       return client.requestRaw("POST", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, params.records);
@@ -156,7 +157,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_update_records",
     "Update DNS records for a specific Global DNS domain",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to update records for"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to update records for"),
       records: z.array(z.object({
         id: z.number().describe("Record ID to update"),
         host: z.string().describe("Record host name"),
@@ -166,7 +167,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
         aliasId: z.number().optional().describe("Alias ID (optional)"),
         lbId: z.number().optional().describe("Load Balancer ID (optional)"),
         lbRegionCode: z.string().optional().describe("Load Balancer region code (optional)"),
-      }), { required_error: "필수 파라미터 'records'가 누락되었습니다." }).describe("Array of DNS records to update"),
+      }), { required_error: requiredError("records") }).describe("Array of DNS records to update"),
     },
     async (params) => {
       return client.requestRaw("PUT", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, params.records);
@@ -178,8 +179,8 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_delete_records",
     "⚠️ Destructive: Delete DNS records from a Global DNS domain. This permanently removes the specified records. Set confirm=true to execute.",
     {
-      domainId: z.number({ required_error: "필수 파라미터 'domainId'가 누락되었습니다." }).describe("Domain ID to delete records from"),
-      recordIds: z.array(z.number(), { required_error: "필수 파라미터 'recordIds'가 누락되었습니다." }).describe("Array of record IDs to delete"),
+      domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to delete records from"),
+      recordIds: z.array(z.number(), { required_error: requiredError("recordIds") }).describe("Array of record IDs to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -206,7 +207,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_get_query_count",
     "Get DNS query count monitoring data for Global DNS domains",
     {
-      baseTimeUnit: z.enum(["MINUTE_1", "MINUTE_5", "MINUTE_30", "HOUR_3", "DAY_1"], { required_error: "필수 파라미터 'baseTimeUnit'이 누락되었습니다." }).describe("Time unit for aggregation"),
+      baseTimeUnit: z.enum(["MINUTE_1", "MINUTE_5", "MINUTE_30", "HOUR_3", "DAY_1"], { required_error: requiredError("baseTimeUnit") }).describe("Time unit for aggregation"),
       domainId: z.number().optional().describe("Filter by specific domain ID"),
     },
     async (params) => {

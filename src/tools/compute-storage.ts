@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 export function registerComputeStorageTools(server: McpServer, client: NcloudClient): void {
   // ─── Block Storage Query Tools ─────────────────────────────────────────────
@@ -82,14 +83,14 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
           blockStorageSnapshotInstanceNo: params.blockStorageSnapshotInstanceNo ?? "(not set)",
           isReturnProtection: params.isReturnProtection ?? "(not set)",
           blockStorageName: params.blockStorageName ?? "(auto-generated)",
-          message: "이 요청은 실제 블록 스토리지를 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "블록 스토리지", en: "block storage" }),
         };
         return preview;
       }
 
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vserver/v2/createBlockStorageInstance", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -130,7 +131,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       }
 
       const result = await client.request("/vserver/v2/attachBlockStorageInstance", params);
-      return result;
+      return result;
     }
   );
 
@@ -187,7 +188,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteBlockStorageInstances", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "BlockStorage", describe: (params) => params.blockStorageInstanceNoList.join(", ") } }
   );
@@ -238,13 +239,13 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
           label: "🔍 Dry-Run Preview: Snapshot Creation",
           blockStorageInstanceNo: params.blockStorageInstanceNo,
           blockStorageSnapshotName: params.blockStorageSnapshotName ?? "(auto-generated)",
-          message: "이 요청은 실제 스냅샷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "스냅샷", en: "snapshot" }),
         };
         return preview;
       }
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vserver/v2/createBlockStorageSnapshotInstance", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -261,7 +262,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deleteBlockStorageSnapshotInstances", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "Snapshot", describe: (params) => params.blockStorageSnapshotInstanceNoList.join(", ") } }
   );

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] - 2026-06-18
+
+> Handler-level i18n follow-up. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0/1.6.0). Default behavior (Korean) is unchanged; only `NCLOUD_LANG=en` output differs. Design: `docs/DESIGN_post-1.6.0-improvements.md` §1·§2.
+
+### Fixed
+- **Handler/schema-level messages now honor `NCLOUD_LANG`.** v1.6.0 localized only the `NcloudClient` error layer; messages returned **directly by tool handlers** (validation errors, dryRun previews, deletion/success notices) and zod `required_error` strings were still hardcoded Korean, so `NCLOUD_LANG=en` users still saw Korean for those. All such strings are now routed through a new `src/tools/_messages.ts` module with parallel `ko`/`en` text: `L({ ko, en })` for one-offs plus template helpers `dryRunMessage`/`requiredError`/`maxLenMessage`/`cidrMessage`/`deletedMessage`. ~90 handler strings converted across ~37 modules, plus **520 zod `required_error` strings** across 29 modules migrated via a Node utf8 codemod (`scripts/codemod-required-error-i18n.mjs`). Default language stays Korean.
+- **`activity-tracer.ts`** "activity not found" fallback no longer uses indented `JSON.stringify(result, null, 2)` (now `JSON.stringify(result)`), aligning with the `toolText()` no-indent convention.
+
+### Added
+- **Helper unit tests** (`_messages.test.ts`, 10 tests): `ko` default preserved when `NCLOUD_LANG` is unset/unknown, English switch on `NCLOUD_LANG=en` (case-insensitive), and per-verb dryRun templates (create/upload/apply).
+
 ## [1.6.0] - 2026-06-16
 
 > Reliability & UX release. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0). New behavior is either scoped to read-only tools or opt-in via env. Design: `docs/DESIGN_post-1.4.0-improvements.md` §4·§6.

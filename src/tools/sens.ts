@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { L, requiredError } from "./_messages.js";
 
 export function registerSensTools(server: McpServer, client: NcloudClient): void {
   const smsServiceId = process.env.NCLOUD_SENS_SMS_SERVICE_ID ?? process.env.NCLOUD_SENS_SERVICE_ID ?? "";
@@ -16,8 +17,8 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "Send SMS/LMS/MMS message via SENS. Requires NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_SMS_SERVICE_ID environment variable.",
     {
       type: z.enum(["SMS", "LMS", "MMS"]).describe("Message type: SMS (short), LMS (long), MMS (multimedia)"),
-      from: z.string({ required_error: "필수 파라미터 'from'이 누락되었습니다." }).describe("Caller ID (registered phone number, numbers only)"),
-      content: z.string({ required_error: "필수 파라미터 'content'이 누락되었습니다." }).describe("Default message content (SMS: 0-90 bytes, LMS/MMS: 0-2000 bytes)"),
+      from: z.string({ required_error: requiredError("from") }).describe("Caller ID (registered phone number, numbers only)"),
+      content: z.string({ required_error: requiredError("content") }).describe("Default message content (SMS: 0-90 bytes, LMS/MMS: 0-2000 bytes)"),
       messages: z.array(z.object({
         to: z.string().describe("Recipient phone number (numbers only)"),
         subject: z.string().optional().describe("Individual message subject (LMS/MMS only, 0-40 bytes)"),
@@ -31,7 +32,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     },
     async (params) => {
       if (!smsServiceId) {
-        return { content: [{ type: "text" as const, text: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_SMS_SERVICE_ID 환경 변수가 설정되지 않았습니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_SMS_SERVICE_ID 환경 변수가 설정되지 않았습니다.", en: "Error: the NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_SMS_SERVICE_ID environment variable is not set." }) }], isError: true };
       }
 
       const body: Record<string, any> = {
@@ -47,7 +48,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
       if (params.reserveTimeZone) body.reserveTimeZone = params.reserveTimeZone;
 
       const result = await client.postRequest(`/sms/v2/services/${encodeURIComponent(smsServiceId)}/messages`, body);
-      return result;
+      return result;
     }
   );
 
@@ -56,15 +57,15 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "ncloud_sens_get_sms_status",
     "Get SMS message delivery result by message ID. Requires NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_SMS_SERVICE_ID environment variable.",
     {
-      messageId: z.string({ required_error: "필수 파라미터 'messageId'가 누락되었습니다." }).describe("Message ID to check delivery status"),
+      messageId: z.string({ required_error: requiredError("messageId") }).describe("Message ID to check delivery status"),
     },
     async (params) => {
       if (!smsServiceId) {
-        return { content: [{ type: "text" as const, text: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_SMS_SERVICE_ID 환경 변수가 설정되지 않았습니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_SMS_SERVICE_ID 환경 변수가 설정되지 않았습니다.", en: "Error: the NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_SMS_SERVICE_ID environment variable is not set." }) }], isError: true };
       }
 
       const result = await client.request(`/sms/v2/services/${encodeURIComponent(smsServiceId)}/messages/${encodeURIComponent(params.messageId)}`);
-      return result;
+      return result;
     }
   );
 
@@ -89,7 +90,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     },
     async (params) => {
       if (!smsServiceId) {
-        return { content: [{ type: "text" as const, text: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_SMS_SERVICE_ID 환경 변수가 설정되지 않았습니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_SMS_SERVICE_ID 환경 변수가 설정되지 않았습니다.", en: "Error: the NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_SMS_SERVICE_ID environment variable is not set." }) }], isError: true };
       }
 
       const apiParams: Record<string, string | undefined> = {};
@@ -108,7 +109,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
       if (params.nextToken) apiParams.nextToken = params.nextToken;
 
       const result = await client.request(`/sms/v2/services/${encodeURIComponent(smsServiceId)}/messages`, apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -119,8 +120,8 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "ncloud_sens_send_alimtalk",
     "Send Alim Talk (KakaoTalk notification) message via SENS. Requires NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_ALIMTALK_SERVICE_ID environment variable.",
     {
-      plusFriendId: z.string({ required_error: "필수 파라미터 'plusFriendId'가 누락되었습니다." }).describe("KakaoTalk Channel ID (e.g., @channelname)"),
-      templateCode: z.string({ required_error: "필수 파라미터 'templateCode'가 누락되었습니다." }).describe("Approved template code"),
+      plusFriendId: z.string({ required_error: requiredError("plusFriendId") }).describe("KakaoTalk Channel ID (e.g., @channelname)"),
+      templateCode: z.string({ required_error: requiredError("templateCode") }).describe("Approved template code"),
       messages: z.array(z.object({
         to: z.string().describe("Recipient phone number (numbers only)"),
         content: z.string().describe("Message content (must match template)"),
@@ -147,7 +148,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     },
     async (params) => {
       if (!alimtalkServiceId) {
-        return { content: [{ type: "text" as const, text: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_ALIMTALK_SERVICE_ID 환경 변수가 설정되지 않았습니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_ALIMTALK_SERVICE_ID 환경 변수가 설정되지 않았습니다.", en: "Error: the NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_ALIMTALK_SERVICE_ID environment variable is not set." }) }], isError: true };
       }
 
       const body: Record<string, any> = {
@@ -159,7 +160,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
       if (params.reserveTimeZone) body.reserveTimeZone = params.reserveTimeZone;
 
       const result = await client.postRequest(`/alimtalk/v2/services/${encodeURIComponent(alimtalkServiceId)}/messages`, body);
-      return result;
+      return result;
     }
   );
 
@@ -168,7 +169,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "ncloud_sens_list_alimtalk_templates",
     "List registered Alim Talk templates. Requires NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_ALIMTALK_SERVICE_ID environment variable.",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("KakaoTalk Channel ID (e.g., @channelname)"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("KakaoTalk Channel ID (e.g., @channelname)"),
       templateCode: z.string().optional().describe("Template code (if provided, returns template details including inspection info)"),
       templateName: z.string().optional().describe("Template name filter (partial match)"),
       pageSize: z.number().optional().describe("Number of items per page (1-100, default: 100)"),
@@ -176,7 +177,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     },
     async (params) => {
       if (!alimtalkServiceId) {
-        return { content: [{ type: "text" as const, text: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_ALIMTALK_SERVICE_ID 환경 변수가 설정되지 않았습니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_ALIMTALK_SERVICE_ID 환경 변수가 설정되지 않았습니다.", en: "Error: the NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_ALIMTALK_SERVICE_ID environment variable is not set." }) }], isError: true };
       }
 
       const apiParams: Record<string, string | undefined> = {
@@ -188,7 +189,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
       if (params.pageIndex !== undefined) apiParams.pageIndex = String(params.pageIndex);
 
       const result = await client.request(`/alimtalk/v2/services/${encodeURIComponent(alimtalkServiceId)}/templates`, apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -226,7 +227,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     },
     async (params) => {
       if (!pushServiceId) {
-        return { content: [{ type: "text" as const, text: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_PUSH_SERVICE_ID 환경 변수가 설정되지 않았습니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "Error: NCLOUD_SENS_SERVICE_ID 또는 NCLOUD_SENS_PUSH_SERVICE_ID 환경 변수가 설정되지 않았습니다.", en: "Error: the NCLOUD_SENS_SERVICE_ID or NCLOUD_SENS_PUSH_SERVICE_ID environment variable is not set." }) }], isError: true };
       }
 
       const body: Record<string, any> = {
@@ -237,7 +238,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
       if (params.reserveTimeZone) body.reserveTimeZone = params.reserveTimeZone;
 
       const result = await client.postRequest(`/push/v2/services/${encodeURIComponent(pushServiceId)}/messages`, body);
-      return result;
+      return result;
     }
   );
 }

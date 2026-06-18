@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 /**
  * SourceCommit API Tools
@@ -32,7 +33,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
 
       const result = await client.requestRaw("GET", "/api/v1/repository", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -93,7 +94,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
             FileSafer: params.fileSafer ?? false,
             ObjectStorage: params.objectStorage ?? false,
           },
-          message: "이 요청은 실제 저장소를 생성하지 않습니다. dryRun=false로 호출하면 저장소가 생성됩니다.",
+          message: dryRunMessage({ ko: "저장소", en: "repository" }),
         };
         return preview;
       }
@@ -114,7 +115,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
         상태: "created",
         result,
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -144,7 +145,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
         undefined,
         body
       );
-      return result;
+      return result;
     }
   );
 
@@ -174,7 +175,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
         undefined,
         body
       );
-      return result;
+      return result;
     }
   );
 
@@ -193,7 +194,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
         "DELETE",
         `/api/v1/repository/${encodeURIComponent(params.repositoryName)}`
       );
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete SourceCommit Repository [${params.repositoryName}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -213,7 +214,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
         "DELETE",
         `/api/v1/repository/id/${encodeURIComponent(params.repositoryId)}`
       );
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete SourceCommit Repository ID [${params.repositoryId}]. All branches, commits, and history will be destroyed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -270,7 +271,7 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
         undefined,
         body
       );
-      return result;
+      return result;
     }
   );
 }

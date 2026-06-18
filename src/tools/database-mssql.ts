@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -188,22 +189,22 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     "Create a new Cloud DB for MSSQL instance. Use dryRun=true to preview without creating.",
     {
       cloudMssqlServiceName: z.string({
-        required_error: "필수 파라미터 'cloudMssqlServiceName'이 누락되었습니다.",
+        required_error: requiredError("cloudMssqlServiceName"),
       }).describe("MSSQL service name (3-20 chars, lowercase letters and numbers)"),
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'이 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number"),
       subnetNo: z.string({
-        required_error: "필수 파라미터 'subnetNo'이 누락되었습니다.",
+        required_error: requiredError("subnetNo"),
       }).describe("Subnet number"),
       cloudMssqlUserName: z.string({
-        required_error: "필수 파라미터 'cloudMssqlUserName'이 누락되었습니다.",
+        required_error: requiredError("cloudMssqlUserName"),
       }).describe("Initial admin user name"),
       cloudMssqlUserPassword: z.string({
-        required_error: "필수 파라미터 'cloudMssqlUserPassword'이 누락되었습니다.",
+        required_error: requiredError("cloudMssqlUserPassword"),
       }).describe("Initial admin user password"),
       isHa: z.boolean({
-        required_error: "필수 파라미터 'isHa'이 누락되었습니다.",
+        required_error: requiredError("isHa"),
       }).describe("High availability mode (true creates Mirror server, 2 servers total)"),
       cloudMssqlImageProductCode: z.string().optional().describe("MSSQL image product code"),
       cloudMssqlProductCode: z.string().optional().describe("MSSQL server product (spec) code"),
@@ -233,7 +234,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
           characterSetName: params.characterSetName ?? "Korean_Wansung_CI_AS",
           cloudMssqlPort: params.cloudMssqlPort ?? 1433,
           isBackup: params.isBackup ?? true,
-          message: "이 요청은 실제 MSSQL 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
+          message: dryRunMessage({ ko: "MSSQL 인스턴스", en: "MSSQL instance" }),
         };
         return preview;
       }
@@ -251,7 +252,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
         서브넷: params.subnetNo,
         고가용성: params.isHa,
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -308,7 +309,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       }
 
       const result = await client.request("/vmssql/v2/exportBackupToObjectStorage", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -335,7 +336,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       }
 
       const result = await client.request("/vmssql/v2/exportDbServerLogsToObjectStorage", requestParams);
-      return result;
+      return result;
     }
   );
 
@@ -352,7 +353,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmssql/v2/deleteCloudMssqlInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "MSSQL instance", describe: (params) => params.cloudMssqlInstanceNo } }
   );
@@ -368,7 +369,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vmssql/v2/deleteCloudMssqlServerInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete MSSQL server instance [${params.cloudMssqlServerInstanceNo}] (Slave only). Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );

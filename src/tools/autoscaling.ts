@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, maxLenMessage, requiredError } from "./_messages.js";
 
 export function registerAutoScalingTools(server: McpServer, client: NcloudClient): void {
   // ─── Launch Configuration Query Tools ──────────────────────────────────────
@@ -26,7 +27,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Get detailed information about a specific launch configuration for Auto Scaling",
     {
       launchConfigurationNo: z.string({
-        required_error: "필수 파라미터 'launchConfigurationNo'가 누락되었습니다.",
+        required_error: requiredError("launchConfigurationNo"),
       }).describe("Launch configuration number to query"),
     },
     async (params) => {
@@ -42,13 +43,13 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Create a new launch configuration for Auto Scaling. Use dryRun=true to preview without creating.",
     {
       serverImageProductCode: z.string({
-        required_error: "필수 파라미터 'serverImageProductCode'가 누락되었습니다.",
+        required_error: requiredError("serverImageProductCode"),
       }).describe("Server image product code"),
       serverProductCode: z.string({
-        required_error: "필수 파라미터 'serverProductCode'가 누락되었습니다.",
+        required_error: requiredError("serverProductCode"),
       }).describe("Server product (spec) code"),
       launchConfigurationName: z.string().max(255, {
-        message: "잘못된 파라미터: 'launchConfigurationName'은 255자 이하여야 합니다.",
+        message: maxLenMessage("launchConfigurationName", 255),
       }).optional().describe("Launch configuration name"),
       loginKeyName: z.string().optional().describe("Login key name for SSH access"),
       initScriptNo: z.string().optional().describe("Init script number to run on launch"),
@@ -66,13 +67,13 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
           loginKeyName: params.loginKeyName ?? "(none)",
           initScriptNo: params.initScriptNo ?? "(none)",
           isEncryptedVolume: params.isEncryptedVolume ?? false,
-          message: "이 요청은 실제 런치 설정을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "런치 설정", en: "launch configuration" }),
         };
         return preview;
       }
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/createLaunchConfiguration", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -84,14 +85,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "⚠️ Destructive: Permanently delete a launch configuration. Set confirm=true to execute.",
     {
       launchConfigurationNo: z.string({
-        required_error: "필수 파라미터 'launchConfigurationNo'가 누락되었습니다.",
+        required_error: requiredError("launchConfigurationNo"),
       }).describe("Launch configuration number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteLaunchConfiguration", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "LaunchConfiguration", describe: (params) => params.launchConfigurationNo } }
   );
@@ -119,7 +120,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Get detailed information about a specific Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number to query"),
     },
     async (params) => {
@@ -135,19 +136,19 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Create a new Auto Scaling Group. Use dryRun=true to preview without creating.",
     {
       launchConfigurationNo: z.string({
-        required_error: "필수 파라미터 'launchConfigurationNo'가 누락되었습니다.",
+        required_error: requiredError("launchConfigurationNo"),
       }).describe("Launch configuration number to use"),
       autoScalingGroupName: z.string().max(255, {
-        message: "잘못된 파라미터: 'autoScalingGroupName'은 255자 이하여야 합니다.",
+        message: maxLenMessage("autoScalingGroupName", 255),
       }).optional().describe("Auto Scaling Group name"),
       subnetNoList: z.array(z.string(), {
-        required_error: "필수 파라미터 'subnetNoList'가 누락되었습니다.",
+        required_error: requiredError("subnetNoList"),
       }).min(1).describe("List of subnet numbers for the ASG"),
       minSize: z.number({
-        required_error: "필수 파라미터 'minSize'가 누락되었습니다.",
+        required_error: requiredError("minSize"),
       }).min(0).describe("Minimum number of instances"),
       maxSize: z.number({
-        required_error: "필수 파라미터 'maxSize'가 누락되었습니다.",
+        required_error: requiredError("maxSize"),
       }).min(0).describe("Maximum number of instances"),
       desiredCapacity: z.number().optional().describe("Desired number of instances"),
       defaultCooldown: z.number().optional().describe("Default cooldown period in seconds"),
@@ -170,13 +171,13 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
           desiredCapacity: params.desiredCapacity ?? params.minSize,
           healthCheckTypeCode: params.healthCheckTypeCode ?? "SVR",
           targetGroupNoList: params.targetGroupNoList ?? [],
-          message: "이 요청은 실제 Auto Scaling Group을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "Auto Scaling Group", en: "Auto Scaling Group" }),
         };
         return preview;
       }
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/createAutoScalingGroup", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -188,14 +189,14 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "⚠️ Destructive: Permanently delete an Auto Scaling Group. Set confirm=true to execute.",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteAutoScalingGroup", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "AutoScalingGroup", describe: (params) => params.autoScalingGroupNo } }
   );
@@ -208,10 +209,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Set the desired capacity for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       desiredCapacity: z.number({
-        required_error: "필수 파라미터 'desiredCapacity'가 누락되었습니다.",
+        required_error: requiredError("desiredCapacity"),
       }).min(0).describe("Desired number of instances"),
     },
     async (params) => {
@@ -227,16 +228,16 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Create or update a scaling policy for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       policyName: z.string({
-        required_error: "필수 파라미터 'policyName'이 누락되었습니다.",
+        required_error: requiredError("policyName"),
       }).describe("Scaling policy name"),
       adjustmentTypeCode: z.string({
-        required_error: "필수 파라미터 'adjustmentTypeCode'가 누락되었습니다.",
+        required_error: requiredError("adjustmentTypeCode"),
       }).describe("Adjustment type (CHANG — exact change, PRCNT — percentage, EXACT — set to exact number)"),
       scalingAdjustment: z.number({
-        required_error: "필수 파라미터 'scalingAdjustment'가 누락되었습니다.",
+        required_error: requiredError("scalingAdjustment"),
       }).describe("Scaling adjustment value"),
       cooldown: z.number().optional().describe("Cooldown period in seconds after scaling"),
       minAdjustmentStep: z.number().optional().describe("Minimum adjustment step for percentage-based scaling"),
@@ -252,7 +253,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "List all scaling policies for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       pageNo: z.number().optional().describe("Page number for pagination"),
       pageSize: z.number().optional().describe("Page size for pagination"),
@@ -268,17 +269,17 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "⚠️ Destructive: Delete a scaling policy from an Auto Scaling Group. Set confirm=true to execute.",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       policyName: z.string({
-        required_error: "필수 파라미터 'policyName'이 누락되었습니다.",
+        required_error: requiredError("policyName"),
       }).describe("Scaling policy name to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteScalingPolicy", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete ScalingPolicy [${params.policyName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -291,7 +292,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Update an existing Auto Scaling Group configuration (e.g. min/max size, desired capacity, cooldown)",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number to update"),
       launchConfigurationNo: z.string().optional().describe("New launch configuration number"),
       minSize: z.number().optional().describe("New minimum number of instances"),
@@ -313,10 +314,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Manually execute a scaling policy for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       policyName: z.string({
-        required_error: "필수 파라미터 'policyName'이 누락되었습니다.",
+        required_error: requiredError("policyName"),
       }).describe("Scaling policy name to execute"),
     },
     async (params) => {
@@ -332,7 +333,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "List activity logs (scaling actions) for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       pageNo: z.number().optional().describe("Page number for pagination"),
       pageSize: z.number().optional().describe("Page size for pagination"),
@@ -350,10 +351,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Suspend specific scaling processes for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       scalingProcessCodeList: z.array(z.string(), {
-        required_error: "필수 파라미터 'scalingProcessCodeList'가 누락되었습니다.",
+        required_error: requiredError("scalingProcessCodeList"),
       }).min(1).describe("List of scaling process codes to suspend"),
     },
     async (params) => {
@@ -367,10 +368,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Resume previously suspended scaling processes for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       scalingProcessCodeList: z.array(z.string(), {
-        required_error: "필수 파라미터 'scalingProcessCodeList'가 누락되었습니다.",
+        required_error: requiredError("scalingProcessCodeList"),
       }).min(1).describe("List of scaling process codes to resume"),
     },
     async (params) => {
@@ -386,10 +387,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "Create or update a scheduled action for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       scheduledActionName: z.string({
-        required_error: "필수 파라미터 'scheduledActionName'이 누락되었습니다.",
+        required_error: requiredError("scheduledActionName"),
       }).describe("Scheduled action name"),
       desiredCapacity: z.number().optional().describe("Desired capacity at scheduled time"),
       minSize: z.number().optional().describe("Minimum size at scheduled time"),
@@ -409,7 +410,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "List scheduled actions that have not yet been executed for an Auto Scaling Group",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
     },
     async (params) => {
@@ -423,17 +424,17 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "[⚠️ DESTRUCTIVE] Delete a scheduled action from an Auto Scaling Group. Set confirm=true to execute.",
     {
       autoScalingGroupNo: z.string({
-        required_error: "필수 파라미터 'autoScalingGroupNo'가 누락되었습니다.",
+        required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
       scheduledActionName: z.string({
-        required_error: "필수 파라미터 'scheduledActionName'이 누락되었습니다.",
+        required_error: requiredError("scheduledActionName"),
       }).describe("Scheduled action name to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vautoscaling/v2/deleteScheduledAction", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete ScheduledAction [${params.scheduledActionName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerVodStationTools(server: McpServer, client: NcloudClient): void {
   // ─── Channel Query Tools ───────────────────────────────────────────────────
@@ -24,7 +25,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     "ncloud_vodstation_get_channel",
     "Get detailed information about a specific VOD Station channel",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID (e.g., vs-20250821095732-xxxxxxx)"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID (e.g., vs-20250821095732-xxxxxxx)"),
     },
     async (params) => {
       return client.request(`/api/v2/channels/${params.channelId}`);
@@ -38,8 +39,8 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     "ncloud_vodstation_create_channel",
     "Create a new VOD Station streaming channel. Use dryRun=true to preview without creating.",
     {
-      channelName: z.string({ required_error: "필수 파라미터 'channelName'이 누락되었습니다." }).describe("Channel name (3-20 chars)"),
-      storageBucketName: z.string({ required_error: "필수 파라미터 'storageBucketName'이 누락되었습니다." }).describe("Object Storage bucket name containing video files"),
+      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars)"),
+      storageBucketName: z.string({ required_error: requiredError("storageBucketName") }).describe("Object Storage bucket name containing video files"),
       protocolList: z.array(z.enum(["HLS", "DASH"])).optional().default(["HLS"]).describe("Streaming protocols (HLS, DASH)"),
       segmentDuration: z.number().optional().default(10).describe("Playback time per segment in seconds (default: 10)"),
       segmentDurationOption: z.enum(["BASIC", "VARIABLE"]).optional().default("BASIC").describe("Segmentation method: BASIC (regular intervals) or VARIABLE (keyframe-based)"),
@@ -62,7 +63,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
           createCdn: params.createCdn,
           cdnProfileId: params.cdnProfileId,
           cdnRegionType: params.cdnRegionType,
-          message: "이 요청은 실제 채널을 생성하지 않습니다. dryRun=false로 호출하면 채널이 생성됩니다.",
+          message: dryRunMessage({ ko: "채널", en: "channel" }),
         };
         return preview;
       }
@@ -92,7 +93,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
         프로토콜: params.protocolList,
         상태: channel?.channelStatus || "CREATING",
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -103,12 +104,12 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     "ncloud_vodstation_delete_channel",
     "⚠️ Destructive: Permanently delete a VOD Station channel. Only channels in STOPPED status can be deleted. Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to delete"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete VOD Station Channel [${params.channelId}]. Only channels in STOPPED status can be deleted. The integrated CDN will be maintained.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -120,7 +121,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     "ncloud_vodstation_start_channel",
     "Start (resume) a VOD Station channel that is in STOPPED status",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to start"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to start"),
     },
     async (params) => {
       return client.putRequest(`/api/v2/channels/${params.channelId}/start`, {});
@@ -132,7 +133,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     "ncloud_vodstation_stop_channel",
     "Stop a VOD Station channel that is in READY status",
     {
-      channelId: z.string({ required_error: "필수 파라미터 'channelId'가 누락되었습니다." }).describe("Channel ID to stop"),
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to stop"),
     },
     async (params) => {
       return client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
@@ -159,9 +160,9 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     "ncloud_vodstation_create_category",
     "Create a new VOD Station encoding category. Use dryRun=true to preview without creating.",
     {
-      name: z.string({ required_error: "필수 파라미터 'name'이 누락되었습니다." }).describe("Category name (folder with this name is auto-created in output bucket)"),
-      bucketName: z.string({ required_error: "필수 파라미터 'bucketName'이 누락되었습니다." }).describe("Output bucket name to save encoded files"),
-      filePath: z.string({ required_error: "필수 파라미터 'filePath'이 누락되었습니다." }).describe("Detailed path to save output files (e.g., /)"),
+      name: z.string({ required_error: requiredError("name") }).describe("Category name (folder with this name is auto-created in output bucket)"),
+      bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Output bucket name to save encoded files"),
+      filePath: z.string({ required_error: requiredError("filePath") }).describe("Detailed path to save output files (e.g., /)"),
       encodingOptions: z.array(z.number()).optional().describe("Encoding option IDs to apply"),
       encodingOptionTemplateId: z.number().optional().describe("Encoding template ID"),
       thumbnail: z.boolean().optional().default(false).describe("Whether to enable thumbnail extraction"),
@@ -180,7 +181,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
           encodingOptionTemplateId: params.encodingOptionTemplateId,
           thumbnail: params.thumbnail,
           accessControl: params.accessControl,
-          message: "이 요청은 실제 카테고리를 생성하지 않습니다. dryRun=false로 호출하면 카테고리가 생성됩니다.",
+          message: dryRunMessage({ ko: "카테고리", en: "category" }),
         };
         return preview;
       }
@@ -207,7 +208,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
         썸네일: params.thumbnail,
         상태: "created",
       };
-      return summary;
+      return summary;
     }
   );
 }

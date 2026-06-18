@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerDatabaseMongodbTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -53,25 +54,25 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Create a new Cloud DB for MongoDB instance. Use dryRun=true to preview without creating.",
     {
       cloudMongoDbServiceName: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbServiceName'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbServiceName"),
       }).describe("MongoDB service name (3-20 chars, lowercase letters and numbers)"),
       cloudMongoDbServerNamePrefix: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbServerNamePrefix'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbServerNamePrefix"),
       }).describe("Server name prefix"),
       clusterTypeCode: z.string({
-        required_error: "필수 파라미터 'clusterTypeCode'이 누락되었습니다.",
+        required_error: requiredError("clusterTypeCode"),
       }).describe("Cluster type code (STAND_ALONE | SINGLE_REPLICA_SET | SHARDED_CLUSTER)"),
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'이 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number"),
       subnetNo: z.string({
-        required_error: "필수 파라미터 'subnetNo'이 누락되었습니다.",
+        required_error: requiredError("subnetNo"),
       }).describe("Subnet number"),
       cloudMongoDbUserName: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbUserName'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbUserName"),
       }).describe("Initial admin user name"),
       cloudMongoDbUserPassword: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbUserPassword'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbUserPassword"),
       }).describe("Initial admin user password"),
       cloudMongoDbImageProductCode: z.string().optional().describe("MongoDB image product code"),
       memberProductCode: z.string().optional().describe("Member server product code"),
@@ -104,7 +105,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
           cloudMongoDbUserName: params.cloudMongoDbUserName,
           memberServerCount: params.memberServerCount,
           shardCount: params.shardCount,
-          message: "이 요청은 실제 MongoDB 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
+          message: dryRunMessage({ ko: "MongoDB 인스턴스", en: "MongoDB instance" }),
         };
         return preview;
       }
@@ -148,13 +149,13 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Change the number of Secondary (Member/Arbiter) servers in a MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       memberServerCount: z.number({
-        required_error: "필수 파라미터 'memberServerCount'이 누락되었습니다.",
+        required_error: requiredError("memberServerCount"),
       }).describe("Number of member servers (2-7)"),
       arbiterServerCount: z.number({
-        required_error: "필수 파라미터 'arbiterServerCount'이 누락되었습니다.",
+        required_error: requiredError("arbiterServerCount"),
       }).describe("Number of arbiter servers (0-1)"),
       arbiterProductCode: z.string().optional().describe("Arbiter server product code"),
     },
@@ -169,10 +170,10 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Change the number of Mongos servers in a MongoDB Sharded Cluster instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       mongosServerCount: z.number({
-        required_error: "필수 파라미터 'mongosServerCount'이 누락되었습니다.",
+        required_error: requiredError("mongosServerCount"),
       }).describe("Number of mongos servers (2-5)"),
     },
     async (params) => {
@@ -186,10 +187,10 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Change the number of Config servers in a MongoDB Sharded Cluster instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       configServerCount: z.number({
-        required_error: "필수 파라미터 'configServerCount'이 누락되었습니다.",
+        required_error: requiredError("configServerCount"),
       }).describe("Number of config servers"),
     },
     async (params) => {
@@ -203,10 +204,10 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Change the number of shards in a MongoDB Sharded Cluster instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       shardCount: z.number({
-        required_error: "필수 파라미터 'shardCount'이 누락되었습니다.",
+        required_error: requiredError("shardCount"),
       }).describe("Number of shards"),
     },
     async (params) => {
@@ -222,7 +223,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "List users in a Cloud DB for MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
     },
     async (params) => {
@@ -236,7 +237,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Add users to a Cloud DB for MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       cloudMongoDbUserList: z.array(z.object({
         name: z.string().describe("User name"),
@@ -268,7 +269,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Change user information (password) in a Cloud DB for MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       cloudMongoDbUserList: z.array(z.object({
         name: z.string().describe("User name"),
@@ -296,7 +297,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "⚠️ Destructive: Delete users from a Cloud DB for MongoDB instance. Set confirm=true to execute.",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       cloudMongoDbUserList: z.array(z.object({
         name: z.string().describe("User name to delete"),
@@ -333,7 +334,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "List detailed backup information for a Cloud DB for MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
     },
     async (params) => {
@@ -347,7 +348,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "List server logs for a Cloud DB for MongoDB server instance",
     {
       cloudMongoDbServerInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbServerInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbServerInstanceNo"),
       }).describe("Cloud MongoDB server instance number"),
     },
     async (params) => {
@@ -361,13 +362,13 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Export MongoDB backup files to Object Storage",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       cloudMongoDbServerInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbServerInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbServerInstanceNo"),
       }).describe("Cloud MongoDB server instance number"),
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Object Storage bucket name"),
       folderPath: z.string().optional().describe("Folder path in the bucket"),
       cloudMongoDbExportObjectList: z.array(z.object({
@@ -394,13 +395,13 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "Export MongoDB server logs to Object Storage",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       cloudMongoDbServerInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbServerInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbServerInstanceNo"),
       }).describe("Cloud MongoDB server instance number"),
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Object Storage bucket name"),
       folderPath: z.string().optional().describe("Folder path in the bucket"),
       cloudMongoDbExportObjectList: z.array(z.object({
@@ -441,7 +442,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "List available MongoDB server spec product codes (filterable by role type)",
     {
       cloudMongoDbImageProductCode: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbImageProductCode'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbImageProductCode"),
       }).describe("MongoDB image product code"),
       infraResourceDetailTypeCode: z.string().optional().describe("Filter by server role type (MNGOD | ARBIT | CFGSV | MNGOS)"),
     },
@@ -468,7 +469,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "List subnets available for Cloud DB for MongoDB",
     {
       cloudMongoDbInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudMongoDbInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },

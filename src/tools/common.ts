@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defineTool } from "./_tool.js";
+import { L } from "./_messages.js";
 import type { ClientFactory } from "./registry.js";
 
 const REGION_NAME_MAP: Record<string, string> = {
@@ -69,21 +70,36 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
       const resolvedCode = REGION_NAME_MAP[region] ?? region.toUpperCase();
       if (!REGION_CODE_MAP[resolvedCode]) {
         return {
-          content: [{ type: "text" as const, text: `유효하지 않은 리전입니다: "${region}". 사용 가능한 리전: KR, JPN, SGN, USWN, DEN (또는 한국, 일본, 싱가포르, 미국, 독일)` }],
+          content: [{ type: "text" as const, text: L({
+            ko: `유효하지 않은 리전입니다: "${region}". 사용 가능한 리전: KR, JPN, SGN, USWN, DEN (또는 한국, 일본, 싱가포르, 미국, 독일)`,
+            en: `Invalid region: "${region}". Available regions: KR, JPN, SGN, USWN, DEN (or 한국, 일본, 싱가포르, 미국, 독일).`,
+          }) }],
           isError: true,
         };
       }
       const previousCode = client.getRegionCode();
       client.setRegionAll(resolvedCode);
       const result = {
-        message: `✅ 리전이 ${REGION_CODE_MAP[resolvedCode]} (${resolvedCode})으로 변경되었습니다.`,
+        message: L({
+          ko: `✅ 리전이 ${REGION_CODE_MAP[resolvedCode]} (${resolvedCode})으로 변경되었습니다.`,
+          en: `✅ Region changed to ${REGION_CODE_MAP[resolvedCode]} (${resolvedCode}).`,
+        }),
         previousRegion: { code: previousCode, name: REGION_CODE_MAP[previousCode] ?? previousCode },
         currentRegion: { code: resolvedCode, name: REGION_CODE_MAP[resolvedCode] },
         appliedScope: {
-          applied: "일반 API 클라이언트 전체 (Compute, Network, Database, Cloud Insight, NKS, Billing 등)",
+          applied: L({
+            ko: "일반 API 클라이언트 전체 (Compute, Network, Database, Cloud Insight, NKS, Billing 등)",
+            en: "All general API clients (Compute, Network, Database, Cloud Insight, NKS, Billing, etc.)",
+          }),
           notApplied: [
-            "Object Storage·Archive Storage — 환경 변수 기반 리전 고정 (서버 재시작 필요)",
-            "Cloud Functions — 리전별 base URL이 달라 setRegion으로 전환 불가 (서버 재시작 필요)",
+            L({
+              ko: "Object Storage·Archive Storage — 환경 변수 기반 리전 고정 (서버 재시작 필요)",
+              en: "Object Storage / Archive Storage — region is fixed via environment variables (server restart required)",
+            }),
+            L({
+              ko: "Cloud Functions — 리전별 base URL이 달라 setRegion으로 전환 불가 (서버 재시작 필요)",
+              en: "Cloud Functions — base URL differs per region, so setRegion cannot switch it (server restart required)",
+            }),
           ],
         },
       };
@@ -128,7 +144,7 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
       const mapping = RESOURCE_DETAIL_MAP[resourceType];
       if (!mapping) {
         return {
-          content: [{ type: "text" as const, text: `지원하지 않는 리소스 타입: ${resourceType}` }],
+          content: [{ type: "text" as const, text: L({ ko: `지원하지 않는 리소스 타입: ${resourceType}`, en: `Unsupported resource type: ${resourceType}` }) }],
           isError: true,
         };
       }

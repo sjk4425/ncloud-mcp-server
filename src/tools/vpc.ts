@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { cidrMessage, dryRunMessage, maxLenMessage, requiredError } from "./_messages.js";
 
 export function registerVpcTools(server: McpServer, client: NcloudClient): void {
   // ─── VPC Query Tools ───────────────────────────────────────────────────────
@@ -40,12 +41,12 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "Create a new VPC. Use dryRun=true to preview without creating.",
     {
       ipv4CidrBlock: z.string({
-        required_error: "필수 파라미터 'ipv4CidrBlock'이 누락되었습니다.",
+        required_error: requiredError("ipv4CidrBlock"),
       }).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
-        message: "잘못된 파라미터: 'ipv4CidrBlock'은 CIDR 형식이어야 합니다 (예: 10.0.0.0/16)",
+        message: cidrMessage("ipv4CidrBlock", "10.0.0.0/16"),
       }).describe("VPC IPv4 CIDR block (e.g., 10.0.0.0/16)"),
       vpcName: z.string().max(30, {
-        message: "잘못된 파라미터: 'vpcName'은 30자 이하여야 합니다.",
+        message: maxLenMessage("vpcName", 30),
       }).optional().describe("VPC name (max 30 characters)"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the VPC"),
     },
@@ -55,7 +56,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
           label: "🔍 Dry-Run Preview: VPC Creation",
           ipv4CidrBlock: params.ipv4CidrBlock,
           vpcName: params.vpcName ?? "(auto-generated)",
-          message: "이 요청은 실제 VPC를 생성하지 않습니다. dryRun=false로 호출하면 VPC가 생성됩니다.",
+          message: dryRunMessage({ ko: "VPC", en: "VPC" }),
         };
         return preview;
       }
@@ -84,7 +85,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "⚠️ Destructive: Permanently delete a VPC. Set confirm=true to execute.",
     {
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'가 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -133,24 +134,24 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "Create a new subnet in a VPC. Use dryRun=true to preview without creating.",
     {
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'가 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number to create the subnet in"),
       subnet: z.string({
-        required_error: "필수 파라미터 'subnet'이 누락되었습니다.",
+        required_error: requiredError("subnet"),
       }).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
-        message: "잘못된 파라미터: 'subnet'은 CIDR 형식이어야 합니다 (예: 10.0.1.0/24)",
+        message: cidrMessage("subnet", "10.0.1.0/24"),
       }).describe("Subnet CIDR block (e.g., 10.0.1.0/24)"),
       zoneCode: z.string({
-        required_error: "필수 파라미터 'zoneCode'가 누락되었습니다.",
+        required_error: requiredError("zoneCode"),
       }).describe("Zone code (e.g., KR-1, KR-2)"),
       networkAclNo: z.string({
-        required_error: "필수 파라미터 'networkAclNo'가 누락되었습니다.",
+        required_error: requiredError("networkAclNo"),
       }).describe("Network ACL number to associate"),
       subnetTypeCode: z.string({
-        required_error: "필수 파라미터 'subnetTypeCode'가 누락되었습니다.",
+        required_error: requiredError("subnetTypeCode"),
       }).describe("Subnet type code (PUBLIC or PRIVATE)"),
       subnetName: z.string().max(30, {
-        message: "잘못된 파라미터: 'subnetName'은 30자 이하여야 합니다.",
+        message: maxLenMessage("subnetName", 30),
       }).optional().describe("Subnet name (max 30 characters)"),
       usageTypeCode: z.string().optional().describe("Usage type code (GEN, LOADB, BM, NATGW). Default: GEN"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the subnet"),
@@ -166,7 +167,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
           subnetTypeCode: params.subnetTypeCode,
           subnetName: params.subnetName ?? "(auto-generated)",
           usageTypeCode: params.usageTypeCode ?? "GEN",
-          message: "이 요청은 실제 서브넷을 생성하지 않습니다. dryRun=false로 호출하면 서브넷이 생성됩니다.",
+          message: dryRunMessage({ ko: "서브넷", en: "subnet" }),
         };
         return preview;
       }
@@ -196,7 +197,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "⚠️ Destructive: Permanently delete a subnet. Set confirm=true to execute.",
     {
       subnetNo: z.string({
-        required_error: "필수 파라미터 'subnetNo'가 누락되었습니다.",
+        required_error: requiredError("subnetNo"),
       }).describe("Subnet number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 export function registerStorageNasTools(server: McpServer, client: NcloudClient): void {
   // ─── NAS Volume Query Tools ────────────────────────────────────────────────
@@ -68,13 +69,13 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
           isEncryptedVolume: params.isEncryptedVolume ?? false,
           isReturnProtection: params.isReturnProtection ?? false,
           serverInstanceNoList: params.serverInstanceNoList ?? [],
-          message: "이 요청은 실제 NAS 볼륨을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "NAS 볼륨", en: "NAS volume" }),
         };
         return preview;
       }
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vnas/v2/createNasVolumeInstance", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -91,7 +92,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/deleteNasVolumeInstances", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "NAS Volume", describe: (params) => params.nasVolumeInstanceNoList.join(", ") } }
   );
@@ -154,7 +155,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/removeNasVolumeAccessControl", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will remove access control for server instances [${params.serverInstanceNoList.join(", ")}] from NAS Volume [${params.nasVolumeInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -237,13 +238,13 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
           label: "🔍 Dry-Run Preview: NAS Snapshot Creation",
           nasVolumeInstanceNo: params.nasVolumeInstanceNo,
           nasVolumeSnapshotName: params.nasVolumeSnapshotName ?? "(auto-generated)",
-          message: "이 요청은 실제 NAS 스냅샷을 생성하지 않습니다. dryRun=false로 호출하면 생성됩니다.",
+          message: dryRunMessage({ ko: "NAS 스냅샷", en: "NAS snapshot" }),
         };
         return preview;
       }
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vnas/v2/createNasVolumeSnapshot", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -260,7 +261,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/deleteNasVolumeSnapshot", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "NAS Snapshot", describe: (params) => params.nasVolumeSnapshotInstanceNo } }
   );
@@ -306,7 +307,7 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vnas/v2/restoreNasVolumeWithSnapshot", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will restore NAS Volume [${params.nasVolumeInstanceNo}] to Snapshot [${params.nasVolumeSnapshotNo}]. Current data will be overwritten with the snapshot data. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage, requiredError } from "./_messages.js";
 
 export function registerDatabaseCacheTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -66,10 +67,10 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Create a new Cloud Cache config group. Use dryRun=true to preview without creating.",
     {
       cloudCacheConfigGroupName: z.string({
-        required_error: "필수 파라미터 'cloudCacheConfigGroupName'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheConfigGroupName"),
       }).describe("Config group name"),
       cloudCacheImageProductCode: z.string({
-        required_error: "필수 파라미터 'cloudCacheImageProductCode'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheImageProductCode"),
       }).describe("Cache image product code for the config group"),
       description: z.string().optional().describe("Config group description"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the config group"),
@@ -81,14 +82,14 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
           cloudCacheConfigGroupName: params.cloudCacheConfigGroupName,
           cloudCacheImageProductCode: params.cloudCacheImageProductCode,
           description: params.description,
-          message: "이 요청은 실제 Config Group을 생성하지 않습니다. dryRun=false로 호출하면 Config Group이 생성됩니다.",
+          message: dryRunMessage({ ko: "Config Group", en: "Config Group" }),
         };
         return preview;
       }
 
       const { dryRun, ...apiParams } = params;
       const result = await client.request("/vcache/v2/createCloudCacheConfigGroup", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -103,7 +104,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/deleteCloudCacheConfigGroup", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "Cache config group", describe: (params) => params.cloudCacheConfigGroupNo } }
   );
@@ -116,13 +117,13 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Create a new Cloud DB for Cache (Redis/Valkey) instance. Use dryRun=true to preview without creating.",
     {
       cloudCacheServiceName: z.string({
-        required_error: "필수 파라미터 'cloudCacheServiceName'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheServiceName"),
       }).describe("Cache service name (3-20 chars, lowercase letters and numbers)"),
       vpcNo: z.string({
-        required_error: "필수 파라미터 'vpcNo'이 누락되었습니다.",
+        required_error: requiredError("vpcNo"),
       }).describe("VPC number"),
       subnetNo: z.string({
-        required_error: "필수 파라미터 'subnetNo'이 누락되었습니다.",
+        required_error: requiredError("subnetNo"),
       }).describe("Subnet number"),
       cloudCacheImageProductCode: z.string().optional().describe("Cache image product code (Redis/Valkey version)"),
       cloudCacheProductCode: z.string().optional().describe("Cache server product (spec) code"),
@@ -152,7 +153,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
           isAutomaticFailover: params.isAutomaticFailover,
           shardCount: params.shardCount,
           shardCopyCount: params.shardCopyCount,
-          message: "이 요청은 실제 Cache 인스턴스를 생성하지 않습니다. dryRun=false로 호출하면 인스턴스가 생성됩니다.",
+          message: dryRunMessage({ ko: "Cache 인스턴스", en: "Cache instance" }),
         };
         return preview;
       }
@@ -170,7 +171,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
         서브넷: params.subnetNo,
         포트: params.cloudCachePort ?? 6379,
       };
-      return summary;
+      return summary;
     }
   );
 
@@ -210,7 +211,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Get detailed information about a specific Cloud Cache manual backup",
     {
       cloudCacheManualBackupNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheManualBackupNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheManualBackupNo"),
       }).describe("Cloud Cache manual backup number"),
     },
     async (params) => {
@@ -224,10 +225,10 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Create a manual backup for a Cloud DB for Cache instance",
     {
       cloudCacheInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheInstanceNo"),
       }).describe("Cloud Cache instance number"),
       cloudCacheManualBackupName: z.string({
-        required_error: "필수 파라미터 'cloudCacheManualBackupName'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheManualBackupName"),
       }).describe("Manual backup name"),
     },
     async (params) => {
@@ -241,14 +242,14 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "⚠️ Destructive: Permanently delete a Cloud Cache manual backup. Set confirm=true to execute.",
     {
       cloudCacheManualBackupNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheManualBackupNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheManualBackupNo"),
       }).describe("Cloud Cache manual backup number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/deleteCloudCacheManualBackup", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "Cache manual backup", describe: (params) => params.cloudCacheManualBackupNo } }
   );
@@ -261,14 +262,14 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "⚠️ Destructive: Permanently deletes ALL data from a Cloud Cache server (FlushAll). Set confirm=true to execute.",
     {
       cloudCacheServerInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheServerInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheServerInstanceNo"),
       }).describe("Cloud Cache server instance number to flush"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/flushAllCloudCacheServerInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete ALL data from Cache server [${params.cloudCacheServerInstanceNo}]. This action cannot be undone. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -279,13 +280,13 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Export a Cloud Cache backup file to Object Storage",
     {
       cloudCacheInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheInstanceNo"),
       }).describe("Cloud Cache instance number"),
       cloudCacheServerInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheServerInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheServerInstanceNo"),
       }).describe("Cloud Cache server instance number"),
       bucketName: z.string({
-        required_error: "필수 파라미터 'bucketName'이 누락되었습니다.",
+        required_error: requiredError("bucketName"),
       }).describe("Object Storage bucket name"),
       folderPath: z.string().optional().describe("Folder path in the bucket"),
       cloudCacheExportObjectList: z.array(z.string()).describe("List of full object names to export"),
@@ -297,7 +298,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
         apiParams[`cloudCacheExportObjectList.${idx + 1}.fullObjectName`] = name;
       });
       const result = await client.request("/vcache/v2/exportBackupToObjectStorage", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -307,10 +308,10 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "List detailed backup information for a Cloud Cache server instance (includes file paths)",
     {
       cloudCacheInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheInstanceNo"),
       }).describe("Cloud Cache instance number"),
       cloudCacheServerInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheServerInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheServerInstanceNo"),
       }).describe("Cloud Cache server instance number"),
     },
     async (params) => {
@@ -338,7 +339,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "List available Cloud Cache server spec product codes for a given image",
     {
       cloudCacheImageProductCode: z.string({
-        required_error: "필수 파라미터 'cloudCacheImageProductCode'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheImageProductCode"),
       }).describe("Cloud Cache image product code"),
     },
     async (params) => {
@@ -364,7 +365,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "List subnets available for Cloud DB for Cache within a specific instance",
     {
       cloudCacheInstanceNo: z.string({
-        required_error: "필수 파라미터 'cloudCacheInstanceNo'이 누락되었습니다.",
+        required_error: requiredError("cloudCacheInstanceNo"),
       }).describe("Cloud Cache instance number"),
       regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
     },
@@ -410,7 +411,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vcache/v2/deleteCloudCacheInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "Cache instance", describe: (params) => params.cloudCacheInstanceNo } }
   );

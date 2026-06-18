@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 /**
  * SourcePipeline API
@@ -30,7 +31,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       if (params.projectName) queryParams.projectName = params.projectName;
       const result = await client.requestRaw("GET", "/api/v1/project", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -95,7 +96,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
           taskCount: params.tasks.length,
           tasks: params.tasks.map(t => ({ name: t.name, type: t.type })),
           trigger: params.trigger ?? "(none)",
-          message: "dryRun=false로 호출하면 실제 파이프라인이 생성됩니다.",
+          message: dryRunMessage({ ko: "파이프라인", en: "pipeline" }),
         };
         return preview;
       }
@@ -108,7 +109,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.trigger) body.trigger = params.trigger;
 
       const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -159,7 +160,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.trigger) body.trigger = params.trigger;
 
       const result = await client.requestRaw("PATCH", `/api/v1/project/${params.projectId}`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -173,7 +174,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/project/${params.projectId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete SourcePipeline [${params.projectId}]. All pipeline configuration and execution history will be removed.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -221,7 +222,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.pageNo !== undefined) queryParams.pageNo = String(params.pageNo);
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       const result = await client.requestRaw("GET", `/api/v1/project/${params.projectId}/history`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -267,7 +268,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       if (params.searchWord) queryParams.searchWord = params.searchWord;
       const result = await client.requestRaw("GET", "/api/v1/sourcecommit/repository", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -300,7 +301,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       if (params.searchWord) queryParams.searchWord = params.searchWord;
       const result = await client.requestRaw("GET", "/api/v1/sourcebuild/project", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -321,7 +322,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       if (params.searchWord) queryParams.searchWord = params.searchWord;
       const result = await client.requestRaw("GET", "/api/v1/sourcedeploy/project", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -341,7 +342,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       if (params.searchWord) queryParams.searchWord = params.searchWord;
       const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -362,7 +363,7 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       if (params.pageSize !== undefined) queryParams.pageSize = String(params.pageSize);
       if (params.searchWord) queryParams.searchWord = params.searchWord;
       const result = await client.requestRaw("GET", `/api/v1/sourcedeploy/project/${params.projectId}/stage/${params.stageId}/scenario`, queryParams);
-      return result;
+      return result;
     }
   );
 }

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 /**
  * Data Stream API Tools
@@ -47,7 +48,7 @@ export function registerDataStreamTools(
       if (params.descending !== undefined) queryParams.descending = params.descending;
       if (params.searchText) queryParams.searchText = params.searchText;
       const result = await client.requestRaw("GET", "/api/v1/topics", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -82,7 +83,7 @@ export function registerDataStreamTools(
           description: params.description ?? "(not set)",
           partitions: params.partitions ?? 1,
           retentionMs: params.retentionMs ?? 86400000,
-          message: "dryRun=false로 호출하면 토픽이 생성됩니다.",
+          message: dryRunMessage({ ko: "토픽", en: "topic" }),
         };
         return preview;
       }
@@ -91,7 +92,7 @@ export function registerDataStreamTools(
       if (params.partitions !== undefined) body.partitions = params.partitions;
       if (params.retentionMs !== undefined) body.retentionMs = params.retentionMs;
       const result = await client.requestRaw("POST", "/api/v1/topics", undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -112,7 +113,7 @@ export function registerDataStreamTools(
         retentionMs: params.retentionMs,
       };
       const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -126,7 +127,7 @@ export function registerDataStreamTools(
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete topic [${params.topicId}]. All messages will be lost.\nTo execute, call again with confirm=true.` } }
   );
@@ -179,13 +180,13 @@ export function registerDataStreamTools(
           flushInterval: params.flushInterval ?? 10,
           flushCount: params.flushCount ?? 5000,
           schemaType: params.schemaType ?? "STRING",
-          message: "dryRun=false로 호출하면 커넥터가 생성됩니다.",
+          message: dryRunMessage({ ko: "커넥터", en: "connector" }),
         };
         return preview;
       }
       const { topicId, dryRun, ...bodyParams } = params;
       const result = await client.requestRaw("POST", `/api/v1/topics/${topicId}/connectors`, undefined, bodyParams);
-      return result;
+      return result;
     }
   );
 
@@ -210,7 +211,7 @@ export function registerDataStreamTools(
     async (params) => {
       const { topicId, connectorId, ...bodyParams } = params;
       const result = await client.requestRaw("PUT", `/api/v1/topics/${topicId}/connectors/${connectorId}`, undefined, bodyParams);
-      return result;
+      return result;
     }
   );
 
@@ -225,7 +226,7 @@ export function registerDataStreamTools(
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/connectors/${params.connectorId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will delete connector [${params.connectorId}] from topic [${params.topicId}].\nTo execute, call again with confirm=true.` } }
   );
@@ -247,7 +248,7 @@ export function registerDataStreamTools(
     async (params) => {
       const body = { schemaType: params.schemaType, schema: params.schema };
       const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas`, undefined, body);
-      return result ?? { success: true };
+      return result ?? { success: true };
     }
   );
 
@@ -269,7 +270,7 @@ export function registerDataStreamTools(
       if (params.page !== undefined) queryParams.page = params.page;
       if (params.size !== undefined) queryParams.size = params.size;
       const result = await client.requestRaw("GET", `/api/v1/topics/${params.topicId}/schemas`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -297,7 +298,7 @@ export function registerDataStreamTools(
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/topics/${params.topicId}/schemas/${params.resourceId}`);
-      return result ?? { success: true };
+      return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will delete schema [${params.resourceId}] from topic [${params.topicId}]. This may affect message serialization.\nTo execute, call again with confirm=true.` } }
   );
@@ -325,7 +326,7 @@ export function registerDataStreamTools(
     async (params) => {
       const body = { compatibility: params.compatibility };
       const result = await client.requestRaw("PUT", `/api/v1/topics/${params.topicId}/registry-config`, undefined, body);
-      return result ?? { success: true };
+      return result ?? { success: true };
     }
   );
 
@@ -353,7 +354,7 @@ export function registerDataStreamTools(
     async (params) => {
       const body = { schemaType: params.schemaType, schema: params.schema };
       const result = await client.requestRaw("POST", `/api/v1/topics/${params.topicId}/schemas/validate/compatibility/latest`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -379,7 +380,7 @@ export function registerDataStreamTools(
       };
       if (params.partition !== undefined) body.partition = params.partition;
       const result = await messageClient.requestRaw("POST", "/api/produce", undefined, body);
-      return result;
+      return result;
     }
   );
 }

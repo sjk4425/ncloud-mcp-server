@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { L } from "./_messages.js";
 
 export function registerActivityTracerTools(server: McpServer, client: NcloudClient): void {
   // ncloud_get_activity_logs — Get activity list via POST /api/v1/activities
@@ -21,10 +22,10 @@ export function registerActivityTracerTools(server: McpServer, client: NcloudCli
       const toEventTime = new Date(params.endTime).getTime();
 
       if (isNaN(fromEventTime)) {
-        return { content: [{ type: "text" as const, text: "startTime이 유효한 ISO 8601 형식이 아닙니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "startTime이 유효한 ISO 8601 형식이 아닙니다.", en: "startTime is not a valid ISO 8601 string." }) }], isError: true };
       }
       if (isNaN(toEventTime)) {
-        return { content: [{ type: "text" as const, text: "endTime이 유효한 ISO 8601 형식이 아닙니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "endTime이 유효한 ISO 8601 형식이 아닙니다.", en: "endTime is not a valid ISO 8601 string." }) }], isError: true };
       }
 
       const body: Record<string, unknown> = {
@@ -36,7 +37,7 @@ export function registerActivityTracerTools(server: McpServer, client: NcloudCli
       if (params.nrn !== undefined) body.nrn = params.nrn;
 
       const result = await client.postRequest("/api/v1/activities", body);
-      return result;
+      return result;
     }
   );
 
@@ -53,7 +54,7 @@ export function registerActivityTracerTools(server: McpServer, client: NcloudCli
       const eventTimeMs = new Date(params.eventTime).getTime();
 
       if (isNaN(eventTimeMs)) {
-        return { content: [{ type: "text" as const, text: "eventTime이 유효한 ISO 8601 형식이 아닙니다." }], isError: true };
+        return { content: [{ type: "text" as const, text: L({ ko: "eventTime이 유효한 ISO 8601 형식이 아닙니다.", en: "eventTime is not a valid ISO 8601 string." }) }], isError: true };
       }
 
       // Search within a 1-hour window around the event time
@@ -84,7 +85,10 @@ export function registerActivityTracerTools(server: McpServer, client: NcloudCli
         }
       }
 
-      return { content: [{ type: "text" as const, text: `activityId '${params.activityId}'에 해당하는 활동을 찾을 수 없습니다. eventTime 범위를 확인해주세요.\n\n전체 응답:\n${JSON.stringify(result, null, 2)}` }] };
+      return { content: [{ type: "text" as const, text: L({
+        ko: `activityId '${params.activityId}'에 해당하는 활동을 찾을 수 없습니다. eventTime 범위를 확인해주세요.\n\n전체 응답:\n${JSON.stringify(result)}`,
+        en: `No activity found for activityId '${params.activityId}'. Check the eventTime range.\n\nFull response:\n${JSON.stringify(result)}`,
+      }) }] };
     }
   );
 }

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunMessage } from "./_messages.js";
 
 /**
  * Data Flow API Tools
@@ -37,7 +38,7 @@ export function registerDataFlowTools(
       if (params.startTime) queryParams.startTime = params.startTime;
       if (params.endTime) queryParams.endTime = params.endTime;
       const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-interval", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -54,7 +55,7 @@ export function registerDataFlowTools(
       if (params.startTime) queryParams.startTime = params.startTime;
       if (params.endTime) queryParams.endTime = params.endTime;
       const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-result", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -71,7 +72,7 @@ export function registerDataFlowTools(
       if (params.startTime) queryParams.startTime = params.startTime;
       if (params.endTime) queryParams.endTime = params.endTime;
       const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-times", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -94,7 +95,7 @@ export function registerDataFlowTools(
       if (params.size !== undefined) queryParams.size = params.size;
       if (params.searchText) queryParams.searchText = params.searchText;
       const result = await client.requestRaw("GET", "/api/v1/workflows", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -137,7 +138,7 @@ export function registerDataFlowTools(
           description: params.description ?? "(not set)",
           nodeCount: params.nodes?.length ?? 0,
           edgeCount: params.edges?.length ?? 0,
-          message: "dryRun=false로 호출하면 워크플로가 생성됩니다.",
+          message: dryRunMessage({ ko: "워크플로", en: "workflow" }),
         };
         return preview;
       }
@@ -146,7 +147,7 @@ export function registerDataFlowTools(
       if (params.nodes !== undefined) body.nodes = params.nodes;
       if (params.edges !== undefined) body.edges = params.edges;
       const result = await client.requestRaw("POST", "/api/v1/workflows", undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -177,7 +178,7 @@ export function registerDataFlowTools(
       if (bodyParams.nodes !== undefined) body.nodes = bodyParams.nodes;
       if (bodyParams.edges !== undefined) body.edges = bodyParams.edges;
       const result = await client.requestRaw("PUT", `/api/v1/workflows/${workflowId}`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -191,7 +192,7 @@ export function registerDataFlowTools(
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/workflows/${params.workflowId}`);
-      return result ?? { success: true };
+      return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete workflow [${params.workflowId}].\nTo execute, call again with confirm=true.` } }
   );
@@ -210,7 +211,7 @@ export function registerDataFlowTools(
       if (params.page !== undefined) queryParams.page = params.page;
       if (params.size !== undefined) queryParams.size = params.size;
       const result = await client.requestRaw("GET", `/api/v1/workflows/${params.workflowId}/executions`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -235,7 +236,7 @@ export function registerDataFlowTools(
       if (params.searchText) queryParams.searchText = params.searchText;
       if (params.status) queryParams.status = params.status;
       const result = await client.requestRaw("GET", "/api/v1/jobs", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -270,7 +271,7 @@ export function registerDataFlowTools(
           description: params.description ?? "(not set)",
           workflowId: params.workflowId ?? "(not set)",
           options: params.options ?? {},
-          message: "dryRun=false로 호출하면 작업이 생성됩니다.",
+          message: dryRunMessage({ ko: "작업", en: "job" }),
         };
         return preview;
       }
@@ -279,7 +280,7 @@ export function registerDataFlowTools(
       if (params.workflowId !== undefined) body.workflowId = params.workflowId;
       if (params.options !== undefined) body.options = params.options;
       const result = await client.requestRaw("POST", "/api/v1/jobs", undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -302,7 +303,7 @@ export function registerDataFlowTools(
       if (bodyParams.workflowId !== undefined) body.workflowId = bodyParams.workflowId;
       if (bodyParams.options !== undefined) body.options = bodyParams.options;
       const result = await client.requestRaw("PUT", `/api/v1/jobs/${jobId}`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -344,7 +345,7 @@ export function registerDataFlowTools(
       if (params.page !== undefined) queryParams.page = params.page;
       if (params.size !== undefined) queryParams.size = params.size;
       const result = await client.requestRaw("GET", `/api/v1/jobs/${params.jobId}/executions`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -372,7 +373,7 @@ export function registerDataFlowTools(
     async (params) => {
       const body = { options: params.options };
       const result = await client.requestRaw("PUT", `/api/v1/jobs/${params.jobId}/execute-config`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -386,7 +387,7 @@ export function registerDataFlowTools(
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/jobs/${params.jobId}`);
-      return result ?? { success: true };
+      return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete job [${params.jobId}].\nTo execute, call again with confirm=true.` } }
   );
@@ -410,7 +411,7 @@ export function registerDataFlowTools(
       if (params.size !== undefined) queryParams.size = params.size;
       if (params.searchText) queryParams.searchText = params.searchText;
       const result = await client.requestRaw("GET", "/api/v1/triggers", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return result;
     }
   );
 
@@ -449,7 +450,7 @@ export function registerDataFlowTools(
           type: params.type ?? "(not set)",
           schedule: params.schedule ?? "(not set)",
           enabled: params.enabled ?? true,
-          message: "dryRun=false로 호출하면 트리거가 생성됩니다.",
+          message: dryRunMessage({ ko: "트리거", en: "trigger" }),
         };
         return preview;
       }
@@ -462,7 +463,7 @@ export function registerDataFlowTools(
       if (params.schedule !== undefined) body.schedule = params.schedule;
       if (params.enabled !== undefined) body.enabled = params.enabled;
       const result = await client.requestRaw("POST", "/api/v1/triggers", undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -476,7 +477,7 @@ export function registerDataFlowTools(
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/triggers/${params.triggerId}`);
-      return result ?? { success: true };
+      return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete trigger [${params.triggerId}].\nTo execute, call again with confirm=true.` } }
   );
