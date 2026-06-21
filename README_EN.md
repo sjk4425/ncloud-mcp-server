@@ -84,6 +84,7 @@ npm run build
 | `NCLOUD_RESPONSE_PRUNE` | - | When `1`, globally strips empty values (`null`/`""`/`[]`/`{}`) from responses | `0` |
 | `NCLOUD_TIMEOUT_MS` | - | API request timeout in milliseconds. On timeout the call is aborted and a friendly message is returned (HTTP 429 is always auto-retried up to 2 times; read-only query tools also retry 503/504 and network errors) | `30000` |
 | `NCLOUD_LANG` | - | Language for client error messages. `en` for English, otherwise/unset is Korean | `ko` |
+| `NCLOUD_RESPONSE_MAXBYTES` | - | Opt-in response-size guard (bytes). When positive, large read-only responses are truncated item-by-item to stay under the threshold, adding `truncated`/`suggestedPageSize` hints. Unset/0 = guard off (response unchanged) | - |
 
 ## MCP Client Configuration
 

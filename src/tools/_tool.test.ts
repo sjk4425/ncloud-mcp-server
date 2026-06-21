@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { z } from "zod";
 import { defineTool, deriveAnnotations } from "./_tool.js";
 
@@ -123,6 +123,51 @@ describe("defineTool: destructive 옵션 (confirm 게이트)", () => {
     );
     const r = await t.handler({});
     expect(JSON.parse(textOf(r))).toEqual({ items: [] });
+  });
+});
+
+// ─── 응답 크기 가드 (DESIGN_post-1.6.0 §3, v1.7.0) ───
+// 옵트인(env) — 미설정 시 응답 형태가 완전히 무변경이어야 한다.
+describe("defineTool: 응답 크기 가드 (NCLOUD_RESPONSE_MAXBYTES)", () => {
+  const savedMax = process.env.NCLOUD_RESPONSE_MAXBYTES;
+  afterEach(() => {
+    if (savedMax === undefined) delete process.env.NCLOUD_RESPONSE_MAXBYTES;
+    else process.env.NCLOUD_RESPONSE_MAXBYTES = savedMax;
+  });
+
+  it("미설정 시 응답 형태 무변경(전체 반환)", async () => {
+    delete process.env.NCLOUD_RESPONSE_MAXBYTES;
+    const items = Array.from({ length: 100 }, (_, i) => ({ i, blob: "a".repeat(40) }));
+    const t = capture((server) =>
+      defineTool(server, "ncloud_list_things", "d", {}, async () => ({ items }))
+    );
+    const parsed = JSON.parse(textOf(await t.handler({})));
+    expect(parsed.items.length).toBe(100);
+    expect(parsed.truncated).toBeUndefined();
+  });
+
+  it("설정 시 대형 읽기 응답을 임계 이하로 자르고 회복 힌트 제공", async () => {
+    process.env.NCLOUD_RESPONSE_MAXBYTES = "1500";
+    const items = Array.from({ length: 100 }, (_, i) => ({ i, blob: "a".repeat(40) }));
+    const t = capture((server) =>
+      defineTool(server, "ncloud_list_things", "d", {}, async () => ({ items }))
+    );
+    const r = await t.handler({});
+    const parsed = JSON.parse(textOf(r));
+    expect(parsed.truncated).toBe(true);
+    expect(parsed.suggestedPageSize).toBe(parsed.items.length);
+    expect(textOf(r).length).toBeLessThanOrEqual(1500);
+  });
+
+  it("쓰기 도구는 가드 미적용(readOnly 경로 아님)", async () => {
+    process.env.NCLOUD_RESPONSE_MAXBYTES = "200";
+    const items = Array.from({ length: 100 }, (_, i) => ({ i, blob: "a".repeat(40) }));
+    const t = capture((server) =>
+      defineTool(server, "ncloud_create_thing", "d", {}, async () => ({ items }))
+    );
+    const parsed = JSON.parse(textOf(await t.handler({})));
+    expect(parsed.items.length).toBe(100);
+    expect(parsed.truncated).toBeUndefined();
   });
 });
 

@@ -16,7 +16,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z, ZodRawShape } from "zod";
-import { toolText } from "./_response.js";
+import { toolText, responseMaxBytes } from "./_response.js";
 import { withRetryContext } from "../client/_retry-context.js";
 
 export interface ToolAnnotations {
@@ -170,9 +170,15 @@ export function defineTool<Schema extends ZodRawShape>(
       const result = readOnly
         ? await withRetryContext({ retryOn5xx: true }, () => handler(handlerParams))
         : await handler(handlerParams);
-      return isToolResult(result)
-        ? result
-        : toolText(result, opts?.prune !== undefined ? { prune: opts.prune } : undefined);
+      if (isToolResult(result)) return result;
+      const textOpts: { prune?: boolean; maxBytes?: number } = {};
+      if (opts?.prune !== undefined) textOpts.prune = opts.prune;
+      // 읽기 전용 응답에 한해 (옵트인 시) 크기 가드를 적용 — 미설정/임계 이하면 무변경.
+      if (readOnly) {
+        const maxBytes = responseMaxBytes();
+        if (maxBytes > 0) textOpts.maxBytes = maxBytes;
+      }
+      return toolText(result, textOpts);
     } catch (error: any) {
       return { content: [{ type: "text" as const, text: error.message }], isError: true };
     }

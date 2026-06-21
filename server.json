@@ -6,12 +6,12 @@
     "url": "https://github.com/sjk4425/ncloud-mcp-server",
     "source": "github"
   },
-  "version": "1.6.1",
+  "version": "1.7.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "ncloud-mcp-server",
-      "version": "1.6.1",
+      "version": "1.7.0",
       "transport": {
         "type": "stdio"
       },
@@ -64,6 +64,13 @@
           "format": "string",
           "isSecret": false,
           "name": "NCLOUD_LANG"
+        },
+        {
+          "description": "Opt-in response-size guard for read-only tools. When set to a positive byte threshold, large read-only responses are truncated item-by-item to stay under it, adding 'truncated'/'suggestedPageSize' recovery hints. Unset/0 = guard off (response shape unchanged).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "NCLOUD_RESPONSE_MAXBYTES"
         }
       ]
     }

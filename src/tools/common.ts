@@ -2,38 +2,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defineTool } from "./_tool.js";
 import { L } from "./_messages.js";
+import {
+  regionName,
+  resolveRegionCode,
+  invalidRegionMessage,
+  RESOURCE_DETAIL_MAP,
+  unsupportedResourceTypeMessage,
+} from "./_validation.js";
 import type { ClientFactory } from "./registry.js";
-
-const REGION_NAME_MAP: Record<string, string> = {
-  "한국": "KR",
-  "일본": "JPN",
-  "싱가포르": "SGN",
-  "미국": "USWN",
-  "독일": "DEN",
-};
-
-const REGION_CODE_MAP: Record<string, string> = {
-  KR: "한국",
-  JPN: "일본",
-  SGN: "싱가포르",
-  USWN: "미국",
-  DEN: "독일",
-};
-
-const RESOURCE_DETAIL_MAP: Record<string, { apiPath: string; paramKey: string }> = {
-  server: { apiPath: "/vserver/v2/getServerInstanceDetail", paramKey: "serverInstanceNo" },
-  vpc: { apiPath: "/vpc/v2/getVpcDetail", paramKey: "vpcNo" },
-  subnet: { apiPath: "/vpc/v2/getSubnetDetail", paramKey: "subnetNo" },
-  loadbalancer: { apiPath: "/vloadbalancer/v2/getLoadBalancerInstanceDetail", paramKey: "loadBalancerInstanceNo" },
-  targetGroup: { apiPath: "/vloadbalancer/v2/getTargetGroupDetail", paramKey: "targetGroupNo" },
-  natGateway: { apiPath: "/vpc/v2/getNatGatewayInstanceDetail", paramKey: "natGatewayInstanceNo" },
-  mysqlInstance: { apiPath: "/vmysql/v2/getCloudMysqlInstanceDetail", paramKey: "cloudMysqlInstanceNo" },
-  blockStorage: { apiPath: "/vserver/v2/getBlockStorageInstanceDetail", paramKey: "blockStorageInstanceNo" },
-  publicIp: { apiPath: "/vserver/v2/getPublicIpInstanceDetail", paramKey: "publicIpInstanceNo" },
-  acg: { apiPath: "/vserver/v2/getAccessControlGroupDetail", paramKey: "accessControlGroupNo" },
-  networkAcl: { apiPath: "/vpc/v2/getNetworkAclDetail", paramKey: "networkAclNo" },
-  autoScalingGroup: { apiPath: "/vautoscaling/v2/getAutoScalingGroupDetail", paramKey: "autoScalingGroupNo" },
-};
 
 export function registerCommonTools(server: McpServer, client: ClientFactory): void {
   // ncloud_get_regions — List available regions
@@ -67,13 +43,10 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
       region: z.string().describe("Region code (KR, JPN, SGN, USWN, DEN) or Korean name (한국, 일본, 싱가포르, 미국, 독일)"),
     },
     async ({ region }) => {
-      const resolvedCode = REGION_NAME_MAP[region] ?? region.toUpperCase();
-      if (!REGION_CODE_MAP[resolvedCode]) {
+      const resolvedCode = resolveRegionCode(region);
+      if (!resolvedCode) {
         return {
-          content: [{ type: "text" as const, text: L({
-            ko: `유효하지 않은 리전입니다: "${region}". 사용 가능한 리전: KR, JPN, SGN, USWN, DEN (또는 한국, 일본, 싱가포르, 미국, 독일)`,
-            en: `Invalid region: "${region}". Available regions: KR, JPN, SGN, USWN, DEN (or 한국, 일본, 싱가포르, 미국, 독일).`,
-          }) }],
+          content: [{ type: "text" as const, text: invalidRegionMessage(region) }],
           isError: true,
         };
       }
@@ -81,11 +54,11 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
       client.setRegionAll(resolvedCode);
       const result = {
         message: L({
-          ko: `✅ 리전이 ${REGION_CODE_MAP[resolvedCode]} (${resolvedCode})으로 변경되었습니다.`,
-          en: `✅ Region changed to ${REGION_CODE_MAP[resolvedCode]} (${resolvedCode}).`,
+          ko: `✅ 리전이 ${regionName(resolvedCode)} (${resolvedCode})으로 변경되었습니다.`,
+          en: `✅ Region changed to ${regionName(resolvedCode)} (${resolvedCode}).`,
         }),
-        previousRegion: { code: previousCode, name: REGION_CODE_MAP[previousCode] ?? previousCode },
-        currentRegion: { code: resolvedCode, name: REGION_CODE_MAP[resolvedCode] },
+        previousRegion: { code: previousCode, name: regionName(previousCode) },
+        currentRegion: { code: resolvedCode, name: regionName(resolvedCode) },
         appliedScope: {
           applied: L({
             ko: "일반 API 클라이언트 전체 (Compute, Network, Database, Cloud Insight, NKS, Billing 등)",
@@ -119,7 +92,7 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
       const code = client.getRegionCode();
       const result = {
         regionCode: code,
-        regionName: REGION_CODE_MAP[code] ?? code,
+        regionName: regionName(code),
       };
       return result;
     },
@@ -144,7 +117,7 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
       const mapping = RESOURCE_DETAIL_MAP[resourceType];
       if (!mapping) {
         return {
-          content: [{ type: "text" as const, text: L({ ko: `지원하지 않는 리소스 타입: ${resourceType}`, en: `Unsupported resource type: ${resourceType}` }) }],
+          content: [{ type: "text" as const, text: unsupportedResourceTypeMessage(resourceType) }],
           isError: true,
         };
       }
@@ -162,8 +135,8 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
 
       const isComplete = ["running", "run", "active", "set", "used", "created", "creat"].includes(status.toLowerCase());
       const message = isComplete
-        ? `✅ 완료: ${resourceType} [${resourceId}] 정상 생성됨`
-        : `⏳ 진행 중: ${resourceType} [${resourceId}] - 현재 상태: ${status}`;
+        ? L({ ko: `✅ 완료: ${resourceType} [${resourceId}] 정상 생성됨`, en: `✅ Done: ${resourceType} [${resourceId}] created successfully` })
+        : L({ ko: `⏳ 진행 중: ${resourceType} [${resourceId}] - 현재 상태: ${status}`, en: `⏳ In progress: ${resourceType} [${resourceId}] - current status: ${status}` });
 
       const response = { message, resourceType, resourceId, status };
       return response;

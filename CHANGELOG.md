@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-06-21
+
+> Reliability release. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0/1.6.0/1.6.1). The new behavior is **opt-in via env and default OFF**, so with default settings every tool response is byte-for-byte unchanged. Design: `docs/DESIGN_post-1.6.0-improvements.md` §3·§5.
+
+### Added
+- **Opt-in response-size guard (`NCLOUD_RESPONSE_MAXBYTES`).** When set to a positive byte threshold, read-only tool responses whose serialized size exceeds it are truncated **item-by-item** (largest top-level array, from the end, keeping ≥1) to stay under the limit, with `truncated: true` + `suggestedPageSize` recovery hints appended. Measured on the **post-prune** payload so pruning doesn't over-truncate. Unset/0/non-positive → guard off and the response shape is 100% unchanged. Generalizes the billing-only `paginateWithGuard` to all read-only tools without touching schemas (`src/tools/_response.ts` `guardLargeResponse`/`responseMaxBytes`, applied in the `defineTool` read-only path).
+- **Validation-helper consolidation (`src/tools/_validation.ts`).** The region whitelist (code/Korean-name resolution) and the operation-status resource-type → detail-API map were extracted out of `common.ts` into a single module, with their i18n messages routed through `_messages.ts` (`L`). Sets up a single growth point for handler validation logic. The `ncloud_get_operation_status` completion/in-progress status message is now also localized (`NCLOUD_LANG=en`), closing a remaining hardcoded-Korean gap.
+
+### Notes
+- Public behavior with default settings is unchanged: no guard, Korean messages by default. The new env var is documented in `server.json`.
+- A read-only TTL cache (`NCLOUD_CACHE_TTL`) was prototyped during this round but **dropped before release**: caching all read-only tools risks stale reads for an infra-management tool (create→verify loops), and the value was marginal. If revisited, it should be scoped to an explicit static-metadata allowlist rather than all read-only tools.
+- **Helper unit tests** (`_response.test.ts`, `_validation.test.ts`, plus guard integration cases in `_tool.test.ts`): opt-in gate defaults OFF, item-level truncation under threshold, single-oversized-item floor, no-array no-op, input immutability, post-prune measurement, and write-tool guard bypass.
+
 ## [1.6.1] - 2026-06-18
 
 > Handler-level i18n follow-up. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0/1.6.0). Default behavior (Korean) is unchanged; only `NCLOUD_LANG=en` output differs. Design: `docs/DESIGN_post-1.6.0-improvements.md` §1·§2.

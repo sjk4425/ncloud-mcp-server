@@ -84,6 +84,7 @@ npm run build
 | `NCLOUD_RESPONSE_PRUNE` | - | `1`이면 응답에서 빈 값(`null`/`""`/`[]`/`{}`)을 전역 제거 | `0` |
 | `NCLOUD_TIMEOUT_MS` | - | API 요청 타임아웃(밀리초). 초과 시 호출이 중단되고 안내 메시지를 반환 (HTTP 429는 항상 최대 2회 자동 재시도, 조회 도구는 503/504·네트워크 오류도 재시도) | `30000` |
 | `NCLOUD_LANG` | - | 클라이언트 에러 메시지 언어. `en`이면 영문, 그 외/미설정이면 한국어 | `ko` |
+| `NCLOUD_RESPONSE_MAXBYTES` | - | 옵트인 응답 크기 가드(바이트). 양수면 조회 도구의 대형 응답을 항목 단위로 잘라 임계 이하로 만들고 `truncated`/`suggestedPageSize` 힌트를 덧붙임. 미설정/0이면 가드 OFF(응답 무변경) | - |
 
 ## MCP 클라이언트 설정
 
