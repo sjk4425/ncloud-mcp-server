@@ -290,3 +290,99 @@ describe("billing: 응답 크기 가드 (PLAN E 시나리오)", () => {
     spy.mockRestore();
   });
 });
+
+// ── 2026-06-25 상품 분류 코드 개편 대응 ──────────────────────────────────
+describe("billing: 분류 코드 개편 (2026-06-25)", () => {
+  let server: McpServer;
+  let client: NcloudClient;
+
+  beforeEach(() => {
+    server = new McpServer({ name: "test", version: "1.0.0" });
+    client = createMockClient();
+    registerBillingTools(server, client);
+  });
+
+  it("slim 투영: 신규 분류 필드를 코드 객체({code,codeName})에서 노출", async () => {
+    const item = {
+      productCode: "VSVR000000000001",
+      productName: "vCPU 2EA",
+      productType: { codeName: "STAND" },
+      productItemKind: { codeName: "VPC Server" },
+      productItemKindDetail: { code: "VM", codeName: "VM" },
+      productTypeDetail: { code: "A100", codeName: "A100" },
+      priceList: [{ price: 40, unit: { codeName: "Hour" } }],
+    };
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ totalRows: 1, productPriceList: [item] });
+    const handler = getToolHandler(server, "ncloud_get_product_price_list");
+    const result = await handler({ regionCode: "KR" }, {} as any);
+
+    const out = JSON.parse(result.content[0].text).productPriceList[0];
+    expect(out.productItemKindDetail).toBe("VM");
+    expect(out.productTypeDetail).toBe("A100");
+    expect(out.productType).toBe("STAND");
+    spy.mockRestore();
+  });
+
+  it("slim 투영: 분류 필드가 flat 문자열로 와도(공지 표기) 그대로 노출", async () => {
+    const item = {
+      productCode: "BST000000000001",
+      productName: "Block Storage",
+      productTypeCode: "SSD", // flat
+      productItemKindDetailCode: "BSTAD", // flat
+      productTypeDetailCode: "CB1", // flat
+      priceList: [{ price: 1, unit: "GB" }],
+    };
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ totalRows: 1, productPriceList: [item] });
+    const handler = getToolHandler(server, "ncloud_get_product_price_list");
+    const result = await handler({ regionCode: "KR" }, {} as any);
+
+    const out = JSON.parse(result.content[0].text).productPriceList[0];
+    expect(out.productType).toBe("SSD");
+    expect(out.productItemKindDetail).toBe("BSTAD");
+    expect(out.productTypeDetail).toBe("CB1");
+    spy.mockRestore();
+  });
+
+  it("키워드 검색이 신규 세부 분류 필드(BM 등)도 매칭", async () => {
+    const bmItem = {
+      productCode: "BM000000000001",
+      productName: "", // 비어있음 — 세부 분류로만 식별
+      productItemKindDetail: { code: "BM", codeName: "BM" },
+      priceList: [{ price: 100, unit: "Hour" }],
+    };
+    const vmItem = {
+      productCode: "VM000000000001",
+      productName: "vCPU 2EA",
+      productItemKindDetail: { code: "VM", codeName: "VM" },
+      priceList: [{ price: 40, unit: "Hour" }],
+    };
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ totalRows: 2, productPriceList: [bmItem, vmItem] });
+    const handler = getToolHandler(server, "ncloud_get_product_price_list");
+    const result = await handler({ regionCode: "KR", productName: "BM" }, {} as any);
+
+    const data = JSON.parse(result.content[0].text);
+    expect(data.matchedRows).toBe(1);
+    expect(data.productPriceList[0].productCode).toBe("BM000000000001");
+    spy.mockRestore();
+  });
+
+  it("요청 파라미터 productItemKindDetailCode를 List Price 도구가 API로 전달", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ totalRows: 0, productList: [] });
+    const handler = getToolHandler(server, "ncloud_get_product_list");
+    await handler({ regionCode: "KR", productItemKindDetailCode: "VM" }, {} as any);
+
+    const apiParams = spy.mock.calls[0][2] as Record<string, string>;
+    expect(apiParams.productItemKindDetailCode).toBe("VM");
+    spy.mockRestore();
+  });
+
+  it("요청 파라미터 productItemKindDetailCode를 Cost 도구(getContractUsageList)가 API로 전달", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ totalRows: 0 });
+    const handler = getToolHandler(server, "ncloud_get_contract_usage_list");
+    await handler({ startMonth: "202601", endMonth: "202601", productItemKindDetailCode: "BM" }, {} as any);
+
+    const apiParams = spy.mock.calls[0][2] as Record<string, string>;
+    expect(apiParams.productItemKindDetailCode).toBe("BM");
+    spy.mockRestore();
+  });
+});

@@ -2,9 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-06-26
+
+> Ncloud API-change tracking release. Reflects two upstream API changes — **Container Registry `storageType`** and the **billing product-classification code revision (effective 2026-06-25)**. Unlike recent releases, this one **does change public tool schemas** (new optional parameters + a new `storageType` enum on registry create), but all changes are **additive and backward-compatible** — existing calls keep working. Verified against the live KR API — all five verification scenarios passed.
+
+### Added
+- **Container Registry `storageType`** — `ncloud_ncr_create_registry` now accepts `storageType` (`objectStorage` default | `ncloudStorage`) and `bucket`. `objectStorage` reuses an existing Object Storage bucket (`bucket` required — guarded before the call so a missing bucket fails fast with a localized message instead of a raw 400); `ncloudStorage` auto-provisions dedicated NCR storage (`bucket` omitted from the request body). `dryRun` previews reflect the resolved `storageType`/`bucket`. The added `storage_type` response field on list/detail passes through unchanged.
+- **Billing `productItemKindDetailCode` request parameter** (2026-06-25 classification revision) — added as an optional enum (`VM`/`BM`/`BSTAD`/`BSTBS`/`BSTBS_BSTAD`/`CB1`/`CB2`/`FB1`/`FB2`) to all five affected tools: `ncloud_get_product_list`, `ncloud_get_product_price_list`, `ncloud_get_cost_relation_code_list`, `ncloud_get_contract_usage_list`, `ncloud_get_contract_usage_list_by_daily`. Use `VM` to query VM servers only (otherwise Bare Metal may be mixed in) or `BM` for Bare Metal only.
+- **New classification fields in the slim price projection** — `slimProductPrice()` (`ncloud_get_product_price_list` default `detailLevel="price"`) now surfaces `productItemKindDetail` and `productTypeDetail`, and keyword search (`productName`) matches across them, so VM/BM and Block-Storage sub-types (e.g. `BM`, `GPU`) are searchable/visible. A `codeName()` helper reads each classification field from the code object (`{code, codeName}`) with a fallback to the flat `*Code` form — robust to either response shape.
+- **Tests** — new `src/tools/containers-registry.test.ts` (6: storageType branches, bucket guard, dryRun preview, `/info` detail path) and billing classification cases in `billing.test.ts` (object/flat projection, keyword match on detail fields, request-param pass-through for both List-Price and Cost tools). Full suite: 172 passing.
+
+### Fixed
+- **`ncloud_ncr_create_registry` was calling the wrong HTTP method/path** — it issued a `GET` to `/ncr/api/v2/repositories` with no body and no `{registry}` segment, so the registry name was not in the path and no creation body was sent. Now correctly `POST`s to `/ncr/api/v2/repositories/{registry}` with a JSON body, per the official spec.
+- **`ncloud_ncr_get_registry` was returning an image-list wrapper, not registry detail** — the plain `/ncr/api/v2/repositories/{registry}` path returns `{count,next,previous,results}` (image list) with no `storage_type`; only `/ncr/api/v2/repositories/{registry}/info` returns the registry detail body. The tool now queries `/info`, fixing a latent defect that predates the `storage_type` addition (confirmed live in verification scenario D).
+
 ## [1.7.0] - 2026-06-21
 
-> Reliability release. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0/1.6.0/1.6.1). The new behavior is **opt-in via env and default OFF**, so with default settings every tool response is byte-for-byte unchanged. Design: `docs/DESIGN_post-1.6.0-improvements.md` §3·§5.
+> Reliability release. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0/1.6.0/1.6.1). The new behavior is **opt-in via env and default OFF**, so with default settings every tool response is byte-for-byte unchanged.
 
 ### Added
 - **Opt-in response-size guard (`NCLOUD_RESPONSE_MAXBYTES`).** When set to a positive byte threshold, read-only tool responses whose serialized size exceeds it are truncated **item-by-item** (largest top-level array, from the end, keeping ≥1) to stay under the limit, with `truncated: true` + `suggestedPageSize` recovery hints appended. Measured on the **post-prune** payload so pruning doesn't over-truncate. Unset/0/non-positive → guard off and the response shape is 100% unchanged. Generalizes the billing-only `paginateWithGuard` to all read-only tools without touching schemas (`src/tools/_response.ts` `guardLargeResponse`/`responseMaxBytes`, applied in the `defineTool` read-only path).
@@ -17,10 +31,10 @@ All notable changes to this project will be documented in this file.
 
 ## [1.6.1] - 2026-06-18
 
-> Handler-level i18n follow-up. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0/1.6.0). Default behavior (Korean) is unchanged; only `NCLOUD_LANG=en` output differs. Design: `docs/DESIGN_post-1.6.0-improvements.md` §1·§2.
+> Handler-level i18n follow-up. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0/1.6.0). Default behavior (Korean) is unchanged; only `NCLOUD_LANG=en` output differs.
 
 ### Fixed
-- **Handler/schema-level messages now honor `NCLOUD_LANG`.** v1.6.0 localized only the `NcloudClient` error layer; messages returned **directly by tool handlers** (validation errors, dryRun previews, deletion/success notices) and zod `required_error` strings were still hardcoded Korean, so `NCLOUD_LANG=en` users still saw Korean for those. All such strings are now routed through a new `src/tools/_messages.ts` module with parallel `ko`/`en` text: `L({ ko, en })` for one-offs plus template helpers `dryRunMessage`/`requiredError`/`maxLenMessage`/`cidrMessage`/`deletedMessage`. ~90 handler strings converted across ~37 modules, plus **520 zod `required_error` strings** across 29 modules migrated via a Node utf8 codemod (`scripts/codemod-required-error-i18n.mjs`). Default language stays Korean.
+- **Handler/schema-level messages now honor `NCLOUD_LANG`.** v1.6.0 localized only the `NcloudClient` error layer; messages returned **directly by tool handlers** (validation errors, dryRun previews, deletion/success notices) and zod `required_error` strings were still hardcoded Korean, so `NCLOUD_LANG=en` users still saw Korean for those. All such strings are now routed through a new `src/tools/_messages.ts` module with parallel `ko`/`en` text: `L({ ko, en })` for one-offs plus template helpers `dryRunMessage`/`requiredError`/`maxLenMessage`/`cidrMessage`/`deletedMessage`. ~90 handler strings converted across ~37 modules, plus **520 zod `required_error` strings** across 29 modules migrated via a Node utf8 codemod. Default language stays Korean.
 - **`activity-tracer.ts`** "activity not found" fallback no longer uses indented `JSON.stringify(result, null, 2)` (now `JSON.stringify(result)`), aligning with the `toolText()` no-indent convention.
 
 ### Added
@@ -28,7 +42,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.6.0] - 2026-06-16
 
-> Reliability & UX release. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0). New behavior is either scoped to read-only tools or opt-in via env. Design: `docs/DESIGN_post-1.4.0-improvements.md` §4·§6.
+> Reliability & UX release. **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.5.0). New behavior is either scoped to read-only tools or opt-in via env.
 
 ### Added
 - **Read-only retry expansion** — query tools now also retry on **HTTP 503/504 and network/timeout errors** (same exponential backoff + jitter as the existing 429 path, max 2 attempts). Writes (create/delete/modify) are unchanged — still 429-only — to preserve non-idempotent safety. The read/write distinction reuses the `readOnlyHint` annotation already derived by `defineTool`: a read-only handler runs inside an `AsyncLocalStorage` retry context (`src/client/_retry-context.ts`) that `NcloudClient.fetchWithRetry` reads, so no handler or call-site code changed.
@@ -42,7 +56,7 @@ All notable changes to this project will be documented in this file.
 > Internal-architecture release (same spirit as 1.3.0). **No public tool name/schema/group-key changes** — verified by a full tool-snapshot diff (1,035 tools, name/description/schemaKeys identical to 1.4.0). The confirm-gate boilerplate extraction is the natural follow-up to the 1.3.0 `defineTool` try/catch consolidation.
 
 ### Changed
-- **Internal**: the destructive-tool `confirm` gate — the `if (!params.confirm) { …return prompt… }` block duplicated across **148 sites / 54 modules** — is now handled by a `destructive` option on the `defineTool` wrapper (`src/tools/_tool.ts`). The wrapper injects the `confirm` parameter (when not already declared), returns the warning prompt when `confirm` is falsy, strips `confirm` from the params passed to the handler, and forces `destructiveHint: true`. Migrated via a TypeScript-AST codemod (`scripts/codemod-confirm-gate.mjs`); the warning text is built from a unified template for the canonical single-identifier case (`{ noun, describe, action? }`) and preserved verbatim via a `message` builder for tools with multiple identifiers, non-delete verbs, or extra safety warnings. Public behavior is unchanged.
+- **Internal**: the destructive-tool `confirm` gate — the `if (!params.confirm) { …return prompt… }` block duplicated across **148 sites / 54 modules** — is now handled by a `destructive` option on the `defineTool` wrapper (`src/tools/_tool.ts`). The wrapper injects the `confirm` parameter (when not already declared), returns the warning prompt when `confirm` is falsy, strips `confirm` from the params passed to the handler, and forces `destructiveHint: true`. Migrated via a TypeScript-AST codemod; the warning text is built from a unified template for the canonical single-identifier case (`{ noun, describe, action? }`) and preserved verbatim via a `message` builder for tools with multiple identifiers, non-delete verbs, or extra safety warnings. Public behavior is unchanged.
 
 ### Added
 - **Registry invariant tests** (`registry.test.ts`): a tool with a `confirm` parameter must carry `destructiveHint: true`; a tool with `destructiveHint: true` must have a `confirm` gate unless explicitly allowlisted (catches a new destructive tool added without a gate); plus an allowlist-staleness guard. The intentional non-gated set is 4 tools (`*_kill_container`, `*_kill_master`, `edge_purge`, `pca_revoke_end_cert` — lifecycle/cache/cert ops, not data deletion).
@@ -53,7 +67,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.4.0] - 2026-06-14
 
-> Dynamic tool-group loading. **Default behavior is unchanged** — leaving `NCLOUD_TOOL_GROUPS` unset still loads all 1,035 tools, exactly as before. The new behavior is opt-in via `NCLOUD_TOOL_GROUPS=dynamic`. Design: `docs/DESIGN_long-term-dynamic-groups.md`.
+> Dynamic tool-group loading. **Default behavior is unchanged** — leaving `NCLOUD_TOOL_GROUPS` unset still loads all 1,035 tools, exactly as before. The new behavior is opt-in via `NCLOUD_TOOL_GROUPS=dynamic`.
 
 ### Added
 - **Dynamic tool groups** — the server can now enable tool groups at runtime, in-session, without a restart. Two always-on meta tools drive it: `ncloud_list_tool_groups` (catalog: 14 groups with services, tool counts, and current enabled/available/blocked status) and `ncloud_enable_tool_group` (activate a group; idempotent; the group catalog is embedded in the tool description so the model can pick the right group without a prior list call). On enable, the group's tools register and the SDK emits `tools/list_changed`.

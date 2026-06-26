@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { dryRunMessage, requiredError, L } from "./_messages.js";
 
 export function registerContainersRegistryTools(server: McpServer, client: NcloudClient): void {
   // ─── Registry Query Tools ──────────────────────────────────────────────────
@@ -28,7 +28,9 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
       registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry to query"),
     },
     async (params) => {
-      return client.request(`/ncr/api/v2/repositories/${params.registryName}`);
+      // 공식 가이드 기준 상세 조회 경로는 /{registry}/info 이며 응답에 storage_type 포함.
+      // (검증 시나리오 D로 실응답 확인 후 확정 — /info가 아니면 경로 되돌릴 것)
+      return client.request(`/ncr/api/v2/repositories/${params.registryName}/info`);
     }
   );
 
@@ -37,29 +39,52 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_ncr_create_registry",
-    "Create a new container registry. Use dryRun=true to preview without creating.",
+    "Create a new container registry. 'storageType' selects the storage backend: 'objectStorage' (default) reuses an existing Object Storage bucket (then 'bucket' is required); 'ncloudStorage' auto-provisions dedicated NCR storage (then 'bucket' is ignored). Use dryRun=true to preview without creating.",
     {
       registryName: z.string({ required_error: requiredError("registryName") }).describe("Name for the new registry"),
+      storageType: z.enum(["objectStorage", "ncloudStorage"]).optional().describe("Storage backend. 'objectStorage' (default) reuses an existing Object Storage bucket — 'bucket' is then required. 'ncloudStorage' auto-provisions dedicated NCR storage (bucket 'registry-{privateId}') — 'bucket' is ignored."),
+      bucket: z.string().optional().describe("Object Storage bucket name. Required when storageType='objectStorage' (the default); ignored when storageType='ncloudStorage'. Cannot be reused across registries."),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the registry"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Container Registry Creation",
-          registryName: params.registryName,
-          message: dryRunMessage({ ko: "레지스트리", en: "registry" }),
-        };
-        return preview;
+      // storageType 생략 시 NCP 기본값은 objectStorage. objectStorage는 bucket이 필수이며
+      // 미지정 시 NCP가 400을 반환하므로 호출 전에 명확한 메시지로 사전 차단한다.
+      const storageType = params.storageType ?? "objectStorage";
+      if (storageType === "objectStorage" && !params.bucket) {
+        throw new Error(
+          L({
+            ko: "storageType='objectStorage'(기본값)에는 'bucket'이 필수입니다. 버킷을 지정하거나 storageType='ncloudStorage'를 사용하세요.",
+            en: "'bucket' is required when storageType='objectStorage' (the default). Specify a bucket or use storageType='ncloudStorage'.",
+          })
+        );
       }
 
-      const { dryRun, ...apiParams } = params;
-      const result = await client.request("/ncr/api/v2/repositories", apiParams);
-      const summary = {
+      if (params.dryRun) {
+        return {
+          label: "🔍 Dry-Run Preview: Container Registry Creation",
+          registryName: params.registryName,
+          storageType,
+          ...(storageType === "objectStorage" ? { bucket: params.bucket } : {}),
+          message: dryRunMessage({ ko: "레지스트리", en: "registry" }),
+        };
+      }
+
+      // 공식 스펙: POST /ncr/api/v2/repositories/{registry} + JSON body (storageType/bucket).
+      // ncloudStorage일 때 bucket은 무시되므로 body에 포함하지 않는다.
+      const body: Record<string, string> = { storageType };
+      if (storageType === "objectStorage" && params.bucket) body.bucket = params.bucket;
+      await client.requestRaw(
+        "POST",
+        `/ncr/api/v2/repositories/${encodeURIComponent(params.registryName)}`,
+        undefined,
+        body
+      );
+      return {
         리소스타입: "Container Registry",
         레지스트리명: params.registryName,
+        storageType,
         상태: "creating",
       };
-      return summary;
     }
   );
 

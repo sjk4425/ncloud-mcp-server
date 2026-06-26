@@ -24,14 +24,46 @@ import { defineTool } from "./_tool.js";
 
 const SEARCH_FETCH_MAX_PAGES = 10; // 검색 모드에서 스캔할 최대 페이지(페이지당 1000행)
 
+// ─── 상품 분류 코드 (2026-06-25 NCP 분류 코드 체계 개편) ──────────────────
+// SVR/VSVR/BST 상품의 분류 코드가 재편되며 5개 조회 API에 요청 파라미터
+// productItemKindDetailCode가 추가됐다(VM/BM 및 블록스토리지 세부 구분).
+// - VM/BM: VM만 조회하려면 "VM" 명시(미명시 시 BM 혼입 가능), BM만은 "BM".
+// - BST: BSTAD/BSTBS/BSTBS_BSTAD/CB1/CB2/FB1/FB2.
+const PRODUCT_ITEM_KIND_DETAIL_CODES = [
+  "VM", "BM", "BSTAD", "BSTBS", "BSTBS_BSTAD", "CB1", "CB2", "FB1", "FB2",
+] as const;
+
+const productItemKindDetailCodeSchema = z
+  .enum(PRODUCT_ITEM_KIND_DETAIL_CODES)
+  .optional()
+  .describe(
+    "Product item kind detail code (NCP billing classification change, 2026-06-25). " +
+      "Use 'VM' to query VM servers only (otherwise BM may be mixed in), 'BM' for Bare Metal only. " +
+      "Block Storage: BSTAD / BSTBS / BSTBS_BSTAD / CB1 / CB2 / FB1 / FB2."
+  );
+
+/**
+ * 분류 필드 표시값 추출. NCP 응답은 분류 필드를 `{code, codeName}` 코드 객체로 주지만,
+ * 일부 필드는 flat 문자열일 수 있어(공지 표기 기준) 양쪽을 모두 견디게 한다.
+ * 객체면 codeName(없으면 code), flat이면 값 그대로, 없으면 undefined.
+ */
+function codeName(v: any): any {
+  if (v == null) return undefined;
+  if (typeof v === "object") return v.codeName ?? v.code;
+  return v;
+}
+
 /** 검색 대상 필드에 대해 query(소문자) 부분일치 여부. */
 function matchesProductQuery(p: any, q: string): boolean {
   const fields = [
     p?.productName,
     p?.productDescription,
     p?.productCode,
-    p?.productType?.codeName,
-    p?.productItemKind?.codeName,
+    codeName(p?.productType) ?? p?.productTypeCode,
+    codeName(p?.productItemKind) ?? p?.productItemKindCode,
+    // 2026-06-25 분류 개편 세부 코드 — "BM"/"GPU" 등 키워드 검색 가능하도록 포함.
+    codeName(p?.productItemKindDetail) ?? p?.productItemKindDetailCode,
+    codeName(p?.productTypeDetail) ?? p?.productTypeDetailCode,
   ];
   return fields.some((s) => typeof s === "string" && s.toLowerCase().includes(q));
 }
@@ -84,9 +116,13 @@ function slimProductPrice(p: any): any {
     productCode: p?.productCode,
     productName: p?.productName,
     productDescription: p?.productDescription,
-    productCategory: p?.productCategory?.codeName,
-    productType: p?.productType?.codeName,
-    productItemKind: p?.productItemKind?.codeName,
+    // 분류 필드는 코드 객체({code,codeName})가 기본이나 flat(*Code) 가능성도 견딘다.
+    productCategory: codeName(p?.productCategory) ?? p?.productCategoryCode,
+    productType: codeName(p?.productType) ?? p?.productTypeCode,
+    productItemKind: codeName(p?.productItemKind) ?? p?.productItemKindCode,
+    // 2026-06-25 분류 코드 개편으로 추가된 세부 분류(VM/BM·블록스토리지 식별).
+    productItemKindDetail: codeName(p?.productItemKindDetail) ?? p?.productItemKindDetailCode,
+    productTypeDetail: codeName(p?.productTypeDetail) ?? p?.productTypeDetailCode,
     priceList: Array.isArray(p?.priceList) ? p.priceList.map(slimPriceEntry) : undefined,
   };
 }
@@ -219,7 +255,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (promiseNoList) promiseNoList.forEach((no, i) => { params[`promiseNoList.${i + 1}`] = no; });
       if (payCurrencyCode) params["payCurrencyCode"] = payCurrencyCode;
       const result = await client.requestRaw("GET", "/billing/v1/product/getPriceList", params);
-      return result;
+      return result;
     }
   );
 
@@ -235,7 +271,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       const params: Record<string, string> = { responseFormatType: "json" };
       if (productCategoryCode) params["productCategoryCode"] = productCategoryCode;
       const result = await client.requestRaw("GET", "/billing/v1/product/getProductCategoryList", params);
-      return result;
+      return result;
     }
   );
 
@@ -250,13 +286,15 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       pageNo: z.number().optional().describe("Page number (default 1). Use nextPageNo from the response to page through results."),
       pageSize: z.number().optional().describe("Page size (default 50, max 1000). Results are server-sorted by productCode for stable pagination."),
       productItemKindCode: z.string().optional().describe("Product item kind code (e.g. VSVR, SW)"),
+      productItemKindDetailCode: productItemKindDetailCodeSchema,
       productCategoryCode: z.string().optional().describe("Product category code (e.g. COMPUTE)"),
       productCode: z.string().optional().describe("Product code to filter"),
       productName: z.string().optional().describe("Keyword search (case-insensitive substring). Matches across productName, productDescription, productCode, productType.codeName, productItemKind.codeName — works even when the NCP productName field is empty/Korean (e.g. 'Load Balancer')."),
     },
-    async ({ regionCode, pageNo, pageSize, productItemKindCode, productCategoryCode, productCode, productName }) => {
+    async ({ regionCode, pageNo, pageSize, productItemKindCode, productItemKindDetailCode, productCategoryCode, productCode, productName }) => {
       const baseParams: Record<string, string> = { responseFormatType: "json", regionCode };
       if (productItemKindCode) baseParams["productItemKindCode"] = productItemKindCode;
+      if (productItemKindDetailCode) baseParams["productItemKindDetailCode"] = productItemKindDetailCode;
       if (productCategoryCode) baseParams["productCategoryCode"] = productCategoryCode;
       if (productCode) baseParams["productCode"] = productCode;
 
@@ -269,7 +307,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
         pageNo,
         pageSize,
       });
-      return result;
+      return result;
     }
   );
 
@@ -283,15 +321,17 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       pageNo: z.number().optional().describe("Page number (default 1). Use nextPageNo from the response to page through results."),
       pageSize: z.number().optional().describe("Page size (default 50, max 1000). Results are server-sorted by productCode for stable pagination."),
       productItemKindCode: z.string().optional().describe("Product item kind code (e.g. VSVR)"),
+      productItemKindDetailCode: productItemKindDetailCodeSchema,
       productCategoryCode: z.string().optional().describe("Product category code (e.g. COMPUTE)"),
       productCode: z.string().optional().describe("Product code to filter"),
       productName: z.string().optional().describe("Keyword search (case-insensitive substring). Matches across productName, productDescription, productCode, productType.codeName, productItemKind.codeName — works even when the NCP productName field is empty/Korean (e.g. 'Load Balancer')."),
       payCurrencyCode: z.enum(["KRW", "USD", "JPY"]).optional().describe("Payment currency code"),
       detailLevel: z.enum(["price", "full"]).optional().default("price").describe("'price' (default): slim response with identity + price fields only (much smaller). 'full': raw payload with all metadata. Tip: for broad category queries combine productCategoryCode + productName to keep responses small."),
     },
-    async ({ regionCode, pageNo, pageSize, productItemKindCode, productCategoryCode, productCode, productName, payCurrencyCode, detailLevel }) => {
+    async ({ regionCode, pageNo, pageSize, productItemKindCode, productItemKindDetailCode, productCategoryCode, productCode, productName, payCurrencyCode, detailLevel }) => {
       const baseParams: Record<string, string> = { responseFormatType: "json", regionCode };
       if (productItemKindCode) baseParams["productItemKindCode"] = productItemKindCode;
+      if (productItemKindDetailCode) baseParams["productItemKindDetailCode"] = productItemKindDetailCode;
       if (productCategoryCode) baseParams["productCategoryCode"] = productCategoryCode;
       if (productCode) baseParams["productCode"] = productCode;
       if (payCurrencyCode) baseParams["payCurrencyCode"] = payCurrencyCode;
@@ -309,7 +349,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
         pageSize,
         project,
       });
-      return result;
+      return result;
     }
   );
 
@@ -340,7 +380,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (isPartner !== undefined) params["isPartner"] = String(isPartner);
       if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
       const result = await client.requestRaw("GET", "/billing/v1/cost/getDemandCostList", params);
-      return result;
+      return result;
     }
   );
 
@@ -368,7 +408,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
       if (productDemandTypeCode) params["productDemandTypeCode"] = productDemandTypeCode;
       const result = await client.requestRaw("GET", "/billing/v1/cost/getProductDemandCostList", params);
-      return result;
+      return result;
     }
   );
 
@@ -403,7 +443,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (demandTypeDetailCode) params["demandTypeDetailCode"] = demandTypeDetailCode;
       if (regionCode) params["regionCode"] = regionCode;
       const result = await client.requestRaw("GET", "/billing/v1/cost/getContractDemandCostList", params);
-      return result;
+      return result;
     }
   );
 
@@ -434,7 +474,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (contractStatusCode) params["contractStatusCode"] = contractStatusCode;
       if (regionCode) params["regionCode"] = regionCode;
       const result = await client.requestRaw("GET", "/billing/v1/cost/getContractSummaryList", params);
-      return result;
+      return result;
     }
   );
 
@@ -454,10 +494,11 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       memberNoList: z.array(z.string()).optional().describe("Member number list (master/partner only)"),
       contractNo: z.string().optional().describe("Contract number to filter"),
       contractTypeCode: z.string().optional().describe("Contract type code"),
+      productItemKindDetailCode: productItemKindDetailCodeSchema,
       contractStatusCode: z.enum(["NOML", "NLEND"]).optional().describe("Contract status: NOML (normal), NLEND (terminated)"),
       regionCode: z.string().optional().describe("Region code (e.g. KR)"),
     },
-    async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, contractStatusCode, regionCode }) => {
+    async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, productItemKindDetailCode, contractStatusCode, regionCode }) => {
       const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
       if (pageNo !== undefined) params["pageNo"] = String(pageNo);
       if (pageSize !== undefined) params["pageSize"] = String(pageSize);
@@ -466,10 +507,11 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
       if (contractNo) params["contractNo"] = contractNo;
       if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
+      if (productItemKindDetailCode) params["productItemKindDetailCode"] = productItemKindDetailCode;
       if (contractStatusCode) params["contractStatusCode"] = contractStatusCode;
       if (regionCode) params["regionCode"] = regionCode;
       const result = await client.requestRaw("GET", "/billing/v1/cost/getContractUsageList", params);
-      return result;
+      return result;
     }
   );
 
@@ -489,9 +531,10 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       contractNo: z.string().optional().describe("Contract number to filter"),
       contractTypeCode: z.string().optional().describe("Contract type code"),
       productItemKindCode: z.string().optional().describe("Product item kind code"),
+      productItemKindDetailCode: productItemKindDetailCodeSchema,
       regionCode: z.string().optional().describe("Region code (e.g. KR)"),
     },
-    async ({ useStartDay, useEndDay, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, productItemKindCode, regionCode }) => {
+    async ({ useStartDay, useEndDay, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, productItemKindCode, productItemKindDetailCode, regionCode }) => {
       const params: Record<string, string> = { responseFormatType: "json", useStartDay, useEndDay };
       if (pageNo !== undefined) params["pageNo"] = String(pageNo);
       if (pageSize !== undefined) params["pageSize"] = String(pageSize);
@@ -501,9 +544,10 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (contractNo) params["contractNo"] = contractNo;
       if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
       if (productItemKindCode) params["productItemKindCode"] = productItemKindCode;
+      if (productItemKindDetailCode) params["productItemKindDetailCode"] = productItemKindDetailCode;
       if (regionCode) params["regionCode"] = regionCode;
       const result = await client.requestRaw("GET", "/billing/v1/cost/getContractUsageListByDaily", params);
-      return result;
+      return result;
     }
   );
 
@@ -515,19 +559,21 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
     {
       contractTypeCode: z.string().optional().describe("Contract type code (e.g. VSVR)"),
       productItemKindCode: z.string().optional().describe("Product item kind code"),
+      productItemKindDetailCode: productItemKindDetailCodeSchema,
       productRatingTypeCode: z.string().optional().describe("Product rating type code"),
       meteringTypeCode: z.string().optional().describe("Metering type code"),
       productCategoryCode: z.string().optional().describe("Product category code (e.g. COMPUTE)"),
     },
-    async ({ contractTypeCode, productItemKindCode, productRatingTypeCode, meteringTypeCode, productCategoryCode }) => {
+    async ({ contractTypeCode, productItemKindCode, productItemKindDetailCode, productRatingTypeCode, meteringTypeCode, productCategoryCode }) => {
       const params: Record<string, string> = { responseFormatType: "json" };
       if (contractTypeCode) params["contractTypeCode"] = contractTypeCode;
       if (productItemKindCode) params["productItemKindCode"] = productItemKindCode;
+      if (productItemKindDetailCode) params["productItemKindDetailCode"] = productItemKindDetailCode;
       if (productRatingTypeCode) params["productRatingTypeCode"] = productRatingTypeCode;
       if (meteringTypeCode) params["meteringTypeCode"] = meteringTypeCode;
       if (productCategoryCode) params["productCategoryCode"] = productCategoryCode;
       const result = await client.requestRaw("GET", "/billing/v1/cost/getCostRelationCodeList", params);
-      return result;
+      return result;
     }
   );
 
@@ -564,7 +610,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (endMonth) params["endMonth"] = endMonth;
       if (isValidDiscount !== undefined) params["isValidDiscount"] = String(isValidDiscount);
       const result = await client.requestRaw("GET", "/billing/v1/discount/getDiscountList", params);
-      return result;
+      return result;
     }
   );
 
@@ -590,7 +636,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (isPartner !== undefined) params["isPartner"] = String(isPartner);
       if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
       const result = await client.requestRaw("GET", "/billing/v1/discount/getCoinHistoryList", params);
-      return result;
+      return result;
     }
   );
 
@@ -620,7 +666,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (startMonth) params["startMonth"] = startMonth;
       if (endMonth) params["endMonth"] = endMonth;
       const result = await client.requestRaw("GET", "/billing/v1/discount/getCreditHistoryList", params);
-      return result;
+      return result;
     }
   );
 
@@ -649,7 +695,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (isPartner !== undefined) params["isPartner"] = String(isPartner);
       if (memberNoList) memberNoList.forEach((no, i) => { params[`memberNoList.${i + 1}`] = no; });
       const result = await client.requestRaw("GET", "/billing/v1/discount/getProductDemandCostByDiscountList", params);
-      return result;
+      return result;
     }
   );
 
@@ -679,7 +725,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       if (startMonth) params["startMonth"] = startMonth;
       if (endMonth) params["endMonth"] = endMonth;
       const result = await client.requestRaw("GET", "/billing/v1/discount/getProductDiscountHistoryList", params);
-      return result;
+      return result;
     }
   );
 
