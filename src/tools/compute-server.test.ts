@@ -193,6 +193,66 @@ describe("Unit: confirm=true triggers API call", () => {
     requestSpy.mockRestore();
   });
 
+  it("ncloud_terminate_server with confirm=true pre-checks status and BLOCKS a running server (no terminate API call)", async () => {
+    const requestSpy = vi.spyOn(client, "request").mockImplementation(async (path: string) => {
+      if (path === "/vserver/v2/getServerInstanceList") {
+        return {
+          serverInstanceList: [
+            { serverInstanceNo: "12345", serverName: "web-1", serverInstanceStatus: { code: "RUN" }, serverInstanceStatusName: "running", isProtectServerTermination: false },
+          ],
+        };
+      }
+      throw new Error(`terminate API must not be called; got ${path}`);
+    });
+    const handler = getToolHandler(server, "ncloud_terminate_server");
+    const result = await handler({ serverInstanceNoList: ["12345"], confirm: true }, {} as any);
+
+    expect(requestSpy).toHaveBeenCalledWith("/vserver/v2/getServerInstanceList", { serverInstanceNoList: ["12345"] });
+    expect(requestSpy).not.toHaveBeenCalledWith("/vserver/v2/terminateServerInstances", expect.anything());
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.terminated).toBe(false);
+    expect(parsed.blockedServers[0].serverInstanceNo).toBe("12345");
+    requestSpy.mockRestore();
+  });
+
+  it("ncloud_terminate_server with confirm=true BLOCKS a stopped-but-protected server", async () => {
+    const requestSpy = vi.spyOn(client, "request").mockImplementation(async (path: string) => {
+      if (path === "/vserver/v2/getServerInstanceList") {
+        return {
+          serverInstanceList: [
+            { serverInstanceNo: "12345", serverInstanceStatus: { code: "NSTOP" }, isProtectServerTermination: true },
+          ],
+        };
+      }
+      throw new Error(`terminate API must not be called; got ${path}`);
+    });
+    const handler = getToolHandler(server, "ncloud_terminate_server");
+    const result = await handler({ serverInstanceNoList: ["12345"], confirm: true }, {} as any);
+
+    expect(requestSpy).not.toHaveBeenCalledWith("/vserver/v2/terminateServerInstances", expect.anything());
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.terminated).toBe(false);
+    requestSpy.mockRestore();
+  });
+
+  it("ncloud_terminate_server with confirm=true PROCEEDS when all target servers are stopped and unprotected", async () => {
+    const requestSpy = vi.spyOn(client, "request").mockImplementation(async (path: string) => {
+      if (path === "/vserver/v2/getServerInstanceList") {
+        return { serverInstanceList: [{ serverInstanceNo: "12345", serverInstanceStatus: { code: "NSTOP" }, isProtectServerTermination: false }] };
+      }
+      if (path === "/vserver/v2/terminateServerInstances") {
+        return { serverInstanceList: [{ serverInstanceNo: "12345" }] };
+      }
+      throw new Error(`unexpected ${path}`);
+    });
+    const handler = getToolHandler(server, "ncloud_terminate_server");
+    const result = await handler({ serverInstanceNoList: ["12345"], confirm: true }, {} as any);
+
+    expect(requestSpy).toHaveBeenCalledWith("/vserver/v2/terminateServerInstances", { serverInstanceNoList: ["12345"] });
+    expect(result.isError).toBeUndefined();
+    requestSpy.mockRestore();
+  });
+
   it("ncloud_delete_server_images with confirm=true should call deleteServerImageInstances API", async () => {
     const mockResponse = { serverImageInstanceList: [] };
     const requestSpy = vi.spyOn(client, "request").mockResolvedValue(mockResponse);
@@ -270,5 +330,102 @@ describe("Unit: Server creation summary format", () => {
     expect(parsed.label).toContain("Dry-Run");
     expect(parsed.serverImageProductCode).toBe("IMG001");
     expect(parsed.serverProductCode).toBe("SPEC001");
+  });
+});
+
+describe("Unit: blockStorageMappingList (KVM boot volume type)", () => {
+  let server: McpServer;
+  let client: NcloudClient;
+
+  beforeEach(() => {
+    server = new McpServer({ name: "test", version: "1.0.0" });
+    client = createMockClient();
+    registerComputeServerTools(server, client);
+  });
+
+  it("flattens blockStorageMappingList into 1-based indexed query params (order 0 = CB2 boot volume)", async () => {
+    const requestSpy = vi.spyOn(client, "request").mockResolvedValue({ serverInstanceList: [{ serverInstanceNo: "1" }] });
+    const handler = getToolHandler(server, "ncloud_create_server");
+    await handler({
+      serverImageNo: "100",
+      serverSpecCode: "c2-g3",
+      vpcNo: "1111",
+      subnetNo: "2222",
+      blockStorageMappingList: [
+        { order: 0, blockStorageVolumeTypeCode: "CB2" },
+        { order: 1, blockStorageVolumeTypeCode: "CB1", blockStorageSize: 100, blockStorageName: "data" },
+      ],
+      dryRun: false,
+    }, {} as any);
+
+    expect(requestSpy).toHaveBeenCalledTimes(1);
+    const [, sentParams] = requestSpy.mock.calls[0];
+    expect(sentParams["blockStorageMappingList.1.order"]).toBe(0);
+    expect(sentParams["blockStorageMappingList.1.blockStorageVolumeTypeCode"]).toBe("CB2");
+    expect(sentParams["blockStorageMappingList.2.order"]).toBe(1);
+    expect(sentParams["blockStorageMappingList.2.blockStorageVolumeTypeCode"]).toBe("CB1");
+    expect(sentParams["blockStorageMappingList.2.blockStorageSize"]).toBe(100);
+    expect(sentParams["blockStorageMappingList.2.blockStorageName"]).toBe("data");
+    // 배열 원본 필드는 평탄화된 파라미터로만 전달되어야 한다
+    expect(sentParams.blockStorageMappingList).toBeUndefined();
+    requestSpy.mockRestore();
+  });
+
+  it("rejects a list with no boot volume (no order=0) without calling the API", async () => {
+    const requestSpy = vi.spyOn(client, "request");
+    const handler = getToolHandler(server, "ncloud_create_server");
+    const result = await handler({
+      serverImageNo: "100",
+      serverSpecCode: "c2-g3",
+      vpcNo: "1111",
+      subnetNo: "2222",
+      blockStorageMappingList: [{ order: 1, blockStorageVolumeTypeCode: "CB2" }],
+      dryRun: false,
+    }, {} as any);
+
+    expect(requestSpy).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("order=0");
+    requestSpy.mockRestore();
+  });
+
+  it("rejects duplicate boot volumes (two order=0 entries) without calling the API", async () => {
+    const requestSpy = vi.spyOn(client, "request");
+    const handler = getToolHandler(server, "ncloud_create_server");
+    const result = await handler({
+      serverImageNo: "100",
+      serverSpecCode: "c2-g3",
+      vpcNo: "1111",
+      subnetNo: "2222",
+      blockStorageMappingList: [
+        { order: 0, blockStorageVolumeTypeCode: "CB2" },
+        { order: 0, blockStorageVolumeTypeCode: "CB1" },
+      ],
+      dryRun: false,
+    }, {} as any);
+
+    expect(requestSpy).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    requestSpy.mockRestore();
+  });
+
+  it("dryRun preview surfaces the boot volume type without calling the API", async () => {
+    const requestSpy = vi.spyOn(client, "request");
+    const handler = getToolHandler(server, "ncloud_create_server");
+    const result = await handler({
+      serverImageNo: "100",
+      serverSpecCode: "c2-g3",
+      vpcNo: "1111",
+      subnetNo: "2222",
+      blockStorageMappingList: [{ order: 0, blockStorageVolumeTypeCode: "CB2" }],
+      dryRun: true,
+    }, {} as any);
+
+    expect(requestSpy).not.toHaveBeenCalled();
+    expect(result.isError).toBeUndefined();
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.blockStorageMapping[0].order).toBe("0 (boot)");
+    expect(parsed.blockStorageMapping[0].volumeType).toBe("CB2");
+    requestSpy.mockRestore();
   });
 });

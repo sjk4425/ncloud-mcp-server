@@ -105,7 +105,7 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_create_server",
-    "Create a new server instance. For KVM (Gen3): use serverImageNo + serverSpecCode. For XEN (Gen2): use serverImageProductCode + serverProductCode, or serverImageNo + serverSpecCode. Use dryRun=true to preview without creating.",
+    "Create a new server instance. For KVM (Gen3): use serverImageNo + serverSpecCode; for the boot volume (blockStorageMappingList order 0), prefer CB2 unless the user asks otherwise — CB2 is the recommended default for Gen3 KVM (volume type cannot be changed after creation). For XEN (Gen2): use serverImageProductCode + serverProductCode, or serverImageNo + serverSpecCode. Use dryRun=true to preview without creating.",
     {
       serverImageNo: z.string().optional().describe("Server image number from ncloud_get_server_images (required for KVM/Gen3)"),
       serverImageProductCode: z.string().optional().describe("Server image product code (legacy, XEN/RHV only)"),
@@ -128,9 +128,31 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         subnetNo: z.string().optional().describe("Subnet number for this NIC"),
         ip: z.string().optional().describe("Specific IP address for this NIC"),
       })).optional().describe("Network interface configuration list"),
+      blockStorageMappingList: z.array(z.object({
+        order: z.number().min(0).max(20).describe("Storage order. 0 = boot(root) volume (exactly one required when this list is set), 1-20 = additional volumes"),
+        blockStorageVolumeTypeCode: z.string().optional().describe("Volume type code: CB1 | CB2 | FB1 | FB2. Use ncloud_get_block_storage_volume_types to check availability. Cannot be changed after creation."),
+        blockStorageSize: z.number().optional().describe("Volume size in GB (10GB increments)"),
+        blockStorageName: z.string().optional().describe("Volume name"),
+        snapshotInstanceNo: z.string().optional().describe("Snapshot instance number to create this volume from"),
+      })).optional().describe("Block storage mapping — KVM (Gen3) only. Selects the boot volume type (order 0) and/or creates additional volumes at server creation. Recommendation: for a KVM boot volume set order 0 + blockStorageVolumeTypeCode 'CB2' unless the user asks otherwise. If omitted entirely, the API default (CB1) is used. Not supported on XEN (Gen2)."),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the server"),
     },
     async (params) => {
+      // blockStorageMappingList 검증 (KVM 전용, order 0 = 부팅 볼륨). dryRun 전에 수행해 프리뷰도 검증되게 한다.
+      if (params.blockStorageMappingList && params.blockStorageMappingList.length > 0) {
+        const list = params.blockStorageMappingList;
+        if (list.length > 21) {
+          return { content: [{ type: "text" as const, text: "blockStorageMappingList supports at most 21 entries (1 boot + 20 additional)." }], isError: true };
+        }
+        if (list.filter((b) => b.order === 0).length !== 1) {
+          return { content: [{ type: "text" as const, text: "blockStorageMappingList must contain exactly one boot volume entry (order=0)." }], isError: true };
+        }
+        const orders = list.map((b) => b.order);
+        if (new Set(orders).size !== orders.length) {
+          return { content: [{ type: "text" as const, text: "blockStorageMappingList order values must be unique (0=boot, 1-20=additional)." }], isError: true };
+        }
+      }
+
       if (params.dryRun) {
         const preview = {
           label: "🔍 Dry-Run Preview: Server Creation",
@@ -145,6 +167,14 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
           loginKeyName: params.loginKeyName ?? "(none)",
           initScriptNo: params.initScriptNo ?? "(none)",
           feeSystemTypeCode: params.feeSystemTypeCode ?? "MTRAT",
+          blockStorageMapping: params.blockStorageMappingList
+            ? params.blockStorageMappingList.map((b) => ({
+                order: b.order === 0 ? "0 (boot)" : b.order,
+                volumeType: b.blockStorageVolumeTypeCode ?? "(default CB1)",
+                size: b.blockStorageSize ? `${b.blockStorageSize} GB` : "(default)",
+                name: b.blockStorageName ?? "(auto)",
+              }))
+            : "(default CB1 boot volume)",
           message: dryRunMessage({ ko: "서버", en: "server" }),
           hint_KVM: L({ ko: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수", en: "KVM (Gen3) server: serverImageNo + serverSpecCode combination required" }),
           hint_XEN: L({ ko: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode", en: "XEN (Gen2) server: serverImageProductCode + serverProductCode, or serverImageNo + serverSpecCode" }),
@@ -152,8 +182,20 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         return preview;
       }
 
-      const { dryRun, networkInterfaceList, ...apiParams } = params;
+      const { dryRun, networkInterfaceList, blockStorageMappingList, ...apiParams } = params;
       const requestParams: any = { ...apiParams };
+
+      if (blockStorageMappingList) {
+        for (let i = 0; i < blockStorageMappingList.length; i++) {
+          const bs = blockStorageMappingList[i];
+          const p = `blockStorageMappingList.${i + 1}`;
+          requestParams[`${p}.order`] = bs.order;
+          if (bs.blockStorageVolumeTypeCode) requestParams[`${p}.blockStorageVolumeTypeCode`] = bs.blockStorageVolumeTypeCode;
+          if (bs.blockStorageSize !== undefined) requestParams[`${p}.blockStorageSize`] = bs.blockStorageSize;
+          if (bs.blockStorageName) requestParams[`${p}.blockStorageName`] = bs.blockStorageName;
+          if (bs.snapshotInstanceNo) requestParams[`${p}.snapshotInstanceNo`] = bs.snapshotInstanceNo;
+        }
+      }
 
       if (networkInterfaceList) {
         for (let i = 0; i < networkInterfaceList.length; i++) {
@@ -290,13 +332,64 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_terminate_server",
-    "⚠️ Destructive: Permanently terminate (delete) one or more server instances. Set confirm=true to execute.",
+    "⚠️ Destructive: Permanently terminate (delete) one or more server instances. Requires each server to be STOPPED (status NSTOP) and not termination-protected — this tool pre-checks status and returns what to stop/unprotect first instead of failing. Set confirm=true to execute.",
     {
       serverInstanceNoList: z.array(z.string()).min(1).describe("List of server instance numbers to terminate"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
+      const serverInstanceNoList: string[] = apiParams.serverInstanceNoList;
+
+      // 사전확인: 반납은 정지(NSTOP) + 반납보호 해제 서버만 가능(공식 문서). 조건 미충족 서버가 있으면
+      // terminate API를 호출하지 않고, "무엇을 어떻게 선행해야 하는지" 실행 가능한 안내를 반환한다.
+      const statusResp = await client.request("/vserver/v2/getServerInstanceList", { serverInstanceNoList });
+      const instances: any[] = statusResp.serverInstanceList ?? [];
+      let anyRunning = false;
+      let anyProtected = false;
+      const blockedServers: Array<{ serverInstanceNo: string; serverName?: string; status?: string; reasons: string[] }> = [];
+      for (const s of instances) {
+        const statusCode: string | undefined = s.serverInstanceStatus?.code;
+        const reasons: string[] = [];
+        if (statusCode !== "NSTOP") {
+          anyRunning = true;
+          reasons.push(L({
+            ko: `정지되지 않음(현재: ${s.serverInstanceStatusName ?? statusCode ?? "unknown"})`,
+            en: `not stopped (current: ${s.serverInstanceStatusName ?? statusCode ?? "unknown"})`,
+          }));
+        }
+        if (s.isProtectServerTermination) {
+          anyProtected = true;
+          reasons.push(L({ ko: "반납 보호 활성화됨", en: "termination protection enabled" }));
+        }
+        if (reasons.length > 0) {
+          blockedServers.push({ serverInstanceNo: s.serverInstanceNo, serverName: s.serverName, status: statusCode, reasons });
+        }
+      }
+
+      if (blockedServers.length > 0) {
+        const steps: string[] = [];
+        if (anyRunning) {
+          steps.push(L({
+            ko: "먼저 ncloud_stop_server로 정지한 뒤 ncloud_get_server_detail로 상태가 STOPPED(NSTOP)인지 확인",
+            en: "Stop first with ncloud_stop_server, then verify STOPPED (NSTOP) via ncloud_get_server_detail",
+          }));
+        }
+        if (anyProtected) {
+          steps.push(L({
+            ko: "반납 보호는 ncloud_set_protect_termination으로 해제",
+            en: "Disable termination protection with ncloud_set_protect_termination",
+          }));
+        }
+        steps.push(L({ ko: "그런 다음 confirm=true로 다시 반납", en: "Then re-run terminate with confirm=true" }));
+        return {
+          label: L({ ko: "⏸️ 반납 보류 — 선행 조건 미충족", en: "⏸️ Termination halted — preconditions not met" }),
+          terminated: false,
+          blockedServers,
+          nextSteps: steps,
+        };
+      }
+
       const result = await client.request("/vserver/v2/terminateServerInstances", apiParams);
       return result;
     },

@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-07-24
+
+> Compute usability release. Adds boot/data-volume selection to server creation and a stop-state pre-check to server termination, plus an internal source-file reorganization. Public changes are **additive and backward-compatible**: one new optional parameter on `ncloud_create_server`, and `ncloud_terminate_server` now pre-checks server state (the happy path — terminating already-stopped servers — is unchanged). No tool names, group keys, or existing schemas were removed or renamed. Parameter/precondition specs were confirmed against the official Ncloud API docs; behavior is covered by mocked unit tests (not exercised against the live API this round).
+
+### Added
+- **`ncloud_create_server` block storage mapping (KVM/Gen3).** New optional `blockStorageMappingList` parameter chooses the boot volume type (order 0, e.g. `CB2`) and/or creates additional volumes at server-creation time, matching the console. Each entry: `order` (0 = boot, 1–20 = additional), `blockStorageVolumeTypeCode` (`CB1`/`CB2`/`FB1`/`FB2`), `blockStorageSize`, `blockStorageName`, `snapshotInstanceNo`. Flattened to the API's 1-based `blockStorageMappingList.N.*` query params (same pattern as `networkInterfaceList`). Handler-side validation runs before the call: exactly one boot entry (order 0), unique orders, ≤ 21 entries. `dryRun` previews the resolved mapping. KVM-only (never sent on the XEN product-code path). Resolves the previously-documented limitation where the boot volume type could not be set and always defaulted to CB1.
+- **CB2 recommendation for the KVM boot volume.** The `ncloud_create_server` description now recommends `CB2` for the Gen3 KVM boot volume unless the caller specifies otherwise — description-level guidance only, not enforced in code (no silent, irreversible volume-type change).
+
+### Changed
+- **`ncloud_terminate_server` now pre-checks server state before deleting.** On `confirm=true` it first queries the target servers and, if any is not stopped (`serverInstanceStatus.code !== "NSTOP"`) or has termination protection enabled, returns an actionable `{ terminated: false, blockedServers, nextSteps }` object **without calling the terminate API** — instead of letting the raw NCP "must be stopped" error bounce back and force another round-trip. When all targets are stopped and unprotected, termination proceeds exactly as before. The `confirm` gate, `⚠️ Destructive` warning, and `min(1)` validation are unchanged. Adds one read (`getServerInstanceList`) per terminate.
+- **Internal: tool source files renamed to a `<group>-<service>.ts` convention** matching the registry group keys (e.g. `vpc.ts` → `network-vpc.ts`, `cloud-insight.ts` → `monitoring-cloud-insight.ts`, `global-edge.ts` → `cdn-global-edge.ts`, `autoscaling.ts` → `compute-autoscaling.ts`; 30 files via `git mv`). Import paths updated only in the `src/tools/index.ts` barrel. **No public tool names, descriptions, group keys, or schemas changed** — purely a file-layout cleanup so every service module is prefixed by its registry group.
+
+### Tests
+- `src/tools/compute-server.test.ts`: `blockStorageMappingList` flattening + validation (boot-volume required, duplicate/absent order rejection, dryRun preview) and `ncloud_terminate_server` pre-check (running → blocked, stopped+protected → blocked, stopped+unprotected → proceeds). Full suite: 179 passing.
+
 ## [1.8.0] - 2026-06-26
 
 > Ncloud API-change tracking release. Reflects two upstream API changes — **Container Registry `storageType`** and the **billing product-classification code revision (effective 2026-06-25)**. Unlike recent releases, this one **does change public tool schemas** (new optional parameters + a new `storageType` enum on registry create), but all changes are **additive and backward-compatible** — existing calls keep working. Verified against the live KR API — all five verification scenarios passed.
