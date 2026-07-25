@@ -592,6 +592,34 @@ describe("NcloudClient 단위 테스트: 두 가지 에러 형식 파싱", () =>
     ).rejects.toThrow("메시지: 요청한 리소스를 찾을 수 없습니다.");
   });
 
+  it("형식 3 (REST 플랫): body.error가 문자열이어도 message/status를 추출한다 (NKS addon-configs 형태)", async () => {
+    // Spring/REST식 { status, error:"Bad Request", message, path } — 과거엔 body.error(문자열)를
+    // 객체로 구조분해해 '코드/메시지: undefined'가 됐다. 이제 top-level message/status로 처리.
+    vi.stubGlobal(
+      "fetch",
+      createMockFetch(
+        { status: 400, error: "Bad Request", message: "Invalid k8sVersion format", path: "/vnks/v2/addon-configs" },
+        400
+      )
+    );
+
+    await expect(
+      client.requestRaw("GET", "/vnks/v2/addon-configs", { k8sVersion: "1.36.0-nks.2" })
+    ).rejects.toThrow("메시지: Invalid k8sVersion format");
+
+    vi.stubGlobal(
+      "fetch",
+      createMockFetch(
+        { status: 400, error: "Bad Request", message: "Invalid k8sVersion format" },
+        400
+      )
+    );
+
+    await expect(
+      client.requestRaw("GET", "/vnks/v2/addon-configs", {})
+    ).rejects.toThrow("에러 코드: 400");
+  });
+
   it("형식 1: HTTP 200이지만 body에 error가 있으면 에러 throw", async () => {
     vi.stubGlobal(
       "fetch",

@@ -282,16 +282,26 @@ export class NcloudClient {
   private handleErrorResponse(status: number, body: any): never {
     const msg = messages();
 
-    // Format 1: API Gateway error
-    if (body.error) {
+    // Format 1: API Gateway error — { error: { errorCode, message } }
+    // (body.error가 문자열인 REST/Spring식 응답과 구분: 객체일 때만 이 분기)
+    if (body.error && typeof body.error === "object") {
       const { errorCode, message } = body.error;
       throw new Error(msg.apiFailure(errorCode, message));
     }
 
-    // Format 2: Service-level error
+    // Format 2: Service-level error — { responseError: { returnCode, returnMessage } }
     if (body.responseError) {
       const { returnCode, returnMessage } = body.responseError;
       throw new Error(msg.apiFailure(returnCode, returnMessage));
+    }
+
+    // Format 3: REST/Spring식 플랫 에러 — { message, (statusCode|status|error) }
+    // NKS 계열(예: /vnks/v2/addon-configs)이 이 형태. body.error가 문자열("Bad Request")이라
+    // Format 1에서 객체로 구조분해하면 errorCode/message가 undefined가 되던 문제를 여기서 처리한다.
+    if (typeof body.message === "string" && body.message.length > 0) {
+      const code =
+        body.statusCode ?? body.status ?? (typeof body.error === "string" ? body.error : status);
+      throw new Error(msg.apiFailure(code, body.message));
     }
 
     // HTTP status code based error

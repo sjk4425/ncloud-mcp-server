@@ -709,7 +709,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_list_available_addons",
-    "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog). Requires k8sVersion. Includes components delivered as add-ons such as the LoadBalancer Controller and the NAVER Cloud Global DNS (ExternalDNS) webhook provider.",
+    "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog). Requires k8sVersion. The catalog includes components delivered as add-ons such as the NAVER Cloud Global DNS (ExternalDNS) webhook provider; the available add-ons vary by Kubernetes version and region.",
     {
       k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0). Use the version from ncloud_nks_get_versions without the -nks.N suffix"),
       page: z.number().optional().describe("Page number for pagination"),

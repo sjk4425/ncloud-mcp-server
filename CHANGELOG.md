@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.1] - 2026-07-25
+
+> Patch from live verification of the v1.10.0 NKS Add-on Manager tools (all 8 tools passed an end-to-end lifecycle test against a live k8s 1.36.2 KVM cluster). Two follow-ups only; no schema/behavior change.
+
+### Fixed
+- **Client error messages for REST/Spring-style flat error bodies** — `NcloudClient.handleErrorResponse` assumed `body.error` was always an object `{errorCode, message}` and blindly destructured it. Endpoints that return a flat REST error (e.g. `{status, error: "Bad Request", message, path}` — observed on the NKS `/vnks/v2/addon-configs` catalog path) have `body.error` as a **string**, so failures surfaced as "에러 코드: undefined / 메시지: undefined". The parser now guards `body.error` to objects and adds a flat-shape branch that reads the top-level `message` + `statusCode`/`status`. Improves diagnostics for every endpoint returning that shape, not just NKS.
+
+### Changed
+- **`ncloud_nks_list_available_addons` description corrected** — it claimed the **LoadBalancer Controller** is available as an installable add-on, but the live 1.36.2 catalog contains only `external-dns`, `nks-csi`, `nks-gateway-adapter`, `nks-nas-csi` (no LB Controller add-on). The description now names only the verified ExternalDNS provider and notes the catalog varies by version/region. (Corrects the unverified claim in the v1.10.0 notes; ExternalDNS-as-add-on was confirmed installed and running in testing.)
+
+### Tests
+- New client error-format case (`ncloud-client.test.ts`): flat REST error body (`{status, error:"Bad Request", message}`) now surfaces the real message/status instead of `undefined`. Full suite: 189 passing.
+
 ## [1.10.0] - 2026-07-24
 
 > Ncloud platform-update tracking release (2026-07). Reflects two upstream updates: the **NKS Add-on Manager** (2026-07-23 Kubernetes Service update, 8 new tools) and **VOD Station channel editing** (1 new tool). **Additive and backward-compatible** — no existing tool names/schemas changed. Endpoint specs were confirmed against the official Ncloud API docs; behavior is covered by mocked unit tests (not exercised against the live API this round).
