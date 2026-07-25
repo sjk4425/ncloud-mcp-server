@@ -709,7 +709,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_list_available_addons",
-    "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog). Requires k8sVersion. The catalog includes components delivered as add-ons such as the NAVER Cloud Global DNS (ExternalDNS) webhook provider; the available add-ons vary by Kubernetes version and region.",
+    "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog; Add-on Manager is only available on Kubernetes 1.36+ clusters). Requires k8sVersion. The catalog includes components delivered as add-ons such as the NAVER Cloud Global DNS (ExternalDNS) webhook provider; the available add-ons vary by Kubernetes version and region.",
     {
       k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0). Use the version from ncloud_nks_get_versions without the -nks.N suffix"),
       page: z.number().optional().describe("Page number for pagination"),
@@ -726,7 +726,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_get_available_addon",
-    "Get details of an installable add-on (Add-on Manager catalog), including its installable versions for the given Kubernetes version.",
+    "Get details of an installable add-on (Add-on Manager catalog; requires Kubernetes 1.36+), including its installable versions for the given Kubernetes version.",
     {
       addonName: z.string({ required_error: requiredError("addonName") }).describe("Add-on name (from ncloud_nks_list_available_addons)"),
       k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
@@ -739,7 +739,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_get_available_addon_version",
-    "Get details of a specific add-on version (Add-on Manager catalog), including its configuration schema for configurationValues.",
+    "Get details of a specific add-on version (Add-on Manager catalog; requires Kubernetes 1.36+), including its configuration schema for configurationValues.",
     {
       addonName: z.string({ required_error: requiredError("addonName") }).describe("Add-on name"),
       version: z.string({ required_error: requiredError("version") }).describe("Add-on version (from ncloud_nks_get_available_addon)"),

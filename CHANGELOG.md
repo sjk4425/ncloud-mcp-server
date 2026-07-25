@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **`ncloud_nks_list_available_addons` description corrected** — it claimed the **LoadBalancer Controller** is available as an installable add-on, but the live 1.36.2 catalog contains only `external-dns`, `nks-csi`, `nks-gateway-adapter`, `nks-nas-csi` (no LB Controller add-on). The description now names only the verified ExternalDNS provider and notes the catalog varies by version/region. (Corrects the unverified claim in the v1.10.0 notes; ExternalDNS-as-add-on was confirmed installed and running in testing.)
+- **Add-on Manager's Kubernetes 1.36+ requirement made explicit on the catalog tools** — `ncloud_nks_list_available_addons`, `ncloud_nks_get_available_addon`, and `ncloud_nks_get_available_addon_version` now state that Add-on Manager is only available on Kubernetes 1.36+ clusters (previously only `ncloud_nks_install_addons` mentioned it).
 
 ### Tests
 - New client error-format case (`ncloud-client.test.ts`): flat REST error body (`{status, error:"Bad Request", message}`) now surfaces the real message/status instead of `undefined`. Full suite: 189 passing.
