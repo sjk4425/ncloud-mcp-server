@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.10.0] - 2026-07-24
 
-> NKS Add-on Manager release, tracking the 2026-07-23 Ncloud Kubernetes Service update. Adds 8 tools wrapping the new Add-on Manager REST API (`/vnks/v2/addon-configs` catalog + `/vnks/v2/clusters/{uuid}/addons`). **Additive and backward-compatible** — no existing tool names/schemas changed. Endpoint specs were confirmed against the official Ncloud API docs; behavior is covered by mocked unit tests (not exercised against the live API this round).
+> Ncloud platform-update tracking release (2026-07). Reflects two upstream updates: the **NKS Add-on Manager** (2026-07-23 Kubernetes Service update, 8 new tools) and **VOD Station channel editing** (1 new tool). **Additive and backward-compatible** — no existing tool names/schemas changed. Endpoint specs were confirmed against the official Ncloud API docs; behavior is covered by mocked unit tests (not exercised against the live API this round).
 
 ### Added
 - **NKS Add-on Manager tools (8)**, `ncloud_nks_*` (Add-on Manager is available on Kubernetes 1.36+ clusters):
@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file.
   - `ncloud_nks_update_addon` — PATCH `/vnks/v2/clusters/{uuid}/addons/{addonRef}` (single-object body; at least one of `version`/`configurationValues`/`resolveConflicts` required).
   - `ncloud_nks_delete_addon` — ⚠️ Destructive, DELETE `/vnks/v2/clusters/{uuid}/addons/{addonRef}` behind the `confirm` gate.
   - The **LoadBalancer Controller** and **NAVER Cloud Global DNS (ExternalDNS) webhook provider** shipped in the same 2026-07-23 update have no dedicated management API — they are delivered as add-ons and installed via `ncloud_nks_install_addons`.
+- **VOD Station `ncloud_vodstation_update_channel`** — new tool wrapping the channel-edit endpoint `PUT /api/v2/channels/{channelId}` (2026-07 VOD Station channel-editing update). Modifies a channel's `name`, `protocolList` (HLS/DASH), `segmentDuration`/`segmentDurationOption`, and `encryptionList`/`drm` settings. It is a full-replacement PUT, so callers provide the complete desired state. (Note: the modify API's channel-name field is `name`, distinct from create's `channelName`.)
 
 ### Notes
 - **Kubernetes 1.36 needs no code change** — `k8sVersion` is a passthrough string and `ncloud_nks_get_versions` (`/vnks/v2/option/version`) surfaces new versions automatically.
@@ -24,7 +25,7 @@ All notable changes to this project will be documented in this file.
 - The Cilium memory-leak fix / minor upgrade in the same NKS update is internal to the managed service and has no API surface (nothing to wrap).
 
 ### Tests
-- New `src/tools/containers-nks.test.ts` (7): catalog list query, install `dryRun` + bare-array body shape, update field-filtering + empty-body rejection, delete `confirm` gate (both states). Full suite: 186 passing.
+- New `src/tools/containers-nks.test.ts` (7): catalog list query, install `dryRun` + bare-array body shape, update field-filtering + empty-body rejection, delete `confirm` gate (both states). New `src/tools/media-vodstation.test.ts` (2): channel-update PUT path + `channelName`→`name` mapping, optional-field filtering. Full suite: 188 passing.
 
 ## [1.9.0] - 2026-07-24
 

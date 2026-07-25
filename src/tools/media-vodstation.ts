@@ -97,6 +97,46 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
     }
   );
 
+  // ─── Channel Update Tool ───────────────────────────────────────────────────
+
+  defineTool(
+    server,
+    "ncloud_vodstation_update_channel",
+    "Update a VOD Station streaming channel's details (name, protocols, segment settings, encryption/DRM). This is a PUT that replaces the channel configuration, so provide the full desired state.",
+    {
+      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to update (e.g., vs-20250821095732-xxxxxxx)"),
+      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars, alphanumeric + hyphen). Sent as the API 'name' field"),
+      protocolList: z.array(z.enum(["HLS", "DASH"]), { required_error: requiredError("protocolList") }).min(1).describe("Streaming protocols (HLS, DASH)"),
+      segmentDuration: z.number({ required_error: requiredError("segmentDuration") }).describe("Playback seconds per segment (5-20)"),
+      segmentDurationOption: z.enum(["BASIC", "VARIABLE"]).optional().describe("Segmentation method: BASIC (default, regular intervals) or VARIABLE (keyframe-based)"),
+      encryptionList: z.array(z.object({
+        protocol: z.enum(["HLS", "DASH"]).describe("Protocol this encryption applies to"),
+        drmContentId: z.string().optional().describe("DRM content identifier (1-200 alphanumeric)"),
+        drmKeyUrl: z.string().optional().describe("DRM provider CPIX API URL"),
+        systemIdList: z.array(z.string()).optional().describe("DRM system identifiers (1-256 chars each)"),
+        drmTypeCode: z.number().optional().describe("DRM type: 21 (FairPlay), 22 (Widevine/PlayReady)"),
+        mediaEncryptTypeCode: z.number().optional().describe("HLS encryption: 1 (AES-128), 2 (Sample-AES), 3 (CENC)"),
+      })).optional().describe("Content protection (encryption) settings per protocol"),
+      drm: z.object({
+        siteId: z.string().optional().describe("Multi-DRM site ID (from the Site List API)"),
+        contentId: z.string().optional().describe("DRM content ID (3-100 chars, alphanumeric + -/_)"),
+      }).optional().describe("Multi-DRM configuration"),
+    },
+    async (params) => {
+      const { channelId, channelName, ...rest } = params;
+      // 수정 API의 채널명 필드는 'name' (생성 API의 channelName과 다름).
+      const body: Record<string, unknown> = {
+        name: channelName,
+        protocolList: rest.protocolList,
+        segmentDuration: rest.segmentDuration,
+      };
+      if (rest.segmentDurationOption !== undefined) body.segmentDurationOption = rest.segmentDurationOption;
+      if (rest.encryptionList !== undefined) body.encryptionList = rest.encryptionList;
+      if (rest.drm !== undefined) body.drm = rest.drm;
+      return client.putRequest(`/api/v2/channels/${channelId}`, body);
+    }
+  );
+
   // ─── Channel Delete Tool ───────────────────────────────────────────────────
 
   defineTool(
