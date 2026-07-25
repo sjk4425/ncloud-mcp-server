@@ -89,7 +89,7 @@ for (const v of ["delete", "terminate", "remove", "destroy", "revoke", "purge", 
   "kill", "flush"]) {
   VERB_ANNOTATIONS[v] = { destructiveHint: true, idempotentHint: true };
 }
-for (const v of ["create", "add", "register", "request"]) {
+for (const v of ["create", "add", "register", "request", "install"]) {
   // idempotent 아님 — 재호출 시 중복 생성 가능
   VERB_ANNOTATIONS[v] = { destructiveHint: false };
 }

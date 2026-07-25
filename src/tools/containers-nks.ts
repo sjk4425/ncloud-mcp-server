@@ -701,4 +701,160 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       return result;
     }
   );
+
+  // ─── Add-on Manager Tools (2026-07 update) ─────────────────────────────────
+  // Add-on Manager는 k8s 1.36+ 에서 사용 가능. LoadBalancer Controller / Global DNS
+  // Webhook Provider 등은 별도 API가 아니라 여기서 설치하는 애드온으로 제공된다.
+
+  defineTool(
+    server,
+    "ncloud_nks_list_available_addons",
+    "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog). Requires k8sVersion. Includes components delivered as add-ons such as the LoadBalancer Controller and the NAVER Cloud Global DNS (ExternalDNS) webhook provider.",
+    {
+      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0). Use the version from ncloud_nks_get_versions without the -nks.N suffix"),
+      page: z.number().optional().describe("Page number for pagination"),
+      size: z.number().optional().describe("Page size for pagination"),
+    },
+    async (params) => {
+      const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
+      if (params.page !== undefined) queryParams.page = String(params.page);
+      if (params.size !== undefined) queryParams.size = String(params.size);
+      return client.requestRaw("GET", "/vnks/v2/addon-configs", queryParams);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_nks_get_available_addon",
+    "Get details of an installable add-on (Add-on Manager catalog), including its installable versions for the given Kubernetes version.",
+    {
+      addonName: z.string({ required_error: requiredError("addonName") }).describe("Add-on name (from ncloud_nks_list_available_addons)"),
+      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
+    },
+    async (params) => {
+      return client.requestRaw("GET", `/vnks/v2/addon-configs/${params.addonName}`, { k8sVersion: params.k8sVersion });
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_nks_get_available_addon_version",
+    "Get details of a specific add-on version (Add-on Manager catalog), including its configuration schema for configurationValues.",
+    {
+      addonName: z.string({ required_error: requiredError("addonName") }).describe("Add-on name"),
+      version: z.string({ required_error: requiredError("version") }).describe("Add-on version (from ncloud_nks_get_available_addon)"),
+      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
+    },
+    async (params) => {
+      return client.requestRaw("GET", `/vnks/v2/addon-configs/${params.addonName}/versions/${params.version}`, { k8sVersion: params.k8sVersion });
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_nks_list_cluster_addons",
+    "List add-ons currently installed on an NKS cluster, with their versions and status.",
+    {
+      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      status: z.string().optional().describe("Filter by add-on status"),
+      page: z.number().optional().describe("Page number for pagination"),
+      size: z.number().optional().describe("Page size for pagination"),
+    },
+    async (params) => {
+      const queryParams: Record<string, string> = {};
+      if (params.status) queryParams.status = params.status;
+      if (params.page !== undefined) queryParams.page = String(params.page);
+      if (params.size !== undefined) queryParams.size = String(params.size);
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/addons`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_nks_get_cluster_addon",
+    "Get a single add-on installed on an NKS cluster, including status, configuration, and version.",
+    {
+      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      addonRef: z.string({ required_error: requiredError("addonRef") }).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
+    },
+    async (params) => {
+      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/addons/${params.addonRef}`);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_nks_install_addons",
+    "Install one or more add-ons on an NKS cluster (Add-on Manager, k8s 1.36+). Use dryRun=true to preview without installing.",
+    {
+      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      addons: z.array(z.object({
+        addonName: z.string({ required_error: requiredError("addons[].addonName") }).describe("Add-on name (from ncloud_nks_list_available_addons)"),
+        version: z.string({ required_error: requiredError("addons[].version") }).describe("Add-on version to install (e.g., 1.0.0)"),
+        configurationValues: z.string().optional().describe("Helm values override as a JSON-object STRING (already stringified), e.g. '{\"policy\":\"sync\"}'. Defaults to {} when omitted"),
+        resolveConflicts: z.enum(["Overwrite", "Preserve"]).optional().describe("Conflict resolution when the add-on touches existing resources: Overwrite (default) | Preserve"),
+      }), { required_error: requiredError("addons") }).min(1).describe("One or more add-ons to install"),
+      dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually installing"),
+    },
+    async (params) => {
+      if (params.dryRun) {
+        return {
+          label: "🔍 Dry-Run Preview: NKS Add-on Installation",
+          clusterUuid: params.clusterUuid,
+          addons: params.addons,
+          message: dryRunMessage({ ko: "애드온", en: "add-on" }),
+        };
+      }
+      // 요청 바디는 최상위 JSON 배열(객체 래핑 아님).
+      const result = await client.requestRaw("POST", `/vnks/v2/clusters/${params.clusterUuid}/addons`, undefined, params.addons);
+      return result;
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_nks_update_addon",
+    "Update an add-on installed on an NKS cluster — change its version and/or configurationValues. At least one of version/configurationValues/resolveConflicts must be provided.",
+    {
+      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      addonRef: z.string({ required_error: requiredError("addonRef") }).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
+      version: z.string().optional().describe("Target version. Omit to keep the current version"),
+      configurationValues: z.string().optional().describe("Helm values override as a JSON-object STRING. An empty string resets to {}"),
+      resolveConflicts: z.enum(["Overwrite", "Preserve"]).optional().describe("Conflict resolution: Overwrite (default) | Preserve"),
+    },
+    async (params) => {
+      const { clusterUuid, addonRef, ...rest } = params;
+      const body: Record<string, unknown> = {};
+      if (rest.version !== undefined) body.version = rest.version;
+      if (rest.configurationValues !== undefined) body.configurationValues = rest.configurationValues;
+      if (rest.resolveConflicts !== undefined) body.resolveConflicts = rest.resolveConflicts;
+      if (Object.keys(body).length === 0) {
+        return {
+          content: [{ type: "text" as const, text: L({
+            ko: "❌ version / configurationValues / resolveConflicts 중 최소 하나는 지정해야 합니다.",
+            en: "❌ Provide at least one of version / configurationValues / resolveConflicts.",
+          }) }],
+          isError: true,
+        };
+      }
+      return client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/addons/${addonRef}`, undefined, body);
+    }
+  );
+
+  // ⚠️ Destructive: DELETE add-on, confirm=true required
+  defineTool(
+    server,
+    "ncloud_nks_delete_addon",
+    "⚠️ Destructive: Uninstall an add-on from an NKS cluster. Set confirm=true to execute.",
+    {
+      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      addonRef: z.string({ required_error: requiredError("addonRef") }).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
+    },
+    async (params) => {
+      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/addons/${params.addonRef}`);
+      return result ?? { success: true };
+    },
+    { destructive: { message: (params) => `⚠️ This will uninstall Add-on [${params.addonRef}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` } }
+  );
 }

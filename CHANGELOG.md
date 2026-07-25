@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0] - 2026-07-24
+
+> NKS Add-on Manager release, tracking the 2026-07-23 Ncloud Kubernetes Service update. Adds 8 tools wrapping the new Add-on Manager REST API (`/vnks/v2/addon-configs` catalog + `/vnks/v2/clusters/{uuid}/addons`). **Additive and backward-compatible** — no existing tool names/schemas changed. Endpoint specs were confirmed against the official Ncloud API docs; behavior is covered by mocked unit tests (not exercised against the live API this round).
+
+### Added
+- **NKS Add-on Manager tools (8)**, `ncloud_nks_*` (Add-on Manager is available on Kubernetes 1.36+ clusters):
+  - `ncloud_nks_list_available_addons` — GET `/vnks/v2/addon-configs` (installable catalog; requires `k8sVersion` in `major.minor.patch`).
+  - `ncloud_nks_get_available_addon` — GET `/vnks/v2/addon-configs/{addonName}`.
+  - `ncloud_nks_get_available_addon_version` — GET `/vnks/v2/addon-configs/{addonName}/versions/{version}` (returns the `configurationValues` schema).
+  - `ncloud_nks_list_cluster_addons` — GET `/vnks/v2/clusters/{uuid}/addons` (installed add-ons + status).
+  - `ncloud_nks_get_cluster_addon` — GET `/vnks/v2/clusters/{uuid}/addons/{addonRef}` (`addonRef` = add-on name or the installed add-on's UUID).
+  - `ncloud_nks_install_addons` — POST `/vnks/v2/clusters/{uuid}/addons`. Request body is a **bare top-level JSON array** of `{addonName, version, configurationValues?, resolveConflicts?}`; `configurationValues` is a stringified JSON object and `resolveConflicts` is `Overwrite` (default) | `Preserve`. Supports `dryRun`.
+  - `ncloud_nks_update_addon` — PATCH `/vnks/v2/clusters/{uuid}/addons/{addonRef}` (single-object body; at least one of `version`/`configurationValues`/`resolveConflicts` required).
+  - `ncloud_nks_delete_addon` — ⚠️ Destructive, DELETE `/vnks/v2/clusters/{uuid}/addons/{addonRef}` behind the `confirm` gate.
+  - The **LoadBalancer Controller** and **NAVER Cloud Global DNS (ExternalDNS) webhook provider** shipped in the same 2026-07-23 update have no dedicated management API — they are delivered as add-ons and installed via `ncloud_nks_install_addons`.
+
+### Notes
+- **Kubernetes 1.36 needs no code change** — `k8sVersion` is a passthrough string and `ncloud_nks_get_versions` (`/vnks/v2/option/version`) surfaces new versions automatically.
+- `deriveAnnotations` (`src/tools/_tool.ts`) now treats `install` as a non-destructive, create-like verb, so `ncloud_nks_install_addons` gets `destructiveHint: false`.
+- The Cilium memory-leak fix / minor upgrade in the same NKS update is internal to the managed service and has no API surface (nothing to wrap).
+
+### Tests
+- New `src/tools/containers-nks.test.ts` (7): catalog list query, install `dryRun` + bare-array body shape, update field-filtering + empty-body rejection, delete `confirm` gate (both states). Full suite: 186 passing.
+
 ## [1.9.0] - 2026-07-24
 
 > Compute usability release. Adds boot/data-volume selection to server creation and a stop-state pre-check to server termination, plus an internal source-file reorganization. Public changes are **additive and backward-compatible**: one new optional parameter on `ncloud_create_server`, and `ncloud_terminate_server` now pre-checks server state (the happy path — terminating already-stopped servers — is unchanged). No tool names, group keys, or existing schemas were removed or renamed. Parameter/precondition specs were confirmed against the official Ncloud API docs; behavior is covered by mocked unit tests (not exercised against the live API this round).
