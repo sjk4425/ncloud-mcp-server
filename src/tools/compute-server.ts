@@ -167,6 +167,17 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
           loginKeyName: params.loginKeyName ?? "(none)",
           initScriptNo: params.initScriptNo ?? "(none)",
           feeSystemTypeCode: params.feeSystemTypeCode ?? "MTRAT",
+          associateWithPublicIp: params.associateWithPublicIp ?? false,
+          isProtectServerTermination: params.isProtectServerTermination ?? false,
+          // 프리뷰가 일부 입력을 누락하면 "반영 안 됨"으로 오해된다(MCP-BUG-REPORT #2).
+          networkInterfaceList: params.networkInterfaceList
+            ? params.networkInterfaceList.map((n) => ({
+                order: n.networkInterfaceOrder === 0 ? "0 (primary)" : n.networkInterfaceOrder,
+                subnetNo: n.subnetNo ?? "(inherits subnetNo)",
+                accessControlGroupNoList: n.accessControlGroupNoList ?? "(default ACG)",
+                ip: n.ip ?? "(auto-assigned)",
+              }))
+            : "(default NIC with default ACG)",
           blockStorageMapping: params.blockStorageMappingList
             ? params.blockStorageMappingList.map((b) => ({
                 order: b.order === 0 ? "0 (boot)" : b.order,

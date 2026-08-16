@@ -32,6 +32,12 @@ describe("_messages: 기본 언어(ko) — 미설정 시 한국어 보존", () =
     expect(dryRunMessage({ ko: "서버", en: "server" })).toContain("이 요청은 실제 서버를");
   });
 
+  it("dryRunMessage: 서버측 검증을 하지 않는다는 한계를 명시한다 (BUG-REPORT #2)", () => {
+    expect(dryRunMessage({ ko: "서버", en: "server" })).toContain("서버측 유효성은 검증하지 않");
+    process.env.NCLOUD_LANG = "en";
+    expect(dryRunMessage({ ko: "서버", en: "server" })).toContain("NO server-side validation");
+  });
+
   it("maxLenMessage / cidrMessage / deletedMessage: 한국어", () => {
     expect(maxLenMessage("vpcName", 30)).toBe("잘못된 파라미터: 'vpcName'은 30자 이하여야 합니다.");
     expect(cidrMessage("subnet", "10.0.1.0/24")).toContain("CIDR 형식");
@@ -52,9 +58,7 @@ describe("_messages: NCLOUD_LANG=en — 영문 전환", () => {
 
   it("dryRunMessage: 동사별 영문 (create/upload/apply)", () => {
     process.env.NCLOUD_LANG = "en";
-    expect(dryRunMessage({ ko: "서버", en: "server" })).toBe(
-      "Preview only — the server will not be created. Call again with dryRun=false to execute."
-    );
+    expect(dryRunMessage({ ko: "서버", en: "server" })).toContain("the server will not be created");
     expect(dryRunMessage({ ko: "오브젝트", en: "object" }, "upload")).toContain("will not be uploaded");
     expect(dryRunMessage({ ko: "규칙", en: "rule" }, "apply")).toContain("will not be applied");
   });

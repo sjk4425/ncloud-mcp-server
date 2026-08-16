@@ -36,14 +36,19 @@ const VERB: Record<"create" | "upload" | "apply", { ko: string; en: string }> = 
 
 /**
  * dryRun 프리뷰 표준 메시지. 모든 `create_*`/업로드/적용 도구의 미리보기 안내를 통일한다.
+ *
+ * dryRun은 **클라이언트 측 미리보기**다 — API를 호출하지 않으므로 서버측 유효성
+ * (할당량·조합 가능 여부·리소스 상태 등)은 검증되지 않는다. 기존 문구가 검증이
+ * 수행된 것으로 오해를 줘(MCP-BUG-REPORT #2) 그 한계를 문구에 명시한다.
+ *
  * @param noun 리소스 명사(ko/en). 예: `{ ko: "서버", en: "server" }`.
  * @param verb 동작 동사. 기본 `create`. 업로드/구성 적용 도구는 `upload`/`apply`.
  */
 export function dryRunMessage(noun: Noun, verb: "create" | "upload" | "apply" = "create"): string {
   const v = VERB[verb];
   return getLang() === "en"
-    ? `Preview only — the ${noun.en} will not be ${v.en}. Call again with dryRun=false to execute.`
-    : `이 요청은 실제 ${noun.ko}를 ${v.ko}하지 않습니다. dryRun=false로 호출하면 실행됩니다.`;
+    ? `Preview only — the ${noun.en} will not be ${v.en}. This shows the request shape only and performs NO server-side validation, so a successful preview does not guarantee the real call will succeed. Call again with dryRun=false to execute.`
+    : `이 요청은 실제 ${noun.ko}를 ${v.ko}하지 않습니다. 입력 형식만 확인하며 서버측 유효성은 검증하지 않으므로, 미리보기 성공이 실제 실행 성공을 보장하지 않습니다. dryRun=false로 호출하면 실행됩니다.`;
 }
 
 /**

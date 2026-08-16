@@ -159,6 +159,20 @@ export class S3CompatibleClient {
     return `/${bucket}/${encodedKey}`;
   }
 
+  /**
+   * 호출자가 이미 무결성 헤더를 지정했는지 확인한다(대소문자 무시).
+   *
+   * 지정돼 있으면 자동 `content-md5` 주입을 건너뛴다 — 같은 헤더가 대소문자만 다르게
+   * 중복되면 canonical headers가 깨져 서명이 실패하기 때문이다.
+   */
+  private hasChecksumHeader(headers?: Record<string, string>): boolean {
+    if (!headers) return false;
+    return Object.keys(headers).some((h) => {
+      const k = h.toLowerCase();
+      return k === "content-md5" || k.startsWith("x-amz-checksum-");
+    });
+  }
+
   private buildCanonicalQueryString(queryParams?: Record<string, string>): string {
     if (!queryParams || Object.keys(queryParams).length === 0) return "";
     const sorted = Object.entries(queryParams).sort(([a], [b]) => a.localeCompare(b));
@@ -186,6 +200,18 @@ export class S3CompatibleClient {
       "x-amz-content-sha256": payloadHash,
       ...extraHeaders,
     };
+
+    // 본문이 있는 요청에는 `content-md5`를 자동으로 붙인다.
+    //
+    // Ncloud Storage/Object Storage의 XML 본문 API(PutBucketLifecycleConfiguration,
+    // PutBucketCors, PutBucketEncryption, DeleteObjects 등)는 무결성 헤더를 요구하며,
+    // 없으면 `InvalidRequest: Missing required header for this request: Content-MD5 OR
+    // x-amz-checksum-*`로 거부된다. 도구마다 붙이면 누락이 반복되므로 서명 직전 한 곳에서
+    // 처리한다(여기서 넣어야 SignedHeaders에 포함돼 서명이 맞는다).
+    // 호출자가 content-md5나 x-amz-checksum-*를 직접 지정했으면 그 값을 존중한다.
+    if (body !== undefined && body !== "" && !this.hasChecksumHeader(extraHeaders)) {
+      requestHeaders["content-md5"] = crypto.createHash("md5").update(body).digest("base64");
+    }
 
     // Build canonical headers (sorted, lowercase)
     const signedHeaderKeys = Object.keys(requestHeaders)

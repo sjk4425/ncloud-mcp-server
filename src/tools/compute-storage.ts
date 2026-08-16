@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunMessage, L } from "./_messages.js";
 
 export function registerComputeStorageTools(server: McpServer, client: NcloudClient): void {
   // ─── Block Storage Query Tools ─────────────────────────────────────────────
@@ -226,24 +226,67 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   defineTool(
     server,
     "ncloud_create_snapshot",
-    "Create a snapshot from a block storage instance. Use dryRun=true to preview.",
+    "Create a snapshot from a block storage instance. The source volume is sent to the API as 'originalBlockStorageInstanceNo' — either parameter name is accepted here. Use dryRun=true to preview.",
     {
-      blockStorageInstanceNo: z.string().describe("Block storage instance number to create snapshot from"),
-      blockStorageSnapshotName: z.string().optional().describe("Name for the snapshot"),
-      blockStorageSnapshotDescription: z.string().optional().describe("Description for the snapshot"),
+      blockStorageInstanceNo: z.string().optional().describe("Block storage instance number to create snapshot from. Sent to the API as originalBlockStorageInstanceNo. Provide this or originalBlockStorageInstanceNo."),
+      originalBlockStorageInstanceNo: z.string().optional().describe("Same as blockStorageInstanceNo, spelled with the Ncloud API's own parameter name. Takes precedence when both are given."),
+      blockStorageSnapshotName: z.string().optional().describe("Name for the snapshot (3-30 chars: letters, digits, '-', '_'). Auto-generated when omitted"),
+      blockStorageSnapshotDescription: z.string().optional().describe("Description for the snapshot (max 1000 bytes)"),
+      snapshotTypeCode: z.enum(["FULL", "INCREMENTAL"]).optional().describe("Snapshot type — XEN (Gen2, HDD/SSD volumes) ONLY: FULL (default) or INCREMENTAL. INCREMENTAL requires an existing full snapshot of the same volume and is capped at 7 per full snapshot. KVM (Gen3, CB1/CB2/FB1/FB2 volumes) has no snapshot type: the API accepts this parameter on a KVM volume but SILENTLY IGNORES it and creates a FULL snapshot (verified against the live API), so do not rely on it there — omit it for KVM volumes."),
+      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to the client region"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
+      // NCP createBlockStorageSnapshotInstance 의 원본 볼륨 파라미터명은 originalBlockStorageInstanceNo 다.
+      // 도구 입력명 blockStorageInstanceNo 는 하위호환으로 유지하고 전송 시점에만 변환한다.
+      const originalBlockStorageInstanceNo =
+        params.originalBlockStorageInstanceNo ?? params.blockStorageInstanceNo;
+      if (!originalBlockStorageInstanceNo) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: L({
+              ko: "blockStorageInstanceNo 또는 originalBlockStorageInstanceNo 중 하나는 필수입니다.",
+              en: "One of blockStorageInstanceNo or originalBlockStorageInstanceNo is required.",
+            }),
+          }],
+          isError: true,
+        };
+      }
+
+      const apiParams = {
+        originalBlockStorageInstanceNo,
+        blockStorageSnapshotName: params.blockStorageSnapshotName,
+        blockStorageSnapshotDescription: params.blockStorageSnapshotDescription,
+        snapshotTypeCode: params.snapshotTypeCode,
+        regionCode: params.regionCode,
+      };
+
       if (params.dryRun) {
+        // 프리뷰는 실제 전송 파라미터를 그대로 보여준다(입력 에코가 아니라 요청 셰이프).
         const preview = {
           label: "🔍 Dry-Run Preview: Snapshot Creation",
-          blockStorageInstanceNo: params.blockStorageInstanceNo,
-          blockStorageSnapshotName: params.blockStorageSnapshotName ?? "(auto-generated)",
+          endpoint: "/vserver/v2/createBlockStorageSnapshotInstance",
+          requestParams: {
+            ...apiParams,
+            blockStorageSnapshotName: params.blockStorageSnapshotName ?? "(auto-generated)",
+            // KVM 볼륨은 스냅샷 유형 선택 자체가 없어 "FULL 기본"이라고 단정하지 않는다.
+            snapshotTypeCode: params.snapshotTypeCode ?? "(not set — XEN defaults to FULL; KVM has no snapshot type)",
+          },
+          // KVM 볼륨에 유형을 지정하면 API가 조용히 무시하고 FULL로 만든다(라이브 실측).
+          // 실행 전에 알 수 있도록 프리뷰에 경고를 띄운다.
+          ...(params.snapshotTypeCode
+            ? {
+                warning_snapshotTypeCode: L({
+                  ko: "snapshotTypeCode는 XEN(HDD/SSD) 볼륨에서만 적용됩니다. KVM(CB/FB) 볼륨은 이 값을 무시하고 FULL 스냅샷을 만듭니다(오류도 나지 않음).",
+                  en: "snapshotTypeCode applies to XEN (HDD/SSD) volumes only. On a KVM (CB/FB) volume the API ignores it and creates a FULL snapshot without raising an error.",
+                }),
+              }
+            : {}),
           message: dryRunMessage({ ko: "스냅샷", en: "snapshot" }),
         };
         return preview;
       }
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vserver/v2/createBlockStorageSnapshotInstance", apiParams);
       return result;
     }
