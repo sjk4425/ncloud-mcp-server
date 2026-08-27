@@ -91,7 +91,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
       })).optional().describe("Tag filter array, e.g. [{tagKey: 'env', tagValue: 'dev'}] or [{tagKey: 'env'}] to filter by key alone"),
       groupName: z.string().optional().describe("Group name filter, exact match"),
       page: z.number().optional().describe("Page number, 0-based (default 0)"),
-      size: z.number().optional().describe("Page size 1~100 (default 20)"),
+      size: z.number().optional().describe("Page size, documented as 1~100 (default 20). The API was observed returning more than 100 rows for a larger value rather than rejecting or clamping it, so values above 100 work today but are outside the documented range — do not rely on them"),
     },
     async (params) => {
       const body: Record<string, unknown> = {};

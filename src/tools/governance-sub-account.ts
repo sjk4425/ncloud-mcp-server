@@ -25,7 +25,7 @@ const POLICY_TARGET_SCHEMA = z.object({
   resourceNrns: z
     .array(z.string())
     .min(1, { message: L({ ko: "resourceNrns는 최소 1개 이상이어야 합니다.", en: "resourceNrns must contain at least one entry." }) })
-    .describe('Target resource NRNs (e.g. "nrn:PUB:DataQuery:KR:123456:DataSource/2942"). Use ["*"] for every resource of the product'),
+    .describe('Target resource NRNs (e.g. "nrn:PUB:DataQuery:KR:123456:DataSource/2942"). Use ["*"] for every resource of the product — note the server rewrites that into a product-scoped NRN (["*"] on product Server comes back as ["nrn:*:Server:*::*"]), so a read-back through ncloud_get_policy_detail will not equal the string you sent'),
 });
 
 /** 사용자 정의 정책의 허용 권한(permissions) 한 건. */
@@ -202,7 +202,7 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
   defineTool(
     server,
     "ncloud_create_sub_account_access_key",
-    "Issue a new API access key (access key + secret key) for a sub account, so that account can call the Ncloud API. The response contains the secret key (keySecret) and it CANNOT be retrieved again afterwards — store it securely and do not paste it into shared logs or chats. The sub account must have API Gateway access enabled (canAPIGatewayAccess).",
+    "Issue a new API access key (access key + secret key) for a sub account, so that account can call the Ncloud API. The response contains the secret key (keySecret) and it CANNOT be retrieved again afterwards — store it securely and do not paste it into shared logs or chats. The sub account must have API Gateway access enabled (canAPIGatewayAccess). A sub account holds at most TWO access keys: a third issue attempt fails with 409 '최대 허용값을 초과하였습니다' (verified against the live API; the limit is not in the API docs), so delete an unused key first, or deactivate one with ncloud_set_sub_account_access_key_status when rotating.",
     {
       subAccountId: z.string({ required_error: requiredError("subAccountId") }).describe("Sub account ID to issue the access key for (see ncloud_list_sub_accounts)"),
     },
