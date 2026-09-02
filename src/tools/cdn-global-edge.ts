@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, dryRunMessage, requiredError } from "./_messages.js";
+import { L, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient): void {
   // ─── Profile Query Tools ───────────────────────────────────────────────────
@@ -116,22 +117,6 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the edge"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Global Edge Creation",
-          profileId: params.profileId,
-          edgeName: params.edgeName,
-          protocolType: params.protocolType,
-          regionType: params.regionType,
-          serviceDomainType: params.serviceDomainType,
-          serviceDomainName: params.serviceDomainName || "(auto-generated)",
-          originType: params.originType,
-          originLocation: params.originBucketName || params.originCustomLocation || "(not specified)",
-          message: dryRunMessage({ ko: "엣지", en: "edge" }),
-        };
-        return preview;
-      }
-
       const body: any = {
         profileId: params.profileId,
         edgeName: params.edgeName,
@@ -202,6 +187,16 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
           refererPolicies: [],
         },
       };
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Global Edge Creation",
+          endpoint: "/api/v1/cdn-edges",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "엣지", en: "edge" },
+        });
+      }
 
       const result = await client.postRequest("/api/v1/cdn-edges", body);
       const summary = {

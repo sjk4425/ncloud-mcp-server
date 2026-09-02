@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { defineTool } from "./_tool.js";
-import { L, deletedMessage, dryRunMessage, requiredError } from "./_messages.js";
+import { L, deletedMessage, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * Ncloud Storage 스토리지 클래스.
@@ -447,30 +448,25 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually applying the configuration"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Bucket Lifecycle Configuration",
-          bucketName: params.bucketName,
-          rulesCount: params.rules.length,
-          rules: params.rules.map((rule) => ({
-            id: rule.id,
-            status: rule.status,
-            prefix: rule.prefix || "(all objects)",
-            transitions: rule.transitions?.map((t) => ({
-              after: t.days ? `${t.days} days` : t.date,
-              targetClass: t.storageClass,
-            })),
-            expiration: rule.expiration
-              ? (rule.expiration.days ? `${rule.expiration.days} days` : rule.expiration.date)
-              : undefined,
-            abortIncompleteMultipartUploadDays: rule.abortIncompleteMultipartUploadDays,
-          })),
-          message: dryRunMessage({ ko: "라이프사이클 규칙", en: "lifecycle rule" }, "apply"),
-        };
-        return preview;
-      }
-
       const xmlBody = buildLifecycleConfigXml(params.rules);
+
+      if (params.dryRun) {
+        // 실제로 보내는 것은 XML 본문이다 — 입력 규칙 배열을 다시 찍으면
+        // XML 직렬화 단계의 결함을 프리뷰가 가려버린다.
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Bucket Lifecycle Configuration",
+          endpoint: `/${params.bucketName}?lifecycle`,
+          method: "PUT",
+          requestParams: {
+            bucket: params.bucketName,
+            queryParams: { lifecycle: "" },
+            headers: { "content-type": "application/xml" },
+            body: xmlBody,
+          },
+          noun: { ko: "라이프사이클 규칙", en: "lifecycle rule" },
+          verb: "apply",
+        });
+      }
 
       await client.request({
         method: "PUT",
@@ -734,13 +730,14 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     },
     async (params) => {
       if (params.dryRun) {
-        const preview = {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Ncloud Storage Bucket Creation",
-          bucketName: params.bucketName,
-          region: client.getRegionCode(),
-          message: dryRunMessage({ ko: "버킷", en: "bucket" }),
-        };
-        return preview;
+          endpoint: `/${params.bucketName}`,
+          method: "PUT",
+          requestParams: { bucket: params.bucketName },
+          noun: { ko: "버킷", en: "bucket" },
+          notes: { region: client.getRegionCode() },
+        });
       }
       await client.request({ method: "PUT", bucket: params.bucketName });
       const summary = {
@@ -861,25 +858,27 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
       dryRun: z.boolean().optional().default(true).describe("If true (default), returns a preview without actually uploading"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Ncloud Storage Object Upload",
-          bucketName: params.bucketName,
-          key: params.key,
-          contentType: params.contentType ?? "application/octet-stream",
-          storageClass: params.storageClass ?? "STANDARD (default)",
-          bodySize: `${params.body.length} bytes`,
-          message: dryRunMessage({ ko: "오브젝트", en: "object" }, "upload"),
-        };
-        return preview;
-      }
-
       const headers: Record<string, string> = {};
       if (params.contentType) {
         headers["content-type"] = params.contentType;
       }
       if (params.storageClass) {
         headers["x-amz-storage-class"] = params.storageClass;
+      }
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Ncloud Storage Object Upload",
+          endpoint: `/${params.bucketName}/${params.key}`,
+          method: "PUT",
+          requestParams: { bucket: params.bucketName, key: params.key, headers },
+          noun: { ko: "오브젝트", en: "object" },
+          verb: "upload",
+          notes: {
+            bodySize: `${params.body.length} bytes`,
+            ...(params.storageClass ? {} : { note_storageClass: "(x-amz-storage-class not sent — the server stores it as STANDARD)" }),
+          },
+        });
       }
 
       await client.request({

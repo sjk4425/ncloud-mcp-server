@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import { defineTool } from "./_tool.js";
-import { deletedMessage, dryRunMessage, requiredError } from "./_messages.js";
+import { deletedMessage, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * Parse JSON array response from Swift (when format=json is specified).
@@ -72,13 +73,14 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     },
     async (params) => {
       if (params.dryRun) {
-        const preview = {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Archive Container Creation",
-          containerName: params.containerName,
-          region: client.getRegionCode(),
-          message: dryRunMessage({ ko: "컨테이너", en: "container" }),
-        };
-        return preview;
+          endpoint: `/${params.containerName}`,
+          method: "PUT",
+          requestParams: { container: params.containerName },
+          noun: { ko: "컨테이너", en: "container" },
+          notes: { region: client.getRegionCode() },
+        });
       }
       await client.request({
         method: "PUT",
@@ -261,21 +263,29 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually uploading"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Archive Object Upload",
-          containerName: params.containerName,
-          objectName: params.objectName,
-          contentType: params.contentType ?? "application/octet-stream",
-          bodySize: `${params.body.length} bytes`,
-          message: dryRunMessage({ ko: "오브젝트", en: "object" }, "upload"),
-        };
-        return preview;
-      }
-
       const headers: Record<string, string> = {};
       if (params.contentType) {
         headers["Content-Type"] = params.contentType;
+      }
+
+      if (params.dryRun) {
+        // 본문 자체는 크기만 노출한다(내용 전체를 프리뷰에 싣지 않는다).
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Archive Object Upload",
+          endpoint: `/${params.containerName}/${params.objectName}`,
+          method: "PUT",
+          requestParams: {
+            container: params.containerName,
+            object: params.objectName,
+            headers,
+          },
+          noun: { ko: "오브젝트", en: "object" },
+          verb: "upload",
+          notes: {
+            bodySize: `${params.body.length} bytes`,
+            ...(params.contentType ? {} : { note_contentType: "(no Content-Type header sent — the server applies its default)" }),
+          },
+        });
       }
 
       const response = await client.request({

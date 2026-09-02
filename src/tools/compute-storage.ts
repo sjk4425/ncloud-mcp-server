@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, L } from "./_messages.js";
+import { L } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerComputeStorageTools(server: McpServer, client: NcloudClient): void {
   // ─── Block Storage Query Tools ─────────────────────────────────────────────
@@ -72,23 +73,19 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
         };
       }
 
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Block Storage Creation",
-          mode: params.serverInstanceNo ? "XEN (attach to server)" : "KVM (standalone, attach later)",
-          blockStorageSize: `${params.blockStorageSize} GB`,
-          zoneCode: params.zoneCode ?? "(resolved from server)",
-          blockStorageVolumeTypeCode: params.blockStorageVolumeTypeCode,
-          serverInstanceNo: params.serverInstanceNo ?? "(not set)",
-          blockStorageSnapshotInstanceNo: params.blockStorageSnapshotInstanceNo ?? "(not set)",
-          isReturnProtection: params.isReturnProtection ?? "(not set)",
-          blockStorageName: params.blockStorageName ?? "(auto-generated)",
-          message: dryRunMessage({ ko: "블록 스토리지", en: "block storage" }),
-        };
-        return preview;
+          endpoint: "/vserver/v2/createBlockStorageInstance",
+          requestParams: apiParams,
+          noun: { ko: "블록 스토리지", en: "block storage" },
+          notes: {
+            mode: params.serverInstanceNo ? "XEN (attach to server)" : "KVM (standalone, attach later)",
+          },
+        });
       }
 
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vserver/v2/createBlockStorageInstance", apiParams);
       return result;
     }
@@ -263,29 +260,28 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       };
 
       if (params.dryRun) {
-        // 프리뷰는 실제 전송 파라미터를 그대로 보여준다(입력 에코가 아니라 요청 셰이프).
-        const preview = {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Snapshot Creation",
           endpoint: "/vserver/v2/createBlockStorageSnapshotInstance",
-          requestParams: {
-            ...apiParams,
-            blockStorageSnapshotName: params.blockStorageSnapshotName ?? "(auto-generated)",
+          requestParams: apiParams,
+          noun: { ko: "스냅샷", en: "snapshot" },
+          notes: {
+            // 생략된 값은 전송되지 않는다 — requestParams에 기본값을 섞지 않고 여기서 설명한다.
+            ...(params.blockStorageSnapshotName
+              ? {}
+              : { note_blockStorageSnapshotName: "(not sent — the server auto-generates the name)" }),
             // KVM 볼륨은 스냅샷 유형 선택 자체가 없어 "FULL 기본"이라고 단정하지 않는다.
-            snapshotTypeCode: params.snapshotTypeCode ?? "(not set — XEN defaults to FULL; KVM has no snapshot type)",
+            ...(params.snapshotTypeCode
+              ? {
+                  // KVM 볼륨에 유형을 지정하면 API가 조용히 무시하고 FULL로 만든다(라이브 실측).
+                  warning_snapshotTypeCode: L({
+                    ko: "snapshotTypeCode는 XEN(HDD/SSD) 볼륨에서만 적용됩니다. KVM(CB/FB) 볼륨은 이 값을 무시하고 FULL 스냅샷을 만듭니다(오류도 나지 않음).",
+                    en: "snapshotTypeCode applies to XEN (HDD/SSD) volumes only. On a KVM (CB/FB) volume the API ignores it and creates a FULL snapshot without raising an error.",
+                  }),
+                }
+              : { note_snapshotTypeCode: "(not sent — XEN defaults to FULL; KVM has no snapshot type)" }),
           },
-          // KVM 볼륨에 유형을 지정하면 API가 조용히 무시하고 FULL로 만든다(라이브 실측).
-          // 실행 전에 알 수 있도록 프리뷰에 경고를 띄운다.
-          ...(params.snapshotTypeCode
-            ? {
-                warning_snapshotTypeCode: L({
-                  ko: "snapshotTypeCode는 XEN(HDD/SSD) 볼륨에서만 적용됩니다. KVM(CB/FB) 볼륨은 이 값을 무시하고 FULL 스냅샷을 만듭니다(오류도 나지 않음).",
-                  en: "snapshotTypeCode applies to XEN (HDD/SSD) volumes only. On a KVM (CB/FB) volume the API ignores it and creates a FULL snapshot without raising an error.",
-                }),
-              }
-            : {}),
-          message: dryRunMessage({ ko: "스냅샷", en: "snapshot" }),
-        };
-        return preview;
+        });
       }
       const result = await client.request("/vserver/v2/createBlockStorageSnapshotInstance", apiParams);
       return result;

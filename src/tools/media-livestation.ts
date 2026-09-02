@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerLiveStationTools(server: McpServer, client: NcloudClient): void {
   // ─── Channel Query Tools ───────────────────────────────────────────────────
@@ -60,25 +61,6 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the channel"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Live Station Channel Creation",
-          channelName: params.channelName,
-          envType: params.envType,
-          outputProtocol: params.outputProtocol,
-          createCdn: params.createCdn,
-          cdnProfileId: params.cdnProfileId,
-          cdnRegionType: params.cdnRegionType,
-          qualitySetId: params.qualitySetId,
-          useDvr: params.useDvr,
-          recordType: params.recordType,
-          isStreamFailOver: params.isStreamFailOver,
-          drmEnabledYn: params.drmEnabledYn,
-          message: dryRunMessage({ ko: "채널", en: "channel" }),
-        };
-        return preview;
-      }
-
       const body: any = {
         channelName: params.channelName,
         envType: params.envType,
@@ -105,6 +87,16 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       };
       if (params.useDvr && params.timemachineMin) {
         body.timemachineMin = params.timemachineMin;
+      }
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Live Station Channel Creation",
+          endpoint: "/api/v2/channels",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "채널", en: "channel" },
+        });
       }
 
       const result = await client.postRequest("/api/v2/channels", body);

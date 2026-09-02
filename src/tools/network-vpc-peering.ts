@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerVpcPeeringTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -53,20 +54,15 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the resource"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          "🔍 Dry-Run Preview": L({ ko: "VPC Peering 생성 미리보기", en: "VPC Peering creation preview" }),
-          sourceVpcNo: params.sourceVpcNo,
-          targetVpcNo: params.targetVpcNo,
-          targetVpcName: params.targetVpcName ?? "(same account)",
-          targetVpcLoginId: params.targetVpcLoginId ?? "(same account)",
-          vpcPeeringName: params.vpcPeeringName ?? "(auto-generated)",
-          vpcPeeringDescription: params.vpcPeeringDescription ?? "(none)",
-          note: L({ ko: "dryRun=false로 다시 호출하면 실제로 생성됩니다.", en: "Call again with dryRun=false to actually create it." }),
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: VPC Peering Creation",
+          endpoint: "/vpc/v2/createVpcPeeringInstance",
+          requestParams: apiParams,
+          noun: { ko: "VPC Peering", en: "VPC Peering" },
+        });
+      }
       const result = await client.request("/vpc/v2/createVpcPeeringInstance", apiParams);
       const instance = result.vpcPeeringInstanceList?.[0];
       const summary = {

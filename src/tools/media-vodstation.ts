@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerVodStationTools(server: McpServer, client: NcloudClient): void {
   // ─── Channel Query Tools ───────────────────────────────────────────────────
@@ -51,23 +52,6 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the channel"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: VOD Station Channel Creation",
-          channelName: params.channelName,
-          storageBucketName: params.storageBucketName,
-          protocolList: params.protocolList,
-          segmentDuration: params.segmentDuration,
-          segmentDurationOption: params.segmentDurationOption,
-          accessPrivateFiles: params.accessPrivateFiles,
-          createCdn: params.createCdn,
-          cdnProfileId: params.cdnProfileId,
-          cdnRegionType: params.cdnRegionType,
-          message: dryRunMessage({ ko: "채널", en: "channel" }),
-        };
-        return preview;
-      }
-
       const body: any = {
         channelName: params.channelName,
         storageBucketName: params.storageBucketName,
@@ -82,6 +66,16 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
           regionType: params.cdnRegionType,
         },
       };
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: VOD Station Channel Creation",
+          endpoint: "/api/v2/channels",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "채널", en: "channel" },
+        });
+      }
 
       const result = await client.postRequest("/api/v2/channels", body);
       const channel = result?.content || result;
@@ -211,21 +205,6 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the category"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: VOD Station Category Creation",
-          name: params.name,
-          bucketName: params.bucketName,
-          filePath: params.filePath,
-          encodingOptions: params.encodingOptions,
-          encodingOptionTemplateId: params.encodingOptionTemplateId,
-          thumbnail: params.thumbnail,
-          accessControl: params.accessControl,
-          message: dryRunMessage({ ko: "카테고리", en: "category" }),
-        };
-        return preview;
-      }
-
       const body: any = {
         name: params.name,
         thumbnail: params.thumbnail,
@@ -238,6 +217,16 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
       if (params.encodingOptions) body.encodingOptions = params.encodingOptions;
       if (params.encodingOptionTemplateId) body.encodingOptionTemplateId = params.encodingOptionTemplateId;
       if (params.notificationUrl) body.notificationUrl = params.notificationUrl;
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: VOD Station Category Creation",
+          endpoint: "/api/v2/category",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "카테고리", en: "category" },
+        });
+      }
 
       const result = await client.postRequest("/api/v2/category", body);
       const summary = {

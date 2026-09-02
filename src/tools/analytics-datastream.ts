@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * Data Stream API Tools
@@ -76,21 +76,19 @@ export function registerDataStreamTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "Dry-Run Preview: Data Stream Topic Creation",
-          name: params.name,
-          description: params.description ?? "(not set)",
-          partitions: params.partitions ?? 1,
-          retentionMs: params.retentionMs ?? 86400000,
-          message: dryRunMessage({ ko: "토픽", en: "topic" }),
-        };
-        return preview;
-      }
       const body: Record<string, any> = { name: params.name };
       if (params.description !== undefined) body.description = params.description;
       if (params.partitions !== undefined) body.partitions = params.partitions;
       if (params.retentionMs !== undefined) body.retentionMs = params.retentionMs;
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Data Stream Topic Creation",
+          endpoint: "/api/v1/topics",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "토픽", en: "topic" },
+        });
+      }
       const result = await client.requestRaw("POST", "/api/v1/topics", undefined, body);
       return result;
     }
@@ -167,24 +165,16 @@ export function registerDataStreamTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "Dry-Run Preview: Data Stream Connector Creation",
-          topicId: params.topicId,
-          consumerSpec: params.consumerSpec,
-          exportType: params.exportType,
-          location: params.location,
-          includeTopicInPath: params.includeTopicInPath,
-          dateFormat: params.dateFormat,
-          roleNrn: params.roleNrn,
-          flushInterval: params.flushInterval ?? 10,
-          flushCount: params.flushCount ?? 5000,
-          schemaType: params.schemaType ?? "STRING",
-          message: dryRunMessage({ ko: "커넥터", en: "connector" }),
-        };
-        return preview;
-      }
       const { topicId, dryRun, ...bodyParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Data Stream Connector Creation",
+          endpoint: `/api/v1/topics/${topicId}/connectors`,
+          method: "POST",
+          requestParams: bodyParams,
+          noun: { ko: "커넥터", en: "connector" },
+        });
+      }
       const result = await client.requestRaw("POST", `/api/v1/topics/${topicId}/connectors`, undefined, bodyParams);
       return result;
     }

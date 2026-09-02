@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, dryRunMessage, requiredError } from "./_messages.js";
+import { L, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * Data Catalog — 메타데이터 통합 및 관리 서비스
@@ -119,13 +120,14 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       if (params.tagKeyTypeValueList !== undefined) bodyParams.tagKeyTypeValueList = params.tagKeyTypeValueList;
 
       if (params.dryRun) {
-        return {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Data Catalog Database Creation",
-          endpoint: `POST /api/v1/catalogs/${params.catalogId}/databases`,
-          request: bodyParams,
-          resolvedLocation: `${params.location.replace(/\/+$/, "")}/${params.name}`,
-          message: dryRunMessage({ ko: "데이터베이스", en: "database" }),
-        };
+          endpoint: `/api/v1/catalogs/${params.catalogId}/databases`,
+          method: "POST",
+          requestParams: bodyParams,
+          noun: { ko: "데이터베이스", en: "database" },
+          notes: { resolvedLocation: `${params.location.replace(/\/+$/, "")}/${params.name}` },
+        });
       }
 
       return client.requestRaw("POST", `/api/v1/catalogs/${params.catalogId}/databases`, undefined, bodyParams);
@@ -556,16 +558,19 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
       }
 
       if (dryRun) {
-        return {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Data Catalog Scanner Creation",
-          endpoint: `POST /api/v1/catalogs/${catalogId}/scanners`,
-          request: bodyParams,
-          note: L({
-            ko: "스캐너 생성만으로는 스캔이 실행되지 않습니다 — ncloud_datacatalog_run_scanner로 실행하세요.",
-            en: "Creating a scanner does not run a scan — execute it with ncloud_datacatalog_run_scanner.",
-          }),
-          message: dryRunMessage({ ko: "스캐너", en: "scanner" }),
-        };
+          endpoint: `/api/v1/catalogs/${catalogId}/scanners`,
+          method: "POST",
+          requestParams: bodyParams,
+          noun: { ko: "스캐너", en: "scanner" },
+          notes: {
+            note: L({
+              ko: "스캐너 생성만으로는 스캔이 실행되지 않습니다 — ncloud_datacatalog_run_scanner로 실행하세요.",
+              en: "Creating a scanner does not run a scan — execute it with ncloud_datacatalog_run_scanner.",
+            }),
+          },
+        });
       }
 
       return client.requestRaw("POST", `/api/v1/catalogs/${catalogId}/scanners`, undefined, bodyParams);

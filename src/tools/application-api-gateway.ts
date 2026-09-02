@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerApiGatewayTools(server: McpServer, client: NcloudClient): void {
   // ─── Product Query Tools ───────────────────────────────────────────────────
@@ -89,19 +90,18 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the stage"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: API Gateway Stage Creation",
-          productId: params.productId,
-          stageName: params.stageName,
-          stageDescription: params.stageDescription ?? "(none)",
-          message: dryRunMessage({ ko: "스테이지", en: "stage" }),
-        };
-        return preview;
-      }
-
       const body: Record<string, string> = { stageName: params.stageName };
       if (params.stageDescription) body.stageDescription = params.stageDescription;
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: API Gateway Stage Creation",
+          endpoint: `/api/v1/products/${encodeURIComponent(params.productId)}/stages`,
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "스테이지", en: "stage" },
+        });
+      }
 
       const result = await client.postRequest(`/api/v1/products/${encodeURIComponent(params.productId)}/stages`, body);
       const summary = {
@@ -160,18 +160,18 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the API key"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: API Gateway API Key Creation",
-          apiKeyName: params.apiKeyName,
-          apiKeyDescription: params.apiKeyDescription ?? "(none)",
-          message: dryRunMessage({ ko: "API 키", en: "API key" }),
-        };
-        return preview;
-      }
-
       const body: Record<string, string> = { apiKeyName: params.apiKeyName };
       if (params.apiKeyDescription) body.apiKeyDescription = params.apiKeyDescription;
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: API Gateway API Key Creation",
+          endpoint: "/api/v1/api-keys",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "API 키", en: "API key" },
+        });
+      }
 
       const result = await client.postRequest("/api/v1/api-keys", body);
       const summary = {

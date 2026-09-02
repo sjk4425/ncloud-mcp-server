@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -222,24 +223,16 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: MSSQL Instance Creation",
-          cloudMssqlServiceName: params.cloudMssqlServiceName,
-          vpcNo: params.vpcNo,
-          subnetNo: params.subnetNo,
-          cloudMssqlUserName: params.cloudMssqlUserName,
-          isHa: params.isHa,
-          isMultiZone: params.isMultiZone ?? false,
-          characterSetName: params.characterSetName ?? "Korean_Wansung_CI_AS",
-          cloudMssqlPort: params.cloudMssqlPort ?? 1433,
-          isBackup: params.isBackup ?? true,
-          message: dryRunMessage({ ko: "MSSQL 인스턴스", en: "MSSQL instance" }),
-        };
-        return preview;
+          endpoint: "/vmssql/v2/createCloudMssqlInstance",
+          requestParams: apiParams,
+          noun: { ko: "MSSQL 인스턴스", en: "MSSQL instance" },
+        });
       }
 
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vmssql/v2/createCloudMssqlInstance", apiParams);
       const instance = result.cloudMssqlInstanceList?.[0];
       const summary = {

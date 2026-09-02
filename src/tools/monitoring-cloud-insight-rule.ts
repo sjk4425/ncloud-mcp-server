@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerCloudInsightRuleTools(server: McpServer, client: NcloudClient): void {
   // ncloud_list_rule_groups — Get event rule group list
@@ -72,20 +73,6 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
       dryRun: z.boolean().optional().describe("If true, returns a preview without creating the rule group (default: false)"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: L({ ko: "📋 생성 예상 결과 (미리보기 - 실제 생성되지 않음)", en: "📋 Expected result (preview — nothing is actually created)" }),
-          리소스타입: "Cloud Insight Rule Group",
-          그룹명: params.groupName,
-          대상서비스: params.prodKey,
-          메트릭그룹: params.metricsGroupId,
-          모니터그룹: params.monitorGroupId,
-          규칙수: params.cfgRuleList.length,
-          알림수신자: params.recipientNotification?.length ?? 0,
-        };
-        return preview;
-      }
-
       const body: Record<string, unknown> = {
         groupName: params.groupName,
         prodKey: params.prodKey,
@@ -94,6 +81,16 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
         cfgRuleList: params.cfgRuleList,
       };
       if (params.recipientNotification !== undefined) body.recipientNotification = params.recipientNotification;
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Cloud Insight Rule Group Creation",
+          endpoint: "/cw_fea/real/cw/api/rule/group/create",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "이벤트 규칙 그룹", en: "event rule group" },
+        });
+      }
 
       const result = await client.postRequest("/cw_fea/real/cw/api/rule/group/create", body);
       return result;

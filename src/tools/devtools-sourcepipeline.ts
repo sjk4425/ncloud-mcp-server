@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * SourcePipeline API
@@ -88,25 +88,22 @@ export function registerSourcePipelineTools(server: McpServer, client: NcloudCli
       dryRun: z.boolean().optional().default(false).describe("If true, returns preview without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: SourcePipeline Creation",
-          name: params.name,
-          description: params.description ?? "(none)",
-          taskCount: params.tasks.length,
-          tasks: params.tasks.map(t => ({ name: t.name, type: t.type })),
-          trigger: params.trigger ?? "(none)",
-          message: dryRunMessage({ ko: "파이프라인", en: "pipeline" }),
-        };
-        return preview;
-      }
-
       const body: Record<string, unknown> = {
         name: params.name,
         tasks: params.tasks,
       };
       if (params.description) body.description = params.description;
       if (params.trigger) body.trigger = params.trigger;
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: SourcePipeline Creation",
+          endpoint: "/api/v1/project",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "파이프라인", en: "pipeline" },
+        });
+      }
 
       const result = await client.requestRaw("POST", "/api/v1/project", undefined, body);
       return result;

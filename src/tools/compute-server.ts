@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, L } from "./_messages.js";
+import { L } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerComputeServerTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -153,46 +154,6 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
         }
       }
 
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Server Creation",
-          serverImageNo: params.serverImageNo ?? "(not specified)",
-          serverImageProductCode: params.serverImageProductCode ?? "(not specified)",
-          memberServerImageInstanceNo: params.memberServerImageInstanceNo ?? "(not specified)",
-          serverSpecCode: params.serverSpecCode ?? "(not specified)",
-          serverProductCode: params.serverProductCode ?? "(not specified)",
-          vpcNo: params.vpcNo,
-          subnetNo: params.subnetNo,
-          serverName: params.serverName ?? "(auto-generated)",
-          loginKeyName: params.loginKeyName ?? "(none)",
-          initScriptNo: params.initScriptNo ?? "(none)",
-          feeSystemTypeCode: params.feeSystemTypeCode ?? "MTRAT",
-          associateWithPublicIp: params.associateWithPublicIp ?? false,
-          isProtectServerTermination: params.isProtectServerTermination ?? false,
-          // 프리뷰가 일부 입력을 누락하면 "반영 안 됨"으로 오해된다(MCP-BUG-REPORT #2).
-          networkInterfaceList: params.networkInterfaceList
-            ? params.networkInterfaceList.map((n) => ({
-                order: n.networkInterfaceOrder === 0 ? "0 (primary)" : n.networkInterfaceOrder,
-                subnetNo: n.subnetNo ?? "(inherits subnetNo)",
-                accessControlGroupNoList: n.accessControlGroupNoList ?? "(default ACG)",
-                ip: n.ip ?? "(auto-assigned)",
-              }))
-            : "(default NIC with default ACG)",
-          blockStorageMapping: params.blockStorageMappingList
-            ? params.blockStorageMappingList.map((b) => ({
-                order: b.order === 0 ? "0 (boot)" : b.order,
-                volumeType: b.blockStorageVolumeTypeCode ?? "(default CB1)",
-                size: b.blockStorageSize ? `${b.blockStorageSize} GB` : "(default)",
-                name: b.blockStorageName ?? "(auto)",
-              }))
-            : "(default CB1 boot volume)",
-          message: dryRunMessage({ ko: "서버", en: "server" }),
-          hint_KVM: L({ ko: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수", en: "KVM (Gen3) server: serverImageNo + serverSpecCode combination required" }),
-          hint_XEN: L({ ko: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode", en: "XEN (Gen2) server: serverImageProductCode + serverProductCode, or serverImageNo + serverSpecCode" }),
-        };
-        return preview;
-      }
-
       const { dryRun, networkInterfaceList, blockStorageMappingList, ...apiParams } = params;
       const requestParams: any = { ...apiParams };
 
@@ -224,6 +185,21 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
             requestParams[`networkInterfaceList.${i + 1}.ip`] = nic.ip;
           }
         }
+      }
+
+      if (dryRun) {
+        // 리스트 파라미터가 `blockStorageMappingList.1.order` 형태로 평탄화된 뒤의
+        // 최종 전송 객체를 보여준다 — 입력 구조를 그대로 찍으면 평탄화 결함을 놓친다.
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Server Creation",
+          endpoint: "/vserver/v2/createServerInstances",
+          requestParams,
+          noun: { ko: "서버", en: "server" },
+          notes: {
+            hint_KVM: L({ ko: "KVM(Gen3) 서버: serverImageNo + serverSpecCode 조합 필수", en: "KVM (Gen3) server: serverImageNo + serverSpecCode combination required" }),
+            hint_XEN: L({ ko: "XEN(Gen2) 서버: serverImageProductCode + serverProductCode 또는 serverImageNo + serverSpecCode", en: "XEN (Gen2) server: serverImageProductCode + serverProductCode, or serverImageNo + serverSpecCode" }),
+          },
+        });
       }
 
       const result = await client.request("/vserver/v2/createServerInstances", requestParams);

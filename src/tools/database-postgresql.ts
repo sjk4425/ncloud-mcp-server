@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabasePostgresqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -95,23 +96,16 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: PostgreSQL Instance Creation",
-          cloudPostgresqlServiceName: params.cloudPostgresqlServiceName,
-          vpcNo: params.vpcNo,
-          subnetNo: params.subnetNo,
-          cloudPostgresqlDatabaseName: params.cloudPostgresqlDatabaseName,
-          cloudPostgresqlUserName: params.cloudPostgresqlUserName,
-          isMultiZone: params.isMultiZone ?? false,
-          isBackup: params.isBackup ?? true,
-          cloudPostgresqlPort: params.cloudPostgresqlPort ?? 5432,
-          message: dryRunMessage({ ko: "PostgreSQL 인스턴스", en: "PostgreSQL instance" }),
-        };
-        return preview;
+          endpoint: "/vpostgresql/v2/createCloudPostgresqlInstance",
+          requestParams: apiParams,
+          noun: { ko: "PostgreSQL 인스턴스", en: "PostgreSQL instance" },
+        });
       }
 
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vpostgresql/v2/createCloudPostgresqlInstance", apiParams);
       const instance = result.cloudPostgresqlInstanceList?.[0];
       const summary = {

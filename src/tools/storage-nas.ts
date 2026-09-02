@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerStorageNasTools(server: McpServer, client: NcloudClient): void {
   // ─── NAS Volume Query Tools ────────────────────────────────────────────────
@@ -57,23 +57,15 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: NAS Volume Creation",
-          volumeName: params.volumeName,
-          volumeSize: `${params.volumeSize} GB`,
-          volumeAllotmentProtocolTypeCode: params.volumeAllotmentProtocolTypeCode,
-          vpcNo: params.vpcNo,
-          zoneCode: params.zoneCode,
-          cifsUserName: params.cifsUserName ?? "(N/A)",
-          isEncryptedVolume: params.isEncryptedVolume ?? false,
-          isReturnProtection: params.isReturnProtection ?? false,
-          serverInstanceNoList: params.serverInstanceNoList ?? [],
-          message: dryRunMessage({ ko: "NAS 볼륨", en: "NAS volume" }),
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: NAS Volume Creation",
+          endpoint: "/vnas/v2/createNasVolumeInstance",
+          requestParams: apiParams,
+          noun: { ko: "NAS 볼륨", en: "NAS volume" },
+        });
+      }
       const result = await client.request("/vnas/v2/createNasVolumeInstance", apiParams);
       return result;
     }
@@ -233,16 +225,15 @@ export function registerStorageNasTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: NAS Snapshot Creation",
-          nasVolumeInstanceNo: params.nasVolumeInstanceNo,
-          nasVolumeSnapshotName: params.nasVolumeSnapshotName ?? "(auto-generated)",
-          message: dryRunMessage({ ko: "NAS 스냅샷", en: "NAS snapshot" }),
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: NAS Snapshot Creation",
+          endpoint: "/vnas/v2/createNasVolumeSnapshot",
+          requestParams: apiParams,
+          noun: { ko: "NAS 스냅샷", en: "NAS snapshot" },
+        });
+      }
       const result = await client.request("/vnas/v2/createNasVolumeSnapshot", apiParams);
       return result;
     }

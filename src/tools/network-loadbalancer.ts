@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, maxLenMessage, requiredError } from "./_messages.js";
+import { maxLenMessage, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerLoadBalancerTools(server: McpServer, client: NcloudClient): void {
   // ─── Load Balancer Query Tools ─────────────────────────────────────────────
@@ -73,21 +74,6 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the load balancer"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Load Balancer Creation",
-          loadBalancerTypeCode: params.loadBalancerTypeCode,
-          loadBalancerNetworkTypeCode: params.loadBalancerNetworkTypeCode ?? "PUBLIC",
-          loadBalancerName: params.loadBalancerName ?? "(auto-generated)",
-          vpcNo: params.vpcNo,
-          subnetNoList: params.subnetNoList,
-          listenerCount: params.listenerList.length,
-          listeners: params.listenerList.map((l) => `${l.protocolTypeCode}:${l.port} → TG:${l.targetGroupNo}`),
-          message: dryRunMessage({ ko: "로드 밸런서", en: "load balancer" }),
-        };
-        return preview;
-      }
-
       const { dryRun, listenerList, subnetNoList, ...restParams } = params;
       const apiParams: Record<string, any> = { ...restParams, subnetNoList };
 
@@ -112,6 +98,16 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
           });
         }
       });
+
+      if (dryRun) {
+        // listenerList가 `loadBalancerListenerList.1.port` 형태로 평탄화된 뒤의 최종 전송 객체.
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Load Balancer Creation",
+          endpoint: "/vloadbalancer/v2/createLoadBalancerInstance",
+          requestParams: apiParams,
+          noun: { ko: "로드 밸런서", en: "load balancer" },
+        });
+      }
 
       const result = await client.request("/vloadbalancer/v2/createLoadBalancerInstance", apiParams);
       const instance = result.loadBalancerInstanceList?.[0];

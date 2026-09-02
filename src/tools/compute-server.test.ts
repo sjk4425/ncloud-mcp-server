@@ -150,10 +150,12 @@ describe("Feature: ncloud-mcp-server, Property 10: Dry-Run API 호출 차단", (
           const text = result.content[0].text;
           const parsed = JSON.parse(text);
           expect(parsed.label).toContain("Dry-Run");
-          expect(parsed.serverImageProductCode).toBe(serverImageProductCode);
-          expect(parsed.serverProductCode).toBe(serverProductCode);
-          expect(parsed.vpcNo).toBe(vpcNo);
-          expect(parsed.subnetNo).toBe(subnetNo);
+          // 프리뷰는 입력 에코가 아니라 실제 전송 객체를 보여준다(B-8).
+          expect(parsed.endpoint).toBe("/vserver/v2/createServerInstances");
+          expect(parsed.requestParams.serverImageProductCode).toBe(serverImageProductCode);
+          expect(parsed.requestParams.serverProductCode).toBe(serverProductCode);
+          expect(parsed.requestParams.vpcNo).toBe(vpcNo);
+          expect(parsed.requestParams.subnetNo).toBe(subnetNo);
           // Should NOT have isError
           expect(result.isError).toBeUndefined();
           requestSpy.mockRestore();
@@ -328,8 +330,8 @@ describe("Unit: Server creation summary format", () => {
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.label).toContain("Dry-Run");
-    expect(parsed.serverImageProductCode).toBe("IMG001");
-    expect(parsed.serverProductCode).toBe("SPEC001");
+    expect(parsed.requestParams.serverImageProductCode).toBe("IMG001");
+    expect(parsed.requestParams.serverProductCode).toBe("SPEC001");
   });
 });
 
@@ -424,8 +426,9 @@ describe("Unit: blockStorageMappingList (KVM boot volume type)", () => {
     expect(requestSpy).not.toHaveBeenCalled();
     expect(result.isError).toBeUndefined();
     const parsed = JSON.parse(result.content[0].text);
-    expect(parsed.blockStorageMapping[0].order).toBe("0 (boot)");
-    expect(parsed.blockStorageMapping[0].volumeType).toBe("CB2");
+    // 프리뷰는 평탄화된 최종 전송 파라미터명을 그대로 보여준다(B-8).
+    expect(parsed.requestParams["blockStorageMappingList.1.order"]).toBe(0);
+    expect(parsed.requestParams["blockStorageMappingList.1.blockStorageVolumeTypeCode"]).toBe("CB2");
     requestSpy.mockRestore();
   });
 });

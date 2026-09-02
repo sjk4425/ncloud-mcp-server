@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerImageOptimizerTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Query Tools ───────────────────────────────────────────────────
@@ -49,19 +50,6 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the project"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Image Optimizer Project Creation",
-          projectName: params.projectName,
-          bucketName: params.bucketName,
-          createCdn: params.createCdn,
-          cdnProfileId: params.cdnProfileId,
-          cdnRegionType: params.cdnRegionType,
-          message: dryRunMessage({ ko: "프로젝트", en: "project" }),
-        };
-        return preview;
-      }
-
       const body: any = {
         projectName: params.projectName,
         bucketName: params.bucketName,
@@ -74,6 +62,16 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
           cdnInstanceNo: params.cdnInstanceNo,
         },
       };
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Image Optimizer Project Creation",
+          endpoint: "/api/v2/projects",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "프로젝트", en: "project" },
+        });
+      }
 
       const result = await client.postRequest("/api/v2/projects", body);
       const project = result?.content || result;
@@ -140,22 +138,6 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the rule"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Image Optimizer Rule Creation",
-          projectId: params.projectId,
-          ruleName: params.ruleName,
-          resizeType: params.resizeType,
-          width: params.width,
-          height: params.height,
-          quality: params.quality,
-          format: params.format,
-          autorotate: params.autorotate,
-          message: dryRunMessage({ ko: "규칙", en: "rule" }),
-        };
-        return preview;
-      }
-
       const body: any = {
         ruleName: params.ruleName,
         autorotate: params.autorotate,
@@ -165,6 +147,16 @@ export function registerImageOptimizerTools(server: McpServer, client: NcloudCli
       if (params.height) body.height = params.height;
       if (params.quality) body.quality = params.quality;
       if (params.format) body.format = params.format;
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Image Optimizer Rule Creation",
+          endpoint: `/api/v2/projects/${params.projectId}/rules`,
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "규칙", en: "rule" },
+        });
+      }
 
       const result = await client.postRequest(`/api/v2/projects/${params.projectId}/rules`, body);
       const summary = {

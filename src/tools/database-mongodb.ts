@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabaseMongodbTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -94,23 +95,16 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: MongoDB Instance Creation",
-          cloudMongoDbServiceName: params.cloudMongoDbServiceName,
-          cloudMongoDbServerNamePrefix: params.cloudMongoDbServerNamePrefix,
-          clusterTypeCode: params.clusterTypeCode,
-          vpcNo: params.vpcNo,
-          subnetNo: params.subnetNo,
-          cloudMongoDbUserName: params.cloudMongoDbUserName,
-          memberServerCount: params.memberServerCount,
-          shardCount: params.shardCount,
-          message: dryRunMessage({ ko: "MongoDB 인스턴스", en: "MongoDB instance" }),
-        };
-        return preview;
+          endpoint: "/vmongodb/v2/createCloudMongoDbInstance",
+          requestParams: apiParams,
+          noun: { ko: "MongoDB 인스턴스", en: "MongoDB instance" },
+        });
       }
 
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vmongodb/v2/createCloudMongoDbInstance", apiParams);
       const instance = result.cloudMongoDbInstanceList?.[0];
       const summary = {

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * SourceCommit API Tools
@@ -85,26 +85,22 @@ export function registerSourceCommitTools(server: McpServer, client: NcloudClien
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the repository"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: SourceCommit Repository Creation",
-          repositoryName: params.name,
-          description: params.description ?? "(none)",
-          linked: {
-            FileSafer: params.fileSafer ?? false,
-            ObjectStorage: params.objectStorage ?? false,
-          },
-          message: dryRunMessage({ ko: "저장소", en: "repository" }),
-        };
-        return preview;
-      }
-
       const body: Record<string, unknown> = { name: params.name };
       if (params.description !== undefined) body.description = params.description;
       const linked: Record<string, boolean> = {};
       if (params.fileSafer !== undefined) linked.FileSafer = params.fileSafer;
       if (params.objectStorage !== undefined) linked.ObjectStorage = params.objectStorage;
       if (Object.keys(linked).length > 0) body.linked = linked;
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: SourceCommit Repository Creation",
+          endpoint: "/api/v1/repository",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "저장소", en: "repository" },
+        });
+      }
 
       const result = await client.requestRaw("POST", "/api/v1/repository", undefined, body);
       const summary = {

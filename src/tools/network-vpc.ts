@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { cidrMessage, dryRunMessage, maxLenMessage, requiredError } from "./_messages.js";
+import { cidrMessage, maxLenMessage, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerVpcTools(server: McpServer, client: NcloudClient): void {
   // ─── VPC Query Tools ───────────────────────────────────────────────────────
@@ -51,17 +52,16 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the VPC"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: VPC Creation",
-          ipv4CidrBlock: params.ipv4CidrBlock,
-          vpcName: params.vpcName ?? "(auto-generated)",
-          message: dryRunMessage({ ko: "VPC", en: "VPC" }),
-        };
-        return preview;
+          endpoint: "/vpc/v2/createVpc",
+          requestParams: apiParams,
+          noun: { ko: "VPC", en: "VPC" },
+        });
       }
 
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vpc/v2/createVpc", apiParams);
       const instance = result.vpcList?.[0];
       const summary = {
@@ -157,22 +157,16 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the subnet"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Subnet Creation",
-          vpcNo: params.vpcNo,
-          subnet: params.subnet,
-          zoneCode: params.zoneCode,
-          networkAclNo: params.networkAclNo,
-          subnetTypeCode: params.subnetTypeCode,
-          subnetName: params.subnetName ?? "(auto-generated)",
-          usageTypeCode: params.usageTypeCode ?? "GEN",
-          message: dryRunMessage({ ko: "서브넷", en: "subnet" }),
-        };
-        return preview;
+          endpoint: "/vpc/v2/createSubnet",
+          requestParams: apiParams,
+          noun: { ko: "서브넷", en: "subnet" },
+        });
       }
 
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vpc/v2/createSubnet", apiParams);
       const instance = result.subnetList?.[0];
       const summary = {

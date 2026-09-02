@@ -140,7 +140,7 @@ describe("Sub Account tools — Ncloud Sub Account API 대조 수정분", () => 
 
       expect(spy).not.toHaveBeenCalled();
       expect(parsed(result).ignoredParams).toHaveProperty("isMyAccount");
-      expect(parsed(result).request).not.toHaveProperty("isMyAccount");
+      expect(parsed(result).requestParams).not.toHaveProperty("isMyAccount");
     });
   });
 
@@ -250,7 +250,7 @@ describe("Sub Account tools — Ncloud Sub Account API 대조 수정분", () => 
       const result = await handler({ policyName: "poc-viewer", permissions, dryRun: true }, {} as any);
 
       expect(spy).not.toHaveBeenCalled();
-      expect(parsed(result).request.policyName).toBe("poc-viewer");
+      expect(parsed(result).requestParams.policyName).toBe("poc-viewer");
       expect(parsed(result).hint).toContain("ncloud_validate_policy");
     });
 

@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, dryRunMessage, requiredError } from "./_messages.js";
+import { L, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * NKS (Ncloud Kubernetes Service) API Tools
@@ -152,18 +153,20 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       }
       // ─── End pre-validation ───────────────────────────────────────────────
 
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...body } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: NKS Cluster Creation",
-          ...params,
-          dryRun: undefined,
-          message: dryRunMessage({ ko: "클러스터", en: "cluster" }),
-          ...(isG3 ? { g3Validation: L({ ko: "✅ G3/KVM 필수 파라미터 검증 통과", en: "✅ G3/KVM required-parameter validation passed" }) } : {}),
-        };
-        return preview;
+          endpoint: "/vnks/v2/clusters",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "클러스터", en: "cluster" },
+          notes: isG3
+            ? { g3Validation: L({ ko: "✅ G3/KVM 필수 파라미터 검증 통과", en: "✅ G3/KVM required-parameter validation passed" }) }
+            : {},
+        });
       }
 
-      const { dryRun, ...body } = params;
       const result = await client.requestRaw("POST", "/vnks/v2/clusters", undefined, body);
       return result;
     }
@@ -451,11 +454,17 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, preview only"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = { label: "🔍 Dry-Run Preview: Node Pool Creation", ...params, dryRun: undefined, message: dryRunMessage({ ko: "노드풀", en: "node pool" }) };
-        return preview;
-      }
       const { clusterUuid, dryRun, ...body } = params;
+      if (dryRun) {
+        // clusterUuid는 경로 세그먼트라 본문에 들어가지 않는다 — 프리뷰도 본문만 보여준다.
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Node Pool Creation",
+          endpoint: `/vnks/v2/clusters/${clusterUuid}/node-pool`,
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "노드풀", en: "node pool" },
+        });
+      }
       const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/node-pool`, undefined, body);
       return result;
     }
@@ -798,12 +807,14 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     },
     async (params) => {
       if (params.dryRun) {
-        return {
+        // 요청 바디는 최상위 JSON 배열이며 clusterUuid는 경로 세그먼트다.
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: NKS Add-on Installation",
-          clusterUuid: params.clusterUuid,
-          addons: params.addons,
-          message: dryRunMessage({ ko: "애드온", en: "add-on" }),
-        };
+          endpoint: `/vnks/v2/clusters/${params.clusterUuid}/addons`,
+          method: "POST",
+          requestParams: params.addons,
+          noun: { ko: "애드온", en: "add-on" },
+        });
       }
       // 요청 바디는 최상위 JSON 배열(객체 래핑 아님).
       const result = await client.requestRaw("POST", `/vnks/v2/clusters/${params.clusterUuid}/addons`, undefined, params.addons);

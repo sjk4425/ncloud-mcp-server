@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * Data Flow API Tools
@@ -131,21 +131,19 @@ export function registerDataFlowTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "Dry-Run Preview: Data Flow Workflow Creation",
-          name: params.name,
-          description: params.description ?? "(not set)",
-          nodeCount: params.nodes?.length ?? 0,
-          edgeCount: params.edges?.length ?? 0,
-          message: dryRunMessage({ ko: "워크플로", en: "workflow" }),
-        };
-        return preview;
-      }
       const body: Record<string, any> = { name: params.name };
       if (params.description !== undefined) body.description = params.description;
       if (params.nodes !== undefined) body.nodes = params.nodes;
       if (params.edges !== undefined) body.edges = params.edges;
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Data Flow Workflow Creation",
+          endpoint: "/api/v1/workflows",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "워크플로", en: "workflow" },
+        });
+      }
       const result = await client.requestRaw("POST", "/api/v1/workflows", undefined, body);
       return result;
     }
@@ -264,21 +262,19 @@ export function registerDataFlowTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "Dry-Run Preview: Data Flow Job Creation",
-          name: params.name,
-          description: params.description ?? "(not set)",
-          workflowId: params.workflowId ?? "(not set)",
-          options: params.options ?? {},
-          message: dryRunMessage({ ko: "작업", en: "job" }),
-        };
-        return preview;
-      }
       const body: Record<string, any> = { name: params.name };
       if (params.description !== undefined) body.description = params.description;
       if (params.workflowId !== undefined) body.workflowId = params.workflowId;
       if (params.options !== undefined) body.options = params.options;
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Data Flow Job Creation",
+          endpoint: "/api/v1/jobs",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "작업", en: "job" },
+        });
+      }
       const result = await client.requestRaw("POST", "/api/v1/jobs", undefined, body);
       return result;
     }
@@ -441,19 +437,6 @@ export function registerDataFlowTools(
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "Dry-Run Preview: Data Flow Trigger Creation",
-          name: params.name,
-          description: params.description ?? "(not set)",
-          jobId: params.jobId,
-          type: params.type ?? "(not set)",
-          schedule: params.schedule ?? "(not set)",
-          enabled: params.enabled ?? true,
-          message: dryRunMessage({ ko: "트리거", en: "trigger" }),
-        };
-        return preview;
-      }
       const body: Record<string, any> = {
         name: params.name,
         jobId: params.jobId,
@@ -462,6 +445,15 @@ export function registerDataFlowTools(
       if (params.type !== undefined) body.type = params.type;
       if (params.schedule !== undefined) body.schedule = params.schedule;
       if (params.enabled !== undefined) body.enabled = params.enabled;
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Data Flow Trigger Creation",
+          endpoint: "/api/v1/triggers",
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "트리거", en: "trigger" },
+        });
+      }
       const result = await client.requestRaw("POST", "/api/v1/triggers", undefined, body);
       return result;
     }

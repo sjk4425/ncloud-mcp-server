@@ -84,7 +84,8 @@ describe("NCR create_registry: storageType (2026-06 API 변경)", () => {
 
     expect(spy).not.toHaveBeenCalled();
     const data = JSON.parse(result.content[0].text);
-    expect(data.storageType).toBe("ncloudStorage");
+    expect(data.requestParams.storageType).toBe("ncloudStorage");
+    expect(data.endpoint).toBe("/ncr/api/v2/repositories/my-reg");
     expect(data.label).toMatch(/Dry-Run/);
     spy.mockRestore();
   });

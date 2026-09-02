@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError, L } from "./_messages.js";
+import { requiredError, L } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerContainersRegistryTools(server: McpServer, client: NcloudClient): void {
   // ─── Registry Query Tools ──────────────────────────────────────────────────
@@ -59,20 +60,22 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
         );
       }
 
-      if (params.dryRun) {
-        return {
-          label: "🔍 Dry-Run Preview: Container Registry Creation",
-          registryName: params.registryName,
-          storageType,
-          ...(storageType === "objectStorage" ? { bucket: params.bucket } : {}),
-          message: dryRunMessage({ ko: "레지스트리", en: "registry" }),
-        };
-      }
-
       // 공식 스펙: POST /ncr/api/v2/repositories/{registry} + JSON body (storageType/bucket).
       // ncloudStorage일 때 bucket은 무시되므로 body에 포함하지 않는다.
       const body: Record<string, string> = { storageType };
       if (storageType === "objectStorage" && params.bucket) body.bucket = params.bucket;
+
+      if (params.dryRun) {
+        // registryName은 경로 세그먼트라 본문에 들어가지 않는다.
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Container Registry Creation",
+          endpoint: `/ncr/api/v2/repositories/${encodeURIComponent(params.registryName)}`,
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "레지스트리", en: "registry" },
+        });
+      }
+
       await client.requestRaw(
         "POST",
         `/ncr/api/v2/repositories/${encodeURIComponent(params.registryName)}`,

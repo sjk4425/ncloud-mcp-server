@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, maxLenMessage, requiredError } from "./_messages.js";
+import { maxLenMessage, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerAutoScalingTools(server: McpServer, client: NcloudClient): void {
   // ─── Launch Configuration Query Tools ──────────────────────────────────────
@@ -58,20 +59,15 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Launch Configuration Creation",
-          serverImageProductCode: params.serverImageProductCode,
-          serverProductCode: params.serverProductCode,
-          launchConfigurationName: params.launchConfigurationName ?? "(auto-generated)",
-          loginKeyName: params.loginKeyName ?? "(none)",
-          initScriptNo: params.initScriptNo ?? "(none)",
-          isEncryptedVolume: params.isEncryptedVolume ?? false,
-          message: dryRunMessage({ ko: "런치 설정", en: "launch configuration" }),
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Launch Configuration Creation",
+          endpoint: "/vautoscaling/v2/createLaunchConfiguration",
+          requestParams: apiParams,
+          noun: { ko: "런치 설정", en: "launch configuration" },
+        });
+      }
       const result = await client.request("/vautoscaling/v2/createLaunchConfiguration", apiParams);
       return result;
     }
@@ -160,22 +156,15 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Auto Scaling Group Creation",
-          launchConfigurationNo: params.launchConfigurationNo,
-          autoScalingGroupName: params.autoScalingGroupName ?? "(auto-generated)",
-          subnetNoList: params.subnetNoList,
-          minSize: params.minSize,
-          maxSize: params.maxSize,
-          desiredCapacity: params.desiredCapacity ?? params.minSize,
-          healthCheckTypeCode: params.healthCheckTypeCode ?? "SVR",
-          targetGroupNoList: params.targetGroupNoList ?? [],
-          message: dryRunMessage({ ko: "Auto Scaling Group", en: "Auto Scaling Group" }),
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Auto Scaling Group Creation",
+          endpoint: "/vautoscaling/v2/createAutoScalingGroup",
+          requestParams: apiParams,
+          noun: { ko: "Auto Scaling Group", en: "Auto Scaling Group" },
+        });
+      }
       const result = await client.request("/vautoscaling/v2/createAutoScalingGroup", apiParams);
       return result;
     }

@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, dryRunMessage, requiredError } from "./_messages.js";
+import { L, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /** 태그 맵(리소스당 최대 20개). Sub Account API는 tags를 `{key: value}` Map으로 받는다. */
 const TAGS_SCHEMA = z
@@ -148,21 +149,17 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the sub account"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...bodyParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Sub Account Creation",
-          loginId: params.loginId,
-          name: params.name,
-          email: params.email ?? "(none)",
-          canAPIGatewayAccess: params.canAPIGatewayAccess,
-          canConsoleAccess: params.canConsoleAccess,
-          needPasswordReset: params.needPasswordReset,
-          message: dryRunMessage({ ko: "서브 계정", en: "sub account" }),
-        };
-        return preview;
+          endpoint: "/api/v1/sub-accounts",
+          method: "POST",
+          requestParams: bodyParams,
+          noun: { ko: "서브 계정", en: "sub account" },
+        });
       }
 
-      const { dryRun, ...bodyParams } = params;
       const result = await client.requestRaw("POST", "/api/v1/sub-accounts", undefined, bodyParams);
       return result;
     }
@@ -288,10 +285,13 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       if (params.tags !== undefined) bodyParams.tags = params.tags;
 
       if (params.dryRun) {
-        const preview = {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: IAM Group Creation",
-          request: bodyParams,
-          ...(params.groupDescription !== undefined
+          endpoint: "/api/v1/groups",
+          method: "POST",
+          requestParams: bodyParams,
+          noun: { ko: "그룹", en: "group" },
+          notes: params.groupDescription !== undefined
             ? {
                 ignoredParams: {
                   groupDescription: L({
@@ -300,10 +300,8 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
                   }),
                 },
               }
-            : {}),
-          message: dryRunMessage({ ko: "그룹", en: "group" }),
-        };
-        return preview;
+            : {},
+        });
       }
 
       const result = await client.requestRaw("POST", "/api/v1/groups", undefined, bodyParams);
@@ -432,15 +430,19 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       if (params.tags !== undefined) bodyParams.tags = params.tags;
 
       if (params.dryRun) {
-        return {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: IAM Policy Creation",
-          request: bodyParams,
-          hint: L({
-            ko: "서버측 유효성 검증이 필요하면 ncloud_validate_policy를 호출하세요(실제 검증 API).",
-            en: "For real server-side validation, call ncloud_validate_policy (the actual validation API).",
-          }),
-          message: dryRunMessage({ ko: "정책", en: "policy" }),
-        };
+          endpoint: "/api/v1/policies",
+          method: "POST",
+          requestParams: bodyParams,
+          noun: { ko: "정책", en: "policy" },
+          notes: {
+            hint: L({
+              ko: "서버측 유효성 검증이 필요하면 ncloud_validate_policy를 호출하세요(실제 검증 API).",
+              en: "For real server-side validation, call ncloud_validate_policy (the actual validation API).",
+            }),
+          },
+        });
       }
 
       return client.requestRaw("POST", "/api/v1/policies", undefined, bodyParams);
@@ -663,10 +665,13 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
       if (params.tags !== undefined) bodyParams.tags = params.tags;
 
       if (params.dryRun) {
-        const preview = {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: IAM Role Creation",
-          request: bodyParams,
-          ...(params.isMyAccount !== undefined
+          endpoint: "/api/v1/roles",
+          method: "POST",
+          requestParams: bodyParams,
+          noun: { ko: "역할", en: "role" },
+          notes: params.isMyAccount !== undefined
             ? {
                 ignoredParams: {
                   isMyAccount: L({
@@ -675,10 +680,8 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
                   }),
                 },
               }
-            : {}),
-          message: dryRunMessage({ ko: "역할", en: "role" }),
-        };
-        return preview;
+            : {},
+        });
       }
 
       const result = await client.requestRaw("POST", "/api/v1/roles", undefined, bodyParams);

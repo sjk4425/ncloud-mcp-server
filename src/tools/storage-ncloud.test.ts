@@ -76,7 +76,8 @@ describe("Ncloud Storage: 스토리지 클래스 (ONEZONE_IA 추가)", () => {
     );
 
     expect(spy).not.toHaveBeenCalled();
-    expect(JSON.parse(result.content[0].text).storageClass).toBe("DEEP_ARCHIVE");
+    // 스토리지 클래스는 x-amz-storage-class 헤더로 나간다 — 프리뷰도 헤더로 보여준다(B-8).
+    expect(JSON.parse(result.content[0].text).requestParams.headers["x-amz-storage-class"]).toBe("DEEP_ARCHIVE");
     spy.mockRestore();
   });
 

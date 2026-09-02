@@ -3,7 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { defineTool } from "./_tool.js";
-import { L, deletedMessage, dryRunMessage, requiredError } from "./_messages.js";
+import { L, deletedMessage, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -290,13 +291,14 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     },
     async (params) => {
       if (params.dryRun) {
-        const preview = {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: Bucket Creation",
-          bucketName: params.bucketName,
-          region: client.getRegionCode(),
-          message: dryRunMessage({ ko: "버킷", en: "bucket" }),
-        };
-        return preview;
+          endpoint: `/${params.bucketName}`,
+          method: "PUT",
+          requestParams: { bucket: params.bucketName },
+          noun: { ko: "버킷", en: "bucket" },
+          notes: { region: client.getRegionCode() },
+        });
       }
       await client.request({ method: "PUT", bucket: params.bucketName });
       const summary = {
@@ -411,21 +413,24 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually uploading"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Object Upload",
-          bucketName: params.bucketName,
-          key: params.key,
-          contentType: params.contentType ?? "application/octet-stream",
-          bodySize: `${params.body.length} bytes`,
-          message: dryRunMessage({ ko: "오브젝트", en: "object" }, "upload"),
-        };
-        return preview;
-      }
-
       const headers: Record<string, string> = {};
       if (params.contentType) {
         headers["content-type"] = params.contentType;
+      }
+
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Object Upload",
+          endpoint: `/${params.bucketName}/${params.key}`,
+          method: "PUT",
+          requestParams: { bucket: params.bucketName, key: params.key, headers },
+          noun: { ko: "오브젝트", en: "object" },
+          verb: "upload",
+          notes: {
+            bodySize: `${params.body.length} bytes`,
+            ...(params.contentType ? {} : { note_contentType: "(no content-type header sent — the server applies its default)" }),
+          },
+        });
       }
 
       await client.request({

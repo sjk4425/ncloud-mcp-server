@@ -242,7 +242,8 @@ describe("Data Catalog tools — 공식 API 문서 대조 수정분", () => {
       const result = await handler({ ...objectStorage, dryRun: true }, {} as any);
 
       expect(spy).not.toHaveBeenCalled();
-      expect(parsed(result).endpoint).toBe("POST /api/v1/catalogs/4/scanners");
+      expect(parsed(result).endpoint).toBe("/api/v1/catalogs/4/scanners");
+      expect(parsed(result).method).toBe("POST");
       expect(parsed(result).note).toContain("run_scanner");
     });
   });

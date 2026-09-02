@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerNetworkInterfaceTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -62,18 +62,15 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
-          label: "🔍 Dry-Run Preview: Network Interface Creation",
-          subnetNo: params.subnetNo,
-          accessControlGroupNoList: params.accessControlGroupNoList,
-          networkInterfaceName: params.networkInterfaceName ?? "(auto-generated)",
-          privateIp: params.privateIp ?? "(auto-assigned)",
-          message: dryRunMessage({ ko: "네트워크 인터페이스", en: "network interface" }),
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Network Interface Creation",
+          endpoint: "/vserver/v2/createNetworkInterface",
+          requestParams: apiParams,
+          noun: { ko: "네트워크 인터페이스", en: "network interface" },
+        });
+      }
       const result = await client.request("/vserver/v2/createNetworkInterface", apiParams);
       return result;
     }

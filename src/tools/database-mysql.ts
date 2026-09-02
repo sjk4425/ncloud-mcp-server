@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage, requiredError } from "./_messages.js";
+import { requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -225,31 +226,16 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const preview = {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: MySQL Instance Creation",
-          cloudMysqlServiceName: params.cloudMysqlServiceName,
-          cloudMysqlServerNamePrefix: params.cloudMysqlServerNamePrefix,
-          cloudMysqlUserName: params.cloudMysqlUserName,
-          hostIp: params.hostIp,
-          vpcNo: params.vpcNo,
-          subnetNo: params.subnetNo,
-          cloudMysqlDatabaseName: params.cloudMysqlDatabaseName,
-          isHa: params.isHa ?? true,
-          isMultiZone: params.isMultiZone ?? false,
-          standbyMasterSubnetNo: params.standbyMasterSubnetNo ?? "(not set)",
-          dataStorageTypeCode: params.dataStorageTypeCode ?? "(auto)",
-          isStorageEncryption: params.isStorageEncryption ?? false,
-          isBackup: params.isBackup ?? true,
-          cloudMysqlPort: params.cloudMysqlPort ?? 3306,
-          engineVersionCode: params.engineVersionCode ?? "(latest)",
-          isDeleteProtection: params.isDeleteProtection ?? false,
-          message: dryRunMessage({ ko: "MySQL 인스턴스", en: "MySQL instance" }),
-        };
-        return preview;
+          endpoint: "/vmysql/v2/createCloudMysqlInstance",
+          requestParams: apiParams,
+          noun: { ko: "MySQL 인스턴스", en: "MySQL instance" },
+        });
       }
 
-      const { dryRun, ...apiParams } = params;
       const result = await client.request("/vmysql/v2/createCloudMysqlInstance", apiParams);
       const instance = result.cloudMysqlInstanceList?.[0];
       const summary = {

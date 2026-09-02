@@ -50,7 +50,9 @@ describe("NKS Add-on Manager tools", () => {
     expect(spy).not.toHaveBeenCalled();
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.label).toContain("Dry-Run");
-    expect(parsed.addons[0].addonName).toBe("external-dns");
+    // 요청 바디는 최상위 배열이므로 requestParams 자체가 addons 배열이다.
+    expect(parsed.requestParams[0].addonName).toBe("external-dns");
+    expect(parsed.endpoint).toBe("/vnks/v2/clusters/uuid-1/addons");
     spy.mockRestore();
   });
 

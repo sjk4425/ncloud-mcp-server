@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { dryRunMessage } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerSourceDeployTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Tools ─────────────────────────────────────────────────────────
@@ -36,12 +36,13 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     },
     async (params) => {
       if (params.dryRun) {
-        const preview = {
+        return dryRunPreview({
           label: "🔍 Dry-Run Preview: SourceDeploy Project Creation",
-          projectName: params.name,
-          message: dryRunMessage({ ko: "배포 프로젝트", en: "deployment project" }),
-        };
-        return preview;
+          endpoint: "/api/v1/project",
+          method: "POST",
+          requestParams: { name: params.name },
+          noun: { ko: "배포 프로젝트", en: "deployment project" },
+        });
       }
       const result = await client.requestRaw("POST", "/api/v1/project", undefined, { name: params.name });
       return result;
