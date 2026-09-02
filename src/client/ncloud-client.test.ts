@@ -948,6 +948,93 @@ describe("NcloudClient 단위 테스트: 읽기 전용 5xx/네트워크 재시�
   });
 });
 
+// ─── analytics 봉투: HTTP 200 + code != 0 (5차 회차 신규 결함) ────────────────────
+describe("NcloudClient 단위 테스트: analytics 봉투의 HTTP 200 거부", () => {
+  let client: NcloudClient;
+  beforeEach(() => {
+    client = new NcloudClient({
+      accessKey: "testKey",
+      secretKey: "testSecret",
+      baseUrl: "https://clouddatastreamingservice.apigw.ntruss.com",
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("200 + { code: 3, message, result: null } 을 에러로 올린다", async () => {
+    // CDSS의 range 위반 실측 형태. 이전에는 response.ok 라서 정상 결과로 통과했다.
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+      code: 3,
+      message: "numPartitions has an error : 값이 유효 범위에 해당하지 않습니다.",
+      result: null,
+    })));
+
+    await expect(
+      client.requestRaw("POST", "/api/v1/configGroup/setKafkaConfigGroupDetail/1695", undefined, {})
+    ).rejects.toThrow("numPartitions");
+  });
+
+  it("에러 코드로 HTTP status(200)가 아니라 봉투의 code 를 쓴다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+      code: 3, message: "boom", result: null,
+    })));
+
+    // "에러 코드: 200" 으로 표시되면 원인 추적이 어긋난다.
+    const err = await client
+      .requestRaw("POST", "/api/v1/x", undefined, {})
+      .catch((e: Error) => e);
+    expect(String(err)).toContain("3");
+    expect(String(err)).not.toContain("200");
+  });
+
+  it("code: 0 은 성공이다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+      code: 0, message: "SUCCESS", result: { configGroupNo: 1695 },
+    })));
+
+    const out = await client.requestRaw("POST", "/api/v1/x", undefined, {});
+    expect(out.code).toBe(0);
+  });
+
+  // ─── 오탐 방지: 아래는 모두 통과해야 한다 (판정을 의도적으로 좁게 뒀다) ───
+
+  it("문자열 code 체계는 건드리지 않는다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+      code: "0000", message: "OK", result: null,
+    })));
+
+    const out = await client.requestRaw("GET", "/api/v1/x");
+    expect(out.code).toBe("0000");
+  });
+
+  it("result 에 데이터가 있으면 에러로 올리지 않는다", async () => {
+    // code 를 상태값이 아닌 다른 의미로 쓰는 서비스를 깨뜨리지 않기 위한 안전장치.
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+      code: 200, message: "OK", result: { items: [] },
+    })));
+
+    const out = await client.requestRaw("GET", "/api/v1/x");
+    expect(out.result.items).toEqual([]);
+  });
+
+  it("message 가 없으면 에러로 올리지 않는다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ code: 7, result: null })));
+
+    const out = await client.requestRaw("GET", "/api/v1/x");
+    expect(out.code).toBe(7);
+  });
+
+  it("code 가 없는 일반 Ncloud 응답에는 영향이 없다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({
+      getServerInstanceListResponse: { returnCode: "0", totalRows: 0 },
+    })));
+
+    const out = await client.request("/vserver/v2/getServerInstanceList", {});
+    expect(out.returnCode).toBe("0");
+  });
+});
+
 // ─── 에러 메시지 i18n (v1.6.0 Task 6, DESIGN_post-1.4.0 §6) ────────────────────
 describe("NcloudClient 단위 테스트: 에러 메시지 i18n (NCLOUD_LANG)", () => {
   let client: NcloudClient;

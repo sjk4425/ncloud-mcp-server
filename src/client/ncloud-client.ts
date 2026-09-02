@@ -130,10 +130,34 @@ export class NcloudClient {
     } catch {
       throw new Error(messages().parseFailure(status, responseText.substring(0, 500)));
     }
-    if (!ok || body.error || body.responseError) {
+    if (!ok || body.error || body.responseError || this.isAnalyticsEnvelopeError(body)) {
       this.handleErrorResponse(status, body);
     }
     return this.unwrapResponse(body);
+  }
+
+  /**
+   * analytics 계열(SES·CDSS 등)은 `{ code, message, result, requestId }` 봉투를 쓰고
+   * **`code: 0`이 성공**이다. 그런데 일부 거부는 HTTP 200으로 온다 — 예를 들어 CDSS의
+   * `range` 위반은 `200 { code: 3, message: "numPartitions has an error : …", result: null }`이다.
+   * `response.ok`만 보면 이런 거부가 정상 결과로 통과해 `isError` 없이 성공처럼 보인다
+   * (5차 회차 신규 결함). 같은 계열의 다른 거부는 400/500으로 와서 정상 처리되므로
+   * 실패 표시가 응답 형태에 따라 갈리는 상태였다.
+   *
+   * **의도적으로 좁게 판정한다.** 이 클라이언트는 모든 서비스가 공유하므로, 성급히 넓히면
+   * 정상 응답을 에러로 만든다. 그래서 실측된 거부 형태와 정확히 일치할 때만 에러로 올린다:
+   *  - `code`가 **숫자**이고 0이 아니다 (`"0000"` 같은 문자열 코드 체계를 건드리지 않는다)
+   *  - `message`가 비어있지 않은 문자열이다
+   *  - `result`가 명시적으로 `null`/`undefined`다 (데이터를 담아 돌아온 성공 응답을 배제)
+   *
+   * 따라서 `code`가 0이 아니면서 `result`에 값이 있는 거부는 여전히 통과한다 — 알려진 한계이며,
+   * 오탐을 만드는 것보다 낫다고 판단했다.
+   */
+  private isAnalyticsEnvelopeError(body: any): boolean {
+    if (body === null || typeof body !== "object") return false;
+    if (typeof body.code !== "number" || body.code === 0) return false;
+    if (typeof body.message !== "string" || body.message.length === 0) return false;
+    return body.result === null || body.result === undefined;
   }
 
   private buildAuthHeaders(method: string, url: string): Record<string, string> {
@@ -295,7 +319,14 @@ export class NcloudClient {
       throw new Error(msg.apiFailure(returnCode, returnMessage));
     }
 
-    // Format 3: REST/Spring식 플랫 에러 — { message, (statusCode|status|error) }
+    // Format 3: analytics 계열 봉투 — { code, message, result }. `code`가 서비스 에러 코드다.
+    // Format 4보다 먼저 둔다: 아래 분기는 코드가 없으면 HTTP status를 쓰는데, 이 계열은
+    // HTTP 200으로 오는 거부가 있어 "에러 코드: 200"이라는 오해를 부른다.
+    if (this.isAnalyticsEnvelopeError(body)) {
+      throw new Error(msg.apiFailure(String(body.code), body.message));
+    }
+
+    // Format 4: REST/Spring식 플랫 에러 — { message, (statusCode|status|error) }
     // NKS 계열(예: /vnks/v2/addon-configs)이 이 형태. body.error가 문자열("Bad Request")이라
     // Format 1에서 객체로 구조분해하면 errorCode/message가 undefined가 되던 문제를 여기서 처리한다.
     if (typeof body.message === "string" && body.message.length > 0) {
