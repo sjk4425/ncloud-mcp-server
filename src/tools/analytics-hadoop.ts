@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 /**
  * Cloud Hadoop (VPC) — 빅데이터 분석 관리형 서비스
@@ -175,8 +176,11 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     "List subnets available for Cloud Hadoop deployment",
     {
       regionCode: z.string().optional().describe("Region code"),
-      vpcNo: z.string().optional().describe("VPC number filter"),
-      zoneCode: z.string().optional().describe("Zone code filter"),
+      // 둘 다 API 필수값이다. 빠지면 900 "Required field is not specified"로 거절된다(B-7).
+      // zoneCode는 이 API의 파라미터가 아니어서 보내도 무시됐다 — 제거했다.
+      vpcNo: z.string().describe("VPC number (from ncloud_hadoop_list_target_vpcs)"),
+      cloudHadoopImageProductCode: z.string().describe("Cluster image product code (from ncloud_hadoop_list_image_products)"),
+      isPublic: z.boolean().optional().describe("true: public subnets only, false: private subnets only"),
     },
     async (params) => {
       return client.request("/vhadoop/v2/getCloudHadoopTargetSubnetList", params);
@@ -290,14 +294,17 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
       dryRun: z.boolean().optional().default(false).describe("Preview without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const { dryRun, ...rest } = params;
-        const preview = { label: "Dry-Run Preview", ...rest, note: "Call with dryRun=false to create." };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Cloud Hadoop Cluster Creation",
+          endpoint: "/vhadoop/v2/createCloudHadoopInstance",
+          requestParams: apiParams,
+          noun: { ko: "Hadoop 클러스터", en: "Hadoop cluster" },
+        });
+      }
       const result = await client.request("/vhadoop/v2/createCloudHadoopInstance", apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -347,7 +354,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vhadoop/v2/deleteCloudHadoopInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Cloud Hadoop cluster [${params.cloudHadoopInstanceNo}]. All data will be lost.\n\nCall again with confirm=true to proceed.` } }
   );
@@ -476,7 +483,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vhadoop/v2/deleteCloudHadoopNotebookInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete notebook [${params.cloudHadoopNotebookInstanceNo}].\n\nCall again with confirm=true to proceed.` } }
   );

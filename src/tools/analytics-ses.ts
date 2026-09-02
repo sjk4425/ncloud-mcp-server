@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { dryRunPreview } from "./_dryrun.js";
+import { L } from "./_messages.js";
 
 /**
  * Search Engine Service (SES) API
@@ -21,6 +23,36 @@ function getApiPrefix(regionCode: string): string {
     case "JPN": return "/api/jpn-v2";
     default: return "/api/v2";
   }
+}
+
+/**
+ * `getClusterServerImageList`(G3 OS 이미지 조회)는 **공식 문서가 명시한 GET 경로대로
+ * 호출해도 API Gateway가 300 Not Found를 반환한다**(2026-09-02 KR 라이브 실측).
+ * 한국어·영어 문서 모두, SES·CDSS 양쪽 모두 같은 경로를 명시하는데 라우트가 없다.
+ *
+ * 이 도구는 G3 이미지 코드의 유일한 출처라서, 막히면 `get_server_specs` ·
+ * `get_subnet_list_g3` · `create_cluster_g3`가 연쇄로 사용 불가가 된다. 원인을
+ * 알 수 없는 채로 300만 던지면 사용자가 자기 입력을 의심하게 되므로, 실패에
+ * 진단과 대안을 붙여 다시 던진다. (`get_server_generations`는 G3를 정상 반환하므로
+ * 계정에 G3가 없어서가 아니다.)
+ */
+function g3ImageListGuidance(error: any): Error {
+  const raw = String(error?.message ?? error);
+  if (!/\b300\b|Not Found/i.test(raw)) return error;
+  return new Error(
+    raw +
+      "\n\n" +
+      L({
+        ko: "진단: 이 엔드포인트는 공식 문서에 GET으로 명시돼 있으나 API Gateway에 라우트가 없어 300을 반환합니다(2026-09-02 KR 실측). " +
+          "계정의 G3 미보유 문제가 아닙니다 — ncloud_ses_get_server_generations는 G3(KVM)를 정상 반환합니다.\n" +
+          "대안: G3 OS 이미지 코드는 콘솔(Search Engine Service > 클러스터 생성)에서 확인해 " +
+          "ncloud_ses_get_server_specs · ncloud_ses_get_subnet_list_g3 에 직접 넣으세요. G2 경로는 정상 동작합니다.",
+        en: "Diagnosis: the official docs specify this endpoint as GET, but the API gateway has no such route and returns 300 (measured live, KR, 2026-09-02). " +
+          "This is not a missing-G3-entitlement problem — ncloud_ses_get_server_generations does return G3 (KVM).\n" +
+          "Workaround: read the G3 OS image code from the console (Search Engine Service > create cluster) and pass it directly to " +
+          "ncloud_ses_get_server_specs / ncloud_ses_get_subnet_list_g3. The G2 path works normally.",
+      })
+  );
 }
 
 export function registerSearchEngineServiceTools(server: McpServer, client: NcloudClient): void {
@@ -44,7 +76,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       if (params.pageNo) queryParams["pageNo"] = params.pageNo;
       if (params.pageSize) queryParams["pageSize"] = params.pageSize;
       const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfoList`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -60,7 +92,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfo/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     }
   );
 
@@ -76,7 +108,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterAcgInfo/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     }
   );
 
@@ -92,7 +124,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterNodeList/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     }
   );
 
@@ -106,7 +138,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async () => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineVersionList`);
-      return result;
+      return result;
     }
   );
 
@@ -120,7 +152,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async () => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineServerGenerationList`);
-      return result;
+      return result;
     }
   );
 
@@ -131,14 +163,18 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     "ncloud_ses_get_node_products",
     "Get available node server types (product codes) for Search Engine Service (G2)",
     {
-      softwareProductCode: z.string().describe("OS product code (from getOsProductList)"),
+      softwareProductCode: z.string().describe("OS product code (from ncloud_ses_get_os_products)"),
+      subnetNo: z.number().describe("Subnet number (from ncloud_ses_get_subnet_list)"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
-      const result = await client.requestRaw("POST", `${prefix}/cluster/getNodeProductList`, undefined, {
+      // GET + 쿼리스트링이다. POST 본문으로 보내면 API Gateway가 라우트를 찾지 못해
+      // 300 Not Found로 거절한다(B-4). subnetNo도 필수 파라미터다.
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeProductList`, {
         softwareProductCode: params.softwareProductCode,
+        subnetNo: params.subnetNo,
       });
-      return result;
+      return result;
     }
   );
 
@@ -147,16 +183,17 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_get_server_specs",
-    "Get available node server types for Search Engine Service (G3/KVM only)",
+    "Get available node server types for Search Engine Service (G3/KVM only). " +
+      "softwareProductCode must be a G3 image code — a G2 code from ncloud_ses_get_os_products is rejected.",
     {
-      softwareProductCode: z.string().describe("OS product code (from getClusterServerImageList)"),
+      softwareProductCode: z.string().describe("G3 OS image code (from ncloud_ses_get_cluster_server_images)"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/getServerSpecList`, undefined, {
         softwareProductCode: params.softwareProductCode,
       });
-      return result;
+      return result;
     }
   );
 
@@ -170,7 +207,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async () => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getOsProductList`);
-      return result;
+      return result;
     }
   );
 
@@ -179,12 +216,21 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_get_cluster_server_images",
-    "Get available OS types for Search Engine Service (G3/KVM only)",
-    {},
-    async () => {
+    "Get available OS types for Search Engine Service (G3/KVM only). " +
+      "⚠️ Known issue: the documented endpoint currently returns 300 Not Found on the live API — " +
+      "read the G3 image code from the console instead. The G2 tool ncloud_ses_get_os_products works.",
+    {
+      generationCode: z.enum(["G3"]).optional().describe("Server generation code. Only G3 (3rd generation) is valid"),
+    },
+    async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
-      const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`);
-      return result;
+      try {
+        return await client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`, {
+          generationCode: params.generationCode,
+        });
+      } catch (error) {
+        throw g3ImageListGuidance(error);
+      }
     }
   );
 
@@ -198,7 +244,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async () => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getVpcList`);
-      return result;
+      return result;
     }
   );
 
@@ -207,14 +253,19 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_get_subnet_list",
-    "Get available subnet list for Search Engine Service cluster creation",
+    "Get available subnet list for Search Engine Service cluster creation (G2)",
     {
-      vpcNo: z.number().describe("VPC number"),
+      softwareProductCode: z.string().describe("OS product code (from ncloud_ses_get_os_products)"),
+      vpcNo: z.number().describe("VPC number (from ncloud_ses_get_vpc_list)"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
-      const result = await client.requestRaw("GET", `${prefix}/cluster/getSubnetList`, { vpcNo: params.vpcNo });
-      return result;
+      // softwareProductCode 없이 호출하면 400 "유효하지 않은 OS 타입입니다"로 거절된다(B-5).
+      const result = await client.requestRaw("GET", `${prefix}/cluster/getSubnetList`, {
+        softwareProductCode: params.softwareProductCode,
+        vpcNo: params.vpcNo,
+      });
+      return result;
     }
   );
 
@@ -225,14 +276,20 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     "ncloud_ses_get_subnet_list_g3",
     "Get available subnet list for Search Engine Service cluster creation (G3/KVM only)",
     {
-      vpcNo: z.number().describe("VPC number"),
+      softwareProductCode: z.string().describe("G3 OS image code (from ncloud_ses_get_cluster_server_images)"),
+      vpcNo: z.number().describe("VPC number (from ncloud_ses_get_vpc_list)"),
+      isPrivate: z.boolean().optional().describe("true: private subnets only, false: public subnets only"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
-      const result = await client.requestRaw("POST", `${prefix}/cluster/getVpcAvailableSubnetList`, undefined, {
+      // G2 경로(B-5)와 같은 결함 — OS 타입 코드 없이는 조회되지 않는다.
+      const body: Record<string, unknown> = {
+        softwareProductCode: params.softwareProductCode,
         vpcNo: params.vpcNo,
-      });
-      return result;
+      };
+      if (params.isPrivate !== undefined) body.isPrivate = params.isPrivate;
+      const result = await client.requestRaw("POST", `${prefix}/cluster/getVpcAvailableSubnetList`, undefined, body);
+      return result;
     }
   );
 
@@ -246,7 +303,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async () => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getLoginKeyList`);
-      return result;
+      return result;
     }
   );
 
@@ -279,19 +336,19 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       dryRun: z.boolean().optional().default(false).describe("If true, preview only without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const { dryRun, ...rest } = params;
-        const preview = {
-          label: "Dry-Run Preview: SES Cluster Creation (G2)",
-          ...rest,
-          message: "This is a dry-run preview. Call again with dryRun=false to create.",
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
       const prefix = getApiPrefix(client.getRegionCode());
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: SES Cluster Creation (G2)",
+          endpoint: `${prefix}/cluster/createSearchEngineCluster`,
+          method: "POST",
+          requestParams: apiParams,
+          noun: { ko: "SES 클러스터", en: "SES cluster" },
+        });
+      }
       const result = await client.requestRaw("POST", `${prefix}/cluster/createSearchEngineCluster`, undefined, apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -324,19 +381,19 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       dryRun: z.boolean().optional().default(false).describe("If true, preview only without creating"),
     },
     async (params) => {
-      if (params.dryRun) {
-        const { dryRun, ...rest } = params;
-        const preview = {
-          label: "Dry-Run Preview: SES Cluster Creation (G3/KVM)",
-          ...rest,
-          message: "This is a dry-run preview. Call again with dryRun=false to create.",
-        };
-        return preview;
-      }
       const { dryRun, ...apiParams } = params;
       const prefix = getApiPrefix(client.getRegionCode());
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: SES Cluster Creation (G3/KVM)",
+          endpoint: `${prefix}/cluster/createKvmSearchEngineCluster`,
+          method: "POST",
+          requestParams: apiParams,
+          noun: { ko: "SES 클러스터", en: "SES cluster" },
+        });
+      }
       const result = await client.requestRaw("POST", `${prefix}/cluster/createKvmSearchEngineCluster`, undefined, apiParams);
-      return result;
+      return result;
     }
   );
 
@@ -352,7 +409,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/restartCluster/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     }
   );
 
@@ -369,7 +426,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("DELETE", `${prefix}/cluster/deleteSearchEngineCluster/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Search Engine Service cluster [${params.serviceGroupInstanceNo}]. All data and indices will be lost.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -390,7 +447,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
         serviceGroupInstanceNo: params.serviceGroupInstanceNo,
         addDataNodeCount: params.addDataNodeCount,
       });
-      return result;
+      return result;
     }
   );
 
@@ -406,7 +463,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeSpecDetail/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     }
   );
 
@@ -424,7 +481,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/changeSpecNode`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -441,7 +498,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/changeClusterNodeDiskSize`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -458,7 +515,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/resetSearchEngineUserPassword`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -474,7 +531,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getDashboard/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     }
   );
 
@@ -497,7 +554,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
       if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
       const result = await client.requestRaw("GET", `${prefix}/cluster/getMonitoringData`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -520,7 +577,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       if (params.startDateTime) queryParams["startDateTime"] = params.startDateTime;
       if (params.endDateTime) queryParams["endDateTime"] = params.endDateTime;
       const result = await client.requestRaw("GET", `${prefix}/cluster/getOsMonitoringData`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -538,7 +595,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotBucketList`, {
         serviceGroupInstanceNo: params.serviceGroupInstanceNo,
       });
-      return result;
+      return result;
     }
   );
 
@@ -554,7 +611,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotApiKey`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -569,7 +626,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/createSnapshot`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -585,7 +642,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       const result = await client.requestRaw("GET", `${prefix}/cluster/getSnapshotHistory`, {
         serviceGroupInstanceNo: params.serviceGroupInstanceNo,
       });
-      return result;
+      return result;
     }
   );
 
@@ -601,7 +658,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/setSnapshotSchedule`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -615,7 +672,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/removeSnapshotSchedule`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -633,7 +690,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       const result = await client.requestRaw("GET", `${prefix}/cluster/getImportBucketList`, {
         serviceGroupInstanceNo: params.serviceGroupInstanceNo,
       });
-      return result;
+      return result;
     }
   );
 
@@ -650,7 +707,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/runImport`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -666,7 +723,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       const result = await client.requestRaw("GET", `${prefix}/cluster/getImportHistory`, {
         serviceGroupInstanceNo: params.serviceGroupInstanceNo,
       });
-      return result;
+      return result;
     }
   );
 
@@ -681,7 +738,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/stopImport`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -698,7 +755,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradeCluster`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -713,7 +770,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradePreCheck`, undefined, params);
-      return result;
+      return result;
     }
   );
 
@@ -727,7 +784,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getRollingUpgradeProgress/${params.serviceGroupInstanceNo}`);
-      return result;
+      return result;
     }
   );
 
@@ -745,7 +802,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/setHotWarmNode`, undefined, params);
-      return result;
+      return result;
     }
   );
 }
