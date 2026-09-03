@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
-import { L } from "./_messages.js";
+import { L, maxLenMessage } from "./_messages.js";
 
 /**
  * Search Engine Service (SES) API
@@ -357,30 +357,58 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_create_cluster_g3",
-    "Create a new Search Engine Service cluster (G3/KVM). Use dryRun=true to preview.",
+    "Create a new Search Engine Service cluster on 3rd-generation KVM servers (G3). " +
+      "Use dryRun=true to preview.",
     {
-      clusterName: z.string().describe("Cluster name (3-15 chars, lowercase+numbers+'-')"),
-      searchEngineVersionCode: z.string().describe("Search engine version code"),
-      searchEngineDashboardPort: z.string().describe("Dashboard port (1025-65534, not 9090/9200/9300)"),
-      searchEngineUserName: z.string().describe("Admin account ID (3-15 chars)"),
-      searchEngineUserPassword: z.string().describe("Admin password (8-20 chars)"),
-      softwareProductCode: z.string().describe("OS type code (from getClusterServerImageList)"),
-      vpcNo: z.number().describe("VPC number"),
-      managerNodeSubnetNo: z.number().describe("Manager node subnet number"),
-      managerNodeServerSpecCode: z.string().describe("Manager node server spec code (from getServerSpecList)"),
+      clusterName: z.string().max(15, {
+        message: maxLenMessage("clusterName", 15),
+      }).describe("Cluster name (3-15 chars: lowercase letters, numbers, '-'; starts with a letter, ends with a letter or number)"),
+      searchEngineVersionCode: z.string().describe("Search engine version code (from ncloud_ses_get_versions)"),
+      searchEngineDashboardPort: z.string().describe("Dashboard port (1025-65534; 9090, 9200 and 9300 are unavailable)"),
+      searchEngineUserName: z.string().describe("Admin account ID (3-15 chars: lowercase letters, numbers, '-')"),
+      searchEngineUserPassword: z.string().describe("Admin password (8-20 chars, letters+numbers+special; excludes ' \" ` ₩ / & and spaces)"),
+      softwareProductCode: z.string().describe("G3 OS image code (see ncloud_ses_get_cluster_server_images; e.g. SW.VELST.OS.LNX64.ROCKY.08.G003)"),
+      // hypervisorCode·generationCode 는 이 API의 필수값인데 스키마에 아예 없었다.
+      hypervisorCode: z.string().describe("Hypervisor code. KVM for 3rd generation"),
+      generationCode: z.string().describe("Server generation code. G3 for 3rd generation"),
+      vpcNo: z.number().describe("VPC number (from ncloud_ses_get_vpc_list)"),
+      managerNodeSubnetNo: z.number().describe("Manager node subnet number (from ncloud_ses_get_subnet_list_g3)"),
+      // API 파라미터는 *ProductCode 다. 예전 스키마의 *ServerSpecCode 세 개는 그대로
+      // 본문에 실려 나가 서버가 필수값 누락으로 거절했다(B-1과 같은 부류).
+      managerNodeProductCode: z.string().describe("Manager node server type code (from ncloud_ses_get_server_specs)"),
       dataNodeSubnetNo: z.number().describe("Data node subnet number"),
-      dataNodeCount: z.number().describe("Number of data nodes (3-10)"),
-      dataNodeServerSpecCode: z.string().describe("Data node server spec code"),
-      dataNodeStorageSize: z.number().describe("Data node storage size in GB (100-2000)"),
-      loginKeyName: z.string().describe("Authentication key name"),
+      dataNodeCount: z.number().min(3).max(10).describe("Number of data nodes (3-10, default: 3)"),
+      dataNodeProductCode: z.string().describe("Data node server type code"),
+      dataNodeStorageSize: z.number().min(100).max(16000).describe("Data node storage in GB (100-16000, 10GB increments)"),
+      dataNodeStorageInfraResourceDetailTypeCode: z.string().optional().describe("Data node storage type code. Documented valid value: CB1"),
+      serverSpecCode: z.string().optional().describe("Server spec code. Optional here, unlike the CDSS G3 create where it is required"),
+      loginKeyName: z.string().describe("Authentication key name (from ncloud_ses_get_login_keys)"),
       isDualManager: z.boolean().optional().describe("Manager node redundancy (default: true)"),
-      isMasterOnlyNodeActivated: z.boolean().optional().describe("Enable dedicated master nodes"),
-      masterNodeSubnetNo: z.number().optional().describe("Master node subnet"),
-      masterNodeCount: z.number().optional().describe("Number of master nodes (3 or 5)"),
-      masterNodeServerSpecCode: z.string().optional().describe("Master node server spec code"),
+      isMasterOnlyNodeActivated: z.boolean().optional().describe("Enable dedicated master nodes. If true, the three masterNode* parameters below are required"),
+      masterNodeSubnetNo: z.number().optional().describe("Master node subnet number. Required when isMasterOnlyNodeActivated=true"),
+      masterNodeCount: z.number().optional().describe("Number of master nodes (3 or 5, default: 3). Required when isMasterOnlyNodeActivated=true"),
+      masterNodeProductCode: z.string().optional().describe("Master node server type code. Required when isMasterOnlyNodeActivated=true"),
       dryRun: z.boolean().optional().default(false).describe("If true, preview only without creating"),
     },
     async (params) => {
+      // 전용 마스터 노드를 켜면 세 값이 조건부 필수가 된다 — 호출 전에 걸러낸다.
+      if (params.isMasterOnlyNodeActivated === true) {
+        const missing = (["masterNodeSubnetNo", "masterNodeCount", "masterNodeProductCode"] as const)
+          .filter((k) => params[k] === undefined);
+        if (missing.length > 0) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: L({
+                ko: `isMasterOnlyNodeActivated=true 이면 다음 값이 필수입니다: ${missing.join(", ")}`,
+                en: `These values are required when isMasterOnlyNodeActivated=true: ${missing.join(", ")}`,
+              }),
+            }],
+            isError: true,
+          };
+        }
+      }
+
       const { dryRun, ...apiParams } = params;
       const prefix = getApiPrefix(client.getRegionCode());
       if (dryRun) {
@@ -464,6 +492,28 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       const prefix = getApiPrefix(client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeSpecDetail/${params.serviceGroupInstanceNo}`);
       return result;
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_ses_get_node_spec_for_change_g3",
+    "Get the server specs a running Search Engine Service cluster's nodes can be changed to (G3/KVM only). " +
+      "The G2 equivalent is ncloud_ses_get_node_spec_detail.",
+    {
+      // CDSS의 같은 이름 오퍼레이션과 형태가 다르다 — SES는 인스턴스 번호가 **경로**에 있고
+      // 본문에 computeInstanceProductCode 가 필수다. CDSS는 본문에 serviceGroupInstanceNo 하나뿐이다.
+      serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment; from ncloud_ses_list_clusters)"),
+      computeInstanceProductCode: z.string().describe("Current node server type code (from ncloud_ses_get_node_spec_detail)"),
+    },
+    async (params) => {
+      const prefix = getApiPrefix(client.getRegionCode());
+      return client.requestRaw(
+        "POST",
+        `${prefix}/cluster/getServerSpecListForSpecChange/${params.serviceGroupInstanceNo}`,
+        undefined,
+        { computeInstanceProductCode: params.computeInstanceProductCode }
+      );
     }
   );
 

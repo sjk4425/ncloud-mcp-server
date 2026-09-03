@@ -133,6 +133,91 @@ describe("SES — 조회 엔드포인트 전송 방식 (B-4/B-5)", () => {
     expect(query).toEqual({ generationCode: "G3" });
     spy.mockRestore();
   });
+
+  it("create_cluster_g3: 노드 코드는 *ProductCode 이고 hypervisor/generation 이 필수다", async () => {
+    const shape = getTool(server, "ncloud_ses_create_cluster_g3").inputSchema.shape;
+    // 예전 스키마의 *ServerSpecCode 세 개는 API에 없는 이름이었다(B-1과 같은 부류).
+    for (const gone of ["managerNodeServerSpecCode", "dataNodeServerSpecCode", "masterNodeServerSpecCode"]) {
+      expect(shape, gone).not.toHaveProperty(gone);
+    }
+    for (const f of ["managerNodeProductCode", "dataNodeProductCode", "hypervisorCode", "generationCode"]) {
+      expect(isRequired(server, "ncloud_ses_create_cluster_g3", f), f).toBe(true);
+    }
+    // 마스터 노드 코드는 조건부라 스키마에서는 optional 이다.
+    expect(isRequired(server, "ncloud_ses_create_cluster_g3", "masterNodeProductCode")).toBe(false);
+
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_ses_create_cluster_g3")(
+      {
+        clusterName: "v1130-ses", searchEngineVersionCode: "2150",
+        searchEngineDashboardPort: "5601", searchEngineUserName: "ncpadmin",
+        searchEngineUserPassword: "pw", softwareProductCode: "SW.VELST.OS.LNX64.ROCKY.08.G003",
+        hypervisorCode: "KVM", generationCode: "G3", vpcNo: 21538,
+        managerNodeSubnetNo: 299510, managerNodeProductCode: "SVR.VELST.HICPU.C002.M004.NET.SSD.B050.G003",
+        dataNodeSubnetNo: 299511, dataNodeCount: 3,
+        dataNodeProductCode: "SVR.VELST.HICPU.C002.M004.NET.SSD.B050.G003",
+        dataNodeStorageSize: 100, loginKeyName: "ksj-key",
+      },
+      {} as any
+    );
+
+    const [method, path, , body] = spy.mock.calls[0];
+    expect(method).toBe("POST");
+    expect(path).toBe("/api/v2/cluster/createKvmSearchEngineCluster");
+    expect(body).toHaveProperty("managerNodeProductCode");
+    expect(body).toHaveProperty("hypervisorCode", "KVM");
+    expect(body).not.toHaveProperty("dryRun");
+    spy.mockRestore();
+  });
+
+  it("create_cluster_g3: 전용 마스터 노드를 켜면 조건부 필수를 사전 검사한다", async () => {
+    const spy = vi.spyOn(client, "requestRaw");
+    const result = await getToolHandler(server, "ncloud_ses_create_cluster_g3")(
+      {
+        clusterName: "v1130-ses", searchEngineVersionCode: "2150",
+        searchEngineDashboardPort: "5601", searchEngineUserName: "ncpadmin",
+        searchEngineUserPassword: "pw", softwareProductCode: "x",
+        hypervisorCode: "KVM", generationCode: "G3", vpcNo: 1,
+        managerNodeSubnetNo: 2, managerNodeProductCode: "p",
+        dataNodeSubnetNo: 3, dataNodeCount: 3, dataNodeProductCode: "p",
+        dataNodeStorageSize: 100, loginKeyName: "k",
+        isMasterOnlyNodeActivated: true,
+      },
+      {} as any
+    );
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("masterNodeProductCode");
+    spy.mockRestore();
+  });
+
+  it("get_node_spec_for_change_g3(신규): 인스턴스 번호는 경로, 본문은 computeInstanceProductCode", async () => {
+    // CDSS의 같은 이름 오퍼레이션과 형태가 다르다 — 복사하면 틀린다.
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_ses_get_node_spec_for_change_g3")(
+      { serviceGroupInstanceNo: "1039123", computeInstanceProductCode: "SVR.VELST.STAND.C002.M008.NET.SSD.B050.G003" },
+      {} as any
+    );
+
+    const [method, path, , body] = spy.mock.calls[0];
+    expect(method).toBe("POST");
+    expect(path).toBe("/api/v2/cluster/getServerSpecListForSpecChange/1039123");
+    expect(body).toEqual({ computeInstanceProductCode: "SVR.VELST.STAND.C002.M008.NET.SSD.B050.G003" });
+    spy.mockRestore();
+  });
+
+  it("SES G3 오퍼레이션 5개가 모두 도구로 존재한다", () => {
+    for (const name of [
+      "ncloud_ses_get_server_specs",                 // getServerSpecList
+      "ncloud_ses_get_cluster_server_images",        // getClusterServerImageList
+      "ncloud_ses_get_subnet_list_g3",               // getVpcAvailableSubnetList
+      "ncloud_ses_create_cluster_g3",                // createKvmSearchEngineCluster
+      "ncloud_ses_get_node_spec_for_change_g3",      // getServerSpecListForSpecChange
+    ]) {
+      expect(() => getTool(server, name), name).not.toThrow();
+    }
+  });
 });
 
 describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
