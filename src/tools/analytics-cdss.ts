@@ -205,6 +205,44 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     }
   );
 
+  defineTool(
+    server,
+    "ncloud_cdss_get_subnet_list_g3",
+    "Get available subnet list for CDSS cluster creation (G3/KVM only)",
+    {
+      // 문서 인덱스의 슬러그는 getavailablesubnetlist 지만 실제 오퍼레이션은
+      // getVpcAvailableSubnetList 다(SES와 같은 이름). getCDSSVersionList 와 같은 패턴 —
+      // 인덱스 슬러그를 op명으로 믿으면 존재하지 않는 경로를 만든다.
+      vpcNo: z.number().describe("VPC number (from ncloud_cdss_get_vpc_list)"),
+      softwareProductCode: z.string().describe("G3 OS image code (see ncloud_cdss_get_cluster_server_images; e.g. SW.VCDSS.OS.LNX64.ROCKY.08.G003)"),
+      isPrivate: z.boolean().optional().describe("true: private subnets only, false: public subnets only"),
+    },
+    async (params) => {
+      const body: Record<string, unknown> = {
+        vpcNo: params.vpcNo,
+        softwareProductCode: params.softwareProductCode,
+      };
+      if (params.isPrivate !== undefined) body.isPrivate = params.isPrivate;
+      return client.postRequest(`${prefix}/cluster/getVpcAvailableSubnetList`, body);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_cdss_get_node_spec_for_change_g3",
+    "Get the server specs a running CDSS cluster's nodes can be changed to (G3/KVM only). " +
+      "The G2 equivalent is ncloud_cdss_get_node_spec.",
+    {
+      serviceGroupInstanceNo: z.number().describe("Cluster instance number (from ncloud_cdss_list_clusters)"),
+    },
+    async (params) => {
+      return client.postRequest(
+        `${prefix}/cluster/getServerSpecListForSpecChange`,
+        { serviceGroupInstanceNo: params.serviceGroupInstanceNo }
+      );
+    }
+  );
+
   // ─── Cluster Create Tool ─────────────────────────────────────────────
 
   defineTool(
@@ -242,6 +280,56 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         `${prefix}/cluster/createCDSSCluster`, apiParams
       );
       return result;
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_cdss_create_cluster_g3",
+    "Create a new CDSS (Kafka) cluster on 3rd-generation KVM servers (G3). " +
+      "⚠️ Broker node parameters are named dataNode* here, not brokerNode* as in the G2 tool. " +
+      "VPC and subnets must be given by BOTH name and number. Use dryRun=true to preview.",
+    {
+      clusterName: z.string().max(15, {
+        message: maxLenMessage("clusterName", 15),
+      }).describe("Cluster name (3-15 chars: lowercase letters, numbers, '-')"),
+      kafkaVersionCode: z.number().describe("Kafka version code (from ncloud_cdss_get_kafka_versions)"),
+      configGroupNo: z.number().describe("Config group number (from ncloud_cdss_list_config_groups)"),
+      kafkaManagerUserName: z.string().describe("CMAK access account ID"),
+      kafkaManagerUserPassword: z.string().describe("CMAK access account password"),
+      hypervisorCode: z.string().describe("Hypervisor code. KVM for 3rd generation"),
+      generationCode: z.string().describe("Server generation code. G3 for 3rd generation"),
+      softwareProductCode: z.string().describe("G3 OS image code (e.g. SW.VCDSS.OS.LNX64.ROCKY.08.G003)"),
+      vpcName: z.string().describe("VPC name — required in addition to vpcNo"),
+      vpcNo: z.number().describe("VPC number (from ncloud_cdss_get_vpc_list)"),
+      managerNodeSubnetName: z.string().describe("Manager node subnet name — required in addition to the number"),
+      managerNodeSubnetNo: z.number().describe("Manager node subnet number (from ncloud_cdss_get_subnet_list_g3)"),
+      managerNodeProductCode: z.string().describe("Manager node server type code"),
+      // 브로커 노드인데 파라미터명이 dataNode* 다 — G2의 createCDSSCluster는 brokerNode* 를 쓴다.
+      dataNodeSubnetName: z.string().describe("Broker node subnet name — required in addition to the number"),
+      dataNodeSubnetNo: z.number().describe("Broker node subnet number"),
+      dataNodeCount: z.number().min(3).max(10).describe("Broker node count (3-10, default: 3)"),
+      dataNodeProductCode: z.string().describe("Broker node server type code"),
+      dataNodeStorageSize: z.number().min(100).max(2000).describe("Broker node storage in GB (100-2000, 10GB increments)"),
+      serverSpecCode: z.string().describe("Server spec code (from ncloud_cdss_get_server_spec_list, e.g. cdss.s2-g3)"),
+      // 문서 표는 유효값을 NET 이라 적지만 같은 페이지의 curl 예제는 SSD 를 보낸다.
+      // 어느 쪽이 맞는지 확정할 수 없어 enum으로 좁히지 않고 그대로 전달한다.
+      dataNodeStorageType2Code: z.string().optional().describe("Broker storage type. The spec table says NET; the spec page's own sample sends SSD — unresolved, so it is passed through as given"),
+      dataNodeStorageInfraResourceDetailTypeCode: z.string().optional().describe("Broker storage detail type. Documented valid value: CB1"),
+      dryRun: z.boolean().optional().default(false).describe("Preview without creating"),
+    },
+    async (params) => {
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: CDSS Cluster Creation (G3/KVM)",
+          endpoint: `${prefix}/cluster/createKvmCluster`,
+          method: "POST",
+          requestParams: apiParams,
+          noun: { ko: "CDSS 클러스터", en: "CDSS cluster" },
+        });
+      }
+      return client.postRequest(`${prefix}/cluster/createKvmCluster`, apiParams);
     }
   );
 

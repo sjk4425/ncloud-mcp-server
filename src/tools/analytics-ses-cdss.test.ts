@@ -215,6 +215,109 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
     spy.mockRestore();
   });
 
+  it("get_subnet_list_g3(신규): POST getVpcAvailableSubnetList — 인덱스 슬러그명이 아니다", async () => {
+    const spy = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_cdss_get_subnet_list_g3")(
+      { vpcNo: 21538, softwareProductCode: "SW.VCDSS.OS.LNX64.ROCKY.08.G003", isPrivate: true },
+      {} as any
+    );
+
+    const [path, body] = spy.mock.calls[0];
+    // 문서 인덱스 슬러그는 getavailablesubnetlist 지만 실제 op는 getVpcAvailableSubnetList 다.
+    expect(path).toBe("/api/v1/cluster/getVpcAvailableSubnetList");
+    expect(path).not.toContain("getAvailableSubnetList");
+    expect(body).toEqual({
+      vpcNo: 21538,
+      softwareProductCode: "SW.VCDSS.OS.LNX64.ROCKY.08.G003",
+      isPrivate: true,
+    });
+    spy.mockRestore();
+  });
+
+  it("get_node_spec_for_change_g3(신규): POST getServerSpecListForSpecChange", async () => {
+    const spy = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_cdss_get_node_spec_for_change_g3")(
+      { serviceGroupInstanceNo: 100912345 },
+      {} as any
+    );
+
+    expect(spy).toHaveBeenCalledWith("/api/v1/cluster/getServerSpecListForSpecChange", {
+      serviceGroupInstanceNo: 100912345,
+    });
+    spy.mockRestore();
+  });
+
+  it("create_cluster_g3(신규): POST createKvmCluster, 브로커는 dataNode* 로 나간다", async () => {
+    const shape = getTool(server, "ncloud_cdss_create_cluster_g3").inputSchema.shape;
+    // G2는 brokerNode*, G3는 dataNode* 다 — 혼동하면 필수값 누락이 된다.
+    expect(shape).toHaveProperty("dataNodeCount");
+    expect(shape).not.toHaveProperty("brokerNodeCount");
+    // VPC·서브넷은 이름과 번호를 둘 다 요구한다.
+    for (const f of ["vpcName", "vpcNo", "managerNodeSubnetName", "managerNodeSubnetNo",
+                     "dataNodeSubnetName", "dataNodeSubnetNo", "serverSpecCode",
+                     "hypervisorCode", "generationCode"]) {
+      expect(isRequired(server, "ncloud_cdss_create_cluster_g3", f), f).toBe(true);
+    }
+
+    const spy = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_cdss_create_cluster_g3")(
+      {
+        clusterName: "v1130-g3", kafkaVersionCode: 3903006, configGroupNo: 1693,
+        kafkaManagerUserName: "ncpadmin", kafkaManagerUserPassword: "pw",
+        hypervisorCode: "KVM", generationCode: "G3",
+        softwareProductCode: "SW.VCDSS.OS.LNX64.ROCKY.08.G003",
+        vpcName: "test-vpc2", vpcNo: 21538,
+        managerNodeSubnetName: "sb1", managerNodeSubnetNo: 299510,
+        managerNodeProductCode: "SVR.VCDSS.STAND.C002.M008.NET.SSD.B050.G003",
+        dataNodeSubnetName: "sb2", dataNodeSubnetNo: 299511, dataNodeCount: 3,
+        dataNodeProductCode: "SVR.VCDSS.STAND.C002.M008.NET.SSD.B050.G003",
+        dataNodeStorageSize: 100, serverSpecCode: "cdss.s2-g3",
+      },
+      {} as any
+    );
+
+    const [path, body] = spy.mock.calls[0];
+    expect(path).toBe("/api/v1/cluster/createKvmCluster");
+    expect(body).not.toHaveProperty("dryRun");
+    expect((body as any).dataNodeCount).toBe(3);
+    spy.mockRestore();
+  });
+
+  it("create_cluster_g3: dryRun 프리뷰가 비밀번호를 노출하지 않는다", async () => {
+    const spy = vi.spyOn(client, "postRequest");
+    const result = await getToolHandler(server, "ncloud_cdss_create_cluster_g3")(
+      {
+        clusterName: "v1130-g3", kafkaVersionCode: 3903006, configGroupNo: 1693,
+        kafkaManagerUserName: "ncpadmin", kafkaManagerUserPassword: "PlainTextPw1!",
+        hypervisorCode: "KVM", generationCode: "G3",
+        softwareProductCode: "SW.VCDSS.OS.LNX64.ROCKY.08.G003",
+        vpcName: "v", vpcNo: 1, managerNodeSubnetName: "a", managerNodeSubnetNo: 2,
+        managerNodeProductCode: "p", dataNodeSubnetName: "b", dataNodeSubnetNo: 3,
+        dataNodeCount: 3, dataNodeProductCode: "p", dataNodeStorageSize: 100,
+        serverSpecCode: "s", dryRun: true,
+      },
+      {} as any
+    );
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(result.content[0].text).not.toContain("PlainTextPw1!");
+    expect(result.content[0].text).toContain("createKvmCluster");
+    spy.mockRestore();
+  });
+
+  it("CDSS G3 오퍼레이션 6개가 모두 도구로 존재한다", () => {
+    for (const name of [
+      "ncloud_cdss_get_server_generations",        // getServerGenerationList
+      "ncloud_cdss_get_cluster_server_images",     // getClusterServerImageList
+      "ncloud_cdss_get_server_spec_list",          // getServerSpecList
+      "ncloud_cdss_get_subnet_list_g3",            // getVpcAvailableSubnetList
+      "ncloud_cdss_create_cluster_g3",             // createKvmCluster
+      "ncloud_cdss_get_node_spec_for_change_g3",   // getServerSpecListForSpecChange
+    ]) {
+      expect(() => getTool(server, name), name).not.toThrow();
+    }
+  });
+
   it("get_config_group_detail: POST getKafkaConfigGroup/{no} + 본문 kafkaVersionCode (라이브 §3-B)", async () => {
     // getConfigGroupDetail 경로는 존재하지 않아 300이었다 — B-6과 같은 경로 오류 계열.
     expect(isRequired(server, "ncloud_cdss_get_config_group_detail", "kafkaVersionCode")).toBe(true);
