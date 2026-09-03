@@ -592,44 +592,23 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_reset_cmak_password",
-    "Reset the CMAK access account password for a CDSS cluster. " +
-      "⚠️ Known issue: the documented endpoint still returns 300 Not Found on the live API.",
+    "Reset the CMAK access account password for a CDSS cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      kafkaManagerUserPassword: z.string().describe("New CMAK password (8-20 chars, letters+numbers+special)"),
+      kafkaManagerUserPassword: z.string().describe("New CMAK password (8-20 chars, letters+numbers+special; excludes ' \" ` ₩ / & and spaces)"),
     },
     async (params) => {
-      // op명은 resetMGMTPassword 로 정정했으나(resetCmakPassword 는 없는 경로) 재판정에서
-      // 여전히 300이다. 공식 문서는 curl 예제까지 POST + JSON 본문으로 명시하므로
-      // 문서상 근거로는 이게 맞다.
+      // 실제 op명은 resetCMAKPassword 다(CMAK 전부 대문자 — restartCMAKService 와 같은 표기 규칙).
+      // 공식 문서는 curl 예제까지 resetMGMTPassword 로 적고 있으나 그 경로는 게이트웨이에 없다.
+      // 문서가 틀린 사례이며, 라이브 실측으로 확정했다(2026-09-04).
       //
-      // 재판정 리포트는 GET 전환을 1순위로 제안했다 — 같은 서비스의 단일 액션 op 6종이
-      // 전부 GET이기 때문이다. 그럴듯하지만 **채택하지 않았다**: GET으로 바꾸면 비밀번호가
-      // 쿼리스트링에 실리고, NCLOUD_DEBUG=1이 전체 URL을 stderr로 찍는다. 문서에 반하는
-      // 추측을 위해 비밀을 URL에 넣는 건 교환이 맞지 않는다.
-      //
-      // 다음 회차에서 확인할 후보(순서대로): ① POST `resetCMAKPassword/{no}`
-      // (해소된 restartCMAKService 가 대문자 CMAK 를 쓴다) ② POST
-      // `resetKafkaManagerPassword/{no}` ③ 그래도 안 되면 GET 전환을 비밀 노출과 함께 재검토.
-      try {
-        return await client.postRequest(
-            `${prefix}/cluster/resetMGMTPassword/${params.serviceGroupInstanceNo}`,
-            { kafkaManagerUserPassword: params.kafkaManagerUserPassword }
-          );
-      } catch (error: any) {
-        const raw = String(error?.message ?? error);
-        if (!/\b300\b|Not Found/i.test(raw)) throw error;
-        throw new Error(
-          raw + "\n\n" + L({
-            ko: "진단: 이 엔드포인트는 공식 문서(curl 예제 포함)에 POST + JSON 본문으로 명시돼 있으나 " +
-              "API Gateway에 라우트가 없어 300을 반환합니다(2026-09-04 실측). 경로·op명 후보가 아직 확정되지 않았습니다.\n" +
-              "대안: CMAK 비밀번호는 콘솔(Cloud Data Streaming Service > 클러스터 > 관리 도구)에서 변경하세요.",
-            en: "Diagnosis: the official docs specify this endpoint as POST with a JSON body (curl sample included), " +
-              "but the API gateway has no such route and returns 300 (measured 2026-09-04). The correct path/operation name is not yet established.\n" +
-              "Workaround: change the CMAK password from the console (Cloud Data Streaming Service > cluster > manager tool).",
-          })
+      // 메서드는 POST + JSON 본문을 유지한다. 같은 서비스의 단일 액션 op 6종이 GET이라
+      // GET 전환이 제안됐었지만, 그러면 비밀번호가 쿼리스트링에 실리고 NCLOUD_DEBUG=1이
+      // 전체 URL을 stderr로 찍는다 — op명만 고치면 되는 문제였다.
+      return client.postRequest(
+          `${prefix}/cluster/resetCMAKPassword/${params.serviceGroupInstanceNo}`,
+          { kafkaManagerUserPassword: params.kafkaManagerUserPassword }
         );
-      }
     }
   );
 

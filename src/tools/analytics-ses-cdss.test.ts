@@ -278,19 +278,26 @@ describe("SES — 조회 엔드포인트 전송 방식 (B-4/B-5)", () => {
     expect(disk).toHaveProperty("diskSize");
   });
 
-  it("change_disk_size 는 인스턴스 번호를 경로 세그먼트로 보낸다 (재판정 A-1)", async () => {
+  it("change_disk_size 는 스펙대로 세그먼트 없이 본문 2개를 보낸다", async () => {
+    // 형제 op 유추로 `/{no}` 세그먼트를 붙였던 적이 있으나 스펙과 라이브 모두 아니었다.
     const raw = vi.spyOn(client, "requestRaw").mockResolvedValue({ code: 0 });
     await getToolHandler(server, "ncloud_ses_change_disk_size")(
-      { serviceGroupInstanceNo: "99999999", diskSize: 200 },
+      { serviceGroupInstanceNo: 99999999, diskSize: 200 },
       {} as any
     );
 
     const [method, path, , body] = raw.mock.calls[0];
     expect(method).toBe("POST");
-    expect(path).toBe("/api/v2/cluster/changeClusterNodeDiskSize/99999999");
-    // 세그먼트로 옮겼으므로 본문에는 남지 않는다.
-    expect(body).toEqual({ diskSize: 200 });
+    expect(path).toBe("/api/v2/cluster/changeClusterNodeDiskSize");
+    expect(path).not.toContain("99999999");
+    expect(body).toEqual({ diskSize: 200, serviceGroupInstanceNo: 99999999 });
     raw.mockRestore();
+  });
+
+  it("change_disk_size: 두 값 모두 Integer 다 — 문자열 인스턴스 번호는 거부한다", () => {
+    const shape = getTool(server, "ncloud_ses_change_disk_size").inputSchema.shape;
+    expect(shape.serviceGroupInstanceNo.safeParse("99999999").success).toBe(false);
+    expect(shape.serviceGroupInstanceNo.safeParse(99999999).success).toBe(true);
   });
 
   it("SES 모니터링 2종: 시각은 epoch millis, metric 은 enum 이다 (재판정 B-1·B-2)", () => {
@@ -610,21 +617,19 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
     spy.mockRestore();
   });
 
-  it("reset_cmak_password: 300 에 진단을 붙이되 비밀번호는 본문에 유지한다 (재판정 A-2)", async () => {
-    const spy = vi.spyOn(client, "postRequest").mockRejectedValue(
-      new Error("API 호출 실패\n\n에러 코드: 300\n메시지: Not Found Exception")
-    );
-    const result = await getToolHandler(server, "ncloud_cdss_reset_cmak_password")(
+  it("reset_cmak_password: op명은 resetCMAKPassword 이고 비밀번호는 본문에 남는다", async () => {
+    const spy = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_cdss_reset_cmak_password")(
       { serviceGroupInstanceNo: "1", kafkaManagerUserPassword: "pw" },
       {} as any
     );
 
-    // GET 전환은 비밀번호를 쿼리스트링에 싣게 되므로 채택하지 않았다 — POST 본문 유지.
     const [path, body] = spy.mock.calls[0];
-    expect(path).toBe("/api/v1/cluster/resetMGMTPassword/1");
+    // 문서는 resetMGMTPassword 라고 적지만 게이트웨이에 그 라우트는 없다(라이브 확정).
+    expect(path).toBe("/api/v1/cluster/resetCMAKPassword/1");
+    expect(path).not.toContain("resetMGMTPassword");
+    // GET 전환은 비밀번호를 쿼리스트링에 싣게 되므로 채택하지 않았다 — POST 본문 유지.
     expect(body).toEqual({ kafkaManagerUserPassword: "pw" });
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("300");
     spy.mockRestore();
   });
 

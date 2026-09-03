@@ -575,19 +575,20 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     "ncloud_ses_change_disk_size",
     "Change data node disk capacity for a Search Engine Service cluster",
     {
-      serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
+      // 공식 스펙(2026-09-04 verbatim 확인): 경로 세그먼트가 없고 두 값 모두 **본문**이며
+      // 둘 다 Integer 다. 이 도구만 serviceGroupInstanceNo 가 number 인 이유가 그것이다.
+      serviceGroupInstanceNo: z.number().describe("Cluster instance number (sent in the body, as a number)"),
       // API 필드명은 diskSize 다. dataNodeStorageSize 로는 값이 전달되지 않았다.
-      diskSize: z.number().describe("New storage size in GB (10GB increments)"),
+      diskSize: z.number().describe("New storage size in GB (10GB increments; must be larger than the current size)"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
-      // 인스턴스 번호는 경로 세그먼트다. 본문에만 담으면 300이었다(재판정 A-1).
-      // SES는 계열별로 갈린다 — 노드 조작(changeCountOfDataNode·changeSpecNode·
-      // resetSearchEngineUserPassword·changeClusterNodeDiskSize)은 세그먼트를 쓰고,
-      // 업그레이드·setHotWarmNode 는 본문에 담는다. "전부 세그먼트"가 아니다.
+      // 앞선 수정에서 형제 op(changeCountOfDataNode 등)를 근거로 `/{no}` 세그먼트를 붙였으나
+      // 그 추론은 틀렸다 — 스펙은 세그먼트 없는 형태를 명시하고, 세그먼트를 붙인 형태도
+      // 라이브에서 300이었다. 스펙대로 되돌린다.
       const result = await client.requestRaw(
-        "POST", `${prefix}/cluster/changeClusterNodeDiskSize/${params.serviceGroupInstanceNo}`,
-        undefined, { diskSize: params.diskSize }
+        "POST", `${prefix}/cluster/changeClusterNodeDiskSize`, undefined,
+        { diskSize: params.diskSize, serviceGroupInstanceNo: params.serviceGroupInstanceNo }
       );
       return result;
     }
