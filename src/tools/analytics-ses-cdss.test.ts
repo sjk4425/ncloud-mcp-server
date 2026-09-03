@@ -207,6 +207,77 @@ describe("SES — 조회 엔드포인트 전송 방식 (B-4/B-5)", () => {
     spy.mockRestore();
   });
 
+  it("스냅샷·임포트·모니터링·대시보드는 /cluster/ 가 아니라 각자 섹션이다 (감사 §1-A/B)", async () => {
+    const paths: string[] = [];
+    const raw = vi.spyOn(client, "requestRaw").mockImplementation(async (_m: string, p: string) => { paths.push(p); return {}; });
+
+    const NO = { serviceGroupInstanceNo: "99999999" };
+    const T = { timeStart: "a", timeEnd: "b", metric: "m" };
+    await getToolHandler(server, "ncloud_ses_get_snapshot_buckets")(NO, {} as any);
+    await getToolHandler(server, "ncloud_ses_get_snapshot_history")(NO, {} as any);
+    await getToolHandler(server, "ncloud_ses_unset_snapshot_schedule")(NO, {} as any);
+    await getToolHandler(server, "ncloud_ses_get_import_buckets")(NO, {} as any);
+    await getToolHandler(server, "ncloud_ses_stop_import")(NO, {} as any);
+    await getToolHandler(server, "ncloud_ses_get_dashboard")(NO, {} as any);
+    await getToolHandler(server, "ncloud_ses_get_monitoring")({ ...NO, ...T }, {} as any);
+    await getToolHandler(server, "ncloud_ses_get_os_monitoring")({ ...NO, ...T, computeInstanceNo: "c" }, {} as any);
+
+    expect(paths).toEqual([
+      "/api/v2/snapshot/getBucketList/99999999",
+      "/api/v2/snapshot/getSnapshotHistory/99999999",
+      "/api/v2/snapshot/releaseSnapshotScheduling/99999999",
+      "/api/v2/import/getBucketList/99999999",
+      "/api/v2/import/stopDataImportJob/99999999",
+      "/api/v2/dashboard/getDashboardInformation/99999999",
+      "/api/v2/monitoring/getSearchEngineMonitoringData/99999999",
+      "/api/v2/monitoring/getOsMonitoringData/99999999",
+    ]);
+    // 이 8종은 전부 /cluster/ 아래에 추정 op명으로 작성돼 300이었다.
+    expect(paths.join("\n")).not.toContain("/cluster/");
+    raw.mockRestore();
+  });
+
+  it("SES 업그레이드는 targetVersionCode·regionNo 를 보낸다 (감사 §2)", async () => {
+    for (const t of ["ncloud_ses_upgrade_version", "ncloud_ses_precheck_upgrade"]) {
+      const shape = getTool(server, t).inputSchema.shape;
+      expect(shape, t).not.toHaveProperty("searchEngineVersionCode");
+      expect(isRequired(server, t, "targetVersionCode"), t).toBe(true);
+      expect(isRequired(server, t, "regionNo"), t).toBe(true);
+    }
+
+    const raw = vi.spyOn(client, "requestRaw").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_ses_get_upgrade_progress")(
+      { regionNo: 1, serviceGroupInstanceNo: "1" }, {} as any
+    );
+    const [method, path, , body] = raw.mock.calls[0];
+    // GET + 경로 세그먼트가 아니라 POST + 본문이다.
+    expect(method).toBe("POST");
+    expect(path).toBe("/api/v2/cluster/getRollingUpgradeProgress");
+    expect(body).toEqual({ regionNo: 1, serviceGroupInstanceNo: "1" });
+    raw.mockRestore();
+  });
+
+  it("SES 노드 조작 파라미터 계약이 문서와 일치한다 (감사 §1-G)", () => {
+    // add_node: 증분이 아니라 목표 총계다.
+    const add = getTool(server, "ncloud_ses_add_node").inputSchema.shape;
+    expect(add).not.toHaveProperty("addDataNodeCount");
+    expect(add).toHaveProperty("newDataNodeCount");
+    // change_node_spec: 노드 번호 목록이 아니라 역할별 코드다.
+    const spec = getTool(server, "ncloud_ses_change_node_spec").inputSchema.shape;
+    expect(spec).not.toHaveProperty("computeInstanceNoList");
+    expect(spec).toHaveProperty("dataNodeProductCode");
+    // change_node_type: 개수가 아니라 노드별 역할이다.
+    const type = getTool(server, "ncloud_ses_change_node_type").inputSchema.shape;
+    expect(type).not.toHaveProperty("hotDataNodeCount");
+    expect(type).toHaveProperty("nodeSpecList");
+    // stop_import: importTaskId 는 API에 없다.
+    expect(getTool(server, "ncloud_ses_stop_import").inputSchema.shape).not.toHaveProperty("importTaskId");
+    // change_disk_size: diskSize 가 API 필드명이다.
+    const disk = getTool(server, "ncloud_ses_change_disk_size").inputSchema.shape;
+    expect(disk).not.toHaveProperty("dataNodeStorageSize");
+    expect(disk).toHaveProperty("diskSize");
+  });
+
   it("SES G3 오퍼레이션 5개가 모두 도구로 존재한다", () => {
     for (const name of [
       "ncloud_ses_get_server_specs",                 // getServerSpecList
@@ -388,6 +459,85 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
     expect(result.content[0].text).not.toContain("PlainTextPw1!");
     expect(result.content[0].text).toContain("createKvmCluster");
     spy.mockRestore();
+  });
+
+  it("경로 감사(2026-09-04)에서 300이던 op명이 하나도 남아 있지 않다", async () => {
+    // 58종 중 36종이 경로부터 틀렸다. 추정으로 지어낸 op명이 재등장하면 실패한다.
+    const invented = [
+      "getClusterAcgInfo", "restartCmakService", "resetCmakPassword",
+      "monitoring/getMonitoringData", "rollingRestart/", "rollingRestartPreCheck/",
+      "rollingRestartProgressCheck/", "rollingUpgrade/", "rollingUpgradePreCheck/",
+      "rollingUpgradeProgressCheck/",
+    ];
+    const paths: string[] = [];
+    const post = vi.spyOn(client, "postRequest").mockImplementation(async (p: string) => { paths.push(p); return {}; });
+    const raw = vi.spyOn(client, "requestRaw").mockImplementation(async (_m: string, p: string) => { paths.push(p); return {}; });
+
+    const NO = { serviceGroupInstanceNo: "99999999" };
+    const calls: Array<[string, Record<string, unknown>]> = [
+      ["ncloud_cdss_get_cluster_acg", NO],
+      ["ncloud_cdss_restart_all_services", NO],
+      ["ncloud_cdss_restart_kafka", NO],
+      ["ncloud_cdss_restart_cmak", NO],
+      ["ncloud_cdss_rolling_restart", NO],
+      ["ncloud_cdss_rolling_restart_precheck", NO],
+      ["ncloud_cdss_rolling_restart_status", NO],
+      ["ncloud_cdss_upgrade_status", NO],
+      ["ncloud_cdss_enable_public_domain", NO],
+      ["ncloud_cdss_disable_public_domain", NO],
+      ["ncloud_cdss_disable_public_endpoint", NO],
+      ["ncloud_cdss_reset_cmak_password", { ...NO, kafkaManagerUserPassword: "pw" }],
+      ["ncloud_cdss_upgrade_version", { ...NO, upgradeKafkaVersionCode: 1, upgradeConfigGroupNo: 2 }],
+      ["ncloud_cdss_upgrade_precheck", { ...NO, upgradeKafkaVersionCode: 1, upgradeConfigGroupNo: 2 }],
+      ["ncloud_cdss_get_monitoring", { ...NO, timeStart: "a", timeEnd: "b", metric: "m", computeInstanceNo: "c" }],
+      ["ncloud_cdss_get_os_monitoring", { ...NO, timeStart: "a", timeEnd: "b", metric: "m", computeInstanceNo: "c" }],
+    ];
+    for (const [name, input] of calls) {
+      await getToolHandler(server, name)(input, {} as any);
+    }
+
+    const joined = paths.join("\n");
+    for (const bad of invented) {
+      expect(joined, bad).not.toContain(bad);
+    }
+    expect(paths.length).toBe(calls.length);
+    post.mockRestore();
+    raw.mockRestore();
+  });
+
+  it("재시작·public 계열은 GET, 롤링 계열은 본문에 인스턴스 번호를 넣는다", async () => {
+    const raw = vi.spyOn(client, "requestRaw").mockResolvedValue({ code: 0 });
+    for (const name of [
+      "ncloud_cdss_restart_all_services", "ncloud_cdss_restart_kafka",
+      "ncloud_cdss_enable_public_domain", "ncloud_cdss_disable_public_domain",
+      "ncloud_cdss_disable_public_endpoint",
+    ]) {
+      raw.mockClear();
+      await getToolHandler(server, name)({ serviceGroupInstanceNo: "1" }, {} as any);
+      // POST로 보내면 라우트를 찾지 못한다.
+      expect(raw.mock.calls[0][0], name).toBe("GET");
+    }
+    raw.mockRestore();
+
+    const post = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_cdss_rolling_restart")({ serviceGroupInstanceNo: "1" }, {} as any);
+    expect(post).toHaveBeenCalledWith("/api/v1/cluster/rollingRestart", { serviceGroupInstanceNo: "1" });
+    post.mockRestore();
+  });
+
+  it("enable_public_endpoint는 loadBalancerInstanceNo 가 필수다", async () => {
+    expect(isRequired(server, "ncloud_cdss_enable_public_endpoint", "loadBalancerInstanceNo")).toBe(true);
+
+    const post = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_cdss_enable_public_endpoint")(
+      { serviceGroupInstanceNo: "1", loadBalancerInstanceNo: "77" },
+      {} as any
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/cluster/enableBrokerNodePublicEndpoint/1",
+      { loadBalancerInstanceNo: "77" }
+    );
+    post.mockRestore();
   });
 
   it("CDSS G3 오퍼레이션 6개가 모두 도구로 존재한다", () => {

@@ -111,7 +111,8 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     },
     async (params) => {
       return client.requestRaw(
-          "GET", `${prefix}/cluster/getClusterAcgInfo/${params.serviceGroupInstanceNo}`
+          // op명은 getAcgInfoList 다 — SES에도 같은 이름을 복사해 둘 다 300이었다(감사 §1-E).
+          "GET", `${prefix}/cluster/getAcgInfoList/${params.serviceGroupInstanceNo}`
         );
     }
   );
@@ -417,6 +418,24 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
 
   defineTool(
     server,
+    "ncloud_cdss_get_node_product_for_change",
+    "Get the server types a running CDSS cluster's nodes can be changed to (G2). " +
+      "The G3/KVM equivalent is ncloud_cdss_get_node_spec_for_change_g3, and " +
+      "ncloud_cdss_get_node_spec returns the CURRENT spec rather than the changeable ones.",
+    {
+      serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
+      softwareProductCode: z.string().describe("OS type code (from ncloud_cdss_get_os_products)"),
+    },
+    async (params) => {
+      return client.postRequest(
+        `${prefix}/cluster/getNodeProductListForSpecChange/${params.serviceGroupInstanceNo}`,
+        { softwareProductCode: params.softwareProductCode }
+      );
+    }
+  );
+
+  defineTool(
+    server,
     "ncloud_cdss_change_node_spec",
     "Change server spec for nodes in a CDSS cluster",
     {
@@ -445,8 +464,9 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.postRequest(
-          `${prefix}/cluster/restartAllServices/${params.serviceGroupInstanceNo}`, {}
+      // 재시작 계열은 전부 GET 이다 — POST로 보내 라우트를 찾지 못했다(2026-09-04 감사 §1-C).
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/restartAllServices/${params.serviceGroupInstanceNo}`
         );
     }
   );
@@ -459,8 +479,8 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.postRequest(
-          `${prefix}/cluster/restartKafkaService/${params.serviceGroupInstanceNo}`, {}
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/restartKafkaService/${params.serviceGroupInstanceNo}`
         );
     }
   );
@@ -468,13 +488,17 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_restart_cmak",
-    "Restart CMAK (Cluster Manager for Apache Kafka) in a CDSS cluster",
+    "⚠️ Deprecated by Ncloud: this operation is no longer supported and the API may reject it. " +
+      "Use ncloud_cdss_restart_all_services instead. Restarts CMAK (Cluster Manager for Apache Kafka).",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.postRequest(
-          `${prefix}/cluster/restartCmakService/${params.serviceGroupInstanceNo}`, {}
+      // op명은 restartCMAKService 다(CMAK 전부 대문자). 그리고 공식 문서가
+      // "지원이 종료되어 더 이상 사용할 수 없습니다"로 표시한 op다 — 경로를 바로잡되
+      // description으로 폐기를 알린다(2026-09-04 감사 §8 #1).
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/restartCMAKService/${params.serviceGroupInstanceNo}`
         );
     }
   );
@@ -505,8 +529,10 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.postRequest(
-          `${prefix}/cluster/enablePublicDomain/${params.serviceGroupInstanceNo}`, {}
+      // 경로는 맞았고 메서드가 틀렸다 — 이 계열은 GET 이다(2026-09-04 감사 §1-F).
+      // enableBrokerNodePublicEndpoint 만 POST여서 "켤 수는 있고 끌 수는 없는" 상태였다.
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/enablePublicDomain/${params.serviceGroupInstanceNo}`
         );
     }
   );
@@ -519,8 +545,8 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.postRequest(
-          `${prefix}/cluster/disablePublicDomain/${params.serviceGroupInstanceNo}`, {}
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/disablePublicDomain/${params.serviceGroupInstanceNo}`
         );
     }
   );
@@ -528,13 +554,17 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_enable_public_endpoint",
-    "Enable public endpoint for broker nodes",
+    "Enable a public endpoint for broker nodes. Requires a load balancer — list the available ones " +
+      "with ncloud_cdss_get_load_balancers.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
+      // 이 계열에서 유일하게 POST 이고, 필수 본문 파라미터가 있는데 빠져 있었다.
+      loadBalancerInstanceNo: z.string().describe("Load balancer instance number (from ncloud_cdss_get_load_balancers)"),
     },
     async (params) => {
       return client.postRequest(
-          `${prefix}/cluster/enableBrokerNodePublicEndpoint/${params.serviceGroupInstanceNo}`, {}
+          `${prefix}/cluster/enableBrokerNodePublicEndpoint/${params.serviceGroupInstanceNo}`,
+          { loadBalancerInstanceNo: params.loadBalancerInstanceNo }
         );
     }
   );
@@ -542,13 +572,13 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_disable_public_endpoint",
-    "Disable public endpoint for broker nodes",
+    "Disable the public endpoint for broker nodes",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.postRequest(
-          `${prefix}/cluster/disableBrokerNodePublicEndpoint/${params.serviceGroupInstanceNo}`, {}
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/disableBrokerNodePublicEndpoint/${params.serviceGroupInstanceNo}`
         );
     }
   );
@@ -556,14 +586,15 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_reset_cmak_password",
-    "Reset CMAK access account password for a CDSS cluster",
+    "Reset the CMAK access account password for a CDSS cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       kafkaManagerUserPassword: z.string().describe("New CMAK password (8-20 chars, letters+numbers+special)"),
     },
     async (params) => {
+      // op명은 resetMGMTPassword 다. resetCmakPassword 는 존재하지 않는 경로였다.
       return client.postRequest(
-          `${prefix}/cluster/resetCmakPassword/${params.serviceGroupInstanceNo}`,
+          `${prefix}/cluster/resetMGMTPassword/${params.serviceGroupInstanceNo}`,
           { kafkaManagerUserPassword: params.kafkaManagerUserPassword }
         );
     }
@@ -574,20 +605,26 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_get_monitoring",
-    "Get monitoring metrics for a CDSS cluster and its nodes",
+    "Get Kafka monitoring metrics for a CDSS cluster node",
     {
-      serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      startTime: z.string().optional().describe("Start time (ISO 8601 format)"),
-      endTime: z.string().optional().describe("End time (ISO 8601 format)"),
+      serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
+      // 예전 스키마의 startTime/endTime 은 API에 없는 이름이었고, 필수 metric·
+      // computeInstanceNo 가 빠져 있었다. 인스턴스 번호도 본문이 아니라 경로다.
+      // op명도 getMonitoringData 가 아니라 getCdssMonitoringData 다.
+      timeStart: z.string().describe("Start time"),
+      timeEnd: z.string().describe("End time"),
+      metric: z.string().describe("Metric to retrieve"),
+      computeInstanceNo: z.string().describe("Node instance number (from ncloud_cdss_list_nodes)"),
+      interval: z.string().optional().describe("Aggregation interval"),
     },
     async (params) => {
-      const body: Record<string, unknown> = {
-        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-      };
-      if (params.startTime) body.startTime = params.startTime;
-      if (params.endTime) body.endTime = params.endTime;
+      const { serviceGroupInstanceNo, ...rest } = params;
+      const body: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rest)) {
+        if (v !== undefined) body[k] = v;
+      }
       const result = await client.postRequest(
-        `${prefix}/monitoring/getMonitoringData`, body
+        `${prefix}/monitoring/getCdssMonitoringData/${serviceGroupInstanceNo}`, body
       );
       return result;
     }
@@ -596,20 +633,23 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_get_os_monitoring",
-    "Get OS-level monitoring metrics (CPU, memory, disk) for CDSS cluster nodes",
+    "Get OS-level monitoring metrics (CPU, memory, disk) for a CDSS cluster node",
     {
-      serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      startTime: z.string().optional().describe("Start time (ISO 8601 format)"),
-      endTime: z.string().optional().describe("End time (ISO 8601 format)"),
+      serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
+      timeStart: z.string().describe("Start time"),
+      timeEnd: z.string().describe("End time"),
+      metric: z.string().describe("Metric to retrieve"),
+      computeInstanceNo: z.string().describe("Node instance number (from ncloud_cdss_list_nodes)"),
+      interval: z.string().optional().describe("Aggregation interval"),
     },
     async (params) => {
-      const body: Record<string, unknown> = {
-        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-      };
-      if (params.startTime) body.startTime = params.startTime;
-      if (params.endTime) body.endTime = params.endTime;
+      const { serviceGroupInstanceNo, ...rest } = params;
+      const body: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rest)) {
+        if (v !== undefined) body[k] = v;
+      }
       const result = await client.postRequest(
-        `${prefix}/monitoring/getOsMonitoringData`, body
+        `${prefix}/monitoring/getOsMonitoringData/${serviceGroupInstanceNo}`, body
       );
       return result;
     }
@@ -885,8 +925,11 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
+      // 롤링 계열은 인스턴스 번호를 **본문**으로 받는다 — 경로 세그먼트로 붙여
+      // 라우트를 찾지 못했다(2026-09-04 감사 §1-D).
       return client.postRequest(
-          `${prefix}/cluster/rollingRestart/${params.serviceGroupInstanceNo}`, {}
+          `${prefix}/cluster/rollingRestart`,
+          { serviceGroupInstanceNo: params.serviceGroupInstanceNo }
         );
     }
   );
@@ -900,7 +943,8 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     },
     async (params) => {
       return client.postRequest(
-          `${prefix}/cluster/rollingRestartPreCheck/${params.serviceGroupInstanceNo}`, {}
+          `${prefix}/cluster/rollingRestartPreCheck`,
+          { serviceGroupInstanceNo: params.serviceGroupInstanceNo }
         );
     }
   );
@@ -913,8 +957,10 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.requestRaw(
-          "GET", `${prefix}/cluster/rollingRestartProgressCheck/${params.serviceGroupInstanceNo}`
+      // POST + 본문이다. GET + 경로 세그먼트 조합은 라우트가 없었다.
+      return client.postRequest(
+          `${prefix}/cluster/rollingRestartProgressCheck`,
+          { serviceGroupInstanceNo: params.serviceGroupInstanceNo }
         );
     }
   );
@@ -922,20 +968,19 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_upgrade_version",
-    "Upgrade Kafka version for a CDSS cluster",
+    "Upgrade the Kafka version of a CDSS cluster. Run ncloud_cdss_upgrade_precheck first.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      kafkaVersionCode: z.string().describe("Target Kafka version code"),
-      configGroupNo: z.string().optional().describe("Config group number for the new version"),
+      // 실제 필드명은 upgrade* 접두사가 붙고 둘 다 필수다. 경로 세그먼트도 쓰지 않는다.
+      upgradeKafkaVersionCode: z.number().describe("Target Kafka version code (from ncloud_cdss_get_kafka_versions)"),
+      upgradeConfigGroupNo: z.number().describe("Config group number for the target version (from ncloud_cdss_list_config_groups)"),
     },
     async (params) => {
-      const body: Record<string, unknown> = {
-        kafkaVersionCode: params.kafkaVersionCode,
-      };
-      if (params.configGroupNo) body.configGroupNo = params.configGroupNo;
-      const result = await client.postRequest(
-        `${prefix}/cluster/rollingUpgrade/${params.serviceGroupInstanceNo}`, body
-      );
+      const result = await client.postRequest(`${prefix}/cluster/rollingUpgrade`, {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+        upgradeKafkaVersionCode: params.upgradeKafkaVersionCode,
+        upgradeConfigGroupNo: params.upgradeConfigGroupNo,
+      });
       return result;
     }
   );
@@ -943,20 +988,18 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_upgrade_precheck",
-    "Pre-check before upgrading Kafka version",
+    "Pre-check whether a CDSS Kafka version upgrade can proceed",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      kafkaVersionCode: z.string().describe("Target Kafka version code"),
-      configGroupNo: z.string().optional().describe("Config group number for the new version"),
+      upgradeKafkaVersionCode: z.number().describe("Target Kafka version code (from ncloud_cdss_get_kafka_versions)"),
+      upgradeConfigGroupNo: z.number().describe("Config group number for the target version"),
     },
     async (params) => {
-      const body: Record<string, unknown> = {
-        kafkaVersionCode: params.kafkaVersionCode,
-      };
-      if (params.configGroupNo) body.configGroupNo = params.configGroupNo;
-      const result = await client.postRequest(
-        `${prefix}/cluster/rollingUpgradePreCheck/${params.serviceGroupInstanceNo}`, body
-      );
+      const result = await client.postRequest(`${prefix}/cluster/rollingUpgradePreCheck`, {
+        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
+        upgradeKafkaVersionCode: params.upgradeKafkaVersionCode,
+        upgradeConfigGroupNo: params.upgradeConfigGroupNo,
+      });
       return result;
     }
   );
@@ -969,8 +1012,10 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      return client.requestRaw(
-          "GET", `${prefix}/cluster/rollingUpgradeProgressCheck/${params.serviceGroupInstanceNo}`
+      // POST + 본문이다(GET + 경로 세그먼트 아님).
+      return client.postRequest(
+          `${prefix}/cluster/rollingUpgradeProgressCheck`,
+          { serviceGroupInstanceNo: params.serviceGroupInstanceNo }
         );
     }
   );
