@@ -249,7 +249,9 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_create_cluster",
-    "Create a new CDSS (Kafka) cluster (G2). Use dryRun=true to preview.",
+    "Create a new CDSS (Kafka) cluster (G2). Set returnClusterId=true to get the new cluster's " +
+      "serviceGroupInstanceNo back — the default operation returns only success/failure, so you would " +
+      "otherwise have to find the cluster with ncloud_cdss_list_clusters. Use dryRun=true to preview.",
     {
       clusterName: z.string().describe("Cluster name (3-15 chars, lowercase+numbers+'-')"),
       kafkaVersionCode: z.number().describe("Kafka version code (from get_kafka_versions)"),
@@ -264,22 +266,26 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       brokerNodeCount: z.number().describe("Number of broker nodes (3-10)"),
       brokerNodeProductCode: z.string().describe("Broker node server type code"),
       brokerNodeStorageSize: z.number().describe("Broker storage in GB (100-2000, 10GB increment)"),
+      // 같은 파라미터를 받는 별도 op가 있다 — 응답에 serviceGroupInstanceNo 를 담아 준다.
+      // 스키마 15개를 복제하지 않고 플래그로 고른다.
+      returnClusterId: z.boolean().optional().default(false).describe("If true, calls the variant that returns the new cluster's serviceGroupInstanceNo"),
       dryRun: z.boolean().optional().default(false).describe("Preview without creating"),
     },
     async (params) => {
-      const { dryRun, ...apiParams } = params;
+      const { dryRun, returnClusterId, ...apiParams } = params;
+      const op = returnClusterId
+        ? "createCDSSClusterReturnServiceGroupInstanceNo"
+        : "createCDSSCluster";
       if (dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: CDSS Cluster Creation (G2)",
-          endpoint: `${prefix}/cluster/createCDSSCluster`,
+          endpoint: `${prefix}/cluster/${op}`,
           method: "POST",
           requestParams: apiParams,
           noun: { ko: "CDSS 클러스터", en: "CDSS cluster" },
         });
       }
-      const result = await client.postRequest(
-        `${prefix}/cluster/createCDSSCluster`, apiParams
-      );
+      const result = await client.postRequest(`${prefix}/cluster/${op}`, apiParams);
       return result;
     }
   );
@@ -586,17 +592,44 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_reset_cmak_password",
-    "Reset the CMAK access account password for a CDSS cluster",
+    "Reset the CMAK access account password for a CDSS cluster. " +
+      "⚠️ Known issue: the documented endpoint still returns 300 Not Found on the live API.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       kafkaManagerUserPassword: z.string().describe("New CMAK password (8-20 chars, letters+numbers+special)"),
     },
     async (params) => {
-      // op명은 resetMGMTPassword 다. resetCmakPassword 는 존재하지 않는 경로였다.
-      return client.postRequest(
-          `${prefix}/cluster/resetMGMTPassword/${params.serviceGroupInstanceNo}`,
-          { kafkaManagerUserPassword: params.kafkaManagerUserPassword }
+      // op명은 resetMGMTPassword 로 정정했으나(resetCmakPassword 는 없는 경로) 재판정에서
+      // 여전히 300이다. 공식 문서는 curl 예제까지 POST + JSON 본문으로 명시하므로
+      // 문서상 근거로는 이게 맞다.
+      //
+      // 재판정 리포트는 GET 전환을 1순위로 제안했다 — 같은 서비스의 단일 액션 op 6종이
+      // 전부 GET이기 때문이다. 그럴듯하지만 **채택하지 않았다**: GET으로 바꾸면 비밀번호가
+      // 쿼리스트링에 실리고, NCLOUD_DEBUG=1이 전체 URL을 stderr로 찍는다. 문서에 반하는
+      // 추측을 위해 비밀을 URL에 넣는 건 교환이 맞지 않는다.
+      //
+      // 다음 회차에서 확인할 후보(순서대로): ① POST `resetCMAKPassword/{no}`
+      // (해소된 restartCMAKService 가 대문자 CMAK 를 쓴다) ② POST
+      // `resetKafkaManagerPassword/{no}` ③ 그래도 안 되면 GET 전환을 비밀 노출과 함께 재검토.
+      try {
+        return await client.postRequest(
+            `${prefix}/cluster/resetMGMTPassword/${params.serviceGroupInstanceNo}`,
+            { kafkaManagerUserPassword: params.kafkaManagerUserPassword }
+          );
+      } catch (error: any) {
+        const raw = String(error?.message ?? error);
+        if (!/\b300\b|Not Found/i.test(raw)) throw error;
+        throw new Error(
+          raw + "\n\n" + L({
+            ko: "진단: 이 엔드포인트는 공식 문서(curl 예제 포함)에 POST + JSON 본문으로 명시돼 있으나 " +
+              "API Gateway에 라우트가 없어 300을 반환합니다(2026-09-04 실측). 경로·op명 후보가 아직 확정되지 않았습니다.\n" +
+              "대안: CMAK 비밀번호는 콘솔(Cloud Data Streaming Service > 클러스터 > 관리 도구)에서 변경하세요.",
+            en: "Diagnosis: the official docs specify this endpoint as POST with a JSON body (curl sample included), " +
+              "but the API gateway has no such route and returns 300 (measured 2026-09-04). The correct path/operation name is not yet established.\n" +
+              "Workaround: change the CMAK password from the console (Cloud Data Streaming Service > cluster > manager tool).",
+          })
         );
+      }
     }
   );
 
@@ -611,11 +644,13 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       // 예전 스키마의 startTime/endTime 은 API에 없는 이름이었고, 필수 metric·
       // computeInstanceNo 가 빠져 있었다. 인스턴스 번호도 본문이 아니라 경로다.
       // op명도 getMonitoringData 가 아니라 getCdssMonitoringData 다.
-      timeStart: z.string().describe("Start time"),
-      timeEnd: z.string().describe("End time"),
-      metric: z.string().describe("Metric to retrieve"),
+      // 시각은 **epoch millis(Long)** 다 — ISO 8601은 서버가 타입 변환 실패로 거부한다(재판정 B-1).
+      timeStart: z.number().describe("Start time as epoch milliseconds (e.g. 1745280000000) — NOT an ISO 8601 string"),
+      timeEnd: z.number().describe("End time as epoch milliseconds"),
+      // metric 은 enum 이다 — 'cpu'·'CPU' 모두 거부된다(재판정 B-2).
+      metric: z.enum(["CLUSTER_ALL_METRICS", "BROKER_ALL_METRICS"]).describe("Metric set to retrieve"),
       computeInstanceNo: z.string().describe("Node instance number (from ncloud_cdss_list_nodes)"),
-      interval: z.string().optional().describe("Aggregation interval"),
+      interval: z.string().optional().describe("Aggregation interval (e.g. Min1, Min30, Hour2, Day1)"),
     },
     async (params) => {
       const { serviceGroupInstanceNo, ...rest } = params;
@@ -636,11 +671,11 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     "Get OS-level monitoring metrics (CPU, memory, disk) for a CDSS cluster node",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
-      timeStart: z.string().describe("Start time"),
-      timeEnd: z.string().describe("End time"),
-      metric: z.string().describe("Metric to retrieve"),
+      timeStart: z.number().describe("Start time as epoch milliseconds (e.g. 1745280000000) — NOT an ISO 8601 string"),
+      timeEnd: z.number().describe("End time as epoch milliseconds"),
+      metric: z.enum(["OS_ALL_METRICS"]).describe("Metric set to retrieve. OS_ALL_METRICS is the only valid value"),
       computeInstanceNo: z.string().describe("Node instance number (from ncloud_cdss_list_nodes)"),
-      interval: z.string().optional().describe("Aggregation interval"),
+      interval: z.string().optional().describe("Aggregation interval (e.g. Min1, Min30, Hour2, Day1). Default: Min1"),
     },
     async (params) => {
       const { serviceGroupInstanceNo, ...rest } = params;

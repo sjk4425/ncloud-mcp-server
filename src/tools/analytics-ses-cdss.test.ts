@@ -278,6 +278,39 @@ describe("SES — 조회 엔드포인트 전송 방식 (B-4/B-5)", () => {
     expect(disk).toHaveProperty("diskSize");
   });
 
+  it("change_disk_size 는 인스턴스 번호를 경로 세그먼트로 보낸다 (재판정 A-1)", async () => {
+    const raw = vi.spyOn(client, "requestRaw").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_ses_change_disk_size")(
+      { serviceGroupInstanceNo: "99999999", diskSize: 200 },
+      {} as any
+    );
+
+    const [method, path, , body] = raw.mock.calls[0];
+    expect(method).toBe("POST");
+    expect(path).toBe("/api/v2/cluster/changeClusterNodeDiskSize/99999999");
+    // 세그먼트로 옮겼으므로 본문에는 남지 않는다.
+    expect(body).toEqual({ diskSize: 200 });
+    raw.mockRestore();
+  });
+
+  it("SES 모니터링 2종: 시각은 epoch millis, metric 은 enum 이다 (재판정 B-1·B-2)", () => {
+    const cases: Array<[string, string[]]> = [
+      ["ncloud_ses_get_monitoring", ["CLUSTER_ALL_METRICS", "SES_ALL_METRICS"]],
+      ["ncloud_ses_get_os_monitoring", ["OS_ALL_METRICS"]],
+    ];
+    for (const [tool, allowed] of cases) {
+      const shape = getTool(server, tool).inputSchema.shape;
+      // ISO 8601 문자열을 넣으면 서버가 Long 변환 실패로 거부한다.
+      expect(shape.timeStart.safeParse("2026-09-04T00:00:00Z").success, tool).toBe(false);
+      expect(shape.timeStart.safeParse(1745280000000).success, tool).toBe(true);
+      // 'cpu' 같은 자유 문자열은 거부되어야 한다.
+      expect(shape.metric.safeParse("cpu").success, tool).toBe(false);
+      for (const v of allowed) {
+        expect(shape.metric.safeParse(v).success, `${tool}:${v}`).toBe(true);
+      }
+    }
+  });
+
   it("SES G3 오퍼레이션 5개가 모두 도구로 존재한다", () => {
     for (const name of [
       "ncloud_ses_get_server_specs",                 // getServerSpecList
@@ -538,6 +571,61 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
       { loadBalancerInstanceNo: "77" }
     );
     post.mockRestore();
+  });
+
+  it("CDSS 모니터링 2종: 시각은 epoch millis, metric 은 enum 이다 (재판정 B-1·B-2)", () => {
+    const cases: Array<[string, string[]]> = [
+      ["ncloud_cdss_get_monitoring", ["CLUSTER_ALL_METRICS", "BROKER_ALL_METRICS"]],
+      ["ncloud_cdss_get_os_monitoring", ["OS_ALL_METRICS"]],
+    ];
+    for (const [tool, allowed] of cases) {
+      const shape = getTool(server, tool).inputSchema.shape;
+      expect(shape.timeStart.safeParse("2026-09-04T00:00:00Z").success, tool).toBe(false);
+      expect(shape.timeStart.safeParse(1745280000000).success, tool).toBe(true);
+      expect(shape.metric.safeParse("cpu").success, tool).toBe(false);
+      for (const v of allowed) {
+        expect(shape.metric.safeParse(v).success, `${tool}:${v}`).toBe(true);
+      }
+    }
+  });
+
+  it("create_cluster: returnClusterId 로 ID 반환 변형을 고른다 (재판정 D-3)", async () => {
+    const base = {
+      clusterName: "c", kafkaVersionCode: 1, configGroupNo: 1,
+      kafkaManagerUserName: "u", kafkaManagerUserPassword: "p",
+      softwareProductCode: "s", vpcNo: 1, managerNodeSubnetNo: 1,
+      managerNodeProductCode: "m", brokerNodeSubnetNo: 2, brokerNodeCount: 3,
+      brokerNodeProductCode: "b", brokerNodeStorageSize: 100,
+    };
+    const spy = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+
+    await getToolHandler(server, "ncloud_cdss_create_cluster")(base, {} as any);
+    expect(spy.mock.calls[0][0]).toBe("/api/v1/cluster/createCDSSCluster");
+
+    spy.mockClear();
+    await getToolHandler(server, "ncloud_cdss_create_cluster")({ ...base, returnClusterId: true }, {} as any);
+    expect(spy.mock.calls[0][0]).toBe("/api/v1/cluster/createCDSSClusterReturnServiceGroupInstanceNo");
+    // 플래그 자체는 API로 새어나가지 않는다.
+    expect(spy.mock.calls[0][1]).not.toHaveProperty("returnClusterId");
+    spy.mockRestore();
+  });
+
+  it("reset_cmak_password: 300 에 진단을 붙이되 비밀번호는 본문에 유지한다 (재판정 A-2)", async () => {
+    const spy = vi.spyOn(client, "postRequest").mockRejectedValue(
+      new Error("API 호출 실패\n\n에러 코드: 300\n메시지: Not Found Exception")
+    );
+    const result = await getToolHandler(server, "ncloud_cdss_reset_cmak_password")(
+      { serviceGroupInstanceNo: "1", kafkaManagerUserPassword: "pw" },
+      {} as any
+    );
+
+    // GET 전환은 비밀번호를 쿼리스트링에 싣게 되므로 채택하지 않았다 — POST 본문 유지.
+    const [path, body] = spy.mock.calls[0];
+    expect(path).toBe("/api/v1/cluster/resetMGMTPassword/1");
+    expect(body).toEqual({ kafkaManagerUserPassword: "pw" });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("300");
+    spy.mockRestore();
   });
 
   it("CDSS G3 오퍼레이션 6개가 모두 도구로 존재한다", () => {

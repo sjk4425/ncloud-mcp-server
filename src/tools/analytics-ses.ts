@@ -575,16 +575,20 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     "ncloud_ses_change_disk_size",
     "Change data node disk capacity for a Search Engine Service cluster",
     {
-      serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
+      serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
       // API 필드명은 diskSize 다. dataNodeStorageSize 로는 값이 전달되지 않았다.
       diskSize: z.number().describe("New storage size in GB (10GB increments)"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
-      const result = await client.requestRaw("POST", `${prefix}/cluster/changeClusterNodeDiskSize`, undefined, {
-        serviceGroupInstanceNo: params.serviceGroupInstanceNo,
-        diskSize: params.diskSize,
-      });
+      // 인스턴스 번호는 경로 세그먼트다. 본문에만 담으면 300이었다(재판정 A-1).
+      // SES는 계열별로 갈린다 — 노드 조작(changeCountOfDataNode·changeSpecNode·
+      // resetSearchEngineUserPassword·changeClusterNodeDiskSize)은 세그먼트를 쓰고,
+      // 업그레이드·setHotWarmNode 는 본문에 담는다. "전부 세그먼트"가 아니다.
+      const result = await client.requestRaw(
+        "POST", `${prefix}/cluster/changeClusterNodeDiskSize/${params.serviceGroupInstanceNo}`,
+        undefined, { diskSize: params.diskSize }
+      );
       return result;
     }
   );
@@ -644,11 +648,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
       // 예전 스키마의 startDateTime/endDateTime 은 API에 없는 이름이었고,
       // 필수값 metric 이 아예 빠져 있었다. 경로도 /cluster/ 가 아니라 /monitoring/ 섹션이다.
-      timeStart: z.string().describe("Start time"),
-      timeEnd: z.string().describe("End time"),
-      metric: z.string().describe("Metric to retrieve"),
+      // 시각은 **epoch millis(Long)** 다. ISO 8601을 넣으면 서버가
+      // "Failed to convert ... to required type 'java.lang.Long'" 로 거부한다(재판정 B-1).
+      timeStart: z.number().describe("Start time as epoch milliseconds (e.g. 1742747874000) — NOT an ISO 8601 string"),
+      timeEnd: z.number().describe("End time as epoch milliseconds"),
+      // metric 은 자유 문자열이 아니라 enum 이다 — 'cpu' 같은 값은 거부된다(재판정 B-2).
+      metric: z.enum(["CLUSTER_ALL_METRICS", "SES_ALL_METRICS"]).describe("Metric set to retrieve"),
       computeInstanceNo: z.string().optional().describe("Node instance number. Required for node-level metrics"),
-      interval: z.string().optional().describe("Aggregation interval"),
+      interval: z.string().optional().describe("Aggregation interval (e.g. Min1, Min30, Hour2, Day1)"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
@@ -673,10 +680,10 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
       computeInstanceNo: z.string().describe("Node instance number"),
-      timeStart: z.string().describe("Start time"),
-      timeEnd: z.string().describe("End time"),
-      metric: z.string().describe("Metric to retrieve"),
-      interval: z.string().optional().describe("Aggregation interval"),
+      timeStart: z.number().describe("Start time as epoch milliseconds (e.g. 1742520660000) — NOT an ISO 8601 string"),
+      timeEnd: z.number().describe("End time as epoch milliseconds"),
+      metric: z.enum(["OS_ALL_METRICS"]).describe("Metric set to retrieve. OS_ALL_METRICS is the only valid value"),
+      interval: z.string().optional().describe("Aggregation interval (e.g. Min1, Min30, Hour2, Day1). Default: Min1"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
