@@ -257,6 +257,12 @@ describe("SES — 조회 엔드포인트 전송 방식 (B-4/B-5)", () => {
     raw.mockRestore();
   });
 
+  it("ses_add_node: 목표 총계라는 사실과 CDSS와의 대비가 description 에 있다", () => {
+    const desc = getTool(server, "ncloud_ses_add_node").description as string;
+    expect(desc).toContain("TARGET total");
+    expect(desc).toContain("ncloud_cdss_add_nodes");
+  });
+
   it("SES 노드 조작 파라미터 계약이 문서와 일치한다 (감사 §1-G)", () => {
     // add_node: 증분이 아니라 목표 총계다.
     const add = getTool(server, "ncloud_ses_add_node").inputSchema.shape;
@@ -578,6 +584,39 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
       { loadBalancerInstanceNo: "77" }
     );
     post.mockRestore();
+  });
+
+  it("add_nodes: 증분이라는 사실과 SES와의 대비가 description 에 있다 (2026-09-05 오입력 사고)", () => {
+    // SES는 목표 총계, CDSS는 추가 개수인데 이름이 거의 같다. 한쪽에만 경고가 있으면
+    // 다른 쪽은 "경고가 없으니 같은 의미겠지"로 읽힌다.
+    const desc = getTool(server, "ncloud_cdss_add_nodes").description as string;
+    expect(desc).toContain("HOW MANY TO ADD");
+    expect(desc).toContain("not the target total");
+    expect(desc).toContain("ncloud_ses_add_node");
+    // 축소 op가 없다는 사실도 알려야 한다 — 되돌릴 수 없는 방향이다.
+    expect(desc).toMatch(/cannot be reduced|scale-down/);
+  });
+
+  it("restart_kafka_per_node: 배열 computeInstanceNoList 로 보낸다 (2026-09-05 실클러스터)", async () => {
+    const shape = getTool(server, "ncloud_cdss_restart_kafka_per_node").inputSchema.shape;
+    // 단수 computeInstanceNo 로는 유효한 노드 번호도 "Invalid Compute Instance No list" 로 거부됐다.
+    expect(shape).not.toHaveProperty("computeInstanceNo");
+    expect(isRequired(server, "ncloud_cdss_restart_kafka_per_node", "computeInstanceNoList")).toBe(true);
+    // 빈 배열은 사전에 막는다.
+    expect(shape.computeInstanceNoList.safeParse([]).success).toBe(false);
+
+    const spy = vi.spyOn(client, "postRequest").mockResolvedValue({ code: 0 });
+    await getToolHandler(server, "ncloud_cdss_restart_kafka_per_node")(
+      { serviceGroupInstanceNo: "145022751", computeInstanceNoList: ["145022777"] },
+      {} as any
+    );
+
+    // 공식 curl 예제가 숫자 배열이므로 숫자로 정규화해 보낸다.
+    expect(spy).toHaveBeenCalledWith(
+      "/api/v1/cluster/restartKafkaServicePerNode/145022751",
+      { computeInstanceNoList: [145022777] }
+    );
+    spy.mockRestore();
   });
 
   it("CDSS 모니터링 2종: 시각은 epoch millis, metric 은 enum 이다 (재판정 B-1·B-2)", () => {

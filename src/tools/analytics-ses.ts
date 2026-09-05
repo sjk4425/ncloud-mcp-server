@@ -469,7 +469,8 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     server,
     "ncloud_ses_add_node",
     "Change the data node count of a Search Engine Service cluster. " +
-      "⚠️ newDataNodeCount is the TARGET total, not how many to add.",
+      "⚠️ newDataNodeCount is the TARGET total, not how many to add — the CDSS counterpart " +
+      "(ncloud_cdss_add_nodes) takes a delta instead, despite the near-identical parameter name.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
       // 예전 스키마의 addDataNodeCount는 API에 없는 이름이었고, 의미도 달랐다

@@ -381,10 +381,17 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_add_nodes",
-    "Add broker nodes to a CDSS cluster",
+    "Add broker nodes to a CDSS cluster. " +
+      "⚠️ newBrokerNodeCount is HOW MANY TO ADD, not the target total — the SES counterpart " +
+      "(ncloud_ses_add_node) takes the target total instead, despite the near-identical parameter name. " +
+      "⚠️ Broker count cannot be reduced afterwards: CDSS has no scale-down operation, so the only way " +
+      "back from adding too many is deleting the cluster.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      newBrokerNodeCount: z.number().describe("Number of broker nodes to add (1-10)"),
+      // SES의 newDataNodeCount 는 "목표 총계"인데 이쪽은 "추가 개수"다 — 이름이 거의 같고
+      // 의미가 반대라 실제로 오입력 사고가 났다(2026-09-05: 브로커 3대에 4를 넣어 7대가 됨).
+      // 축소 op가 없어 되돌리려면 클러스터를 지워야 한다.
+      newBrokerNodeCount: z.number().min(1).max(10).describe("How many broker nodes to ADD (1-10). This is a delta, not the resulting total"),
     },
     async (params) => {
       return client.postRequest(
@@ -425,9 +432,10 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_get_node_product_for_change",
-    "Get the server types a running CDSS cluster's nodes can be changed to (G2). " +
-      "The G3/KVM equivalent is ncloud_cdss_get_node_spec_for_change_g3, and " +
-      "ncloud_cdss_get_node_spec returns the CURRENT spec rather than the changeable ones.",
+    "Get the server types a running CDSS cluster's nodes can be changed to (G2 clusters only). " +
+      "⚠️ On a G3/KVM cluster this returns empty lists rather than an error — use " +
+      "ncloud_cdss_get_node_spec_for_change_g3 there. Note that ncloud_cdss_get_node_spec returns a node's " +
+      "CURRENT spec, which is a different operation from the specs it may be changed to.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
       softwareProductCode: z.string().describe("OS type code (from ncloud_cdss_get_os_products)"),
@@ -443,7 +451,10 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_change_node_spec",
-    "Change server spec for nodes in a CDSS cluster",
+    "Change server spec for nodes in a CDSS cluster. " +
+      "⚠️ Downgrades are refused by the service — check `isChangeSpec` in " +
+      "ncloud_cdss_get_node_spec_for_change_g3 (G3) or ncloud_cdss_get_node_product_for_change (G2) first; " +
+      "a spec smaller than the current one comes back with isChangeSpec=false.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       brokerNodeProductCode: z.string().optional().describe("New broker node product code"),
@@ -512,15 +523,34 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_restart_kafka_per_node",
-    "Restart Kafka on a specific node in a CDSS cluster",
+    "Restart Kafka on one or more specific nodes in a CDSS cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      computeInstanceNo: z.string().describe("Node compute instance number to restart"),
+      // API는 **배열**(computeInstanceNoList)을 받는다. 단수 computeInstanceNo 로 보내면
+      // 유효한 노드 번호를 넣어도 "3 Invalid Compute Instance No list" 로 거부된다
+      // (2026-09-05 실클러스터 검증). 에러 문구의 'list' 가 단서였다.
+      //
+      // 이 결함은 **유효한 클러스터가 있어야만 드러난다** — 없는 번호로 호출하면 서버가
+      // 클러스터 검증에서 먼저 걸러 파라미터까지 도달하지 않는다. 7·8차 경로 스윕이
+      // 경로 오류 36건을 잡고도 이건 못 잡은 이유다.
+      computeInstanceNoList: z.array(z.union([z.number(), z.string()])).min(1, {
+        message: L({
+          ko: "computeInstanceNoList는 최소 1개 이상이어야 합니다.",
+          en: "computeInstanceNoList must contain at least one node number.",
+        }),
+      }).describe("Node server instance numbers to restart (from ncloud_cdss_list_nodes)"),
     },
     async (params) => {
+      // 공식 curl 예제는 따옴표 없는 숫자 배열이다. 입력은 문자열도 받되(노드 목록 응답이
+      // 문자열로 오는 경우가 있다) 숫자로 변환 가능한 값은 숫자로 보낸다.
+      const list = params.computeInstanceNoList.map((v) => {
+        if (typeof v === "number") return v;
+        const n = Number(v);
+        return Number.isFinite(n) && v.trim() !== "" ? n : v;
+      });
       return client.postRequest(
           `${prefix}/cluster/restartKafkaServicePerNode/${params.serviceGroupInstanceNo}`,
-          { computeInstanceNo: params.computeInstanceNo }
+          { computeInstanceNoList: list }
         );
     }
   );
