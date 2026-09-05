@@ -468,14 +468,18 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_add_node",
-    "Change the data node count of a Search Engine Service cluster. " +
-      "⚠️ newDataNodeCount is the TARGET total, not how many to add — the CDSS counterpart " +
-      "(ncloud_cdss_add_nodes) takes a delta instead, despite the near-identical parameter name.",
+    "Add data nodes to a Search Engine Service cluster. " +
+      "⚠️ newDataNodeCount is HOW MANY TO ADD, not the resulting total — a cluster with 3 data nodes " +
+      "given newDataNodeCount=4 ends up with 7. " +
+      "⚠️ Node count cannot be reduced afterwards: SES has no scale-down operation, so the only way " +
+      "back from adding too many is deleting the cluster.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
-      // 예전 스키마의 addDataNodeCount는 API에 없는 이름이었고, 의미도 달랐다
-      // (증분 vs 목표 총계). 인스턴스 번호도 본문이 아니라 경로에 들어간다.
-      newDataNodeCount: z.number().describe("Target total number of data nodes after the change"),
+      // 이 파라미터는 **증분**이다. 이전에는 "목표 총계"라고 설명했는데 거짓이었다 —
+      // 실클러스터에서 데이터 노드 3대에 4를 넣어 7대가 됐다(2026-09-05).
+      // 문서만 보고 추론한 의미였고, 그 잘못된 설명을 근거로 CDSS 쪽에 "두 서비스가 반대"라는
+      // 대비까지 적었다. 두 서비스는 같다 — 둘 다 증분이다.
+      newDataNodeCount: z.number().min(1).describe("How many data nodes to ADD. This is a delta, not the resulting total"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
@@ -712,7 +716,9 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_get_snapshot_buckets",
-    "Get Object Storage bucket list available for storing cluster snapshots",
+    "Get Object Storage bucket list available for storing cluster snapshots. " +
+      "⚠️ Requires ncloud_ses_set_snapshot_api_key to have been run first — without it the call fails with " +
+      "10115. (The import counterpart, ncloud_ses_get_import_buckets, does NOT need the key.)",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
@@ -726,7 +732,9 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_set_snapshot_api_key",
-    "Set the Object Storage API authentication key used for snapshots",
+    "Set the Object Storage API authentication key used for snapshots. " +
+      "This is the first step of the snapshot chain — ncloud_ses_get_snapshot_buckets, " +
+      "ncloud_ses_create_snapshot and the scheduling tools all fail with 10115 until it is set.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       accessKeyId: z.string().describe("Object Storage access key"),
@@ -748,7 +756,9 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_create_snapshot",
-    "Create a snapshot of a Search Engine Service cluster",
+    "Create a snapshot of a Search Engine Service cluster. " +
+      "⚠️ Prerequisite chain: ncloud_ses_set_snapshot_api_key → ncloud_ses_get_snapshot_buckets → this tool. " +
+      "Without the API key the bucket lookup fails with 10115.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       snapshotName: z.string().describe("Name for the snapshot"),
@@ -805,7 +815,8 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_set_snapshot_schedule",
-    "Set a daily snapshot schedule for a Search Engine Service cluster",
+    "Set a daily snapshot schedule for a Search Engine Service cluster. " +
+      "⚠️ Requires ncloud_ses_set_snapshot_api_key first (otherwise 10115).",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       snapshotName: z.string().describe("Name prefix for scheduled snapshots"),
@@ -863,16 +874,19 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_run_import",
-    "Start a data import job from Object Storage into a Search Engine Service cluster",
+    "Start a data import job from Object Storage into a Search Engine Service cluster. " +
+      "⚠️ With isBulkFormat=true the `index` parameter is ignored — each line's own `_index` decides the " +
+      "destination, so a bulk file without `_index` imports nothing. The import history does not report why " +
+      "a job produced no documents, so check the file's format first.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       bucketName: z.string().describe("Object Storage bucket name (from ncloud_ses_get_import_buckets)"),
       // 예전 스키마의 filePath·indexName 은 API에 없는 이름이었고,
       // 필수 dataSource 가 빠져 있었다.
       objectKey: z.string().describe("Object key (path) of the file in the bucket"),
-      index: z.string().describe("Target index name"),
+      index: z.string().describe("Target index name. Ignored when isBulkFormat=true — the file's own _index wins"),
       dataSource: z.string().describe("Data source type"),
-      isBulkFormat: z.boolean().optional().describe("Whether the file is in Elasticsearch bulk format"),
+      isBulkFormat: z.boolean().optional().describe("Whether the file is in Elasticsearch bulk format. If true, every line must carry its own _index"),
     },
     async (params) => {
       const { serviceGroupInstanceNo, ...rest } = params;
@@ -928,7 +942,10 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_upgrade_version",
-    "Upgrade the Search Engine version of a cluster. Run ncloud_ses_precheck_upgrade first.",
+    "Upgrade the Search Engine version of a cluster. Run ncloud_ses_precheck_upgrade first. " +
+      "⚠️ The pre-check requires an existing snapshot — it fails with 10154 if the cluster has none, so the " +
+      "full chain is ncloud_ses_set_snapshot_api_key → ncloud_ses_get_snapshot_buckets → " +
+      "ncloud_ses_create_snapshot → ncloud_ses_precheck_upgrade → this tool.",
     {
       // 경로는 맞았지만 파라미터명이 틀려 서버가 "Target version code is not allowed to
       // be empty" 로 답했다(2026-09-04 감사 §2). 실제 필드는 targetVersionCode 이고
@@ -947,7 +964,9 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_precheck_upgrade",
-    "Pre-check whether a Search Engine version upgrade can proceed",
+    "Pre-check whether a Search Engine version upgrade can proceed. " +
+      "⚠️ Requires the cluster to have at least one snapshot — returns 10154 otherwise. Create one with " +
+      "ncloud_ses_create_snapshot, which itself needs ncloud_ses_set_snapshot_api_key set first.",
     {
       regionNo: z.number().describe("Region number (from ncloud_get_regions)"),
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
@@ -986,7 +1005,9 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     "ncloud_ses_change_node_type",
     "Set each data node's storage role (HOT/WARM) in a Search Engine Service cluster. " +
       "Roles are assigned per node, not by count. Manager and master node types cannot be changed. " +
-      "List the nodes with ncloud_ses_get_node_list first.",
+      "List the nodes with ncloud_ses_get_node_list first. " +
+      "⚠️ There is no way to read the result back: no Ncloud API returns a node's HOT/WARM role, so the " +
+      "success response and the cluster's state transition are the only confirmation available.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       // 예전 스키마의 hotDataNodeCount/warmDataNodeCount 는 API에 없는 파라미터였다.
@@ -1016,8 +1037,10 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_get_node_product_for_change",
-    "Get the server types a running Search Engine Service cluster's nodes can be changed to (G2). " +
-      "The G3/KVM equivalent is ncloud_ses_get_node_spec_for_change_g3.",
+    "Get the server types a running Search Engine Service cluster's nodes can be changed to (G2 clusters only). " +
+      "⚠️ On a G3/KVM cluster this returns G2 products with `isChangeSpec: true` on every one of them — none " +
+      "of which will actually apply; the server refuses them at change time with 10139. The only hint in the " +
+      "response is that no entry is marked `isSelected`. Use ncloud_ses_get_node_spec_for_change_g3 there.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (path segment)"),
       softwareProductCode: z.string().describe("OS product code (from ncloud_ses_get_os_products)"),

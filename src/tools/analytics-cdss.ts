@@ -382,15 +382,16 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     server,
     "ncloud_cdss_add_nodes",
     "Add broker nodes to a CDSS cluster. " +
-      "⚠️ newBrokerNodeCount is HOW MANY TO ADD, not the target total — the SES counterpart " +
-      "(ncloud_ses_add_node) takes the target total instead, despite the near-identical parameter name. " +
+      "⚠️ newBrokerNodeCount is HOW MANY TO ADD, not the resulting total — a cluster with 3 brokers " +
+      "given newBrokerNodeCount=4 ends up with 7. The SES counterpart (ncloud_ses_add_node) behaves the " +
+      "same way. " +
       "⚠️ Broker count cannot be reduced afterwards: CDSS has no scale-down operation, so the only way " +
       "back from adding too many is deleting the cluster.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-      // SES의 newDataNodeCount 는 "목표 총계"인데 이쪽은 "추가 개수"다 — 이름이 거의 같고
-      // 의미가 반대라 실제로 오입력 사고가 났다(2026-09-05: 브로커 3대에 4를 넣어 7대가 됨).
+      // 실제로 오입력 사고가 났다(2026-09-05: 브로커 3대에 4를 넣어 7대가 됨).
       // 축소 op가 없어 되돌리려면 클러스터를 지워야 한다.
+      // 한때 "SES는 목표 총계라 의미가 반대"라고 적었으나 그것이 거짓이었다 — SES도 증분이다.
       newBrokerNodeCount: z.number().min(1).max(10).describe("How many broker nodes to ADD (1-10). This is a delta, not the resulting total"),
     },
     async (params) => {

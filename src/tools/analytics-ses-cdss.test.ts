@@ -257,10 +257,15 @@ describe("SES — 조회 엔드포인트 전송 방식 (B-4/B-5)", () => {
     raw.mockRestore();
   });
 
-  it("ses_add_node: 목표 총계라는 사실과 CDSS와의 대비가 description 에 있다", () => {
+  it("ses_add_node: 증분이라는 사실이 description 에 있다 (2026-09-05 실측)", () => {
+    // 한때 "TARGET total" 이라고 적혀 있었고 그것이 거짓이었다 — 데이터 노드 3대에
+    // newDataNodeCount=4 를 넣어 7대가 됐다. 그 거짓을 이 테스트가 고정하고 있었다.
     const desc = getTool(server, "ncloud_ses_add_node").description as string;
-    expect(desc).toContain("TARGET total");
-    expect(desc).toContain("ncloud_cdss_add_nodes");
+    expect(desc).toContain("HOW MANY TO ADD");
+    expect(desc).not.toContain("TARGET total");
+    // 축소 op가 없다 — 되돌릴 수 없는 방향이다.
+    expect(desc).toMatch(/cannot be reduced|scale-down/);
+    expect(getTool(server, "ncloud_ses_add_node").inputSchema.shape.newDataNodeCount.safeParse(0).success).toBe(false);
   });
 
   it("SES 노드 조작 파라미터 계약이 문서와 일치한다 (감사 §1-G)", () => {
@@ -586,13 +591,13 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
     post.mockRestore();
   });
 
-  it("add_nodes: 증분이라는 사실과 SES와의 대비가 description 에 있다 (2026-09-05 오입력 사고)", () => {
-    // SES는 목표 총계, CDSS는 추가 개수인데 이름이 거의 같다. 한쪽에만 경고가 있으면
-    // 다른 쪽은 "경고가 없으니 같은 의미겠지"로 읽힌다.
+  it("add_nodes: 증분이라는 사실이 description 에 있다 (2026-09-05 오입력 사고)", () => {
     const desc = getTool(server, "ncloud_cdss_add_nodes").description as string;
     expect(desc).toContain("HOW MANY TO ADD");
-    expect(desc).toContain("not the target total");
-    expect(desc).toContain("ncloud_ses_add_node");
+    expect(desc).toContain("not the resulting total");
+    // 두 서비스는 **같다**. 한때 "SES는 목표 총계라 반대"라고 적었으나 거짓이었다.
+    expect(desc).toContain("behaves the same way");
+    expect(desc).not.toMatch(/takes the target total instead/);
     // 축소 op가 없다는 사실도 알려야 한다 — 되돌릴 수 없는 방향이다.
     expect(desc).toMatch(/cannot be reduced|scale-down/);
   });
