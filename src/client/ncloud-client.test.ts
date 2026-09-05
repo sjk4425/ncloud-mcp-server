@@ -948,6 +948,46 @@ describe("NcloudClient 단위 테스트: 읽기 전용 5xx/네트워크 재시�
   });
 });
 
+// ─── 로그·에러 메시지의 쿼리스트링 마스킹 ────────────────────────────────────────
+describe("redactUrl: 비밀이 실린 쿼리스트링을 로그·에러에서 지운다", () => {
+  it("쿼리스트링을 지우고 경로는 남긴다", async () => {
+    const { redactUrl } = await import("./_timeout.js");
+    // Ncloud는 생성 계열도 GET이라 비밀번호가 쿼리스트링에 실린다.
+    const url = "https://ncloud.apigw.ntruss.com/vmysql/v2/createCloudMysqlInstance"
+      + "?cloudMysqlUserName=admin&cloudMysqlUserPassword=SuperSecret1!&regionCode=KR";
+
+    const out = redactUrl(url);
+    expect(out).not.toContain("SuperSecret1!");
+    expect(out).not.toContain("cloudMysqlUserPassword");
+    // 어느 API에서 났는지는 진단에 필요하고, 경로에는 비밀이 없다.
+    expect(out).toContain("/vmysql/v2/createCloudMysqlInstance");
+  });
+
+  it("쿼리스트링이 없으면 그대로 둔다", async () => {
+    const { redactUrl } = await import("./_timeout.js");
+    const url = "https://ncloud.apigw.ntruss.com/vserver/v2/getServerInstanceList";
+    expect(redactUrl(url)).toBe(url);
+  });
+
+  it("타임아웃 에러 메시지에 쿼리스트링이 새지 않는다", async () => {
+    const client = new NcloudClient({
+      accessKey: "testKey", secretKey: "testSecret",
+      baseUrl: "https://ncloud.apigw.ntruss.com",
+    });
+    // AbortSignal.timeout 과 같은 이름의 오류를 던져 타임아웃 경로를 태운다.
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      const e: any = new Error("aborted"); e.name = "TimeoutError"; throw e;
+    }));
+
+    const err = await client
+      .request("/vmysql/v2/createCloudMysqlInstance", { cloudMysqlUserPassword: "SuperSecret1!" })
+      .catch((e: Error) => e);
+
+    expect(String(err)).not.toContain("SuperSecret1!");
+    vi.unstubAllGlobals();
+  });
+});
+
 // ─── analytics 봉투: HTTP 200 + code != 0 (5차 회차 신규 결함) ────────────────────
 describe("NcloudClient 단위 테스트: analytics 봉투의 HTTP 200 거부", () => {
   let client: NcloudClient;

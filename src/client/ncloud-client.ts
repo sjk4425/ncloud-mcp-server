@@ -1,5 +1,5 @@
 import { generateSignature } from "../auth/signature.js";
-import { fetchWithTimeout } from "./_timeout.js";
+import { fetchWithTimeout, redactUrl } from "./_timeout.js";
 import { getRetryContext } from "./_retry-context.js";
 import { messages } from "./messages.js";
 
@@ -92,7 +92,7 @@ export class NcloudClient {
           const delay = this.computeBackoff(attempt, null);
           if (debug) {
             // eslint-disable-next-line no-console
-            console.error(`[NCLOUD_DEBUG] 네트워크 오류 — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${url}`);
+            console.error(`[NCLOUD_DEBUG] 네트워크 오류 — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${redactUrl(url)}`);
           }
           await this.sleep(delay);
           attempt++;
@@ -109,7 +109,7 @@ export class NcloudClient {
         const delay = this.computeBackoff(attempt, response.headers?.get("retry-after") ?? null);
         if (debug) {
           // eslint-disable-next-line no-console
-          console.error(`[NCLOUD_DEBUG] HTTP ${response.status} — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${url}`);
+          console.error(`[NCLOUD_DEBUG] HTTP ${response.status} — 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 대기): ${redactUrl(url)}`);
         }
         await this.sleep(delay);
         attempt++;
@@ -250,7 +250,7 @@ export class NcloudClient {
       const respHeaders: Record<string, string> = {};
       response.headers.forEach((v, k) => { respHeaders[k] = v; });
       // eslint-disable-next-line no-console
-      console.error(`[NCLOUD_DEBUG] ${upperMethod} ${this.baseUrl}${urlPath} -> ${response.status}\n  respHeaders: ${JSON.stringify(respHeaders)}`);
+      console.error(`[NCLOUD_DEBUG] ${upperMethod} ${redactUrl(`${this.baseUrl}${urlPath}`)} -> ${response.status}\n  respHeaders: ${JSON.stringify(respHeaders)}`);
     }
 
     // Handle 204 No Content or empty body
