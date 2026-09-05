@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.13.0] - 2026-09-03
+## [1.13.0] - 2026-09-06
 
 > Field bug report of 2026-09-01 (7 defects: 4 Blocker / 2 High / 1 Low), found while creating and deleting NAS, five Cloud DB engines, Cloud Hadoop, SES, CDSS and VPC Peering on a real KR account. Every defect had the same root cause — **the input schema did not match the API's actual parameter contract** — in three shapes: a field name that was never mapped, required parameters missing from the schema entirely, and a GET endpoint called with a POST body. **Three services could not be created through MCP at all**: Cloud DB for Cache, Search Engine Service, and Cloud Data Streaming Service. Specs re-derived from the official API docs for [Cloud DB for Cache](https://api.ncloud-docs.com/docs/database-vcache), [Search Engine Service](https://api.ncloud-docs.com/docs/analytics-vpcsearchengine) and [Cloud Data Streaming Service](https://api.ncloud-docs.com/docs/analytics-clouddatastreamingservice).
 >
