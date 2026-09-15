@@ -25,36 +25,6 @@ function getApiPrefix(regionCode: string): string {
   }
 }
 
-/**
- * `getClusterServerImageList`(G3 OS 이미지 조회)는 **공식 문서가 명시한 GET 경로대로
- * 호출해도 API Gateway가 300 Not Found를 반환한다**(2026-09-02 KR 라이브 실측).
- * 한국어·영어 문서 모두, SES·CDSS 양쪽 모두 같은 경로를 명시하는데 라우트가 없다.
- *
- * 이 도구는 G3 이미지 코드의 유일한 출처라서, 막히면 `get_server_specs` ·
- * `get_subnet_list_g3` · `create_cluster_g3`가 연쇄로 사용 불가가 된다. 원인을
- * 알 수 없는 채로 300만 던지면 사용자가 자기 입력을 의심하게 되므로, 실패에
- * 진단과 대안을 붙여 다시 던진다. (`get_server_generations`는 G3를 정상 반환하므로
- * 계정에 G3가 없어서가 아니다.)
- */
-function g3ImageListGuidance(error: any): Error {
-  const raw = String(error?.message ?? error);
-  if (!/\b300\b|Not Found/i.test(raw)) return error;
-  return new Error(
-    raw +
-      "\n\n" +
-      L({
-        ko: "진단: 이 엔드포인트는 공식 문서에 GET으로 명시돼 있으나 API Gateway에 라우트가 없어 300을 반환합니다(2026-09-02 KR 실측). " +
-          "계정의 G3 미보유 문제가 아닙니다 — ncloud_ses_get_server_generations는 G3(KVM)를 정상 반환합니다.\n" +
-          "대안: G3 OS 이미지 코드는 콘솔(Search Engine Service > 클러스터 생성)에서 확인해 " +
-          "ncloud_ses_get_server_specs · ncloud_ses_get_subnet_list_g3 에 직접 넣으세요. G2 경로는 정상 동작합니다.",
-        en: "Diagnosis: the official docs specify this endpoint as GET, but the API gateway has no such route and returns 300 (measured live, KR, 2026-09-02). " +
-          "This is not a missing-G3-entitlement problem — ncloud_ses_get_server_generations does return G3 (KVM).\n" +
-          "Workaround: read the G3 OS image code from the console (Search Engine Service > create cluster) and pass it directly to " +
-          "ncloud_ses_get_server_specs / ncloud_ses_get_subnet_list_g3. The G2 path works normally.",
-      })
-  );
-}
-
 export function registerSearchEngineServiceTools(server: McpServer, client: NcloudClient): void {
   // ─── Cluster List ──────────────────────────────────────────────────────────
 
@@ -218,21 +188,16 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   defineTool(
     server,
     "ncloud_ses_get_cluster_server_images",
-    "Get available OS types for Search Engine Service (G3/KVM only). " +
-      "⚠️ Known issue: the documented endpoint currently returns 300 Not Found on the live API — " +
-      "read the G3 image code from the console instead. The G2 tool ncloud_ses_get_os_products works.",
+    "Get available OS images for Search Engine Service (G3/KVM only). The returned image code is the softwareProductCode for ncloud_ses_get_server_specs, ncloud_ses_get_subnet_list_g3 and ncloud_ses_create_cluster_g3. For G2 use ncloud_ses_get_os_products.",
     {
       generationCode: z.enum(["G3"]).optional().describe("Server generation code. Only G3 (3rd generation) is valid"),
     },
     async (params) => {
       const prefix = getApiPrefix(client.getRegionCode());
-      try {
-        return await client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`, {
-          generationCode: params.generationCode,
-        });
-      } catch (error) {
-        throw g3ImageListGuidance(error);
-      }
+      // 2026-09-02 라이브에서는 300(라우트 없음)이었으나 2026-09-15 사용자 확인으로 정상 동작 — 진단 래퍼 제거.
+      return client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`, {
+        generationCode: params.generationCode,
+      });
     }
   );
 

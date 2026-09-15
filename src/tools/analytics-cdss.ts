@@ -20,31 +20,6 @@ function getApiPrefix(regionCode: string): string {
   }
 }
 
-/**
- * SES와 동일한 문제 — `getClusterServerImageList`(G3 OS 이미지 조회)는 공식 문서가
- * 명시한 GET 경로대로 호출해도 API Gateway가 300을 반환한다(2026-09-02 KR 라이브 실측).
- * 이 도구가 막히면 `get_server_spec_list`(G3)가 연쇄로 사용 불가가 된다.
- * `get_server_generations`는 G3(KVM)를 정상 반환하므로 계정 문제가 아니다.
- */
-function g3ImageListGuidance(error: any): Error {
-  const raw = String(error?.message ?? error);
-  if (!/\b300\b|Not Found/i.test(raw)) return error;
-  return new Error(
-    raw +
-      "\n\n" +
-      L({
-        ko: "진단: 이 엔드포인트는 공식 문서에 GET으로 명시돼 있으나 API Gateway에 라우트가 없어 300을 반환합니다(2026-09-02 KR 실측). " +
-          "계정의 G3 미보유 문제가 아닙니다 — ncloud_cdss_get_server_generations는 G3(KVM)를 정상 반환합니다.\n" +
-          "대안: G3 OS 이미지 코드는 콘솔(Cloud Data Streaming Service > 클러스터 생성)에서 확인해 " +
-          "ncloud_cdss_get_server_spec_list 에 직접 넣으세요. G2 경로는 정상 동작합니다.",
-        en: "Diagnosis: the official docs specify this endpoint as GET, but the API gateway has no such route and returns 300 (measured live, KR, 2026-09-02). " +
-          "This is not a missing-G3-entitlement problem — ncloud_cdss_get_server_generations does return G3 (KVM).\n" +
-          "Workaround: read the G3 OS image code from the console (Cloud Data Streaming Service > create cluster) and pass it directly to " +
-          "ncloud_cdss_get_server_spec_list. The G2 path works normally.",
-      })
-  );
-}
-
 export function registerCloudDataStreamingTools(server: McpServer, client: NcloudClient): void {
   const regionCode = client.getRegionCode();
   const prefix = getApiPrefix(regionCode);
@@ -1099,21 +1074,16 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_get_cluster_server_images",
-    "Get available OS images for CDSS (G3/KVM). " +
-      "⚠️ Known issue: the documented endpoint currently returns 300 Not Found on the live API — " +
-      "read the G3 image code from the console instead. The G2 tool ncloud_cdss_get_os_products works.",
+    "Get available OS images for CDSS (G3/KVM). The returned image code is the softwareProductCode for ncloud_cdss_get_server_spec_list, ncloud_cdss_get_subnet_list_g3 and ncloud_cdss_create_cluster_g3. For G2 use ncloud_cdss_get_os_products.",
     {
       generationCode: z.enum(["G3"]).optional().describe("Server generation code. Only G3 (3rd generation) is valid"),
     },
     async (params) => {
-      try {
-        return await client.requestRaw(
-          "GET", `${prefix}/cluster/getClusterServerImageList`,
-          { generationCode: params.generationCode }
-        );
-      } catch (error) {
-        throw g3ImageListGuidance(error);
-      }
+      // 2026-09-02 라이브에서는 300(라우트 없음)이었으나 2026-09-15 사용자 확인으로 정상 동작 — 진단 래퍼 제거.
+      return client.requestRaw(
+        "GET", `${prefix}/cluster/getClusterServerImageList`,
+        { generationCode: params.generationCode }
+      );
     }
   );
 

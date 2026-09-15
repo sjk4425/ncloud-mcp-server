@@ -924,31 +924,17 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
     });
   });
 
-  it("get_cluster_server_images: 300 실패에 진단·대안을 붙여 던진다 (라이브 §3-A)", async () => {
-    // 문서가 명시한 GET 경로인데도 라이브가 300을 준다 — 원인 불명이므로 고치지 않고,
-    // 사용자가 자기 입력을 의심하지 않도록 실패 메시지에 진단을 붙인다.
-    const spy = vi.spyOn(client, "requestRaw").mockRejectedValue(
-      new Error("API 호출 실패\n\n에러 코드: 300\n메시지: Not Found Exception")
-    );
-    const result = await getToolHandler(server, "ncloud_cdss_get_cluster_server_images")({}, {} as any);
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("300");
-    expect(result.content[0].text).toMatch(/get_server_generations/);
-    spy.mockRestore();
-  });
-
-  it("get_cluster_server_images: 300이 아닌 에러는 그대로 통과시킨다", async () => {
-    const spy = vi.spyOn(client, "requestRaw").mockRejectedValue(
-      new Error("API 호출 실패\n\n에러 코드: 401\n메시지: Unauthorized")
-    );
-    const result = await getToolHandler(server, "ncloud_cdss_get_cluster_server_images")({}, {} as any);
-
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("401");
-    // 관련 없는 진단을 덧붙이지 않는다.
-    expect(result.content[0].text).not.toMatch(/get_server_generations/);
-    spy.mockRestore();
+  it("get_cluster_server_images: 에러를 가공 없이 그대로 전달한다 (v1.14.0 — 300 진단 래퍼 제거)", async () => {
+    // v1.13.0에서 라이브 300에 붙이던 "라우트 없음" 진단은 2026-09-15 사용자 확인(정상 동작)으로 제거했다.
+    // 이제 어떤 에러도 덧붙임 없이 클라이언트 메시지 그대로 나가야 한다.
+    for (const msg of ["API 호출 실패\n\n에러 코드: 300\n메시지: Not Found Exception", "API 호출 실패\n\n에러 코드: 401\n메시지: Unauthorized"]) {
+      const spy = vi.spyOn(client, "requestRaw").mockRejectedValue(new Error(msg));
+      const result = await getToolHandler(server, "ncloud_cdss_get_cluster_server_images")({}, {} as any);
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toBe(msg);
+      expect(result.content[0].text).not.toMatch(/get_server_generations|진단|Diagnosis/);
+      spy.mockRestore();
+    }
   });
 
   it("list_config_groups: POST getKafkaVersionConfigGroupList + 필수 kafkaVersionCode", async () => {
