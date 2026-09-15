@@ -11,6 +11,47 @@
 
 export type Lang = "ko" | "en";
 
+/**
+ * API 실패 메시지에 덧붙일 진단 정보 (mcp-test-report-20260915 F-02).
+ *
+ * 성공 응답에는 `requestId`가 실리는데 실패 메시지에는 아무 추적 정보도 없어서, 게이트웨이가
+ * "Customer Service에 문의하라"고 해도 문의에 필요한 request ID·시각·엔드포인트를 댈 수 없었다.
+ * 그래서 실패 경로에 HTTP 상태·호출 경로(쿼리 제외)·게이트웨이 요청 ID·재시도 가능 여부를 함께 싣는다.
+ */
+export interface ApiFailureDiag {
+  /** HTTP 상태 코드. */
+  status?: number;
+  /** `METHOD /path` — 쿼리스트링은 비밀이 실릴 수 있어 제외한다. */
+  request?: string;
+  /** 게이트웨이 요청 ID(`x-ncp-apigw-request-id`) — 고객지원 문의 시 필요. */
+  requestId?: string;
+  /** 게이트웨이 트레이스 ID(`x-ncp-trace-id`). */
+  traceId?: string;
+  /** 서비스가 준 상세 설명(`error.details`). */
+  details?: string;
+  /** 일시적 오류(5xx/429 또는 "잠시 후 다시" 류 메시지)로 판단되면 true. */
+  retryable?: boolean;
+  /** 클라이언트가 실패를 관측한 시각(ISO 8601). */
+  timestamp?: string;
+}
+
+/** 진단 정보가 하나라도 있으면 줄 단위로 만든다. 없으면 빈 문자열. */
+function diagLines(diag: ApiFailureDiag | undefined, lang: Lang): string {
+  if (!diag) return "";
+  const lines: string[] = [];
+  const t = lang === "en"
+    ? { details: "Details", status: "HTTP status", request: "Request", requestId: "Request ID (x-ncp-apigw-request-id)", traceId: "Trace ID (x-ncp-trace-id)", retry: "Retryable", yes: "yes (transient error — retry after a short wait)", no: "no (fix the request or the resource state first)", time: "Observed at" }
+    : { details: "상세", status: "HTTP 상태", request: "요청", requestId: "요청 ID (x-ncp-apigw-request-id)", traceId: "트레이스 ID (x-ncp-trace-id)", retry: "재시도 가능", yes: "예 (일시적 오류 — 잠시 후 재시도)", no: "아니오 (요청 내용 또는 리소스 상태를 먼저 확인)", time: "관측 시각" };
+  if (diag.details) lines.push(`${t.details}: ${diag.details}`);
+  if (diag.status !== undefined) lines.push(`${t.status}: ${diag.status}`);
+  if (diag.request) lines.push(`${t.request}: ${diag.request}`);
+  if (diag.requestId) lines.push(`${t.requestId}: ${diag.requestId}`);
+  if (diag.traceId) lines.push(`${t.traceId}: ${diag.traceId}`);
+  if (diag.retryable !== undefined) lines.push(`${t.retry}: ${diag.retryable ? t.yes : t.no}`);
+  if (diag.timestamp) lines.push(`${t.time}: ${diag.timestamp}`);
+  return lines.length > 0 ? `\n\n${lines.join("\n")}` : "";
+}
+
 /** `NCLOUD_LANG`을 해석. `en`만 영문, 그 외/미설정은 한국어(기본). */
 export function getLang(): Lang {
   return process.env.NCLOUD_LANG?.toLowerCase() === "en" ? "en" : "ko";
@@ -21,8 +62,8 @@ export interface MessageBundle {
   httpStatus: Record<number, string>;
   /** JSON 파싱 실패. body는 호출부에서 앞 500자로 자른 응답 본문. */
   parseFailure: (status: number, body: string) => string;
-  /** API 게이트웨이/서비스 레벨 에러(코드+메시지 동반). */
-  apiFailure: (code: string, message: string) => string;
+  /** API 게이트웨이/서비스 레벨 에러(코드+메시지 동반). diag가 있으면 추적 정보를 덧붙인다. */
+  apiFailure: (code: string, message: string, diag?: ApiFailureDiag) => string;
   /** 비어 있는 응답 본문 + 실패 상태. diag는 선택적 진단 헤더 문자열. */
   emptyBody: (status: number, diag?: string) => string;
   /** 알 수 없는 상태코드 — 상태와 응답 본문을 그대로 노출. */
@@ -41,7 +82,7 @@ const ko: MessageBundle = {
     504: "요청 시간 초과: Ncloud API 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.",
   },
   parseFailure: (status, body) => `API 응답 파싱 실패: HTTP ${status}\n\n응답: ${body}`,
-  apiFailure: (code, message) => `API 호출 실패\n\n에러 코드: ${code}\n메시지: ${message}`,
+  apiFailure: (code, message, diag) => `API 호출 실패\n\n에러 코드: ${code}\n메시지: ${message}${diagLines(diag, "ko")}`,
   emptyBody: (status, diag) =>
     `API 호출 실패: HTTP ${status} (빈 응답)${diag ? `\n  진단 헤더: ${diag}` : ""}`,
   unknownStatus: (status, body) => `API 호출 실패: HTTP ${status}\n\n응답: ${body}`,
@@ -59,7 +100,7 @@ const en: MessageBundle = {
     504: "Gateway timeout: the Ncloud API took too long to respond. Please try again in a moment.",
   },
   parseFailure: (status, body) => `Failed to parse API response: HTTP ${status}\n\nResponse: ${body}`,
-  apiFailure: (code, message) => `API call failed\n\nError code: ${code}\nMessage: ${message}`,
+  apiFailure: (code, message, diag) => `API call failed\n\nError code: ${code}\nMessage: ${message}${diagLines(diag, "en")}`,
   emptyBody: (status, diag) =>
     `API call failed: HTTP ${status} (empty response)${diag ? `\n  Diagnostic headers: ${diag}` : ""}`,
   unknownStatus: (status, body) => `API call failed: HTTP ${status}\n\nResponse: ${body}`,

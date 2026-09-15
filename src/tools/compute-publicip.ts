@@ -10,7 +10,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
   defineTool(
     server,
     "ncloud_list_public_ips",
-    "List all public IP instances in the current region",
+    "List all public IP instances in the current region. Note: unlike servers and block storages, the Public IP API returns NO product code — to price one, call ncloud_get_product_price_list (billing group) with productName='Public IP'.",
     {
       publicIpInstanceNoList: z.array(z.string()).optional().describe("Filter by public IP instance numbers"),
       isAssociated: z.boolean().optional().describe("Filter by association status"),
@@ -25,7 +25,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
   defineTool(
     server,
     "ncloud_get_public_ip_detail",
-    "Get detailed information about a specific public IP instance",
+    "Get detailed information about a specific public IP instance. The payload carries no product code (API limitation); price it via ncloud_get_product_price_list with productName='Public IP'.",
     {
       publicIpInstanceNo: z.string().describe("Public IP instance number"),
     },
@@ -101,7 +101,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     async (params) => {
       const { confirm, ...apiParams } = params;
       const result = await client.request("/vserver/v2/deletePublicIpInstance", apiParams);
-      return result;
+      return result;
     },
     { destructive: { noun: "PublicIP", describe: (params) => params.publicIpInstanceNo } }
   );

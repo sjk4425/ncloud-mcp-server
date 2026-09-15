@@ -1,7 +1,48 @@
 import { generateSignature } from "../auth/signature.js";
 import { fetchWithTimeout, redactUrl } from "./_timeout.js";
 import { getRetryContext } from "./_retry-context.js";
-import { messages } from "./messages.js";
+import { messages, ApiFailureDiag } from "./messages.js";
+
+/** 실패 메시지에 실을 요청 맥락 — 어느 호출이 실패했고 게이트웨이가 어떤 ID를 남겼는지. */
+interface RequestContext {
+  /** `METHOD /path` (쿼리 제외). */
+  request: string;
+  /** 응답 헤더. mock 응답에는 없을 수 있어 optional. */
+  headers?: { get(name: string): string | null } | null;
+}
+
+/**
+ * 게이트웨이가 콘솔 UI용 HTML을 에러 메시지에 그대로 실어 보내는 경우가 있다 (F-04):
+ * `<strong>Please try again in a few minutes.</strong><br><br>It is temporarily unavailable.<br>…`
+ * 태그가 토큰을 먹고 모델이 마크다운으로 재출력할 때 깨지므로 평문으로 바꾼다.
+ * 태그가 없으면 입력을 그대로 돌려준다(일반 메시지는 건드리지 않는다).
+ *
+ * 발동 조건은 **알려진 HTML 태그 이름**(2자 이상)으로 좁힌다 — `<A>`처럼 서비스 메시지가
+ * 꺾쇠를 다른 뜻으로 쓸 수 있고(예: 플레이스홀더), 그런 메시지를 잘라내면 원문이 사라진다.
+ */
+const HTML_TRIGGER = /<\/?(br|hr|strong|em|div|span|ul|ol|li|h[1-6]|html|head|body|title|table|tr|td|th|font|small|pre|code)\b[^>]*>/i;
+export function stripHtml(text: string): string {
+  if (typeof text !== "string" || !HTML_TRIGGER.test(text)) return text;
+  const out = text
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\s*\/\s*(p|div|li|tr|h[1-6])\s*>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
+  return out.trim();
+}
+
+/** 일시적 오류로 보이면 true — 상태코드(429/5xx) 또는 "잠시 후 다시 시도" 류 문구. */
+function looksRetryable(status: number, message: string): boolean {
+  if (status === 429 || (status >= 500 && status < 600)) return true;
+  return /try again|temporarily unavailable|잠시 후|일시적/i.test(message);
+}
 
 export interface NcloudClientConfig {
   accessKey: string;
@@ -123,7 +164,7 @@ export class NcloudClient {
    * 비어있지 않은 응답 본문을 파싱하고 에러를 처리한 뒤 래퍼를 해제한다.
    * request / requestRaw 공통. (빈 본문/204 처리는 성공 응답 형태가 달라 호출부에 남긴다.)
    */
-  private parseBodyAndHandle(responseText: string, status: number, ok: boolean): any {
+  private parseBodyAndHandle(responseText: string, status: number, ok: boolean, ctx?: RequestContext): any {
     let body: any;
     try {
       body = JSON.parse(responseText);
@@ -131,9 +172,29 @@ export class NcloudClient {
       throw new Error(messages().parseFailure(status, responseText.substring(0, 500)));
     }
     if (!ok || body.error || body.responseError || this.isAnalyticsEnvelopeError(body)) {
-      this.handleErrorResponse(status, body);
+      this.handleErrorResponse(status, body, ctx);
     }
     return this.unwrapResponse(body);
+  }
+
+  /**
+   * 실패 메시지용 진단 정보를 모은다 (F-02). 성공 응답에만 있던 추적 정보(requestId)를
+   * 실패 경로에도 싣는다 — 문의·사후 분석에 필요한 것은 실패했을 때의 ID다.
+   */
+  private buildDiag(status: number, message: string, ctx: RequestContext | undefined, details?: string): ApiFailureDiag {
+    const h = ctx?.headers;
+    const diag: ApiFailureDiag = {
+      status,
+      retryable: looksRetryable(status, message),
+      timestamp: new Date().toISOString(),
+    };
+    if (ctx?.request) diag.request = ctx.request;
+    const requestId = h?.get("x-ncp-apigw-request-id") ?? undefined;
+    const traceId = h?.get("x-ncp-trace-id") ?? undefined;
+    if (requestId) diag.requestId = requestId;
+    if (traceId) diag.traceId = traceId;
+    if (details && details !== message) diag.details = stripHtml(details);
+    return diag;
   }
 
   /**
@@ -199,7 +260,10 @@ export class NcloudClient {
       throw new Error(messages().emptyBody(response.status));
     }
 
-    return this.parseBodyAndHandle(responseText, response.status, response.ok);
+    return this.parseBodyAndHandle(responseText, response.status, response.ok, {
+      request: `GET ${action}`,
+      headers: response.headers ?? null,
+    });
   }
 
   async requestRaw(
@@ -266,7 +330,7 @@ export class NcloudClient {
       // 응답 헤더에서 게이트웨이가 남기는 진단 정보를 함께 노출
       const diag: string[] = [];
       const interestingKeys = [
-        "x-ncp-trace-id", "x-amzn-trace-id", "x-ncp-apigw-error-code",
+        "x-ncp-apigw-request-id", "x-ncp-trace-id", "x-amzn-trace-id", "x-ncp-apigw-error-code",
         "x-ncp-apigw-error-message", "x-ratelimit-remaining", "server",
         "x-ncp-apigw-deny-source", "www-authenticate", "x-ncp-apigw-status-code",
       ];
@@ -277,7 +341,10 @@ export class NcloudClient {
       throw new Error(messages().emptyBody(response.status, diag.length > 0 ? diag.join(" | ") : undefined));
     }
 
-    return this.parseBodyAndHandle(responseText, response.status, response.ok);
+    return this.parseBodyAndHandle(responseText, response.status, response.ok, {
+      request: `${upperMethod} ${path}`,
+      headers: response.headers ?? null,
+    });
   }
 
   // post/put/delete 는 requestRaw 위의 얇은 래퍼.
@@ -303,27 +370,33 @@ export class NcloudClient {
     return body;
   }
 
-  private handleErrorResponse(status: number, body: any): never {
+  private handleErrorResponse(status: number, body: any, ctx?: RequestContext): never {
     const msg = messages();
+    // 모든 분기 공통: HTML 제거(F-04) + 진단 정보 부착(F-02).
+    const raise = (code: unknown, rawMessage: unknown, details?: unknown): never => {
+      const message = stripHtml(String(rawMessage ?? ""));
+      const diag = this.buildDiag(status, message, ctx, typeof details === "string" ? details : undefined);
+      throw new Error(msg.apiFailure(String(code), message, diag));
+    };
 
-    // Format 1: API Gateway error — { error: { errorCode, message } }
+    // Format 1: API Gateway error — { error: { errorCode, message, details? } }
     // (body.error가 문자열인 REST/Spring식 응답과 구분: 객체일 때만 이 분기)
     if (body.error && typeof body.error === "object") {
-      const { errorCode, message } = body.error;
-      throw new Error(msg.apiFailure(errorCode, message));
+      const { errorCode, message, details } = body.error;
+      return raise(errorCode, message, details);
     }
 
     // Format 2: Service-level error — { responseError: { returnCode, returnMessage } }
     if (body.responseError) {
       const { returnCode, returnMessage } = body.responseError;
-      throw new Error(msg.apiFailure(returnCode, returnMessage));
+      return raise(returnCode, returnMessage);
     }
 
     // Format 3: analytics 계열 봉투 — { code, message, result }. `code`가 서비스 에러 코드다.
     // Format 4보다 먼저 둔다: 아래 분기는 코드가 없으면 HTTP status를 쓰는데, 이 계열은
     // HTTP 200으로 오는 거부가 있어 "에러 코드: 200"이라는 오해를 부른다.
     if (this.isAnalyticsEnvelopeError(body)) {
-      throw new Error(msg.apiFailure(String(body.code), body.message));
+      return raise(String(body.code), body.message);
     }
 
     // Format 4: REST/Spring식 플랫 에러 — { message, (statusCode|status|error) }
@@ -332,7 +405,7 @@ export class NcloudClient {
     if (typeof body.message === "string" && body.message.length > 0) {
       const code =
         body.statusCode ?? body.status ?? (typeof body.error === "string" ? body.error : status);
-      throw new Error(msg.apiFailure(code, body.message));
+      return raise(code, body.message);
     }
 
     // HTTP status code based error

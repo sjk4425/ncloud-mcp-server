@@ -1021,11 +1021,14 @@ describe("NcloudClient 단위 테스트: analytics 봉투의 HTTP 200 거부", (
     })));
 
     // "에러 코드: 200" 으로 표시되면 원인 추적이 어긋난다.
+    // (v1.14.0부터 진단 줄에 `HTTP 상태: 200`이 별도로 실린다 — 그것은 사실이므로 허용하고,
+    //  에러 코드 줄만 본다.)
     const err = await client
       .requestRaw("POST", "/api/v1/x", undefined, {})
       .catch((e: Error) => e);
-    expect(String(err)).toContain("3");
-    expect(String(err)).not.toContain("200");
+    expect(String(err)).toContain("에러 코드: 3");
+    expect(String(err)).not.toContain("에러 코드: 200");
+    expect(String(err)).toContain("HTTP 상태: 200");
   });
 
   it("code: 0 은 성공이다", async () => {

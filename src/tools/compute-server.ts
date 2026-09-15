@@ -26,12 +26,55 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_get_server_detail",
-    "Get detailed information about a specific server instance",
+    "Get one server instance plus what is attached to it: block storages (boot + additional, with size/type/product code) and tags. The Server API's detail payload is field-for-field identical to the list entry, so the extra context is what makes this tool worth calling over ncloud_list_servers. Billing type / contract are NOT in the Server API — price a server with ncloud_get_product_price_list (billing group) using serverProductCode or serverSpecCode.",
     {
       serverInstanceNo: z.string().describe("Server instance number to query"),
+      includeRelated: z.boolean().optional().default(true).describe("Also fetch attached block storages and tags (two extra read calls). false = bare getServerInstanceDetail payload."),
     },
     async (params) => {
-      return client.request("/vserver/v2/getServerInstanceDetail", params);
+      const detail = await client.request("/vserver/v2/getServerInstanceDetail", { serverInstanceNo: params.serverInstanceNo });
+      const instance = detail?.serverInstanceList?.[0];
+      if (!params.includeRelated || !instance) return detail;
+
+      // 관련 리소스 조회는 진단 성격이다 — 하나가 실패해도 본체 상세는 돌려준다.
+      const [bs, tags] = await Promise.allSettled([
+        client.request("/vserver/v2/getBlockStorageInstanceList", { serverInstanceNo: params.serverInstanceNo }),
+        client.request("/vserver/v2/getInstanceTagList", { instanceNoList: [params.serverInstanceNo] }),
+      ]);
+      const relatedErrors: Record<string, string> = {};
+      let blockStorages: unknown[] | undefined;
+      if (bs.status === "fulfilled") {
+        blockStorages = (bs.value?.blockStorageInstanceList ?? []).map((b: any) => ({
+          blockStorageInstanceNo: b.blockStorageInstanceNo,
+          blockStorageName: b.blockStorageName,
+          sizeGB: typeof b.blockStorageSize === "number" ? Math.round(b.blockStorageSize / 1024 / 1024 / 1024) : undefined,
+          type: b.blockStorageType?.code,
+          volumeType: b.blockStorageVolumeType?.code ?? b.blockStorageDiskDetailType?.code,
+          status: b.blockStorageInstanceStatusName ?? b.blockStorageInstanceStatus?.code,
+          deviceName: b.deviceName,
+          blockStorageProductCode: b.blockStorageProductCode,
+          isReturnProtection: b.isReturnProtection,
+        }));
+      } else {
+        relatedErrors.blockStorages = String(bs.reason?.message ?? bs.reason);
+      }
+      let tagList: unknown[] | undefined;
+      if (tags.status === "fulfilled") {
+        tagList = (tags.value?.instanceTagList ?? []).map((t: any) => ({ key: t.tagKey, value: t.tagValue }));
+      } else {
+        relatedErrors.tags = String(tags.reason?.message ?? tags.reason);
+      }
+
+      return {
+        serverInstance: instance,
+        ...(blockStorages !== undefined ? { blockStorages } : {}),
+        ...(tagList !== undefined ? { tags: tagList } : {}),
+        ...(Object.keys(relatedErrors).length > 0 ? { relatedErrors } : {}),
+        pricingHint: L({
+          ko: "과금 유형·약정 정보는 Server API에 없습니다. 단가는 billing 그룹의 ncloud_get_product_price_list에 serverProductCode(또는 serverSpecCode)·blockStorageProductCode를 넘겨 조회하세요.",
+          en: "Billing type and contract are not exposed by the Server API. For unit prices call ncloud_get_product_price_list (billing group) with serverProductCode (or serverSpecCode) and blockStorageProductCode.",
+        }),
+      };
     }
   );
 
