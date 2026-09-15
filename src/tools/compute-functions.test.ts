@@ -406,7 +406,7 @@ describe("Cloud Functions — create_trigger 본문 계약 (F-01, F-06, F-08)", 
   it("get_trigger: cron 트리거 응답에 cronFormat 안내를 붙이고, 다른 타입은 그대로 둔다", async () => {
     const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: { name: "c", type: "cron", execOption: [{ key: "cron", value: "0 8 * * *" }] } });
     const res = await getToolHandler(server, "ncloud_functions_get_trigger")({ triggerName: "c" }, {} as any);
-    expect(JSON.parse(text(res)).cronFormat).toMatch(/does NOT state which time zone/);
+    expect(JSON.parse(text(res)).cronFormat).toMatch(/evaluated in KST/);
     spy.mockResolvedValue({ content: { name: "g", type: "github" } });
     const res2 = await getToolHandler(server, "ncloud_functions_get_trigger")({ triggerName: "g" }, {} as any);
     expect(JSON.parse(text(res2))).toEqual({ content: { name: "g", type: "github" } });

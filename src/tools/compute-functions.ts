@@ -31,7 +31,7 @@ const CRON_5_FIELDS = /^\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$/;
 const CRON_FIELD = /^[A-Za-z0-9*,\-/?]+$/;
 
 const CRON_NOTE_EN =
-  "cronOption is a 5-field UNIX cron expression: 'minute hour day-of-month month day-of-week' (e.g. '0 8 * * *' = 08:00 daily, '*/5 * * * *' = every 5 minutes). The official guide (guide.ncloud-docs.com/docs/cloudfunctions-cron-vpc) does NOT state which time zone the expression is evaluated in — do not assume KST or UTC; verify with a probe trigger before scheduling business-critical stop/start jobs.";
+  "cronOption is a 5-field UNIX cron expression: 'minute hour day-of-month month day-of-week' (e.g. '0 8 * * *' = 08:00 daily, '*/5 * * * *' = every 5 minutes). The expression is evaluated in KST (Asia/Seoul, UTC+9) — live-verified on 2026-09-15 in the KR region: a trigger set to '41 22 * * *' fired at 22:41:00 KST. The official guide (guide.ncloud-docs.com/docs/cloudfunctions-cron-vpc) does not document the time zone, so re-verify with a probe trigger before relying on it in another region.";
 
 function fail(text: string) {
   return { content: [{ type: "text" as const, text }], isError: true };
@@ -310,7 +310,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
   defineTool(
     server,
     "ncloud_functions_get_trigger",
-    "Get a trigger: type, description, linked actions and execOption (for cron triggers the 5-field cron expression). The API returns NO time-zone field and the official guide does not document the evaluation zone — the response includes a cronFormat note for cron triggers.",
+    "Get a trigger: type, description, linked actions and execOption (for cron triggers the 5-field cron expression). The API returns NO time-zone field; cron expressions are evaluated in KST (UTC+9, live-verified 2026-09-15 on KR) — the response includes a cronFormat note for cron triggers.",
     {
       triggerName: z.string().describe("Name of the trigger to retrieve"),
       platform: platformSchema,
@@ -343,7 +343,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       type: z.enum(["cron", "github", "insight", "object_storage", "source_commit", "secret_manager"]).describe("Trigger type (query parameter; immutable after creation)"),
       description: z.string().max(3000).optional().describe("Description (0-3000 bytes)"),
       parameters: z.record(z.unknown()).optional().describe("Default parameters as a {key: value} JSON object, merged into every invocation (precedence: runtime > trigger > action > package)"),
-      cronOption: z.string().optional().describe("cron only. 5-field UNIX cron 'min hour dom mon dow', e.g. '0 8 * * *'. Evaluation time zone is NOT documented by Ncloud — verify before relying on it."),
+      cronOption: z.string().optional().describe("cron only. 5-field UNIX cron 'min hour dom mon dow', e.g. '0 8 * * *'. Evaluated in KST (UTC+9) — live-verified 2026-09-15 on KR; the time zone is not documented by Ncloud."),
       credential: z.object({
         username: z.string().describe("GitHub user name"),
         accessToken: z.string().describe("GitHub access token"),
@@ -594,7 +594,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
   defineTool(
     server,
     "ncloud_functions_get_action_activation_detail",
-    "Get one action activation: result payload, status, success flag, logs, start/end/duration",
+    "Get one action activation: result payload, status, success flag, logs, start/end/duration. Right after an invocation the detail can return 80322 ACTION_ACTIVATION_NOT_FOUND for ~30-40 s even though the id is already in the activation list — retry after a short wait.",
     {
       packageName: z.string().default("-").describe("Package name ('-' = unpackaged action)"),
       actionName: z.string().describe("Name of the action"),
@@ -623,7 +623,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
   defineTool(
     server,
     "ncloud_functions_get_trigger_activation_detail",
-    "Get one trigger activation: result, status, success flag, logs, start time",
+    "Get one trigger activation: result, status, success flag, logs, start time. Right after an invocation the detail can return 80518 TRIGGER_ACTIVATION_NOT_FOUND for ~30-40 s even though the id is already in the activation list (observed live 2026-09-15) — retry after a short wait.",
     {
       triggerName: z.string().describe("Name of the trigger"),
       activationId: z.string().describe("Activation ID"),
