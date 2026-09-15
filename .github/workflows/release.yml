@@ -73,7 +73,31 @@ jobs:
           echo "downloading: $URL"
           curl -fsSL "$URL" | tar xz mcp-publisher
 
+      # MCP 레지스트리는 등록 시 npm에서 해당 버전을 조회한다. npm publish 직후에는 전파가 끝나지 않아
+      # "version '1.14.0' was not found (status: 404)"로 400이 난다(v1.14.0 배포에서 실제 발생 — npm publish
+      # 성공 후 10초 만에 조회해 실패, 1분 뒤에는 보였다). 버전이 보일 때까지 기다린 뒤 등록한다.
+      - name: Wait for the npm release to propagate
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 30); do
+            if npm view "ncloud-mcp-server@$TAG" version >/dev/null 2>&1; then
+              echo "ncloud-mcp-server@$TAG is visible on npm."
+              exit 0
+            fi
+            echo "attempt $i/30: ncloud-mcp-server@$TAG not visible yet — waiting 10s"
+            sleep 10
+          done
+          echo "::error::ncloud-mcp-server@$TAG did not appear on npm within 5 minutes."
+          exit 1
+
+      # 레지스트리 측 캐시가 npm보다 더 늦을 수 있어 등록 자체도 짧게 재시도한다.
       - name: Publish to MCP registry
         run: |
           ./mcp-publisher login github-oidc
-          ./mcp-publisher publish
+          for i in 1 2 3 4 5; do
+            if ./mcp-publisher publish; then exit 0; fi
+            echo "mcp-publisher publish failed (attempt $i/5) — retrying in 20s"
+            sleep 20
+          done
+          echo "::error::MCP registry publish failed after 5 attempts. Re-run this job once npm shows the version: it is idempotent (npm publish is skipped when the version already exists)."
+          exit 1
