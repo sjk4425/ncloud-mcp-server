@@ -232,10 +232,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
         regionCode,
         storageType: "object",
       });
+      // Ncloud Storage 는 공식 문서대로 virtual-hosted 주소(`{bucket}.kr.ncloudstorage.com`)가
+      // 기본. 2026-08 라이브 검증까지 동작했던 path 방식이 필요하면 env 로 되돌릴 수 있다.
       const ncloudStorageClient = new S3CompatibleClient({
         ...creds,
         regionCode,
         storageType: "ncloud",
+        addressing: env.NCLOUD_STORAGE_ADDRESSING === "path" ? "path" : undefined,
       });
       registerStorageObjectTools(server, s3Client);
       registerStorageNcloudTools(server, ncloudStorageClient);
