@@ -26,10 +26,15 @@ export function xmlEscape(value: string | number | boolean): string {
  * (2026-09-17 KR 라이브: ListObjectsV2 / ListObjectVersions / CopyObjectResult 모두). 숫자·16진
  * 엔티티를 먼저 복원하고 `&amp;` 는 마지막에 풀어 `&amp;#34;` 같은 이중 이스케이프가 재해석되지 않게 한다.
  */
+/** 유니코드 범위(≤ U+10FFFF)를 벗어나는 문자 참조는 예외를 던지지 않고 원문을 남긴다(응답 파싱 중 크래시 방지). */
+function codePointOrLiteral(cp: number, literal: string): string {
+  return Number.isFinite(cp) && cp >= 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : literal;
+}
+
 export function xmlUnescape(value: string): string {
   return value
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#([0-9]+);/g, (_, dec: string) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, hex: string) => codePointOrLiteral(parseInt(hex, 16), m))
+    .replace(/&#([0-9]+);/g, (m, dec: string) => codePointOrLiteral(parseInt(dec, 10), m))
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, "<")

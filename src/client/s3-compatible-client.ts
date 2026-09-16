@@ -102,6 +102,23 @@ function uriEncode(value: string): string {
 }
 
 /**
+ * 버킷 이름은 Host(virtual-hosted) 또는 경로 첫 세그먼트(path)에 그대로 들어간다.
+ * `attacker.example/?x=` 같은 값이 들어오면 서명된 요청(액세스 키 ID·서명)이 다른 호스트로 나가거나
+ * 경로/쿼리가 바뀌므로, DNS 라벨로 쓸 수 있는 문자만 허용한다(≤63자, 영숫자·점·하이픈, 양끝 영숫자).
+ * 서비스별 세부 규칙(Ncloud Storage 는 소문자·점 불가)은 create 도구의 스키마가 별도로 검사한다.
+ */
+const SAFE_BUCKET_NAME_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,61}[A-Za-z0-9])?$/;
+
+function assertSafeBucketName(bucket: string): void {
+  if (!SAFE_BUCKET_NAME_RE.test(bucket)) {
+    throw new Error(
+      `잘못된 버킷 이름입니다: '${bucket}'. 버킷 이름은 최대 63자의 영숫자·점(.)·하이픈(-)만 허용되며 영숫자로 시작·끝나야 합니다. ` +
+      `(Invalid bucket name — only letters, digits, '.' and '-', up to 63 chars, starting and ending alphanumeric.)`
+    );
+  }
+}
+
+/**
  * S3-compatible client for Ncloud Object Storage / Ncloud Storage.
  * Implements AWS Signature V4 authentication using Ncloud Access Key / Secret Key.
  *
@@ -234,6 +251,7 @@ export class S3CompatibleClient {
 
   async request(options: S3RequestOptions): Promise<{ status: number; headers: Headers; body: string }> {
     const { method, bucket, key, queryParams, headers: extraHeaders, body } = options;
+    if (bucket !== undefined) assertSafeBucketName(bucket);
 
     const now = new Date();
     const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");

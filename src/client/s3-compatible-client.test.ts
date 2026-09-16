@@ -168,6 +168,17 @@ describe("S3CompatibleClient: Ncloud Storage 주소 방식 (공식 문서 = virt
     expect(sentHeaders(spy)["authorization"]).toMatch(/\/kr-standard\/s3\/aws4_request/);
   });
 
+  it("DNS 라벨이 아닌 버킷 이름은 요청을 만들기 전에 거부한다 (호스트/경로 주입 차단)", async () => {
+    const spy = stubOkFetch();
+    for (const bad of ["attacker.example/?x=", "b?lifecycle=", "a b", "b#frag", "user@b", "-lead", "trail-", "x".repeat(64), "b/../c", ""]) {
+      await expect(createClient().request({ method: "GET", bucket: bad })).rejects.toThrow("잘못된 버킷 이름");
+    }
+    expect(spy).not.toHaveBeenCalled();
+    // 정상 이름(점 포함 — Object Storage 호환)은 통과한다
+    await createClient().request({ method: "GET", bucket: "my.bucket-01" });
+    expect(sentUrl(spy)).toBe("https://my.bucket-01.kr.ncloudstorage.com/");
+  });
+
   it("키의 !'()* 는 RFC 3986 으로 인코딩한다 (서명 문자열과 전송 URL 일치)", async () => {
     const spy = stubOkFetch();
     await createClient().request({ method: "GET", bucket: "b", key: "a(1)!*'.txt" });

@@ -416,6 +416,13 @@ describe("Ncloud Storage: 오브젝트", () => {
     expect(data.hint).not.toContain("Object Storage");
   });
 
+  it("xmlUnescape: 유니코드 범위를 벗어난 문자 참조는 예외 없이 원문을 남긴다", async () => {
+    const xml = `<ListBucketResult><Name>b</Name><Contents><Key>&#99999999999;x&#x110000;y</Key><Size>1</Size></Contents></ListBucketResult>`;
+    vi.spyOn(client, "request").mockResolvedValueOnce(mockResponse(xml));
+    const list = dataOf(await call(server, "ncloud_ncs_list_objects", { bucketName: "b" }));
+    expect(list.contents[0].key).toBe("&#99999999999;x&#x110000;y");
+  });
+
   it("list_objects / list_object_versions: 숫자 엔티티 ETag(&#34;) 를 따옴표로 복원한다 (2026-09-17 라이브 응답 형식)", async () => {
     const listXml = `<ListBucketResult><Name>b</Name><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated>
   <Contents><Key>v1150/hello.txt</Key><LastModified>2026-09-16T16:20:05Z</LastModified><ETag>&#34;5d41402abc4b2a76b9719d911017c592&#34;</ETag><Size>5</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>`;
