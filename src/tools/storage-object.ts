@@ -1088,7 +1088,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
   defineTool(
     server,
     "ncloud_head_bucket",
-    "Check if a bucket exists and you have permission to access it (HEAD request, returns headers only)",
+    "Check if an Object Storage bucket exists and you have permission to access it (HEAD request, returns headers only). Caution: the legacy endpoint has been observed to answer 200 for names that exist only in Ncloud Storage (ncloud_ncs_*), so confirm membership with ncloud_list_buckets when in doubt",
     {
       bucketName: z.string({
         required_error: requiredError("bucketName"),

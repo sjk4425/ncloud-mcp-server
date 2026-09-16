@@ -892,7 +892,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
   defineTool(
     server,
     "ncloud_ncs_get_object_lock_configuration",
-    `${NCS} Get the Object Lock (WORM) configuration of a Ncloud Storage bucket (GET /?object-lock): whether Object Lock is enabled and the default retention (mode + days/years) applied to new objects. Returns configured=false when the bucket has no Object Lock. Note: the official per-operation page was unavailable when this tool was written; the request follows the S3 shape.`,
+    `${NCS} Get the Object Lock (WORM) configuration of a Ncloud Storage bucket (GET /?object-lock): whether Object Lock is enabled and the default retention (mode + days/years) applied to new objects. Returns configured=false when the bucket has no Object Lock (the live API answers ObjectLockConfigurationNotFoundError). Note: the official per-operation page was unavailable when this tool was written; the request follows the S3 shape, and the read path was confirmed against the live KR endpoint on 2026-09-17.`,
     { bucketName: bucketNameSchema() },
     async (params) => {
       try {
@@ -910,7 +910,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
   defineTool(
     server,
     "ncloud_ncs_put_object_lock_configuration",
-    `${NCS} Set the Object Lock default retention of a Ncloud Storage bucket (PUT /?object-lock): every new object gets the given mode for the given period. GOVERNANCE can be overridden by users with bypass permission; COMPLIANCE cannot be shortened or removed by anyone until it expires — it requires confirm=true. The bucket must have been created with objectLockEnabled=true. Give exactly one of days / years. Note: the official per-operation page was unavailable when this tool was written; the request follows the S3 shape.`,
+    `${NCS} Set the Object Lock default retention of a Ncloud Storage bucket (PUT /?object-lock): every new object gets the given mode for the given period. GOVERNANCE can be overridden by users with bypass permission; COMPLIANCE cannot be shortened or removed by anyone until it expires — it requires confirm=true. The bucket must have been created with objectLockEnabled=true. Give exactly one of days / years. Note: the official per-operation page was unavailable when this tool was written; the request follows the S3 shape (the read side, GET /?object-lock, is live-confirmed; this write side is not yet).`,
     {
       bucketName: bucketNameSchema(),
       mode: z.enum(OBJECT_LOCK_MODES, { required_error: requiredError("mode") }).describe("GOVERNANCE | COMPLIANCE"),
@@ -1092,25 +1092,46 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
   defineTool(
     server,
     "ncloud_ncs_head_object",
-    `${NCS} Get an object's metadata without downloading it (HEAD /{key}): size, type, ETag, storage class, version ID, restore status and Object Lock retention / legal hold.`,
+    `${NCS} Get an object's metadata without downloading it (HEAD /{key}): size, type, ETag, storage class, version ID, restore status and Object Lock retention / legal hold. Returns exists=false on 404 (object missing, or its current version is a delete marker on a versioned bucket) instead of an error.`,
     {
       bucketName: bucketNameSchema(),
       key: keySchema("Object key (path) to check"),
       versionId: versionIdSchema(),
     },
     async (params) => {
-      const response = await client.request({
-        method: "HEAD",
-        bucket: params.bucketName,
-        key: params.key,
-        queryParams: params.versionId ? { versionId: params.versionId } : undefined,
-      });
-      return {
-        bucket: params.bucketName,
-        key: params.key,
-        statusCode: response.status,
-        ...objectMetaFromHeaders(response.headers),
-      };
+      try {
+        const response = await client.request({
+          method: "HEAD",
+          bucket: params.bucketName,
+          key: params.key,
+          queryParams: params.versionId ? { versionId: params.versionId } : undefined,
+        });
+        return {
+          bucket: params.bucketName,
+          key: params.key,
+          exists: true,
+          statusCode: response.status,
+          ...objectMetaFromHeaders(response.headers),
+        };
+      } catch (error) {
+        // HEAD 는 본문이 없어 NoSuchKey 코드가 오지 않는다. 404 는 오브젝트 부재(또는 현재 버전이
+        // delete marker)이며 버킷 부재가 아니다 — head_bucket 과 같이 exists:false 로 정규화한다.
+        if (error instanceof S3CompatibleError && error.status === 404) {
+          return {
+            bucket: params.bucketName,
+            key: params.key,
+            versionId: params.versionId,
+            exists: false,
+            statusCode: 404,
+            requestId: error.requestId,
+            hint: L({
+              ko: "오브젝트가 없습니다(NoSuchKey). 버전 관리 버킷이면 현재 버전이 delete marker 일 수 있습니다 — ncloud_ncs_list_object_versions 로 이전 버전을 찾아 versionId 로 조회하세요. 버킷 자체의 존재는 ncloud_ncs_head_bucket 으로 확인합니다.",
+              en: "Object not found (NoSuchKey). On a versioned bucket the current version may be a delete marker — use ncloud_ncs_list_object_versions to find earlier versions and pass versionId. Check the bucket itself with ncloud_ncs_head_bucket.",
+            }),
+          };
+        }
+        throw error;
+      }
     }
   );
 

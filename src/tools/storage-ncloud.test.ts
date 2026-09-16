@@ -403,6 +403,31 @@ describe("Ncloud Storage: 오브젝트", () => {
     expect(data.storageClassHeader).toContain("absent");
   });
 
+  it("head_object: 404 는 오브젝트 부재(exists:false) 로 정규화하고 버킷 부재로 오안내하지 않는다 (2026-09-17 라이브: delete marker 키)", async () => {
+    vi.spyOn(client, "request").mockRejectedValueOnce(
+      new S3CompatibleError({ message: "Ncloud Storage 호출 실패: HTTP 404", status: 404, code: "HTTP_404", serviceName: "Ncloud Storage", requestId: "req-dm" })
+    );
+    const data = dataOf(await call(server, "ncloud_ncs_head_object", { bucketName: "b", key: "v/a.txt" }));
+    expect(data.exists).toBe(false);
+    expect(data.statusCode).toBe(404);
+    expect(data.requestId).toBe("req-dm");
+    expect(data.hint).toContain("delete marker");
+    expect(data.hint).toContain("ncloud_ncs_list_object_versions");
+    expect(data.hint).not.toContain("Object Storage");
+  });
+
+  it("list_objects / list_object_versions: 숫자 엔티티 ETag(&#34;) 를 따옴표로 복원한다 (2026-09-17 라이브 응답 형식)", async () => {
+    const listXml = `<ListBucketResult><Name>b</Name><KeyCount>1</KeyCount><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated>
+  <Contents><Key>v1150/hello.txt</Key><LastModified>2026-09-16T16:20:05Z</LastModified><ETag>&#34;5d41402abc4b2a76b9719d911017c592&#34;</ETag><Size>5</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>`;
+    const versionsXml = `<ListVersionsResult><Name>b</Name><MaxKeys>1000</MaxKeys><IsTruncated>false</IsTruncated>
+  <Version><Key>v/a.txt</Key><VersionId>a9d1</VersionId><IsLatest>true</IsLatest><LastModified>2026-09-16T16:42:53Z</LastModified><ETag>&#x22;1b26&#x22;</ETag><Size>2</Size><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>`;
+    vi.spyOn(client, "request").mockResolvedValueOnce(mockResponse(listXml)).mockResolvedValueOnce(mockResponse(versionsXml));
+    const list = dataOf(await call(server, "ncloud_ncs_list_objects", { bucketName: "b" }));
+    expect(list.contents[0].etag).toBe('"5d41402abc4b2a76b9719d911017c592"');
+    const versions = dataOf(await call(server, "ncloud_ncs_list_object_versions", { bucketName: "b" }));
+    expect(versions.versions[0].etag).toBe('"1b26"');
+  });
+
   it("list_objects: 실제 응답 요소 순서(ETag 가 Size 보다 앞)·start-after 를 처리한다", async () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <ListBucketResult>

@@ -19,9 +19,17 @@ export function xmlEscape(value: string | number | boolean): string {
     .replace(/'/g, "&apos;");
 }
 
-/** 응답 XML 텍스트의 엔티티를 되돌린다(`&quot;abc&quot;` → `"abc"`). */
+/**
+ * 응답 XML 텍스트의 엔티티를 되돌린다(`&quot;abc&quot;` → `"abc"`).
+ *
+ * Ncloud Storage 는 ETag 의 따옴표를 이름 엔티티가 아닌 **숫자 엔티티**(`&#34;`)로 내려준다
+ * (2026-09-17 KR 라이브: ListObjectsV2 / ListObjectVersions / CopyObjectResult 모두). 숫자·16진
+ * 엔티티를 먼저 복원하고 `&amp;` 는 마지막에 풀어 `&amp;#34;` 같은 이중 이스케이프가 재해석되지 않게 한다.
+ */
 export function xmlUnescape(value: string): string {
   return value
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#([0-9]+);/g, (_, dec: string) => String.fromCodePoint(parseInt(dec, 10)))
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, "<")

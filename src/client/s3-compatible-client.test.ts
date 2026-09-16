@@ -225,4 +225,18 @@ describe("S3CompatibleClient: 구조화된 에러", () => {
     expect(err.serviceName).toBe("Object Storage");
     expect(err.message).toContain("ncloud_ncs_*");
   });
+
+  it("본문 없는 404 는 버킷 요청일 때만 교차 서비스 힌트를 붙이고, 키 요청(HEAD /{key})에는 NoSuchKey/delete marker 힌트를 붙인다", async () => {
+    stubErrorFetch(404, "");
+    const bucketErr = await createClient().request({ method: "HEAD", bucket: "b" }).catch((e) => e);
+    expect(bucketErr.message).toContain("버킷 네임스페이스");
+
+    stubErrorFetch(404, "");
+    const keyErr = await createClient().request({ method: "HEAD", bucket: "b", key: "v/a.txt" }).catch((e) => e);
+    expect(keyErr.status).toBe(404);
+    expect(keyErr.code).toBe("HTTP_404");
+    expect(keyErr.message).toContain("오브젝트 'v/a.txt'");
+    expect(keyErr.message).toContain("delete marker");
+    expect(keyErr.message).not.toContain("버킷 네임스페이스");
+  });
 });

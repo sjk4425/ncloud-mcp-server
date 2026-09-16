@@ -318,13 +318,13 @@ export class S3CompatibleClient {
     const responseBody = await response.text();
 
     if (!response.ok) {
-      this.handleErrorResponse(response.status, responseBody, response.headers, bucket);
+      this.handleErrorResponse(response.status, responseBody, response.headers, bucket, key);
     }
 
     return { status: response.status, headers: response.headers, body: responseBody };
   }
 
-  private handleErrorResponse(status: number, body: string, headers: Headers, bucket?: string): never {
+  private handleErrorResponse(status: number, body: string, headers: Headers, bucket?: string, key?: string): never {
     const serviceName = this.storageType === "ncloud" ? "Ncloud Storage" : "Object Storage";
     const codeMatch = body.match(/<Code>(.*?)<\/Code>/);
     const messageMatch = body.match(/<Message>(.*?)<\/Message>/);
@@ -343,13 +343,22 @@ export class S3CompatibleClient {
     // Object Storage(`*.object.ncloudstorage.com`)와 Ncloud Storage(`*.kr.ncloudstorage.com`)는
     // 버킷 네임스페이스가 서로 다른 별개 서비스다. 한쪽 도구로 다른 쪽 버킷을 부르면
     // NoSuchBucket 이 나는데, 그 사실을 모르면 "버킷이 없다"로 오판한다. 힌트를 붙인다.
-    if (code === "NoSuchBucket" || (status === 404 && !codeMatch && bucket)) {
+    //
+    // 본문 없는 404(HEAD 응답)는 **버킷 요청일 때만** 버킷 부재로 본다. HEAD /{key} 의 404 는
+    // 오브젝트 부재(NoSuchKey) 또는 현재 버전이 delete marker 인 경우이며, 버킷은 존재한다
+    // (2026-09-17 라이브 검증에서 delete marker 키의 head_object 가 "버킷 없음" 으로 오안내된 건).
+    if (code === "NoSuchBucket" || (status === 404 && !codeMatch && bucket && !key)) {
       const other = this.storageType === "ncloud"
         ? "Object Storage(레거시, kr.object.ncloudstorage.com) — `ncloud_ncs_` 접두 없는 `ncloud_list_buckets` 등"
         : "Ncloud Storage(신규, {bucket}.kr.ncloudstorage.com) — `ncloud_ncs_*` 도구";
       lines.push(
         "",
         `힌트: 버킷 '${bucket}'이(가) ${serviceName}에 없습니다. Object Storage 와 Ncloud Storage 는 버킷 네임스페이스가 다른 별개 서비스입니다. 다른 쪽에 있는 버킷이면 ${other}를 사용하세요.`
+      );
+    } else if (status === 404 && !codeMatch && bucket && key) {
+      lines.push(
+        "",
+        `힌트: 버킷 '${bucket}'에 오브젝트 '${key}'이(가) 없습니다(NoSuchKey). 버전 관리 버킷이면 현재 버전이 delete marker 일 수 있습니다 — 이전 버전은 list_object_versions 로 찾아 versionId 를 지정해 조회하세요.`
       );
     }
 
