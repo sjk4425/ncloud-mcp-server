@@ -529,7 +529,7 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
       ["ncloud_cdss_get_cluster_acg", NO],
       ["ncloud_cdss_restart_all_services", NO],
       ["ncloud_cdss_restart_kafka", NO],
-      ["ncloud_cdss_restart_cmak", NO],
+      // ncloud_cdss_restart_cmak: 2026-09-17 op 종료로 도구 제거(아래 별도 테스트)
       ["ncloud_cdss_rolling_restart", NO],
       ["ncloud_cdss_rolling_restart_precheck", NO],
       ["ncloud_cdss_rolling_restart_status", NO],

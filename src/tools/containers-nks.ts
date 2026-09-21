@@ -58,6 +58,11 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
 - nodePool.serverSpecCode: g3 spec code (e.g., c2-g3)
 - nodePool.storageSize: 100~2000GB (required)
 
+**Server-side validations added 2026-09-17 (request fails with 400 if violated):**
+- Regional cluster (isRegional=true): every nodePool.zoneCode must match the zone of the subnets assigned to that node pool (subnetNoList). Check each subnet's zone with the VPC subnet tools before creating.
+- log.audit=true requires an active Cloud Log Analytics (CLA) subscription on the account — subscribe first or leave audit off and enable later with ncloud_nks_set_audit_log.
+- Istio is now available as an add-on (1.36+ clusters): install after creation with ncloud_nks_install_addons.
+
 **G2(XEN) vs G3(KVM) differences:**
 - G2: clusterType contains G002, k8sVersion suffix nks.1, hypervisorCode optional
 - G3: clusterType contains G003, k8sVersion suffix nks.2, hypervisorCode='KVM' required`,
@@ -75,7 +80,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       lbPrivateSubnetNo: z.number().optional().describe("Load balancer private subnet number. Required for G3/KVM clusters (API returns 400 without details if missing)"),
       isRegional: z.boolean().optional().describe("Multi-zone (Regional) cluster. Default: false"),
       publicNetwork: z.boolean().optional().describe("Subnet network type. true=Public, false=Private (default)"),
-      log: z.object({ audit: z.boolean().optional() }).optional().describe("Log settings (audit log)"),
+      log: z.object({ audit: z.boolean().optional() }).optional().describe("Log settings. audit=true sends the Kubernetes audit log to Cloud Log Analytics and, since 2026-09-17, is rejected (400) unless the account has an active CLA subscription"),
       nodePool: z.array(z.object({
         name: z.string().optional().describe("Node pool name"),
         nodeCount: z.number().optional().describe("Number of nodes"),
@@ -86,7 +91,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         labels: z.array(z.object({ key: z.string(), value: z.string() })).optional().describe("Node labels"),
         taints: z.array(z.object({ key: z.string(), value: z.string().optional(), effect: z.string() })).optional().describe("Node taints"),
         serverRoleId: z.string().optional().describe("IAM server role ID"),
-        zoneCode: z.string().optional().describe("Zone code (required for Regional clusters)"),
+        zoneCode: z.string().optional().describe("Zone code (e.g., KR-1). Required for Regional clusters and, since 2026-09-17, must match the zone of the subnets assigned to this node pool — a mismatch is rejected with 400"),
       })).optional().describe("Initial node pool configurations"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
@@ -161,9 +166,26 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
           method: "POST",
           requestParams: body,
           noun: { ko: "클러스터", en: "cluster" },
-          notes: isG3
-            ? { g3Validation: L({ ko: "✅ G3/KVM 필수 파라미터 검증 통과", en: "✅ G3/KVM required-parameter validation passed" }) }
-            : {},
+          notes: {
+            ...(isG3 ? { g3Validation: L({ ko: "✅ G3/KVM 필수 파라미터 검증 통과", en: "✅ G3/KVM required-parameter validation passed" }) } : {}),
+            // 2026-09-17 서버측 검증 2건은 클라이언트에서 판정할 수 없어(서브넷 zone·CLA 구독 조회 필요) 대조 자료만 노출한다.
+            ...(params.isRegional
+              ? {
+                  regionalZoneCheck: L({
+                    ko: "Regional 클러스터: 아래 노드풀 zoneCode가 각 노드풀에 배정된 서브넷의 zone과 일치해야 합니다(2026-09-17부터 불일치 시 400).",
+                    en: "Regional cluster: each node pool zoneCode below must match the zone of that pool's subnets (mismatch → 400 since 2026-09-17).",
+                  }),
+                  nodePoolZones: (params.nodePool ?? []).map((np) => ({ name: np.name, zoneCode: np.zoneCode ?? null })),
+                  clusterSubnetNoList: params.subnetNoList,
+                }
+              : {}),
+            ...(params.log?.audit
+              ? { auditLogCheck: L({
+                  ko: "log.audit=true: 계정에 Cloud Log Analytics 구독이 있어야 합니다(2026-09-17부터 미구독 시 400).",
+                  en: "log.audit=true requires an active Cloud Log Analytics subscription (400 since 2026-09-17 otherwise).",
+                }) }
+              : {}),
+          },
         });
       }
 
@@ -217,7 +239,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_set_audit_log",
-    "Configure audit log collection via Cloud Log Analytics for an NKS cluster",
+    "Configure audit log collection via Cloud Log Analytics (CLA) for an NKS cluster. Since 2026-09-17 enabling it (audit=true) is rejected with 400 unless the account has an active CLA subscription — subscribe to Cloud Log Analytics first.",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
       audit: z.boolean({ required_error: requiredError("audit") }).describe("Whether to enable audit log collection (true/false)"),
@@ -434,7 +456,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_create_node_pool",
-    "Create a new node pool in an NKS cluster. Use dryRun=true to preview.",
+    "Create a new node pool in an NKS cluster. Use dryRun=true to preview. On a Regional cluster, zoneCode is required and must match the zone of the subnets the pool uses (400 on mismatch since 2026-09-17).",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
       name: z.string({ required_error: requiredError("name") }).describe("Node pool name"),
@@ -450,7 +472,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       labels: z.array(z.object({ key: z.string(), value: z.string() })).optional().describe("Node labels"),
       taints: z.array(z.object({ key: z.string(), value: z.string().optional(), effect: z.string() })).optional().describe("Node taints"),
       serverRoleId: z.string().optional().describe("IAM server role ID"),
-      zoneCode: z.string().optional().describe("Zone code (required for Regional clusters)"),
+      zoneCode: z.string().optional().describe("Zone code (e.g., KR-1). Required for Regional clusters and, since 2026-09-17, must match the zone of the subnets assigned to this node pool — a mismatch is rejected with 400"),
       dryRun: z.boolean().optional().default(false).describe("If true, preview only"),
     },
     async (params) => {
@@ -718,7 +740,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_list_available_addons",
-    "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog; Add-on Manager is only available on Kubernetes 1.36+ clusters). Requires k8sVersion. The catalog includes components delivered as add-ons such as the NAVER Cloud Global DNS (ExternalDNS) webhook provider; the available add-ons vary by Kubernetes version and region.",
+    "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog; Add-on Manager is only available on Kubernetes 1.36+ clusters). Requires k8sVersion. The catalog includes components delivered as add-ons such as the NAVER Cloud Global DNS (ExternalDNS) webhook provider and, since 2026-09-17, Istio (service mesh); the available add-ons vary by Kubernetes version and region.",
     {
       k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0). Use the version from ncloud_nks_get_versions without the -nks.N suffix"),
       page: z.number().optional().describe("Page number for pagination"),

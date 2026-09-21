@@ -28,7 +28,7 @@ Ncloud의 **60개 이상 서비스**, **1,000개 이상 API 도구**를 MCP 프�
 | **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream, Data Catalog, Data Forest, Data Flow, Data Query |
 | **Media** | VOD Station, Live Station, Image Optimizer |
 | **Content Delivery (CDN)** | Global Edge |
-| **Application** | API Gateway, SENS (SMS/Push) |
+| **Application** | API Gateway, SENS (SMS/알림톡/Push/**Mail**, 프로젝트), Cloud Outbound Mailer(레거시, '27-12까지) |
 | **Billing** | Billing (요금/가격 조회, 비용·사용량, 할인) |
 
 > ℹ️ 각 카테고리는 `NCLOUD_TOOL_GROUPS`의 그룹 key와 1:1로 대응합니다. 도구 일부만 로딩하려면 아래 [도구 그룹 선택](#도구-그룹-선택-선택) 표를 참고하세요.
@@ -80,6 +80,7 @@ npm run build
 | `NCLOUD_API_URL` | - | API 기본 URL | `https://ncloud.apigw.ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage 프로젝트 ID | - |
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage 도메인 ID | - |
+| `NCLOUD_SENS_SERVICE_ID` | - | SENS 채널 공통 기본 serviceId(NRN, 예 `ncp:sms:kr:…`). 채널별 변수 `NCLOUD_SENS_SMS_SERVICE_ID` / `NCLOUD_SENS_ALIMTALK_SERVICE_ID` / `NCLOUD_SENS_BRANDMESSAGE_SERVICE_ID`(미설정 시 알림톡 값 사용) / `NCLOUD_SENS_MAIL_SERVICE_ID`가 우선. 모든 SENS 도구는 `serviceId` 파라미터로 호출별 override 가능하며, NRN은 `ncloud_sens_list_projects`로 조회 | - |
 | `NCLOUD_STORAGE_ADDRESSING` | - | Ncloud Storage(`ncloud_ncs_*`) 버킷 주소 방식. 기본은 공식 문서의 virtual-hosted(`https://{bucket}.kr.ncloudstorage.com/`), `path`면 이전 방식(`https://kr.ncloudstorage.com/{bucket}/`)으로 되돌림. Ncloud Storage는 KR 단일 리전이라 `NCLOUD_REGION`과 무관 | virtual-hosted |
 | `NCLOUD_TOOL_GROUPS` | - | 시작 시 로딩할 도구 그룹 선택. 미설정 시 전체 ON. `dynamic`을 포함하면 핵심 그룹만 켜고 세션 중 확장 허용(그 외 값은 잠금) (자세히는 아래 [도구 그룹 선택](#도구-그룹-선택-선택) 참조) | 전체 |
 | `NCLOUD_RESPONSE_PRUNE` | - | `1`이면 응답에서 빈 값(`null`/`""`/`[]`/`{}`)을 전역 제거 | `0` |
@@ -235,7 +236,7 @@ npm run build
 | `media` | VOD Station, Live Station, Image Optimizer |
 | `cdn` | Global Edge |
 | `security` | Certificate Manager, Private CA, KMS, Security Monitoring |
-| `application` | API Gateway, SENS |
+| `application` | API Gateway, SENS (SMS/알림톡/Push/Mail, 프로젝트), Cloud Outbound Mailer(레거시) |
 | `billing` | Billing (요금/가격 조회, 비용·사용량, 할인) |
 | `common` *(항상 ON)* | Region / Zone 공통 |
 

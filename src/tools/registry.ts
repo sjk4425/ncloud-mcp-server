@@ -63,6 +63,9 @@ import {
   registerSubAccountTools,
   registerApiGatewayTools,
   registerSensTools,
+  registerSensMailTools,
+  registerSensBrandMessageTools,
+  registerOutboundMailerTools,
   registerSearchEngineServiceTools,
   registerCloudHadoopTools,
   registerCloudDataStreamingTools,
@@ -344,10 +347,15 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "application",
-    title: "Application (API Gateway, SENS)",
+    title: "Application (API Gateway, SENS: SMS/Alim Talk/Brand Message/Mail, legacy Cloud Outbound Mailer)",
     register: ({ server, client }) => {
       registerApiGatewayTools(server, client("https://apigateway.apigw.ntruss.com"));
       registerSensTools(server, client("https://sens.apigw.ntruss.com"));
+      registerSensBrandMessageTools(server, client("https://sens.apigw.ntruss.com"));
+      // 2026-09-17 Cloud Outbound Mailer → SENS 흡수 통합. 메일은 SENS /mail/v2(통합 API),
+      // 레거시 Outbound Mailer API(mail.apigw.ntruss.com)는 이관 프로젝트 한정 '27-12까지.
+      registerSensMailTools(server, client("https://sens.apigw.ntruss.com"));
+      registerOutboundMailerTools(server, client("https://mail.apigw.ntruss.com"));
     },
   },
   {

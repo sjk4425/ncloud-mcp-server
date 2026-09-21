@@ -29,7 +29,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_list_clusters",
-    "List Cloud Data Streaming Service (Kafka) clusters with optional filtering",
+    "List Cloud Data Streaming Service (Kafka) clusters with optional filtering. The cmakPort and cmakVersion fields in the response are deprecated by Ncloud (2026-09-17, CMAK is being phased out) and may be absent or stale.",
     {
       inputText: z.string().optional().describe("Search keyword (partial match on cluster name)"),
       vpcName: z.string().optional().describe("VPC name filter (exact match)"),
@@ -66,7 +66,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_get_cluster_status",
-    "Get health status of a CDSS cluster (broker, zookeeper, CMAK status per node)",
+    "Get health status of a CDSS cluster (broker and zookeeper status per node). result.cmakStatus is deprecated by Ncloud (2026-09-17, CMAK is being phased out) and may be absent or stale — do not rely on it.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
@@ -231,8 +231,8 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       clusterName: z.string().describe("Cluster name (3-15 chars, lowercase+numbers+'-')"),
       kafkaVersionCode: z.number().describe("Kafka version code (from get_kafka_versions)"),
       configGroupNo: z.number().describe("Config group number"),
-      kafkaManagerUserName: z.string().describe("CMAK access account ID"),
-      kafkaManagerUserPassword: z.string().describe("CMAK access account password"),
+      kafkaManagerUserName: z.string().describe("CMAK access account ID (still required by the API; CMAK itself is being phased out by Ncloud)"),
+      kafkaManagerUserPassword: z.string().describe("CMAK access account password (still required by the API; CMAK itself is being phased out by Ncloud)"),
       softwareProductCode: z.string().describe("OS type code (from get_os_products)"),
       vpcNo: z.number().describe("VPC number"),
       managerNodeSubnetNo: z.number().describe("Manager node subnet number"),
@@ -277,8 +277,8 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       }).describe("Cluster name (3-15 chars: lowercase letters, numbers, '-')"),
       kafkaVersionCode: z.number().describe("Kafka version code (from ncloud_cdss_get_kafka_versions)"),
       configGroupNo: z.number().describe("Config group number (from ncloud_cdss_list_config_groups)"),
-      kafkaManagerUserName: z.string().describe("CMAK access account ID"),
-      kafkaManagerUserPassword: z.string().describe("CMAK access account password"),
+      kafkaManagerUserName: z.string().describe("CMAK access account ID (still required by the API; CMAK itself is being phased out by Ncloud)"),
+      kafkaManagerUserPassword: z.string().describe("CMAK access account password (still required by the API; CMAK itself is being phased out by Ncloud)"),
       hypervisorCode: z.string().describe("Hypervisor code. KVM for 3rd generation"),
       generationCode: z.string().describe("Server generation code. G3 for 3rd generation"),
       softwareProductCode: z.string().describe("G3 OS image code (e.g. SW.VCDSS.OS.LNX64.ROCKY.08.G003)"),
@@ -478,23 +478,9 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     }
   );
 
-  defineTool(
-    server,
-    "ncloud_cdss_restart_cmak",
-    "⚠️ Deprecated by Ncloud: this operation is no longer supported and the API may reject it. " +
-      "Use ncloud_cdss_restart_all_services instead. Restarts CMAK (Cluster Manager for Apache Kafka).",
-    {
-      serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
-    },
-    async (params) => {
-      // op명은 restartCMAKService 다(CMAK 전부 대문자). 그리고 공식 문서가
-      // "지원이 종료되어 더 이상 사용할 수 없습니다"로 표시한 op다 — 경로를 바로잡되
-      // description으로 폐기를 알린다(2026-09-04 감사 §8 #1).
-      return client.requestRaw(
-          "GET", `${prefix}/cluster/restartCMAKService/${params.serviceGroupInstanceNo}`
-        );
-    }
-  );
+  // `ncloud_cdss_restart_cmak`(op restartCMAKService)는 2026-09-17 릴리스 노트에서 "클러스터 CMAK 재시작 API
+  // 제공 종료"로 확정되어 제거했다(1.16.0 Breaking). 대체: ncloud_cdss_restart_all_services.
+  // CMAK 자체가 단계적으로 폐기되는 중이다 — 조회 응답의 cmakPort/cmakVersion/cmakStatus는 Deprecated 표기.
 
   defineTool(
     server,
@@ -536,7 +522,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_enable_public_domain",
-    "Enable public domain for CMAK management tool access",
+    "Enable public domain for CMAK management tool access. CMAK is being phased out by Ncloud (the CMAK restart API ended 2026-09-17); this operation is still documented but may be discontinued.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
@@ -552,7 +538,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_disable_public_domain",
-    "Disable public domain for CMAK management tool access",
+    "Disable public domain for CMAK management tool access. CMAK is being phased out by Ncloud (the CMAK restart API ended 2026-09-17); this operation is still documented but may be discontinued.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
@@ -598,7 +584,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_reset_cmak_password",
-    "Reset the CMAK access account password for a CDSS cluster",
+    "Reset the CMAK access account password for a CDSS cluster. CMAK is being phased out by Ncloud (the CMAK restart API ended 2026-09-17); this operation is still documented but may be discontinued.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       kafkaManagerUserPassword: z.string().describe("New CMAK password (8-20 chars, letters+numbers+special; excludes ' \" ` ₩ / & and spaces)"),
@@ -972,7 +958,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_rolling_restart_status",
-    "Get the progress status of a rolling restart operation",
+    "Get the progress status of a rolling restart operation. result.cmakStatus in the response is deprecated by Ncloud (2026-09-17) and may be absent or stale.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
@@ -1027,7 +1013,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_cdss_upgrade_status",
-    "Get the progress status of a version upgrade operation",
+    "Get the progress status of a version upgrade operation. result.cmakStatus in the response is deprecated by Ncloud (2026-09-17) and may be absent or stale.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
