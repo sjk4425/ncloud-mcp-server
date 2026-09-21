@@ -46,6 +46,7 @@ export { registerApiGatewayTools } from "./application-api-gateway.js";
 export { registerSensTools } from "./application-sens.js";
 export { registerSensMailTools } from "./application-sens-mail.js";
 export { registerSensBrandMessageTools } from "./application-sens-brandmessage.js";
+export { registerDatabaseServerlessTools } from "./database-serverless.js";
 export { registerOutboundMailerTools } from "./application-outbound-mailer.js";
 export { registerDataStreamTools } from "./analytics-datastream.js";
 export { registerCloudDataStreamingTools } from "./analytics-cdss.js";

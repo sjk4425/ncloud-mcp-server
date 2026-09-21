@@ -82,19 +82,8 @@ export function resolveServiceId(channel: SensChannel, param?: string): Resolved
   return { ok: true, base: `${CHANNEL_PATH[channel]}/${encodeURIComponent(id)}`, serviceId: id };
 }
 
-export type QueryValue = string | number | boolean | undefined | Array<string | number>;
-
-/** 배열 값은 같은 키를 반복한다(`status=A&status=B`). undefined는 생략. */
-export function withQuery(path: string, query: Record<string, QueryValue>): string {
-  const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries(query)) {
-    if (v === undefined) continue;
-    if (Array.isArray(v)) v.forEach((item) => qs.append(k, String(item)));
-    else qs.append(k, String(v));
-  }
-  const s = qs.toString();
-  return s ? `${path}?${s}` : path;
-}
+export { withQuery } from "./_query.js";
+export type { QueryValue } from "./_query.js";
 
 /** 발송 예약 시각 `YYYY-MM-DD HH:mm` (초 없음). */
 export const reserveTimeSchema = z.string()

@@ -39,6 +39,7 @@ import {
   registerDatabaseMssqlTools,
   registerDatabaseMongodbTools,
   registerDatabaseCacheTools,
+  registerDatabaseServerlessTools,
   registerStorageObjectTools,
   registerStorageNcloudTools,
   registerContainersNksTools,
@@ -216,7 +217,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "database",
-    title: "Database (MySQL, PostgreSQL, MSSQL, MongoDB, Cache)",
+    title: "Database (MySQL, PostgreSQL, MSSQL, MongoDB, Cache, Serverless)",
     register: ({ server, client }) => {
       const c = client();
       registerDatabaseMysqlTools(server, c);
@@ -224,6 +225,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerDatabaseMssqlTools(server, c);
       registerDatabaseMongodbTools(server, c);
       registerDatabaseCacheTools(server, c);
+      // Cloud DB Serverless(2026-09-17 신규): 표준 REST, 별도 base URL. 2026-09-21 실측 "sub account is not supported yet"(403).
+      registerDatabaseServerlessTools(server, client("https://clouddb-serverless.apigw.ntruss.com"));
     },
   },
   {
