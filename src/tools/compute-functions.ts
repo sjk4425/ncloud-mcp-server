@@ -27,8 +27,15 @@ import { redactAtPath, redactSecrets } from "./_secrets.js";
  */
 export type CloudFunctionsApiVersion = "2.1" | "2.0";
 export interface CloudFunctionsOptions {
-  /** 기본 `"2.1"`(민간존). 공공존은 `"2.0"`. */
+  /** 기본 `"2.1"`(민간존·금융존). 공공존은 `"2.0"`. */
   apiVersion?: CloudFunctionsApiVersion;
+  /**
+   * 허용 플랫폼. 기본: v2.1 → `["vpc","classic"]`, v2.0 → `["classic"]`.
+   * 금융존은 v2.1 이지만 VPC 전용(`["vpc"]`, fin 가이드 compute-cloudfunctions-v2-*: platform 쿼리 없음, vpc 본문 필수).
+   */
+  platforms?: readonly ("vpc" | "classic")[];
+  /** `platform` 쿼리 전송 여부. 기본: v2.1 → true, v2.0 → false. 금융존은 false. */
+  sendPlatformQuery?: boolean;
 }
 
 const CF_V21 = "/ncf/api/v2";
@@ -65,18 +72,21 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
     `cronOption is a 5-field UNIX cron expression: 'minute hour day-of-month month day-of-week' (e.g. '0 8 * * *' = 08:00 daily, '*/5 * * * *' = every 5 minutes). The expression is evaluated in KST (Asia/Seoul, UTC+9) — live-verified on 2026-09-15 in the KR region (public zone): a trigger set to '41 22 * * *' fired at 22:41:00 KST. The official guide (${CRON_GUIDE}) does not document the time zone, so re-verify with a probe trigger before relying on it in another region.`;
 
   // v2.0(공공존)은 Classic 전용이라 platform 쿼리 자체가 없다 — 스키마 키는 유지하되 classic 만 받고 전송하지 않는다.
+  // 금융존은 v2.1 이지만 VPC 전용이고 platform 쿼리가 문서에 없다 — 같은 방식으로 vpc 만 받고 전송하지 않는다.
+  const platforms = opts.platforms ?? (v20 ? (["classic"] as const) : (["vpc", "classic"] as const));
+  const sendPlatform = opts.sendPlatformQuery ?? !v20;
   const platformSchema = z
-    .enum((v20 ? ["classic"] : ["vpc", "classic"]) as unknown as ["vpc", "classic"])
+    .enum(platforms as unknown as ["vpc", "classic"])
     .optional()
-    .default(v20 ? "classic" : "vpc")
+    .default(platforms[0])
     .describe(
-      v20
-        ? "Platform. Government-zone Cloud Functions (API v2.0) is Classic-only; 'classic' is the only value and it is not sent as a query parameter."
+      platforms.length === 1
+        ? `Platform. This zone's Cloud Functions supports '${platforms[0]}' only; the value is not sent as a query parameter.`
         : "Platform (default: vpc). Singapore/Japan regions support vpc only."
     );
-  /** 공통 쿼리: v2.1 은 `platform`, v2.0 은 없음. */
+  /** 공통 쿼리: `platform` 은 존/버전에 따라 전송하지 않는다. */
   const pq = (platform: string, extra: Record<string, string> = {}): Record<string, string> =>
-    v20 ? extra : { platform, ...extra };
+    sendPlatform ? { platform, ...extra } : extra;
 
   // ─── Package Management Tools ──────────────────────────────────────────────
 
@@ -219,7 +229,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
     async (params) => {
       const isSequence = params.type === "sequence" || params.type === "sequence-web";
       const isWeb = params.type === "web" || params.type === "sequence-web";
-      const queryParams = v20 ? {} : { platform: params.platform, type: params.type };
+      const queryParams = v20 ? {} : pq(params.platform, { type: params.type });
       const body: Record<string, unknown> = {};
       if (params.description !== undefined) body.description = params.description;
       // v2.0: 액션 유형은 본문 `web`. 생성 시 기본 false / 수정 시 기본 true 라 항상 명시해 보낸다.

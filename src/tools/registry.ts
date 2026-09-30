@@ -31,6 +31,7 @@ import {
   registerCommonTools,
   registerComputeServerTools,
   registerComputeStorageTools,
+  STORAGE_TOOLS_NOT_IN_FIN,
   registerComputePublicIpTools,
   registerComputeLoginKeyTools,
   registerComputeInitScriptTools,
@@ -214,24 +215,28 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "compute",
-    zones: PUBLIC_GOV,
     title: "Compute (Server, Storage, Public IP, Auto Scaling, Cloud Functions)",
     register: ({ server, client, regionCode, zone }) => {
-      // Server(VPC)·Auto Scaling 은 두 존 모두 기본 게이트웨이(`ncloud.apigw.*`) + 같은 경로다.
+      // Server(VPC)·Auto Scaling 은 세 존 모두 기본 게이트웨이 + 같은 경로다.
       //   민간존 https://api.ncloud-docs.com/docs/compute-vserver · 공공존 https://api-gov.ncloud-docs.com/docs/compute-vserver
+      //   금융존 https://api-fin.ncloud-docs.com/docs/compute-vserver (fin-ncloud.apigw.fin-ntruss.com/vserver/v2)
+      // 금융존 가이드에 없는 오퍼레이션(2026-09-30, 404 확인): Fabric Cluster 전부, 스냅샷 생성·삭제·상세, 블록 스토리지 반납 보호.
+      const fin = zone === "fin";
       const c = client();
       registerComputeServerTools(server, c);
-      registerComputeStorageTools(server, c);
+      registerComputeStorageTools(server, c, { exclude: fin ? STORAGE_TOOLS_NOT_IN_FIN : [] });
       registerComputePublicIpTools(server, c);
       registerComputeLoginKeyTools(server, c);
       registerComputeInitScriptTools(server, c);
-      registerComputePlacementTools(server, c);
+      registerComputePlacementTools(server, c, { fabricCluster: !fin });
       registerAutoScalingTools(server, c);
 
-      // Cloud Functions: 민간존은 리전별 호스트 + API v2.1, 공공존은 단일 호스트 + API v2.0(Classic 전용).
+      // Cloud Functions: 민간존 리전별 호스트 + API v2.1 / 공공존 단일 호스트 + API v2.0(Classic 전용) /
+      //   금융존 단일 호스트 + API v2.1(VPC 전용, platform 쿼리 없음).
       if (isServiceAvailable("cloudfunctions", zone)) {
         registerCloudFunctionsTools(server, client(cloudFunctionsEndpoint(zone, regionCode)), {
           apiVersion: zone === "gov" ? "2.0" : "2.1",
+          ...(fin ? { platforms: ["vpc"] as const, sendPlatformQuery: false } : {}),
         });
       }
     },

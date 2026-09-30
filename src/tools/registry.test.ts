@@ -7,6 +7,7 @@ import {
   GroupManager,
   DEFAULT_GROUP_KEYS,
   TOOL_GROUPS,
+  groupSupportsZone,
 } from "./registry.js";
 
 // 전 도구를 가짜 서버에 등록시켜 구조 불변식을 검사한다(API 호출·비용 없음).
@@ -329,11 +330,23 @@ describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
     expect(trigger.description).toContain("only cron and github");
     expect(trigger.description).not.toContain("object_storage →");
   });
-  it("compute 도구 이름 집합은 존과 무관하게 동일하다", () => {
+  it("compute 도구 이름 집합은 public/gov 에서 동일하다", () => {
     const pub = captureCompute("public").map((t) => t.name).sort();
     const gov = captureCompute("gov").map((t) => t.name).sort();
     expect(gov).toEqual(pub);
     expect(pub).toContain("ncloud_change_block_storage_size");
+  });
+  it("fin: Fabric Cluster 7종·스냅샷 생성/삭제/상세·반납 보호가 빠지고, Cloud Functions 는 v2.1(VPC 전용, platform 쿼리 없음)", () => {
+    const pub = captureCompute("public");
+    const fin = captureCompute("fin" as any);
+    const notInFin = ["ncloud_list_fabric_clusters", "ncloud_get_fabric_cluster_detail", "ncloud_get_fabric_cluster_pools", "ncloud_create_fabric_cluster", "ncloud_update_fabric_cluster", "ncloud_change_fabric_cluster_servers", "ncloud_delete_fabric_cluster", "ncloud_create_snapshot", "ncloud_delete_snapshots", "ncloud_get_snapshot_detail", "ncloud_set_block_storage_protection"];
+    const finNames = fin.map((t) => t.name);
+    for (const t of notInFin) { expect(pub.map((x) => x.name)).toContain(t); expect(finNames).not.toContain(t); }
+    expect(finNames).toContain("ncloud_list_snapshots");
+    expect(finNames.sort()).toEqual(pub.map((t) => t.name).filter((n) => !notInFin.includes(n)).sort());
+    const cf = fin.find((t) => t.name === "ncloud_functions_create_action")!;
+    expect(cf.description).toContain("/ncf/api/v2");
+    expect(cf.description).not.toContain("Classic only");
   });
 });
 
@@ -641,22 +654,28 @@ describe("금융존(fin): 그룹 존 게이트", () => {
     const m = new GroupManager(ctx, planGroups(rawEnv));
     return { m, names };
   }
-  it("fin: 시작 시 common 만 등록되고(다른 그룹은 대조 전), set_region 은 FKR 만 안내한다", () => {
+  const finGroups = TOOL_GROUPS.filter((g) => groupSupportsZone(g, "fin")).map((g) => g.key);
+  const gatedGroup = TOOL_GROUPS.find((g) => !g.always && !groupSupportsZone(g, "fin"))?.key;
+
+  it("fin: 시작 시 금융존 대조가 끝난 그룹만 등록되고(common 포함), set_region 은 FKR 만 안내한다", () => {
     const { m, names } = manager("fin");
     m.start();
-    expect(m.enabledGroupKeys()).toEqual(["common"]);
-    expect(names.every((n) => ["ncloud_get_regions", "ncloud_get_zones", "ncloud_set_region", "ncloud_get_current_region", "ncloud_get_operation_status"].includes(n))).toBe(true);
+    expect(m.enabledGroupKeys().sort()).toEqual([...finGroups].sort());
+    expect(names).toContain("ncloud_set_region");
     const server2 = { registerTool: (name: string, config: any) => { if (name === "ncloud_set_region") expect(config.description).toContain("FKR"); } };
     registerGroups({ server: server2 as any, client: makeClientFactory(creds, "FKR", "fin", {}), regionCode: "FKR", zone: "fin", creds, env: {} }, TOOL_GROUPS.filter((g) => g.key === "common"));
   });
-  it("fin: dynamic 모드에서도 대조 전 그룹은 enable 대상·카탈로그에 나오지 않고 enable 요청은 안내로 끝난다", () => {
+  it("fin: dynamic 모드에서 대조 전 그룹은 enable 대상·카탈로그에 나오지 않고 enable 요청은 안내로 끝난다", () => {
     const { m } = manager("fin", "dynamic");
     m.start();
-    expect(m.enableableKeys()).toEqual([]);
-    expect(m.catalog().groups).toEqual([]);
-    const out = m.enable("compute");
-    expect(out.status).toBe("unknown");
-    expect(out.message).toContain("fin");
+    for (const k of m.enableableKeys()) expect(finGroups).toContain(k);
+    for (const g of m.catalog().groups) expect(finGroups).toContain(g.key);
+    if (gatedGroup) {
+      expect(m.enableableKeys()).not.toContain(gatedGroup);
+      const out = m.enable(gatedGroup);
+      expect(out.status).toBe("unknown");
+      expect(out.message).toContain("fin");
+    }
   });
   it("public/gov: 존 게이트가 기존 동작을 바꾸지 않는다 (전 그룹 startup)", () => {
     for (const zone of ["public", "gov"] as const) {

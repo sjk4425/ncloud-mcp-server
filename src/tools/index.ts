@@ -1,6 +1,6 @@
 export { registerCommonTools } from "./common.js";
 export { registerComputeServerTools } from "./compute-server.js";
-export { registerComputeStorageTools } from "./compute-storage.js";
+export { registerComputeStorageTools, STORAGE_TOOLS_NOT_IN_FIN } from "./compute-storage.js";
 export { registerComputePublicIpTools } from "./compute-publicip.js";
 export { registerComputeLoginKeyTools } from "./compute-loginkey.js";
 export { registerComputeInitScriptTools } from "./compute-initscript.js";

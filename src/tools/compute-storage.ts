@@ -1,15 +1,32 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
-export function registerComputeStorageTools(server: McpServer, client: NcloudClient): void {
+/**
+ * 금융존 가이드에 없는 오퍼레이션(api-fin 404, 2026-09-30): 스냅샷 생성·삭제·상세(목록 getBlockStorageSnapshotInstanceList 는 있음),
+ * setBlockStorageReturnProtection.
+ */
+export const STORAGE_TOOLS_NOT_IN_FIN = [
+  "ncloud_create_snapshot",
+  "ncloud_delete_snapshots",
+  "ncloud_get_snapshot_detail",
+  "ncloud_set_block_storage_protection",
+] as const;
+
+export interface ComputeStorageToolOptions {
+  /** 이름을 지정한 도구는 등록하지 않는다(존별 미제공 오퍼레이션). */
+  exclude?: readonly string[];
+}
+
+export function registerComputeStorageTools(server: McpServer, client: NcloudClient, opts: ComputeStorageToolOptions = {}): void {
+  const s = opts.exclude && opts.exclude.length > 0 ? excludingTools(server, opts.exclude) : server;
   // ─── Block Storage Query Tools ─────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_list_block_storage",
     "List all block storage instances in the current region",
     {
@@ -24,7 +41,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_get_block_storage_detail",
     "Get detailed information about a specific block storage instance",
     {
@@ -36,7 +53,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_get_block_storage_volume_types",
     "Get list of block storage volume types available in the region",
     {
@@ -50,7 +67,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   // ─── Block Storage Create Tools ────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_create_block_storage",
     "Create a new block storage instance. Requires zoneCode + blockStorageVolumeTypeCode + blockStorageSize. For XEN: also provide serverInstanceNo to attach at creation. For KVM: cannot attach at creation — use ncloud_attach_block_storage after. Use dryRun=true to preview.",
     {
@@ -95,7 +112,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   // ─── Block Storage Operation Tools ─────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_attach_block_storage",
     "Attach a block storage instance to a server. Automatically waits if the block storage is still being created (polls until status is CREAT).",
     {
@@ -133,7 +150,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_detach_block_storage",
     "Detach block storage instances from their servers",
     {
@@ -145,7 +162,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_change_block_storage",
     "Change block storage instance (resize volume and/or update name/description). Supports both Gen2 (XEN) and Gen3 (KVM). For attached storage, server must be stopped to resize.",
     {
@@ -162,7 +179,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   // changeBlockStorageVolumeSize: XEN(Gen2) 전용 크기 변경 엔드포인트. 두 존 모두 문서화되어 있다
   // (compute-vserver-storage-changeblockstoragevolumesize). KVM 볼륨은 지원하지 않는다.
   defineTool(
-    server,
+    s,
     "ncloud_change_block_storage_size",
     "Resize a Gen2 (XEN) block storage volume through the dedicated changeBlockStorageVolumeSize endpoint (increase only: 10-2000 GB in 10 GB steps, must be larger than the current size). NOT supported for KVM (Gen3) volumes — use ncloud_change_block_storage for those. An attached volume can only be resized while its server is stopped.",
     {
@@ -176,7 +193,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_set_block_storage_protection",
     "Set return protection for a block storage instance",
     {
@@ -191,7 +208,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   // ─── Block Storage Destructive Tools ───────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_delete_block_storage",
     "⚠️ Destructive: Permanently delete one or more block storage instances. Set confirm=true to execute.",
     {
@@ -209,7 +226,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   // ─── Snapshot Query Tools ──────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_list_snapshots",
     "List all block storage snapshot instances",
     {
@@ -223,7 +240,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_get_snapshot_detail",
     "Get detailed information about a specific block storage snapshot instance",
     {
@@ -237,7 +254,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   // ─── Snapshot Create Tools ─────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_create_snapshot",
     "Create a snapshot from a block storage instance. The source volume is sent to the API as 'originalBlockStorageInstanceNo' — either parameter name is accepted here. Use dryRun=true to preview.",
     {
@@ -307,7 +324,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
   // ─── Snapshot Destructive Tools ────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_delete_snapshots",
     "⚠️ Destructive: Permanently delete one or more block storage snapshot instances. Set confirm=true to execute.",
     {

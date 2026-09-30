@@ -484,6 +484,34 @@ describe("Cloud Functions — 트리거·액션 연결 (F-01)", () => {
   });
 });
 
+// ─── 금융존: API v2.1, VPC 전용, platform 쿼리 없음 (https://api-fin.ncloud-docs.com/docs/compute-cloudfunctions-v2-putaction) ──
+describe("Cloud Functions — 금융존 모드 (v2.1 + platforms=['vpc'], platform 쿼리 미전송)", () => {
+  let server: McpServer;
+  let client: NcloudClient;
+  beforeEach(() => {
+    server = new McpServer({ name: "test", version: "1.0.0" });
+    client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://cloudfunctions.apigw.fin-ntruss.com", regionCode: "FKR" });
+    registerCloudFunctionsTools(server, client, { apiVersion: "2.1", platforms: ["vpc"], sendPlatformQuery: false });
+  });
+  it("읽기: /ncf/api/v2 경로, 쿼리에 platform 없음", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: {} });
+    await getToolHandler(server, "ncloud_functions_list_packages")({}, {} as any);
+    expect(spy).toHaveBeenCalledWith("GET", "/ncf/api/v2/packages", {});
+    expect(() => getToolHandler(server, "ncloud_functions_list_packages")({ platform: "classic" }, {} as any)).toThrow();
+  });
+  it("create_action: type 쿼리만, vpc 배열 필수(vpc 전용), 없으면 거절", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: {} });
+    const h = getToolHandler(server, "ncloud_functions_create_action");
+    const base = { packageName: "p", actionName: "a", exec_kind: "python:3.13", exec_code: "def main(a): return {}", exec_main: "main" };
+    expect((await h(base, {} as any)).isError).toBe(true);
+    await h({ ...base, vpc_no: 1, subnet_no: 2 }, {} as any);
+    const [, path, query, body] = spy.mock.calls[0];
+    expect(path).toBe("/ncf/api/v2/packages/p/actions/a");
+    expect(query).toEqual({ type: "basic" });
+    expect((body as any).vpc).toEqual([{ vpcNo: 1, subnetNo: 2 }]);
+  });
+});
+
 // ─── 공공존: API v2.0 (Classic 전용, https://api-gov.ncloud-docs.com/docs/compute-cloudfunctions) ─────────
 describe("Cloud Functions — 공공존 API v2.0 모드", () => {
   let server: McpServer;

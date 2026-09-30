@@ -131,7 +131,7 @@ function apigw(name: string, zone: Zone): string {
 export const SERVICE_ENDPOINTS = {
   // ── compute ──
   // 민간존은 리전별 호스트(KR/SGN/JPN)가 따로 있다 — registry 에서 regionCode 로 분기. 공공존은 단일.
-  cloudfunctions: { public: apigw("cloudfunctions", "public"), gov: apigw("cloudfunctions", "gov") },
+  cloudfunctions: { public: apigw("cloudfunctions", "public"), gov: apigw("cloudfunctions", "gov"), fin: "https://cloudfunctions.apigw.fin-ntruss.com" }, // fin: API v2.1(/ncf/api/v2), platform 쿼리 없음·VPC 전용 (compute-cloudfunctions, -v2-putaction)
   cloudfunctionsSgn: { public: "https://sg-cloudfunctions.apigw.ntruss.com" },
   cloudfunctionsJpn: { public: "https://jp-cloudfunctions.apigw.ntruss.com" },
   // ── network ──
