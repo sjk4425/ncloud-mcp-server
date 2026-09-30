@@ -74,7 +74,9 @@ export class SwiftCompatibleClient {
   /** 현재 존·리전의 인증/API 엔드포인트(표에 없는 리전은 KR 로 대체). */
   getEndpoints(): { auth: string; api: string } {
     const table = ARCHIVE_STORAGE_ENDPOINTS[this.zone];
-    return table[this.regionCode] ?? table["KR"];
+    const ep = table[this.regionCode] ?? table["KR"] ?? Object.values(table)[0];
+    if (!ep) throw new Error(`Archive Storage is not configured for zone '${this.zone}' (no endpoint table entry — see client/endpoints.ts).`);
+    return ep;
   }
 
   setRegionCode(regionCode: string): void {

@@ -631,6 +631,42 @@ describe("billing 그룹: 존별 등록", () => {
   });
 });
 
+// ─── 금융존: 그룹별 가이드 대조 전에는 common 만 ─────────────────────────────────
+describe("금융존(fin): 그룹 존 게이트", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function manager(zone: "public" | "gov" | "fin", rawEnv?: string) {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const ctx = { server: fakeServer, client: makeClientFactory(creds, zone === "fin" ? "FKR" : "KR", zone, {}), regionCode: zone === "fin" ? "FKR" : "KR", zone, creds, env: {} };
+    const m = new GroupManager(ctx, planGroups(rawEnv));
+    return { m, names };
+  }
+  it("fin: 시작 시 common 만 등록되고(다른 그룹은 대조 전), set_region 은 FKR 만 안내한다", () => {
+    const { m, names } = manager("fin");
+    m.start();
+    expect(m.enabledGroupKeys()).toEqual(["common"]);
+    expect(names.every((n) => ["ncloud_get_regions", "ncloud_get_zones", "ncloud_set_region", "ncloud_get_current_region", "ncloud_get_operation_status"].includes(n))).toBe(true);
+    const server2 = { registerTool: (name: string, config: any) => { if (name === "ncloud_set_region") expect(config.description).toContain("FKR"); } };
+    registerGroups({ server: server2 as any, client: makeClientFactory(creds, "FKR", "fin", {}), regionCode: "FKR", zone: "fin", creds, env: {} }, TOOL_GROUPS.filter((g) => g.key === "common"));
+  });
+  it("fin: dynamic 모드에서도 대조 전 그룹은 enable 대상·카탈로그에 나오지 않고 enable 요청은 안내로 끝난다", () => {
+    const { m } = manager("fin", "dynamic");
+    m.start();
+    expect(m.enableableKeys()).toEqual([]);
+    expect(m.catalog().groups).toEqual([]);
+    const out = m.enable("compute");
+    expect(out.status).toBe("unknown");
+    expect(out.message).toContain("fin");
+  });
+  it("public/gov: 존 게이트가 기존 동작을 바꾸지 않는다 (전 그룹 startup)", () => {
+    for (const zone of ["public", "gov"] as const) {
+      const { m } = manager(zone);
+      m.start();
+      expect(m.enabledGroupKeys().length).toBe(TOOL_GROUPS.length);
+    }
+  });
+});
+
 // ─── 전 그룹 종합: 존별 도구 수 ────────────────────────────────────────────────
 describe("전 그룹: 존별 등록 요약", () => {
   const creds = { accessKey: "x", secretKey: "y" };

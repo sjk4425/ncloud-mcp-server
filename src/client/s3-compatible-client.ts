@@ -147,7 +147,13 @@ export class S3CompatibleClient {
   /** 이 클라이언트의 존·서비스·리전에 해당하는 엔드포인트 항목(표에 없는 리전은 KR 로 대체). */
   private getRegionEndpoint(): S3RegionEndpoint {
     const table = (this.storageType === "ncloud" ? NCLOUD_STORAGE_ENDPOINTS : OBJECT_STORAGE_ENDPOINTS)[this.zone];
-    return table[this.regionCode] ?? table["KR"];
+    const ep = table[this.regionCode] ?? table["KR"] ?? Object.values(table)[0];
+    if (!ep) {
+      throw new Error(
+        `${this.storageType === "ncloud" ? "Ncloud Storage" : "Object Storage"} is not configured for zone '${this.zone}' (no endpoint table entry — see client/endpoints.ts).`
+      );
+    }
+    return ep;
   }
 
   /**
@@ -355,8 +361,8 @@ export class S3CompatibleClient {
     // 오브젝트 부재(NoSuchKey) 또는 현재 버전이 delete marker 인 경우이며, 버킷은 존재한다
     // (2026-09-17 라이브 검증에서 delete marker 키의 head_object 가 "버킷 없음" 으로 오안내된 건).
     if (code === "NoSuchBucket" || (status === 404 && !codeMatch && bucket && !key)) {
-      const objectHost = (OBJECT_STORAGE_ENDPOINTS[this.zone][this.regionCode] ?? OBJECT_STORAGE_ENDPOINTS[this.zone]["KR"]).host;
-      const ncloudHost = NCLOUD_STORAGE_ENDPOINTS[this.zone]["KR"].host;
+      const objectHost = (OBJECT_STORAGE_ENDPOINTS[this.zone][this.regionCode] ?? OBJECT_STORAGE_ENDPOINTS[this.zone]["KR"])?.host ?? "(n/a)";
+      const ncloudHost = NCLOUD_STORAGE_ENDPOINTS[this.zone]["KR"]?.host ?? "(n/a)";
       const other = this.storageType === "ncloud"
         ? `Object Storage(레거시, ${objectHost}) — \`ncloud_ncs_\` 접두 없는 \`ncloud_list_buckets\` 등`
         : `Ncloud Storage(신규, {bucket}.${ncloudHost}) — \`ncloud_ncs_*\` 도구`;

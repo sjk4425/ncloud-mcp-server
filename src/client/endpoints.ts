@@ -18,8 +18,8 @@
  * 존 선택은 env `NCLOUD_ZONE` (기본 `public`) — 기존 민간존 사용자는 아무 변경 없이 동작한다.
  */
 
-export type Zone = "public" | "gov";
-export const ZONES: readonly Zone[] = ["public", "gov"] as const;
+export type Zone = "public" | "gov" | "fin";
+export const ZONES: readonly Zone[] = ["public", "gov", "fin"] as const;
 
 export interface RegionInfo {
   /** API 리전 코드 (`regionCode`). */
@@ -76,6 +76,21 @@ export const ZONE_PROFILES: Record<Zone, ZoneProfile> = {
       { code: "KRS", ko: "한국남부", en: "KR-SOUTH" },
     ],
     defaultRegion: "KR",
+  },
+  // 금융존 — 근거: https://api-fin.ncloud-docs.com/docs/common-ncpapi (`*.apigw.fin-ntruss.com`, 인증 동일),
+  //   https://api-fin.ncloud-docs.com/docs/compute-vserver (기본 게이트웨이 `fin-ncloud.apigw.fin-ntruss.com` — `fin-` 접두 주의),
+  //   https://api-fin.ncloud-docs.com/docs/platform-region-getregionlist (COM / FKR "Korea(finance)").
+  //   ⚠️ 금융존은 서비스별 호스트가 규칙형이 아니다(예: SES `fin-vpcsearchengine…`, Billing `billingapi.apigw-pub…`) —
+  //   SERVICE_ENDPOINTS 의 `fin` 값은 그룹별 가이드 대조가 끝난 서비스만 리터럴로 적는다.
+  fin: {
+    zone: "fin",
+    label: { ko: "금융존", en: "Financial" },
+    defaultGateway: "https://fin-ncloud.apigw.fin-ntruss.com",
+    apigwSuffix: "apigw.fin-ntruss.com",
+    console: "https://console.fin-ncloud.com",
+    docs: "https://api-fin.ncloud-docs.com/docs/api-overview",
+    regions: [{ code: "FKR", ko: "한국(금융)", en: "Korea(finance)" }],
+    defaultRegion: "FKR",
   },
 };
 
@@ -221,12 +236,14 @@ export const OBJECT_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpo
     KR: { host: "kr.object.gov-ncloudstorage.com", signingRegion: "gov-standard" },
     KRS: { host: "krs.object.gov-ncloudstorage.com", signingRegion: "gov2-standard" },
   },
+  fin: {}, // storage 그룹 금융존 대조 전 — 빈 표이면 클라이언트가 명확한 오류를 낸다
 };
 
-/** Ncloud Storage — 두 존 모두 KR 단일 리전, 서명 리전은 문서의 리전 코드 `kr`. */
+/** Ncloud Storage — 민간·공공존 KR 단일 리전, 서명 리전은 문서의 리전 코드 `kr`. 금융존 가이드에는 없음(2026-09-30). */
 export const NCLOUD_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpoint>> = {
   public: { KR: { host: "kr.ncloudstorage.com", signingRegion: "kr" } },
   gov: { KR: { host: "kr.gov-ncloudstorage.com", signingRegion: "kr" } },
+  fin: {},
 };
 
 export interface SwiftRegionEndpoint {
@@ -240,7 +257,13 @@ export interface SwiftRegionEndpoint {
 export const ARCHIVE_STORAGE_ENDPOINTS: Record<Zone, Record<string, SwiftRegionEndpoint>> = {
   public: { KR: { auth: "https://kr.archive.ncloudstorage.com:5000", api: "https://kr.archive.ncloudstorage.com" } },
   gov: { KR: { auth: "https://kr.archive.gov-ncloudstorage.com:5000", api: "https://kr.archive.gov-ncloudstorage.com" } },
+  fin: {},
 };
+
+/** 존에 S3 호환/Swift 엔드포인트 표가 하나라도 있는지 — registry 가 스토리지 도구 등록 여부를 정할 때 쓴다. */
+export function hasStorageEndpoints(table: Record<Zone, Record<string, unknown>>, zone: Zone): boolean {
+  return Object.keys(table[zone]).length > 0;
+}
 
 /**
  * NKS(Ncloud Kubernetes Service) REST 경로 접두 — 리전이 **경로**에 들어간다(호스트는 존별 단일).
@@ -252,6 +275,7 @@ export function nksPathPrefix(zone: Zone, regionCode: string): string {
   const table: Record<Zone, Record<string, string>> = {
     public: { KR: "/vnks/v2", SGN: "/vnks/sgn-v2", JPN: "/vnks/jpn-v2" },
     gov: { KR: "/vnks/v2", KRS: "/vnks/krs-v2" },
+    fin: {}, // containers 그룹 금융존 대조 전
   };
   return table[zone][regionCode.toUpperCase()] ?? "/vnks/v2";
 }
@@ -265,8 +289,9 @@ export function ncrPathPrefix(zone: Zone, regionCode: string): string {
   const table: Record<Zone, Record<string, string>> = {
     public: { KR: "/ncr/api/v2", SGN: "/ncr/sgn-api/v2", JPN: "/ncr/jpn-api/v2" },
     gov: { KR: "/ncr/kr/v2", KRS: "/ncr/krs/v2" },
+    fin: {}, // containers 그룹 금융존 대조 전
   };
-  return table[zone][regionCode.toUpperCase()] ?? table[zone]["KR"];
+  return table[zone][regionCode.toUpperCase()] ?? table[zone]["KR"] ?? "/ncr/api/v2";
 }
 
 /**

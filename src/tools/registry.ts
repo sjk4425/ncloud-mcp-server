@@ -14,7 +14,17 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defineTool } from "./_tool.js";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defaultGateway, endpoint, cloudFunctionsEndpoint, type Zone } from "../client/endpoints.js";
+import {
+  defaultGateway,
+  endpoint,
+  isServiceAvailable,
+  cloudFunctionsEndpoint,
+  hasStorageEndpoints,
+  OBJECT_STORAGE_ENDPOINTS,
+  NCLOUD_STORAGE_ENDPOINTS,
+  ARCHIVE_STORAGE_ENDPOINTS,
+  type Zone,
+} from "../client/endpoints.js";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import {
@@ -133,8 +143,21 @@ export interface ToolGroup {
   title: string;
   /** common 처럼 그룹 선택과 무관하게 항상 등록. */
   always?: boolean;
+  /**
+   * 이 그룹을 제공하는 존. 미설정 = 전 존. 새 존(예: 금융존)은 그룹별로 공식 가이드 대조가 끝난 뒤에만 여기에 추가한다 —
+   * 대조 전 존에서는 시작 시 등록도, 런타임 enable 도, 카탈로그 노출도 되지 않는다.
+   */
+  zones?: readonly Zone[];
   register: (ctx: RegisterCtx) => void;
 }
+
+/** 그룹이 해당 존을 제공하는지(미설정 = 전 존). */
+export function groupSupportsZone(group: ToolGroup, zone: Zone): boolean {
+  return group.zones === undefined || group.zones.includes(zone);
+}
+
+/** 금융존 가이드 대조가 아직 끝나지 않은 그룹에 붙이는 존 제한(민간·공공존만). 그룹별 검증 완료 시 제거한다. */
+const PUBLIC_GOV: readonly Zone[] = ["public", "gov"];
 
 /**
  * creds + regionCode(+ zone) 로 base URL별 memoized NcloudClient 팩토리를 만든다.
@@ -191,6 +214,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "compute",
+    zones: PUBLIC_GOV,
     title: "Compute (Server, Storage, Public IP, Auto Scaling, Cloud Functions)",
     register: ({ server, client, regionCode, zone }) => {
       // Server(VPC)·Auto Scaling 은 두 존 모두 기본 게이트웨이(`ncloud.apigw.*`) + 같은 경로다.
@@ -205,13 +229,16 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerAutoScalingTools(server, c);
 
       // Cloud Functions: 민간존은 리전별 호스트 + API v2.1, 공공존은 단일 호스트 + API v2.0(Classic 전용).
-      registerCloudFunctionsTools(server, client(cloudFunctionsEndpoint(zone, regionCode)), {
-        apiVersion: zone === "gov" ? "2.0" : "2.1",
-      });
+      if (isServiceAvailable("cloudfunctions", zone)) {
+        registerCloudFunctionsTools(server, client(cloudFunctionsEndpoint(zone, regionCode)), {
+          apiVersion: zone === "gov" ? "2.0" : "2.1",
+        });
+      }
     },
   },
   {
     key: "network",
+    zones: PUBLIC_GOV,
     title: "Network (VPC, ACG, LB, Target Group, Global DNS, Traffic Manager)",
     register: ({ server, client, zone }) => {
       // VPC·ACG·NACL·NAT·Route Table·Peering·NIC·LB·Target Group: 두 존 모두 기본 게이트웨이 + 같은 경로.
@@ -235,6 +262,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "database",
+    zones: PUBLIC_GOV,
     title: "Database (MySQL, PostgreSQL, MSSQL, MongoDB, Cache, Serverless)",
     register: ({ server, client, zone }) => {
       // MySQL/PostgreSQL/MSSQL/MongoDB/Cache: 두 존 모두 기본 게이트웨이 + 같은 경로(database-v* 개요 페이지, 2026-09-30 대조).
@@ -253,8 +281,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "storage",
+    zones: PUBLIC_GOV,
     title: "Storage (Object, Ncloud, NAS, Archive)",
     register: ({ server, client, creds, regionCode, env, zone }) => {
+      // 존에 엔드포인트 표가 없는 S3/Swift 서비스는 등록하지 않는다(표가 비면 클라이언트가 오류를 내므로 사전 차단).
+      const hasObject = hasStorageEndpoints(OBJECT_STORAGE_ENDPOINTS, zone);
+      const hasNcloud = hasStorageEndpoints(NCLOUD_STORAGE_ENDPOINTS, zone);
+      const hasArchive = hasStorageEndpoints(ARCHIVE_STORAGE_ENDPOINTS, zone);
       // 스토리지는 존 분기가 **클라이언트 레벨**이다 — 호스트·서명 리전 표는 client/endpoints.ts
       // (OBJECT_STORAGE_ENDPOINTS / NCLOUD_STORAGE_ENDPOINTS / ARCHIVE_STORAGE_ENDPOINTS, 두 존 공식 문서 대조본).
       //   공공존: Object Storage kr(gov-standard)/krs(gov2-standard).object.gov-ncloudstorage.com,
@@ -275,14 +308,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
         addressing: env.NCLOUD_STORAGE_ADDRESSING === "path" ? "path" : undefined,
         zone,
       });
-      registerStorageObjectTools(server, s3Client);
-      registerStorageNcloudTools(server, ncloudStorageClient);
+      if (hasObject) registerStorageObjectTools(server, s3Client);
+      if (hasNcloud) registerStorageNcloudTools(server, ncloudStorageClient);
       registerStorageNasTools(server, client());
 
       // Archive Storage는 NCLOUD_ARCHIVE_PROJECT_ID/DOMAIN_ID 가 있을 때만 (Swift 클라이언트)
       const archiveProjectId = env.NCLOUD_ARCHIVE_PROJECT_ID;
       const archiveDomainId = env.NCLOUD_ARCHIVE_DOMAIN_ID;
-      if (archiveProjectId && archiveDomainId) {
+      if (hasArchive && archiveProjectId && archiveDomainId) {
         const swiftClient = new SwiftCompatibleClient({
           ...creds,
           projectId: archiveProjectId,
@@ -296,6 +329,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "containers",
+    zones: PUBLIC_GOV,
     title: "Containers (NKS, Container Registry)",
     register: ({ server, client, zone }) => {
       // NKS: 호스트 규칙형(nks.apigw.*), 경로 접두는 리전별(nksPathPrefix). kubeconfig 재발급은 민간존 가이드에만 있다.
@@ -306,6 +340,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "monitoring",
+    zones: PUBLIC_GOV,
     title: "Monitoring (Cloud Insight, Log Analytics)",
     register: ({ server, client, zone }) => {
       // 두 존 규칙형 호스트 + 동일 경로·오퍼레이션 (management-cloudinsight / analytics-cloudloganalytics 개요, 2026-09-30 대조).
@@ -320,6 +355,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "governance",
+    zones: PUBLIC_GOV,
     title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account, WMS)",
     register: ({ server, client, zone }) => {
       // Activity Tracer·Resource Manager·Sub Account·WMS: 두 존 규칙형 호스트, 경로 동일
@@ -335,6 +371,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "devtools",
+    zones: PUBLIC_GOV,
     title: "DevTools (SourceCommit, SourceBuild, SourceDeploy, SourcePipeline)",
     register: ({ server, client, zone }) => {
       // 두 존 규칙형 호스트, 오퍼레이션 목록 동일(devtools-* 81 페이지, 2026-09-30 대조).
@@ -347,6 +384,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "analytics",
+    zones: PUBLIC_GOV,
     title: "Analytics (SES, Hadoop, CDSS, Data Stream/Catalog/Forest/Flow/Query)",
     register: ({ server, client, zone }) => {
       // SES·CDSS: 규칙형 호스트, 경로 접두 리전별(sesPathPrefix/cdssPathPrefix), 민간존 전용 KVM/G3 오퍼레이션은 gov 미등록.
@@ -370,6 +408,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "media",
+    zones: PUBLIC_GOV,
     title: "Media (VOD Station, Live Station, Image Optimizer, Multi DRM)",
     register: ({ server, client, zone }) => {
       // VOD Station: 공공존 호스트 불규칙(`vod-station.apigw.gov-ntruss.com`, vodstation 개요 2026-09-30). 채널 수정은 민간존 가이드에만 있다.
@@ -385,6 +424,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "cdn",
+    zones: PUBLIC_GOV,
     title: "Content Delivery (Global Edge)",
     register: ({ server, client, zone }) => {
       // Global Edge: 두 존 규칙형 호스트, 오퍼레이션 18종 동일(edge-overview / edge-*, 2026-09-30 대조).
@@ -394,6 +434,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "security",
+    zones: PUBLIC_GOV,
     title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring)",
     register: ({ server, client, zone }) => {
       // Certificate Manager: 규칙형 호스트. 공공존 가이드는 v1 4종(목록·외부등록·삭제·**사설 발급 issuePrivate**) — 사설 발급은 gov 에만 있다.
@@ -407,6 +448,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "application",
+    zones: PUBLIC_GOV,
     title: "Application (API Gateway, SENS: SMS/Alim Talk/Brand Message/Mail, Cloud Outbound Mailer)",
     register: ({ server, client, zone }) => {
       // 세 서비스 모두 두 존 규칙형 호스트(2026-09-30 두 존 개요 대조).
@@ -423,6 +465,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "billing",
+    zones: PUBLIC_GOV,
     title: "Billing (List Price, Cost and Usage, Discount)",
     register: ({ server, client, zone }) => {
       // 두 존 규칙형 호스트(platform-listprice 개요: billingapi.apigw.gov-ntruss.com/billing/v1), 오퍼레이션 20종 동일.
@@ -528,6 +571,7 @@ export function resolveGroups(raw: string | undefined): ToolGroup[] {
 /** 선택된 그룹을 순회하며 도구를 등록한다. */
 export function registerGroups(ctx: RegisterCtx, groups: ToolGroup[]): void {
   for (const group of groups) {
+    if (!groupSupportsZone(group, ctx.zone)) continue;
     group.register(ctx);
   }
 }
@@ -567,6 +611,7 @@ export class GroupManager {
   /** 시작 시 ON 그룹 등록 + (동적 enable 가능 시) 메타 도구 등록. */
   start(): void {
     for (const group of this.plan.startup) {
+      if (!groupSupportsZone(group, this.ctx.zone)) continue; // 이 존에서 미제공(가이드 대조 전) 그룹
       group.register(this.ctx);
       this.enabledKeys.add(group.key);
     }
@@ -583,7 +628,7 @@ export class GroupManager {
   /** 동적으로 켤 수 있는 그룹 key (시작 ON·always·blocked 제외). */
   enableableKeys(): string[] {
     return TOOL_GROUPS.filter(
-      (g) => !g.always && !this.plan.startupKeys.has(g.key) && !this.plan.blocked.has(g.key)
+      (g) => !g.always && groupSupportsZone(g, this.ctx.zone) && !this.plan.startupKeys.has(g.key) && !this.plan.blocked.has(g.key)
     ).map((g) => g.key);
   }
 
@@ -609,7 +654,7 @@ export class GroupManager {
 
   /** ncloud_list_tool_groups 응답 페이로드. */
   catalog() {
-    const groups = TOOL_GROUPS.filter((g) => !g.always).map((g) => {
+    const groups = TOOL_GROUPS.filter((g) => !g.always && groupSupportsZone(g, this.ctx.zone)).map((g) => {
       const blocked = this.plan.blocked.has(g.key);
       const enabled = this.enabledKeys.has(g.key);
       return {
@@ -650,6 +695,14 @@ export class GroupManager {
         status: "unknown",
         group: key,
         message: `No tool group named '${key}'. Choose one of the available groups.`,
+        availableGroups: this.enableableKeys(),
+      };
+    }
+    if (!groupSupportsZone(group, this.ctx.zone)) {
+      return {
+        status: "unknown",
+        group: key,
+        message: `Group '${key}' is not available in the '${this.ctx.zone}' zone of this server build.`,
         availableGroups: this.enableableKeys(),
       };
     }

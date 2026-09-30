@@ -32,10 +32,11 @@ describe("endpoints: resolveZone (NCLOUD_ZONE)", () => {
     expect(resolveZone({ NCLOUD_ZONE: "gov" })).toBe("gov");
     expect(resolveZone({ NCLOUD_ZONE: " GOV " })).toBe("gov");
     expect(resolveZone({ NCLOUD_ZONE: "Public" })).toBe("public");
+    expect(resolveZone({ NCLOUD_ZONE: "fin" })).toBe("fin");
   });
   it("알 수 없는 값은 throw (다른 존으로 조용히 가지 않는다)", () => {
-    expect(() => resolveZone({ NCLOUD_ZONE: "fin" })).toThrow(/NCLOUD_ZONE/);
-    expect(() => resolveZone({ NCLOUD_ZONE: "government" })).toThrow(/public, gov/);
+    expect(() => resolveZone({ NCLOUD_ZONE: "finance" })).toThrow(/NCLOUD_ZONE/);
+    expect(() => resolveZone({ NCLOUD_ZONE: "government" })).toThrow(/public, gov, fin/);
   });
 });
 
@@ -45,9 +46,11 @@ describe("endpoints: 존 프로필", () => {
     expect(defaultGateway("gov", {})).toBe("https://ncloud.apigw.gov-ntruss.com");
     expect(defaultGateway("gov", { NCLOUD_API_URL: "https://proxy.local" })).toBe("https://proxy.local");
   });
-  it("리전 카탈로그: 민간존 5개 / 공공존 KR·KRS, COM 은 제외", () => {
+  it("리전 카탈로그: 민간존 5개 / 공공존 KR·KRS / 금융존 FKR, COM 은 제외", () => {
     expect(ZONE_PROFILES.public.regions.map((r) => r.code)).toEqual(["KR", "JPN", "SGN", "USWN", "DEN"]);
     expect(ZONE_PROFILES.gov.regions.map((r) => r.code)).toEqual(["KR", "KRS"]);
+    expect(ZONE_PROFILES.fin.regions.map((r) => r.code)).toEqual(["FKR"]);
+    expect(defaultGateway("fin", {})).toBe("https://fin-ncloud.apigw.fin-ntruss.com");
     for (const z of ZONES) {
       expect(ZONE_PROFILES[z].regions.some((r) => r.code === "COM")).toBe(false);
       expect(ZONE_PROFILES[z].regions.some((r) => r.code === ZONE_PROFILES[z].defaultRegion)).toBe(true);
@@ -67,12 +70,14 @@ describe("endpoints: 서비스 엔드포인트 테이블", () => {
       }
     }
   });
-  it("public 값에는 gov 도메인이, gov 값에는 민간 도메인이 섞이지 않는다", () => {
+  it("public 값에는 gov/fin 도메인이, gov 값에는 gov 도메인만, fin 값에는 fin 도메인만 쓰인다", () => {
     for (const k of keys) {
       const pub = endpoint(k, "public");
       const gov = endpoint(k, "gov");
-      if (pub) expect(pub, `${k}.public`).not.toMatch(/gov-/);
+      const fin = endpoint(k, "fin");
+      if (pub) expect(pub, `${k}.public`).not.toMatch(/gov-|fin-/);
       if (gov) expect(gov, `${k}.gov`).toMatch(/gov-(ntruss|ncloud)\.com$/);
+      if (fin) expect(fin, `${k}.fin`).toMatch(/fin-(ntruss|ncloud)\.com$/);
     }
   });
   it("불규칙 매핑 — 단순 도메인 치환으로는 틀리는 것들", () => {
