@@ -269,11 +269,12 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "database",
-    zones: PUBLIC_GOV,
     title: "Database (MySQL, PostgreSQL, MSSQL, MongoDB, Cache, Serverless)",
     register: ({ server, client, zone }) => {
-      // MySQL/PostgreSQL/MSSQL/MongoDB/Cache: 두 존 모두 기본 게이트웨이 + 같은 경로(database-v* 개요 페이지, 2026-09-30 대조).
-      //   오퍼레이션 목록도 동일하되, 공공존 Cache 에만 사용자(ACL) 4종(get/add/change/deleteCloudCacheUserList)이 있다.
+      // MySQL/PostgreSQL/MSSQL/MongoDB/Cache: 세 존 모두 기본 게이트웨이 + 같은 경로(database-v* 개요 페이지, 2026-09-30 대조;
+      //   금융존 fin-ncloud.apigw.fin-ntruss.com, 오퍼레이션 목록 동일 — 차이는 metric 문서 페이지뿐).
+      //   공공존 Cache 에만 사용자(ACL) 4종(get/add/change/deleteCloudCacheUserList)이 있다.
+      //   Serverless 는 민간존 전용(api-gov·api-fin 모두 404).
       const c = client();
       registerDatabaseMysqlTools(server, c);
       registerDatabasePostgresqlTools(server, c);
@@ -288,10 +289,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "storage",
-    zones: PUBLIC_GOV,
     title: "Storage (Object, Ncloud, NAS, Archive)",
     register: ({ server, client, creds, regionCode, env, zone }) => {
       // 존에 엔드포인트 표가 없는 S3/Swift 서비스는 등록하지 않는다(표가 비면 클라이언트가 오류를 내므로 사전 차단).
+      //   금융존(2026-09-30): Object Storage kr.object.fin-ncloudstorage.com(fin-standard)·NAS(기본 게이트웨이)만 제공,
+      //   Ncloud Storage·Archive Storage 는 가이드 없음(404).
       const hasObject = hasStorageEndpoints(OBJECT_STORAGE_ENDPOINTS, zone);
       const hasNcloud = hasStorageEndpoints(NCLOUD_STORAGE_ENDPOINTS, zone);
       const hasArchive = hasStorageEndpoints(ARCHIVE_STORAGE_ENDPOINTS, zone);

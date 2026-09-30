@@ -236,10 +236,11 @@ export const OBJECT_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpo
     KR: { host: "kr.object.gov-ncloudstorage.com", signingRegion: "gov-standard" },
     KRS: { host: "krs.object.gov-ncloudstorage.com", signingRegion: "gov2-standard" },
   },
-  fin: {}, // storage 그룹 금융존 대조 전 — 빈 표이면 클라이언트가 명확한 오류를 낸다
+  // 금융존: https://api-fin.ncloud-docs.com/docs/common-objectstorageapi-objectstorageapi — 리전 "금융" fin-standard kr.object.fin-ncloudstorage.com (단일)
+  fin: { FKR: { host: "kr.object.fin-ncloudstorage.com", signingRegion: "fin-standard" } },
 };
 
-/** Ncloud Storage — 민간·공공존 KR 단일 리전, 서명 리전은 문서의 리전 코드 `kr`. 금융존 가이드에는 없음(2026-09-30). */
+/** Ncloud Storage — 민간·공공존 KR 단일 리전, 서명 리전은 문서의 리전 코드 `kr`. 금융존 가이드에는 없음(storage-ncloudstorage 404, 2026-09-30) → fin 빈 표. */
 export const NCLOUD_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpoint>> = {
   public: { KR: { host: "kr.ncloudstorage.com", signingRegion: "kr" } },
   gov: { KR: { host: "kr.gov-ncloudstorage.com", signingRegion: "kr" } },
@@ -253,7 +254,7 @@ export interface SwiftRegionEndpoint {
   api: string;
 }
 
-/** Archive Storage(OpenStack Swift) — 두 존 모두 KR 단일 리전. */
+/** Archive Storage(OpenStack Swift) — 민간·공공존 KR 단일 리전. 금융존 가이드에는 없음(common-archivestorageapi 404, 2026-09-30) → fin 빈 표. */
 export const ARCHIVE_STORAGE_ENDPOINTS: Record<Zone, Record<string, SwiftRegionEndpoint>> = {
   public: { KR: { auth: "https://kr.archive.ncloudstorage.com:5000", api: "https://kr.archive.ncloudstorage.com" } },
   gov: { KR: { auth: "https://kr.archive.gov-ncloudstorage.com:5000", api: "https://kr.archive.gov-ncloudstorage.com" } },

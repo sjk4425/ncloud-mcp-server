@@ -420,6 +420,15 @@ describe("storage 그룹: 존별 등록", () => {
     expect(pub.some((n) => n.startsWith("ncloud_ncs_"))).toBe(true);
     expect(pub.some((n) => n.includes("archive"))).toBe(true);
   });
+  it("fin: Object Storage + NAS 만 등록되고 Ncloud Storage·Archive 도구는 없다", () => {
+    const fin = captureStorage("fin" as any).map((t) => t.name);
+    const pub = captureStorage("public").map((t) => t.name);
+    expect(fin.some((n) => n.startsWith("ncloud_ncs_"))).toBe(false);
+    expect(fin.some((n) => n.includes("archive"))).toBe(false);
+    expect(fin).toContain("ncloud_list_buckets");
+    expect(fin).toContain("ncloud_list_nas_volumes");
+    expect(fin.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_ncs_") && !n.includes("archive")).sort());
+  });
   it("Ncloud Storage description 은 존의 호스트를 안내한다", () => {
     const pub = captureStorage("public").find((t) => t.name === "ncloud_ncs_list_buckets")!;
     const gov = captureStorage("gov").find((t) => t.name === "ncloud_ncs_list_buckets")!;
@@ -734,6 +743,13 @@ describe("database 그룹: 존별 등록", () => {
     const names = captureDatabase("public");
     expect(names.some((n) => n.startsWith("ncloud_serverless_"))).toBe(true);
     for (const t of CACHE_USER_TOOLS) expect(names).not.toContain(t);
+  });
+  it("fin: Serverless 도구도 Cache 사용자 도구도 없고 나머지는 public 과 동일하다", () => {
+    const pub = captureDatabase("public");
+    const fin = captureDatabase("fin" as any);
+    expect(fin.some((n) => n.startsWith("ncloud_serverless_"))).toBe(false);
+    for (const t of CACHE_USER_TOOLS) expect(fin).not.toContain(t);
+    expect(fin.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_serverless_")).sort());
   });
   it("gov: Serverless 도구는 없고(공공존 미제공) Cache 사용자 도구 4종이 추가되며, 나머지는 public 과 동일하다", () => {
     const pub = captureDatabase("public");

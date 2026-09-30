@@ -90,6 +90,16 @@ describe("S3CompatibleClient: 공공존(gov) 엔드포인트·서명 리전", ()
     expect(c.hostFor("my-bucket")).toBe("my-bucket.kr.gov-ncloudstorage.com");
   });
 
+  it("fin Object Storage FKR: kr.object.fin-ncloudstorage.com / fin-standard; Ncloud Storage 는 표가 없어 명확한 오류", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "FKR", storageType: "object", zone: "fin" });
+    await c.request({ method: "GET", bucket: "b" });
+    expect(sentUrlOf(spy)).toBe("https://kr.object.fin-ncloudstorage.com/b");
+    expect(sentHeaders(spy)["authorization"]).toMatch(/\/fin-standard\/s3\/aws4_request/);
+    const ncs = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "FKR", storageType: "ncloud", zone: "fin" });
+    await expect(ncs.request({ method: "GET" })).rejects.toThrow(/not configured for zone 'fin'/);
+  });
+
   it("NoSuchBucket 힌트는 존의 도메인으로 안내한다", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("<Error><Code>NoSuchBucket</Code><Message>x</Message></Error>", { status: 404 })));
     const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KR", storageType: "ncloud", zone: "gov" });
