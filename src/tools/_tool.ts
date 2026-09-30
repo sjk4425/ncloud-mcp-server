@@ -135,6 +135,25 @@ function isToolResult(v: any): boolean {
  * @param handler raw 데이터(직렬화 전)를 반환하거나, 직접 만든 완성 응답을 반환한다.
  *                throw 된 에러는 `{ isError: true }` 텍스트 응답으로 변환된다.
  */
+/**
+ * 지정한 이름의 도구 등록을 조용히 건너뛰는 서버 래퍼 — 존별로 제공되지 않는 오퍼레이션용.
+ * `registerTool` 만 가로채고 나머지 멤버는 원본 서버에 바인딩해 그대로 위임한다.
+ * 모듈 하나에 존 전용 도구가 몇 개 섞여 있을 때 `defineTool(excludingTools(server, [...]), ...)` 로 쓴다.
+ */
+export function excludingTools(server: McpServer, names: Iterable<string>): McpServer {
+  const skip = new Set(names);
+  return new Proxy(server, {
+    get(target, prop, receiver) {
+      if (prop === "registerTool") {
+        return (name: string, ...rest: unknown[]) =>
+          skip.has(name) ? undefined : (target as any).registerTool(name, ...rest);
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as McpServer;
+}
+
 export function defineTool<Schema extends ZodRawShape>(
   server: McpServer,
   name: string,

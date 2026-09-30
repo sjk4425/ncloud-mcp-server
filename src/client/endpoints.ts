@@ -145,6 +145,8 @@ export const SERVICE_ENDPOINTS = {
   searchEngine: { public: apigw("vpcsearchengine", "public"), gov: apigw("vpcsearchengine", "gov") },
   dataStreaming: { public: apigw("clouddatastreamingservice", "public"), gov: apigw("clouddatastreamingservice", "gov") },
   dataStream: { public: apigw("datastream", "public") },
+  dataStreamProduce: { public: "https://api.datastream.naverncp.com" }, // Data Stream 레코드 전송(produce) 전용 호스트
+
   dataCatalog: { public: apigw("datacatalog", "public") },
   dataForest: { public: apigw("df", "public") },
   dataFlow: { public: apigw("dataflow", "public") },
@@ -263,6 +265,25 @@ export function ncrPathPrefix(zone: Zone, regionCode: string): string {
     gov: { KR: "/ncr/kr/v2", KRS: "/ncr/krs/v2" },
   };
   return table[zone][regionCode.toUpperCase()] ?? table[zone]["KR"];
+}
+
+/**
+ * Search Engine Service(SES) / Cloud Data Streaming Service(CDSS) REST 경로 접두 — 리전이 경로에 들어간다.
+ *   SES  민간존 KR `/api/v2` · SGN `/api/sgn-v2` · JPN `/api/jpn-v2`, 공공존 KR `/api/v2` · KRS `/api/krs-v2`
+ *        (analytics-vpcsearchengine-cluster-getclusterinfolist, 두 존 원문 2026-09-30)
+ *   CDSS 민간존 KR `/api/v1` · SGN `/api/sgn-v1` · JPN `/api/jpn-v1`, 공공존 KR `/api/v1` · KRS `/api/krs-v1`
+ *        (analytics-clouddatastreamingservice-cluster-getclusterinfolist)
+ */
+function regionApiPrefix(zone: Zone, regionCode: string, version: string): string {
+  const r = regionCode.toUpperCase();
+  const seg = zone === "public" ? ({ SGN: "sgn-", JPN: "jpn-" } as Record<string, string>)[r] : ({ KRS: "krs-" } as Record<string, string>)[r];
+  return `/api/${seg ?? ""}${version}`;
+}
+export function sesPathPrefix(zone: Zone, regionCode: string): string {
+  return regionApiPrefix(zone, regionCode, "v2");
+}
+export function cdssPathPrefix(zone: Zone, regionCode: string): string {
+  return regionApiPrefix(zone, regionCode, "v1");
 }
 
 /**

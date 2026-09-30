@@ -1,35 +1,54 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { L, maxLenMessage } from "./_messages.js";
+import { sesPathPrefix, type Zone } from "../client/endpoints.js";
 
 /**
  * Search Engine Service (SES) API
  *
- * Base URL: https://vpcsearchengine.apigw.ntruss.com
- * - Korea: /api/v2/...
- * - Singapore: /api/sgn-v2/...
- * - Japan: /api/jpn-v2/...
+ * Base URL: https://vpcsearchengine.apigw.ntruss.com (민간존) / https://vpcsearchengine.apigw.gov-ntruss.com (공공존)
+ * 리전별 경로 접두(`sesPathPrefix`): 민간존 KR /api/v2 · SGN /api/sgn-v2 · JPN /api/jpn-v2, 공공존 KR /api/v2 · KRS /api/krs-v2
  *
  * HTTP Methods vary per API (GET, POST, DELETE)
  * Response format: { code, message, result, requestId }
+ *
+ * 공공존 가이드에 없는 오퍼레이션(2026-09-30, api-gov 에서 404 확인): `ses-*` 계열 KVM/G3·스펙 조회
+ *   getClusterInfo(상세)·getSearchEngineServerGenerationList·getServerSpecList·getClusterServerImageList·
+ *   getVpcAvailableSubnetList·createKvmSearchEngineCluster·getServerSpecListForSpecChange·changeClusterNodeDiskSize
+ *   → 공공존에서는 해당 도구를 등록하지 않는다(SES_PUBLIC_ONLY_TOOLS).
  */
 
-function getApiPrefix(regionCode: string): string {
-  switch (regionCode) {
-    case "SGN": return "/api/sgn-v2";
-    case "JPN": return "/api/jpn-v2";
-    default: return "/api/v2";
-  }
+function getApiPrefix(zone: Zone, regionCode: string): string {
+  return sesPathPrefix(zone, regionCode);
 }
 
-export function registerSearchEngineServiceTools(server: McpServer, client: NcloudClient): void {
+/** 민간존 가이드에만 있는 오퍼레이션을 감싼 도구 — 공공존에서는 미등록. */
+export const SES_PUBLIC_ONLY_TOOLS = [
+  "ncloud_ses_get_cluster_detail",
+  "ncloud_ses_get_server_generations",
+  "ncloud_ses_get_server_specs",
+  "ncloud_ses_get_cluster_server_images",
+  "ncloud_ses_get_subnet_list_g3",
+  "ncloud_ses_create_cluster_g3",
+  "ncloud_ses_get_node_spec_for_change_g3",
+  "ncloud_ses_change_disk_size",
+] as const;
+
+export interface SesToolOptions {
+  /** 존 — 리전별 경로 접두와 미제공 도구 제외. 기본 `public`. */
+  zone?: Zone;
+}
+
+export function registerSearchEngineServiceTools(server: McpServer, client: NcloudClient, opts: SesToolOptions = {}): void {
+  const zone: Zone = opts.zone ?? "public";
+  const s = zone === "gov" ? excludingTools(server, SES_PUBLIC_ONLY_TOOLS) : server;
   // ─── Cluster List ──────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_list_clusters",
     "List all Search Engine Service (Elasticsearch/OpenSearch) clusters in the current region",
     {
@@ -39,7 +58,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       pageSize: z.number().optional().describe("Page size (default: 10)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const queryParams: Record<string, string | number | boolean | undefined> = {};
       if (params.inputText) queryParams["inputText"] = params.inputText;
       if (params.vpcName) queryParams["vpcName"] = params.vpcName;
@@ -53,14 +72,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Cluster Detail ────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_cluster_detail",
     "Get detailed information about a specific Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number (from getClusterInfoList)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterInfo/${params.serviceGroupInstanceNo}`);
       return result;
     }
@@ -69,14 +88,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Cluster ACG List ──────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_cluster_acg",
     "Get ACG (Access Control Group) rules for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // op명은 getAcgInfoList 다. getClusterAcgInfo 는 존재하지 않는 경로였다
       // (CDSS에도 같은 이름을 복사해 둘 다 300이었다 — 2026-09-04 감사 §1-E).
       const result = await client.requestRaw("GET", `${prefix}/cluster/getAcgInfoList/${params.serviceGroupInstanceNo}`);
@@ -87,14 +106,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Cluster Node List ─────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_node_list",
     "Get node list for a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterNodeList/${params.serviceGroupInstanceNo}`);
       return result;
     }
@@ -103,12 +122,12 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Version List ──────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_versions",
     "Get available Search Engine (Elasticsearch/OpenSearch) versions",
     {},
     async () => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineVersionList`);
       return result;
     }
@@ -117,12 +136,12 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Server Generation List ───────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_server_generations",
     "Get available node server generations for Search Engine Service",
     {},
     async () => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getSearchEngineServerGenerationList`);
       return result;
     }
@@ -131,7 +150,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Server Type (G2) ─────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_node_products",
     "Get available node server types (product codes) for Search Engine Service (G2)",
     {
@@ -139,7 +158,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       subnetNo: z.number().describe("Subnet number (from ncloud_ses_get_subnet_list)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // GET + 쿼리스트링이다. POST 본문으로 보내면 API Gateway가 라우트를 찾지 못해
       // 300 Not Found로 거절한다(B-4). subnetNo도 필수 파라미터다.
       const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeProductList`, {
@@ -153,7 +172,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Server Type (G3) ─────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_server_specs",
     "Get available node server types for Search Engine Service (G3/KVM only). " +
       "softwareProductCode must be a G3 image code — a G2 code from ncloud_ses_get_os_products is rejected.",
@@ -161,7 +180,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       softwareProductCode: z.string().describe("G3 OS image code (from ncloud_ses_get_cluster_server_images)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/getServerSpecList`, undefined, {
         softwareProductCode: params.softwareProductCode,
       });
@@ -172,12 +191,12 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get OS Product List (G2) ─────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_os_products",
     "Get available OS types for Search Engine Service (G2)",
     {},
     async () => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getOsProductList`);
       return result;
     }
@@ -186,14 +205,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get OS Product List (G3) ─────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_cluster_server_images",
     "Get available OS images for Search Engine Service (G3/KVM only). The returned image code is the softwareProductCode for ncloud_ses_get_server_specs, ncloud_ses_get_subnet_list_g3 and ncloud_ses_create_cluster_g3. For G2 use ncloud_ses_get_os_products.",
     {
       generationCode: z.enum(["G3"]).optional().describe("Server generation code. Only G3 (3rd generation) is valid"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // 2026-09-02 라이브에서는 300(라우트 없음)이었으나 2026-09-15 사용자 확인으로 정상 동작 — 진단 래퍼 제거.
       return client.requestRaw("GET", `${prefix}/cluster/getClusterServerImageList`, {
         generationCode: params.generationCode,
@@ -204,12 +223,12 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get VPC List ─────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_vpc_list",
     "Get available VPC list for Search Engine Service cluster creation",
     {},
     async () => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getVpcList`);
       return result;
     }
@@ -218,7 +237,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Subnet List ──────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_subnet_list",
     "Get available subnet list for Search Engine Service cluster creation (G2)",
     {
@@ -226,7 +245,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       vpcNo: z.number().describe("VPC number (from ncloud_ses_get_vpc_list)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // softwareProductCode 없이 호출하면 400 "유효하지 않은 OS 타입입니다"로 거절된다(B-5).
       const result = await client.requestRaw("GET", `${prefix}/cluster/getSubnetList`, {
         softwareProductCode: params.softwareProductCode,
@@ -239,7 +258,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Subnet List (G3) ─────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_subnet_list_g3",
     "Get available subnet list for Search Engine Service cluster creation (G3/KVM only)",
     {
@@ -248,7 +267,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       isPrivate: z.boolean().optional().describe("true: private subnets only, false: public subnets only"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // G2 경로(B-5)와 같은 결함 — OS 타입 코드 없이는 조회되지 않는다.
       const body: Record<string, unknown> = {
         softwareProductCode: params.softwareProductCode,
@@ -263,12 +282,12 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Login Key List ───────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_login_keys",
     "Get authentication key list for SSH access to Search Engine Service manager nodes",
     {},
     async () => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getLoginKeyList`);
       return result;
     }
@@ -277,7 +296,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Create Cluster (G2) ───────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_create_cluster",
     "Create a new Search Engine Service cluster (G2). Use dryRun=true to preview.",
     {
@@ -304,7 +323,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     },
     async (params) => {
       const { dryRun, ...apiParams } = params;
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       if (dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: SES Cluster Creation (G2)",
@@ -322,7 +341,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Create Cluster (G3/KVM) ──────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_create_cluster_g3",
     "Create a new Search Engine Service cluster on 3rd-generation KVM servers (G3). " +
       "Use dryRun=true to preview.",
@@ -377,7 +396,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       }
 
       const { dryRun, ...apiParams } = params;
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       if (dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: SES Cluster Creation (G3/KVM)",
@@ -395,14 +414,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Restart Cluster ───────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_restart_cluster",
     "Restart a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // op명은 restartSearchEngineCluster 이고 메서드는 GET 이다.
       // restartCluster + POST 조합은 라우트가 없어 300이었다.
       const result = await client.requestRaw("GET", `${prefix}/cluster/restartSearchEngineCluster/${params.serviceGroupInstanceNo}`);
@@ -413,7 +432,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Delete Cluster ────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_delete_cluster",
     "⚠️ Destructive: Permanently delete a Search Engine Service cluster. All data and indices will be lost. Set confirm=true to execute.",
     {
@@ -421,7 +440,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("DELETE", `${prefix}/cluster/deleteSearchEngineCluster/${params.serviceGroupInstanceNo}`);
       return result;
     },
@@ -431,7 +450,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Add Node ──────────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_add_node",
     "Add data nodes to a Search Engine Service cluster. " +
       "⚠️ newDataNodeCount is HOW MANY TO ADD, not the resulting total — a cluster with 3 data nodes " +
@@ -447,7 +466,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       newDataNodeCount: z.number().min(1).describe("How many data nodes to ADD. This is a delta, not the resulting total"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "POST",
         `${prefix}/cluster/changeCountOfDataNode/${params.serviceGroupInstanceNo}`,
@@ -461,21 +480,21 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Get Node Spec Detail ──────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_node_spec_detail",
     "Get server specifications for each node in a Search Engine Service cluster",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getNodeSpecDetail/${params.serviceGroupInstanceNo}`);
       return result;
     }
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_node_spec_for_change_g3",
     "Get the server specs a running Search Engine Service cluster's nodes can be changed to (G3/KVM only). " +
       "The G2 equivalent is ncloud_ses_get_node_spec_detail.",
@@ -486,7 +505,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       computeInstanceProductCode: z.string().describe("Current node server type code (from ncloud_ses_get_node_spec_detail)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       return client.requestRaw(
         "POST",
         `${prefix}/cluster/getServerSpecListForSpecChange/${params.serviceGroupInstanceNo}`,
@@ -499,7 +518,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Change Node Spec ──────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_change_node_spec",
     "Change server specifications per node role in a Search Engine Service cluster. " +
       "Send only the roles you are changing — read the changeable specs with " +
@@ -530,7 +549,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
           isError: true,
         };
       }
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "POST", `${prefix}/cluster/changeSpecNode/${serviceGroupInstanceNo}`, undefined, body
       );
@@ -541,7 +560,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Change Disk Capacity ──────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_change_disk_size",
     "Change data node disk capacity for a Search Engine Service cluster",
     {
@@ -552,7 +571,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       diskSize: z.number().describe("New storage size in GB (10GB increments; must be larger than the current size)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // 앞선 수정에서 형제 op(changeCountOfDataNode 등)를 근거로 `/{no}` 세그먼트를 붙였으나
       // 그 추론은 틀렸다 — 스펙은 세그먼트 없는 형태를 명시하고, 세그먼트를 붙인 형태도
       // 라이브에서 300이었다. 스펙대로 되돌린다.
@@ -567,7 +586,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Reset Account Password ────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_reset_password",
     "Reset the Search Engine admin account password",
     {
@@ -575,7 +594,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       searchEngineUserPassword: z.string().describe("New admin password (8-20 chars)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // 인스턴스 번호는 경로 세그먼트다 — 본문에만 넣으면 라우트를 찾지 못한다.
       const result = await client.requestRaw(
         "POST",
@@ -590,7 +609,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Dashboard ─────────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_dashboard",
     "Get dashboard information for a Search Engine Service cluster",
     {
@@ -599,7 +618,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       pageSize: z.number().optional().describe("Page size"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // 대시보드는 /cluster/ 가 아니라 /dashboard/ 섹션이고 op명은 getDashboardInformation 이다.
       const result = await client.requestRaw(
         "GET", `${prefix}/dashboard/getDashboardInformation/${params.serviceGroupInstanceNo}`,
@@ -612,7 +631,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Monitoring ────────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_monitoring",
     "Get search-engine monitoring data for a Search Engine Service cluster or node",
     {
@@ -629,7 +648,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       interval: z.string().optional().describe("Aggregation interval (e.g. Min1, Min30, Hour2, Day1)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "GET", `${prefix}/monitoring/getSearchEngineMonitoringData/${params.serviceGroupInstanceNo}`,
         {
@@ -645,7 +664,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_os_monitoring",
     "Get OS-level monitoring data for a Search Engine Service node",
     {
@@ -657,7 +676,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       interval: z.string().optional().describe("Aggregation interval (e.g. Min1, Min30, Hour2, Day1). Default: Min1"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "GET", `${prefix}/monitoring/getOsMonitoringData/${params.serviceGroupInstanceNo}`,
         {
@@ -679,7 +698,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // 2026-09-04 경로 감사 §1-A.
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_snapshot_buckets",
     "Get Object Storage bucket list available for storing cluster snapshots. " +
       "⚠️ Requires ncloud_ses_set_snapshot_api_key to have been run first — without it the call fails with " +
@@ -688,14 +707,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/snapshot/getBucketList/${params.serviceGroupInstanceNo}`);
       return result;
     }
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_set_snapshot_api_key",
     "Set the Object Storage API authentication key used for snapshots. " +
       "This is the first step of the snapshot chain — ncloud_ses_get_snapshot_buckets, " +
@@ -707,7 +726,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       secretKey: z.string().describe("Object Storage secret key"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // op명 대문자 주의: updateAPIAuthenticationKey (API 가 전부 대문자).
       const result = await client.requestRaw(
         "POST", `${prefix}/snapshot/updateAPIAuthenticationKey/${params.serviceGroupInstanceNo}`,
@@ -719,7 +738,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_create_snapshot",
     "Create a snapshot of a Search Engine Service cluster. " +
       "⚠️ Prerequisite chain: ncloud_ses_set_snapshot_api_key → ncloud_ses_get_snapshot_buckets → this tool. " +
@@ -730,7 +749,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       bucketName: z.string().describe("Object Storage bucket to store the snapshot in (from ncloud_ses_get_snapshot_buckets)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "POST", `${prefix}/snapshot/createSnapshot/${params.serviceGroupInstanceNo}`,
         undefined,
@@ -741,7 +760,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_snapshot_history",
     "Get snapshot creation history for a Search Engine Service cluster",
     {
@@ -750,7 +769,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       pageSize: z.number().optional().describe("Page size"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "GET", `${prefix}/snapshot/getSnapshotHistory/${params.serviceGroupInstanceNo}`,
         { pageNo: params.pageNo, pageSize: params.pageSize }
@@ -760,7 +779,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_snapshot_schedule_history",
     "Get the snapshot scheduling history for a Search Engine Service cluster",
     {
@@ -769,7 +788,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       pageSize: z.number().optional().describe("Page size"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       return client.requestRaw(
         "GET", `${prefix}/snapshot/getSnapshotSchedulingHistory/${params.serviceGroupInstanceNo}`,
         { pageNo: params.pageNo, pageSize: params.pageSize }
@@ -778,7 +797,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_set_snapshot_schedule",
     "Set a daily snapshot schedule for a Search Engine Service cluster. " +
       "⚠️ Requires ncloud_ses_set_snapshot_api_key first (otherwise 10115).",
@@ -794,7 +813,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     },
     async (params) => {
       const { serviceGroupInstanceNo, ...body } = params;
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "POST", `${prefix}/snapshot/setSnapshotScheduling/${serviceGroupInstanceNo}`, undefined, body
       );
@@ -803,14 +822,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_unset_snapshot_schedule",
     "Release the snapshot schedule for a Search Engine Service cluster. This only removes the schedule, not existing snapshots.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // op명은 releaseSnapshotScheduling 이고 메서드는 GET 이다(POST 아님).
       const result = await client.requestRaw("GET", `${prefix}/snapshot/releaseSnapshotScheduling/${params.serviceGroupInstanceNo}`);
       return result;
@@ -823,21 +842,21 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // 실제로는 **`/import/`** 섹션이고 인스턴스 번호는 경로 세그먼트다.
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_import_buckets",
     "Get Object Storage bucket list available for data import",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/import/getBucketList/${params.serviceGroupInstanceNo}`);
       return result;
     }
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_run_import",
     "Start a data import job from Object Storage into a Search Engine Service cluster. " +
       "⚠️ With isBulkFormat=true the `index` parameter is ignored — each line's own `_index` decides the " +
@@ -859,7 +878,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       for (const [k, v] of Object.entries(rest)) {
         if (v !== undefined) body[k] = v;
       }
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "POST", `${prefix}/import/createDataImportJob/${serviceGroupInstanceNo}`, undefined, body
       );
@@ -868,7 +887,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_import_history",
     "Get data import history for a Search Engine Service cluster",
     {
@@ -877,7 +896,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       pageSize: z.number().optional().describe("Page size"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw(
         "GET", `${prefix}/import/getDataImportHistory/${params.serviceGroupInstanceNo}`,
         { pageNo: params.pageNo, pageSize: params.pageSize }
@@ -887,7 +906,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_stop_import",
     "Stop the running data import job on a Search Engine Service cluster",
     {
@@ -896,7 +915,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       // 진행 중인 작업을 멈추며, 메서드도 POST가 아니라 GET 이다.
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/import/stopDataImportJob/${params.serviceGroupInstanceNo}`);
       return result;
     }
@@ -905,7 +924,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Version Upgrade ───────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_upgrade_version",
     "Upgrade the Search Engine version of a cluster. Run ncloud_ses_precheck_upgrade first. " +
       "⚠️ The pre-check requires an existing snapshot — it fails with 10154 if the cluster has none, so the " +
@@ -920,14 +939,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       targetVersionCode: z.string().describe("Target version code (from ncloud_ses_get_versions)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradeCluster`, undefined, params);
       return result;
     }
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_precheck_upgrade",
     "Pre-check whether a Search Engine version upgrade can proceed. " +
       "⚠️ Requires the cluster to have at least one snapshot — returns 10154 otherwise. Create one with " +
@@ -938,14 +957,14 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       targetVersionCode: z.string().describe("Target version code (from ncloud_ses_get_versions)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/rollingUpgradePreCheck`, undefined, params);
       return result;
     }
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_upgrade_progress",
     "Get version upgrade progress for a Search Engine Service cluster",
     {
@@ -953,7 +972,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       // POST + 본문이다. GET + 경로 세그먼트 조합은 라우트가 없어 300이었다.
       const result = await client.requestRaw("POST", `${prefix}/cluster/getRollingUpgradeProgress`, undefined, {
         regionNo: params.regionNo,
@@ -966,7 +985,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Change Node Type (Hot/Warm) ──────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_change_node_type",
     "Set each data node's storage role (HOT/WARM) in a Search Engine Service cluster. " +
       "Roles are assigned per node, not by count. Manager and master node types cannot be changed. " +
@@ -988,7 +1007,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       }).describe("Per-node storage role assignments"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("POST", `${prefix}/cluster/setHotWarmNode`, undefined, {
         serviceGroupInstanceNo: params.serviceGroupInstanceNo,
         nodeSpecList: params.nodeSpecList,
@@ -1000,7 +1019,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
   // ─── Changeable Node Spec (G2) ────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_ses_get_node_product_for_change",
     "Get the server types a running Search Engine Service cluster's nodes can be changed to (G2 clusters only). " +
       "⚠️ On a G3/KVM cluster this returns G2 products with `isChangeSpec: true` on every one of them — none " +
@@ -1011,7 +1030,7 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       softwareProductCode: z.string().describe("OS product code (from ncloud_ses_get_os_products)"),
     },
     async (params) => {
-      const prefix = getApiPrefix(client.getRegionCode());
+      const prefix = getApiPrefix(zone, client.getRegionCode());
       return client.requestRaw(
         "POST", `${prefix}/cluster/getNodeProductListForSpecChange/${params.serviceGroupInstanceNo}`,
         undefined,

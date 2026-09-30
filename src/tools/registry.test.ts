@@ -473,6 +473,40 @@ describe("devtools 그룹: 존별 등록", () => {
   });
 });
 
+describe("analytics 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureAnalytics(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "analytics")
+    );
+    return names;
+  }
+  const PUBLIC_ONLY_PREFIXES = ["ncloud_datastream_", "ncloud_datacatalog_", "ncloud_dataforest_", "ncloud_dataflow_", "ncloud_dataquery_"];
+  const isDataService = (n: string) => PUBLIC_ONLY_PREFIXES.some((p) => n.startsWith(p));
+  it("public: Data Stream/Catalog/Forest/Flow/Query 와 SES/CDSS G3 도구가 모두 등록된다", () => {
+    const names = captureAnalytics("public");
+    for (const p of PUBLIC_ONLY_PREFIXES) expect(names.some((n) => n.startsWith(p)), p).toBe(true);
+    expect(names).toContain("ncloud_ses_create_cluster_g3");
+    expect(names).toContain("ncloud_cdss_create_cluster_g3");
+  });
+  it("gov: Data* 서비스와 SES 8종·CDSS 6종(민간존 전용 오퍼레이션)만 빠지고 나머지는 동일", () => {
+    const pub = captureAnalytics("public");
+    const gov = captureAnalytics("gov");
+    expect(gov.some(isDataService)).toBe(false);
+    const sesOnly = ["ncloud_ses_get_cluster_detail", "ncloud_ses_get_server_generations", "ncloud_ses_get_server_specs", "ncloud_ses_get_cluster_server_images", "ncloud_ses_get_subnet_list_g3", "ncloud_ses_create_cluster_g3", "ncloud_ses_get_node_spec_for_change_g3", "ncloud_ses_change_disk_size"];
+    const cdssOnly = ["ncloud_cdss_create_cluster_g3", "ncloud_cdss_get_subnet_list_g3", "ncloud_cdss_get_node_spec_for_change_g3", "ncloud_cdss_get_server_generations", "ncloud_cdss_get_server_spec_list", "ncloud_cdss_get_cluster_server_images"];
+    for (const t of [...sesOnly, ...cdssOnly]) { expect(pub).toContain(t); expect(gov).not.toContain(t); }
+    const expected = pub.filter((n) => !isDataService(n) && !sesOnly.includes(n) && !cdssOnly.includes(n)).sort();
+    expect(gov.sort()).toEqual(expected);
+    expect(gov).toContain("ncloud_ses_list_clusters");
+    expect(gov).toContain("ncloud_cdss_list_clusters");
+    expect(gov.some((n) => n.startsWith("ncloud_hadoop_") || n.includes("hadoop"))).toBe(true);
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];

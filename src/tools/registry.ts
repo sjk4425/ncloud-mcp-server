@@ -347,19 +347,24 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "analytics",
     title: "Analytics (SES, Hadoop, CDSS, Data Stream/Catalog/Forest/Flow/Query)",
-    register: ({ server, client }) => {
-      registerSearchEngineServiceTools(server, client("https://vpcsearchengine.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // SES·CDSS: 규칙형 호스트, 경로 접두 리전별(sesPathPrefix/cdssPathPrefix), 민간존 전용 KVM/G3 오퍼레이션은 gov 미등록.
+      // Cloud Hadoop: 기본 게이트웨이(/vhadoop/v2) 두 존 동일.
+      // Data Stream/Catalog/Forest/Flow/Query: 민간존 전용(api-gov 개요 페이지 404, 2026-09-30) → endpoint() undefined 면 미등록.
+      registerSearchEngineServiceTools(server, client(endpoint("searchEngine", zone)), { zone });
       registerCloudHadoopTools(server, client());
-      registerCloudDataStreamingTools(server, client("https://clouddatastreamingservice.apigw.ntruss.com"));
-      registerDataStreamTools(
-        server,
-        client("https://datastream.apigw.ntruss.com"),
-        client("https://api.datastream.naverncp.com")
-      );
-      registerDataCatalogTools(server, client("https://datacatalog.apigw.ntruss.com"));
-      registerDataForestTools(server, client("https://df.apigw.ntruss.com"));
-      registerDataFlowTools(server, client("https://dataflow.apigw.ntruss.com"));
-      registerDataQueryTools(server, client("https://kr.dataquery.naverncp.com"));
+      registerCloudDataStreamingTools(server, client(endpoint("dataStreaming", zone)), { zone });
+      const dataStream = endpoint("dataStream", zone);
+      const dataStreamProduce = endpoint("dataStreamProduce", zone);
+      if (dataStream && dataStreamProduce) registerDataStreamTools(server, client(dataStream), client(dataStreamProduce));
+      const dataCatalog = endpoint("dataCatalog", zone);
+      if (dataCatalog) registerDataCatalogTools(server, client(dataCatalog));
+      const dataForest = endpoint("dataForest", zone);
+      if (dataForest) registerDataForestTools(server, client(dataForest));
+      const dataFlow = endpoint("dataFlow", zone);
+      if (dataFlow) registerDataFlowTools(server, client(dataFlow));
+      const dataQuery = endpoint("dataQuery", zone);
+      if (dataQuery) registerDataQueryTools(server, client(dataQuery));
     },
   },
   {
