@@ -469,12 +469,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "application",
-    zones: PUBLIC_GOV,
     title: "Application (API Gateway, SENS: SMS/Alim Talk/Brand Message/Mail, Cloud Outbound Mailer)",
     register: ({ server, client, zone }) => {
-      // 세 서비스 모두 두 존 규칙형 호스트(2026-09-30 두 존 개요 대조).
+      // 세 서비스 모두 세 존 규칙형 호스트(2026-09-30 세 존 개요 대조; API Gateway 133 op·Mailer 25 op 동일).
       // 민간존: 2026-09-17 Cloud Outbound Mailer → SENS 흡수. 메일은 SENS /mail/v2, 레거시 Mailer API 는 이관 프로젝트 한정 '27-12까지.
-      // 공공존: SENS(Project/SMS/알림톡/브랜드메시지, 메일 채널 없음)와 Cloud Outbound Mailer 가 별개 서비스 —
+      // 공공존·금융존: SENS(Project/SMS/알림톡/브랜드메시지, 메일 채널 없음 — sens-* 30 페이지 동일)와 Cloud Outbound Mailer 가 별개 서비스 —
       //         SENS 메일 도구는 미등록, Mailer 는 발송·조회 5종까지 포함한 정식 서비스로 등록.
       registerApiGatewayTools(server, client(endpoint("apiGateway", zone)));
       const sens = client(endpoint("sens", zone));

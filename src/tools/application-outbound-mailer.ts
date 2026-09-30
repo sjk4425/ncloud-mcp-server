@@ -34,9 +34,11 @@ const LEGACY_TAG_PUBLIC =
   "[Legacy Cloud Outbound Mailer API — merged into SENS on 2026-09-17; available only to projects migrated from Cloud Outbound Mailer and only for ~12 months (SENS overview: until Dec 2027). New mail sending/lookup: ncloud_sens_send_mail / ncloud_sens_list_mail_requests.] ";
 
 export interface OutboundMailerToolOptions {
-  /** 존 — 공공존이면 레거시 태그를 붙이지 않고 발송·조회 5종을 추가 등록한다. 기본 `public`. */
+  /** 존 — 공공존·금융존이면 레거시 태그를 붙이지 않고 발송·조회 5종을 추가 등록한다. 기본 `public`. */
   zone?: Zone;
 }
+// 금융존(api-fin ai-application-service-cloudoutboundmailer, 2026-09-30): 공공존과 같이 별개의 정식 서비스 — 호스트 mail.apigw.fin-ntruss.com,
+// 같은 25 op, 경로 /api/v1 (FKR 은 REGION_PATH 에 없으므로 KR 값 /api/v1 로 떨어진다).
 
 const REGION_PATH: Record<string, string> = { KR: "/api/v1", SGN: "/api/v1-sgn", JPN: "/api/v1-jpn" };
 
@@ -47,9 +49,10 @@ const NAME_RULE = "1-100 chars of Korean, letters, digits, '.', '_' or '-'";
 const EMAIL_LIST = z.array(z.string().email()).min(1);
 
 export function registerOutboundMailerTools(server: McpServer, client: NcloudClient, opts: OutboundMailerToolOptions = {}): void {
-  const gov = (opts.zone ?? "public") === "gov";
-  // 공공존은 정식 서비스 — 레거시 안내를 붙이지 않는다.
-  const LEGACY_TAG = gov ? "" : LEGACY_TAG_PUBLIC;
+  /** 공공존·금융존: Cloud Outbound Mailer 가 SENS 와 별개의 정식 서비스. */
+  const standalone = (opts.zone ?? "public") !== "public";
+  // 정식 서비스인 존에서는 레거시 안내를 붙이지 않는다.
+  const LEGACY_TAG = standalone ? "" : LEGACY_TAG_PUBLIC;
   const regionParam = z.enum(["KR", "SGN", "JPN"]).optional().describe(
     "Region path segment (KR=/api/v1, SGN=/api/v1-sgn, JPN=/api/v1-jpn). Defaults to the server region (NCLOUD_REGION) when it is one of these, otherwise KR"
   );
@@ -307,7 +310,7 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
   // 스펙(api-gov ai-application-service-cloudoutboundmailer-createmailrequest / getmailrequestlist / getmailrequeststatus /
   // getmaillist / getmail, 2026-09-30): POST /mails, GET /mails/requests, GET /mails/requests/{requestId}/status,
   // GET /mails/requests/{requestId}/mails, GET /mails/{mailId}.
-  if (gov) {
+  if (standalone) {
     const SEND_STATUS = "P | R | I | S | F | U | C | PF";
 
     defineTool(

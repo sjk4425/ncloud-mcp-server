@@ -8,9 +8,9 @@ import { registerSensMailTools } from "./application-sens-mail.js";
  * application 그룹 존 차이 — 민간존은 Mailer 가 SENS 로 흡수(메일 = SENS /mail/v2), 공공존은 SENS(메일 채널 없음)와
  * Cloud Outbound Mailer(정식, 발송·조회 포함)가 별개. 공공존 Mailer 5 op 스펙: api-gov …-createmailrequest 등(2026-09-30).
  */
-function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, zone?: "public" | "gov") {
+function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, zone?: "public" | "gov" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
-  const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://x", regionCode: "KR" });
+  const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://x", regionCode: zone === "fin" ? "FKR" : "KR" });
   reg(server, client, zone ? { zone } : {});
   const tools = (server as any)._registeredTools;
   const e = (n: string) => (tools instanceof Map ? tools.get(n) : tools[n]);
@@ -48,6 +48,22 @@ describe("Outbound Mailer: 존별 도구 집합과 레거시 태그", () => {
     expect((await t.call("ncloud_mailer_send_mail", { templateSid: 1 })).isError).toBe(true);
     expect((await t.call("ncloud_mailer_list_requests", { startUtc: 1 })).isError).toBe(true);
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("Outbound Mailer / SENS mail: 금융존은 공공존과 같다 (api-fin, 2026-09-30)", () => {
+  it("fin: 레거시 태그 없음, 발송·조회 5종 등록, FKR 은 /api/v1 경로", async () => {
+    const t = setup(registerOutboundMailerTools, "fin");
+    expect(t.desc("ncloud_mailer_get_template")).not.toContain("[Legacy");
+    for (const n of ["ncloud_mailer_send_mail", "ncloud_mailer_list_requests", "ncloud_mailer_get_mail"]) expect(t.has(n), n).toBe(true);
+    const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+    await t.call("ncloud_mailer_get_template", { templateSid: 7 });
+    expect(spy).toHaveBeenCalledWith("GET", "/api/v1/template/7");
+  });
+  it("fin: SENS 메일 5종 미등록", () => {
+    const t = setup(registerSensMailTools, "fin");
+    expect(t.has("ncloud_sens_send_mail")).toBe(false);
+    expect(t.has("ncloud_sens_list_projects")).toBe(true);
   });
 });
 

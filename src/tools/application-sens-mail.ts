@@ -52,7 +52,8 @@ const PAGE_PARAMS = {
 const MAIL_STATUS = ["PREPARING", "READY", "RESERVED", "SENDING", "COMPLETED", "FAILED", "PARTIAL_FAILED", "CANCELED"] as const;
 
 export function registerSensMailTools(server: McpServer, client: NcloudClient, opts: SensMailToolOptions = {}): void {
-  const s = (opts.zone ?? "public") === "gov" ? excludingTools(server, SENS_MAIL_PUBLIC_ONLY_TOOLS) : server;
+  // 메일 채널(sens-mail-*)은 민간존 가이드에만 있다 — 공공존·금융존 인덱스에 없음(2026-09-30).
+  const s = (opts.zone ?? "public") !== "public" ? excludingTools(server, SENS_MAIL_PUBLIC_ONLY_TOOLS) : server;
   const envMailServiceId = process.env.NCLOUD_SENS_MAIL_SERVICE_ID ?? process.env.NCLOUD_SENS_SERVICE_ID ?? "";
 
   const serviceIdParam = z.string().optional().describe(

@@ -657,15 +657,24 @@ describe("security 그룹: 존별 등록", () => {
 
 describe("application 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureApplication(zone: "public" | "gov") {
+  function captureApplication(zone: "public" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "application")
     );
     return names;
   }
+  it("fin: gov 와 동일 집합 (SENS 메일 채널 없음, Mailer 는 별개 정식 서비스로 발송·조회 포함)", () => {
+    const gov = captureApplication("gov").sort();
+    const fin = captureApplication("fin").sort();
+    expect(fin).toEqual(gov);
+    expect(fin).toContain("ncloud_mailer_send_mail");
+    expect(fin).not.toContain("ncloud_sens_send_mail");
+    expect(fin).toContain("ncloud_apigw_list_products");
+  });
   const SENS_MAIL = ["ncloud_sens_send_mail", "ncloud_sens_list_mail_requests", "ncloud_sens_get_mail_request", "ncloud_sens_list_mails", "ncloud_sens_get_mail"];
   const MAILER_GOV = ["ncloud_mailer_send_mail", "ncloud_mailer_get_request_status", "ncloud_mailer_list_requests", "ncloud_mailer_list_mails", "ncloud_mailer_get_mail"];
   it("public: SENS 메일 채널 도구 있음, Mailer 발송·조회 5종은 없음(SENS 로 통합)", () => {

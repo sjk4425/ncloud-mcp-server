@@ -189,9 +189,9 @@ export const SERVICE_ENDPOINTS = {
   // 세 서비스 모두 두 존 제공(ai-application-service-apigateway / sens-overview / ai-application-service-cloudoutboundmailer, 2026-09-30).
   // 민간존은 2026-09-17 Cloud Outbound Mailer 가 SENS 로 흡수(메일 = SENS /mail/v2, 레거시 Mailer 는 이관 프로젝트 한정),
   // 공공존은 SENS(Project/SMS/알림톡/브랜드메시지, 메일 채널 없음)와 Cloud Outbound Mailer 가 **별개 서비스**로 유지된다.
-  apiGateway: { public: apigw("apigateway", "public"), gov: apigw("apigateway", "gov") },
-  sens: { public: apigw("sens", "public"), gov: apigw("sens", "gov") },
-  outboundMailer: { public: apigw("mail", "public"), gov: apigw("mail", "gov") },
+  apiGateway: { public: apigw("apigateway", "public"), gov: apigw("apigateway", "gov"), fin: "https://apigateway.apigw.fin-ntruss.com" },
+  sens: { public: apigw("sens", "public"), gov: apigw("sens", "gov"), fin: "https://sens.apigw.fin-ntruss.com" }, // sens-overview 세 존; 메일 채널은 민간존만
+  outboundMailer: { public: apigw("mail", "public"), gov: apigw("mail", "gov"), fin: "https://mail.apigw.fin-ntruss.com" }, // gov·fin 은 별개 정식 서비스
   // ── billing ──
   billing: { public: apigw("billingapi", "public"), gov: apigw("billingapi", "gov") },
 } as const satisfies Record<string, Partial<Record<Zone, string>>>;
