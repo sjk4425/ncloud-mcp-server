@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import type { Zone } from "../client/endpoints.js";
 
 /**
@@ -11,14 +11,46 @@ import type { Zone } from "../client/endpoints.js";
  *
  * 두 존 오퍼레이션 목록(security-kms2-*, 45 페이지) 동일. 단 Create Key 의 `protectionType`(BASIC | COMMON_HSM)은
  * 민간존 문서에만 있고(필수) 공공존 문서에는 없다(2026-09-30 원문 확인) → 공공존에서는 받지도 보내지도 않는다.
+ *
+ * 금융존(api-fin, 2026-09-30): API 2.0(security-kms2-*) 페이지가 없고 v1 게이트웨이(kms.apigw.fin-ntruss.com)의 6 op 만 있다 —
+ * encrypt / decrypt / createCustomKey / reencrypt / sign / verify, 경로 `/keys/v2/{keyTag}/{op}`(signature v2), 바디는 2.0 과 동일.
+ * → 금융존에서는 암·복호화 6종만 등록하고(경로만 v1 형식) 키 관리·ACL·토큰·로그 도구는 등록하지 않는다.
  */
 export interface KmsToolOptions {
-  /** 존 — Create Key 의 protectionType 처리. 기본 `public`. */
+  /** 존 — Create Key 의 protectionType 처리(gov), v1 게이트웨이 경로·도구 집합(fin). 기본 `public`. */
   zone?: Zone;
 }
 
-export function registerKmsTools(server: McpServer, client: NcloudClient, opts: KmsToolOptions = {}): void {
-  const gov = (opts.zone ?? "public") === "gov";
+/** 암·복호화 6종 — 세 존 모두 제공(금융존은 v1 게이트웨이 경로). */
+export const KMS_CRYPTO_TOOLS = [
+  "ncloud_kms_encrypt",
+  "ncloud_kms_decrypt",
+  "ncloud_kms_create_custom_key",
+  "ncloud_kms_reencrypt",
+  "ncloud_kms_sign",
+  "ncloud_kms_verify",
+] as const;
+
+/** KMS API 2.0 전용(키 관리·버전·ACL·토큰·활동 로그) — 금융존 미등록. */
+export const KMS_V2_ONLY_TOOLS = [
+  "ncloud_kms_create_key", "ncloud_kms_get_key_info", "ncloud_kms_get_key_list", "ncloud_kms_get_public_key",
+  "ncloud_kms_enable_key", "ncloud_kms_disable_key", "ncloud_kms_update_key_name", "ncloud_kms_rotate_key",
+  "ncloud_kms_enable_key_version", "ncloud_kms_disable_key_version", "ncloud_kms_get_key_version_list",
+  "ncloud_kms_request_key_deletion", "ncloud_kms_cancel_key_deletion", "ncloud_kms_delete_key",
+  "ncloud_kms_update_rotation_period", "ncloud_kms_enable_auto_rotation", "ncloud_kms_disable_auto_rotation", "ncloud_kms_update_memo",
+  "ncloud_kms_enable_ip_acl", "ncloud_kms_disable_ip_acl", "ncloud_kms_get_acl_rule_list", "ncloud_kms_add_acl_rule", "ncloud_kms_delete_acl_rule",
+  "ncloud_kms_create_token_generator", "ncloud_kms_get_token_generator", "ncloud_kms_update_token_generator", "ncloud_kms_delete_token_generator",
+  "ncloud_kms_create_token_set", "ncloud_kms_get_key_activity_logs", "ncloud_kms_get_latest_use_info",
+] as const;
+
+export function registerKmsTools(rawServer: McpServer, client: NcloudClient, opts: KmsToolOptions = {}): void {
+  const zone: Zone = opts.zone ?? "public";
+  const gov = zone === "gov";
+  const fin = zone === "fin";
+  const server = fin ? excludingTools(rawServer, KMS_V2_ONLY_TOOLS) : rawServer;
+  /** 암·복호화 경로: 2.0 `/kms/v1/keys/{keyTag}/{op}`, 금융존 v1 `/keys/v2/{keyTag}/{op}` (createCustomKey 는 camelCase). */
+  const cryptoPath = (keyTag: string, op: "encrypt" | "decrypt" | "create-custom-key" | "reencrypt" | "sign" | "verify"): string =>
+    fin ? `/keys/v2/${keyTag}/${op === "create-custom-key" ? "createCustomKey" : op}` : `/kms/v1/keys/${keyTag}/${op}`;
   const PROTECTION_TYPES = ["BASIC", "COMMON_HSM"] as const;
   const protectionTypeSchema = gov
     ? z.enum(PROTECTION_TYPES).optional().describe("Not available in the Government zone (the gov Create Key API has no protectionType) — leave unset")
@@ -321,7 +353,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient, opts: 
       const body: Record<string, unknown> = { plaintext: params.plaintext };
       if (params.context !== undefined) body.context = params.context;
 
-      const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/encrypt`, undefined, body);
+      const result = await client.requestRaw("POST", cryptoPath(params.keyTag, "encrypt"), undefined, body);
       return result;
     }
   );
@@ -340,7 +372,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient, opts: 
       const body: Record<string, unknown> = { ciphertext: params.ciphertext };
       if (params.context !== undefined) body.context = params.context;
 
-      const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/decrypt`, undefined, body);
+      const result = await client.requestRaw("POST", cryptoPath(params.keyTag, "decrypt"), undefined, body);
       return result;
     }
   );
@@ -362,7 +394,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient, opts: 
       if (params.bits !== undefined) body.bits = params.bits;
       if (params.context !== undefined) body.context = params.context;
 
-      const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/create-custom-key`, undefined, body);
+      const result = await client.requestRaw("POST", cryptoPath(params.keyTag, "create-custom-key"), undefined, body);
       return result;
     }
   );
@@ -381,7 +413,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient, opts: 
       const body: Record<string, unknown> = { ciphertext: params.ciphertext };
       if (params.context !== undefined) body.context = params.context;
 
-      const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/reencrypt`, undefined, body);
+      const result = await client.requestRaw("POST", cryptoPath(params.keyTag, "reencrypt"), undefined, body);
       return result;
     }
   );
@@ -396,7 +428,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient, opts: 
       data: z.string().describe("Base64-encoded data to sign (max 8KB)"),
     },
     async (params) => {
-      return client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/sign`, undefined, { data: params.data });
+      return client.requestRaw("POST", cryptoPath(params.keyTag, "sign"), undefined, { data: params.data });
     }
   );
 
@@ -411,7 +443,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient, opts: 
       signature: z.string().describe("Signature value to verify"),
     },
     async (params) => {
-      return client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/verify`, undefined, { data: params.data, signature: params.signature });
+      return client.requestRaw("POST", cryptoPath(params.keyTag, "verify"), undefined, { data: params.data, signature: params.signature });
     }
   );
 

@@ -441,26 +441,30 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "cdn",
+    // 금융존: Global Edge 가 금융존 가이드에 없다(edge-overview 404, 인덱스에 CDN+ 4 op 뿐 — 2026-09-30 대조) → 그룹 자체를 금융존에서 닫아 둔다.
     zones: PUBLIC_GOV,
     title: "Content Delivery (Global Edge)",
     register: ({ server, client, zone }) => {
-      // Global Edge: 두 존 규칙형 호스트, 오퍼레이션 18종 동일(edge-overview / edge-*, 2026-09-30 대조).
-      // CDN+ / Global CDN 은 2026-12-31 종료 예정(신규 생성 불가) → 어느 존에도 등록하지 않는다.
+      // Global Edge: 민간·공공존 규칙형 호스트, 오퍼레이션 18종 동일(edge-overview / edge-*, 2026-09-30 대조).
+      // CDN+ / Global CDN 은 2026-12-31 종료 예정(신규 생성 불가) → 어느 존에도 등록하지 않는다(금융존 인덱스의 CDN+ 4 op 포함).
       registerGlobalEdgeTools(server, client(endpoint("globalEdge", zone)));
     },
   },
   {
     key: "security",
-    zones: PUBLIC_GOV,
     title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring)",
     register: ({ server, client, zone }) => {
-      // Certificate Manager: 규칙형 호스트. 공공존 가이드는 v1 4종(목록·외부등록·삭제·**사설 발급 issuePrivate**) — 사설 발급은 gov 에만 있다.
-      // Private CA: 공공존 호스트 불규칙(privateca.apigw.gov-ntruss.com, security-privateca 개요), 오퍼레이션 15종 동일.
-      // KMS v2: apigw 가 아닌 ocapi.ncloud.com / ocapi.gov-ncloud.com (security-kms2-* 페이지). Security Monitoring: 규칙형.
+      // Certificate Manager: 규칙형 호스트(세 존). 공공존 가이드는 v1 4종(목록·외부등록·삭제·**사설 발급 issuePrivate**) — 사설 발급은 gov 에만,
+      //   금융존은 3종(목록·외부등록·삭제, security-certificatemanager-* 2026-09-30).
+      // Private CA: 공공존 호스트 불규칙(privateca.apigw.gov-ntruss.com), 오퍼레이션 15종 동일. 금융존 미제공 → endpoint() undefined 면 미등록.
+      // KMS: 민간·공공존은 2.0(ocapi.*, security-kms2-*). 금융존은 v1 게이트웨이(kms.apigw.fin-ntruss.com) 암·복호화 6종만(security-kms.ts).
+      // Security Monitoring: 민간·공공존 규칙형, 금융존 미제공.
       registerCertificateManagerTools(server, client(endpoint("certificateManager", zone)), { issuePrivate: zone === "gov" });
-      registerPrivateCaTools(server, client(endpoint("privateCa", zone)));
+      const privateCa = endpoint("privateCa", zone);
+      if (privateCa) registerPrivateCaTools(server, client(privateCa));
       registerKmsTools(server, client(endpoint("kms", zone)), { zone });
-      registerSecurityMonitoringTools(server, client(endpoint("securityMonitoring", zone)));
+      const securityMonitoring = endpoint("securityMonitoring", zone);
+      if (securityMonitoring) registerSecurityMonitoringTools(server, client(securityMonitoring));
     },
   },
   {

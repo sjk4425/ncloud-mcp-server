@@ -3,6 +3,39 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { registerKmsTools } from "./security-kms.js";
 
+/** KMS 암·복호화 경로 — 2.0 `/kms/v1/keys/{keyTag}/{op}`, 금융존 v1 게이트웨이 `/keys/v2/{keyTag}/{op}` (security-kms-*, api-fin 2026-09-30). */
+function cryptoSetup(zone: "public" | "fin") {
+  const server = new McpServer({ name: "t", version: "1.0.0" });
+  const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: zone === "fin" ? "https://kms.apigw.fin-ntruss.com" : "https://ocapi.ncloud.com", regionCode: zone === "fin" ? "FKR" : "KR" });
+  registerKmsTools(server, client, { zone });
+  const tools = (server as any)._registeredTools;
+  const entry = (n: string) => (tools instanceof Map ? tools.get(n) : tools[n]);
+  return { client, has: (n: string) => !!entry(n), call: (n: string, a: any) => entry(n).handler(entry(n).inputSchema.parse(a), {} as any) };
+}
+
+describe("KMS 암·복호화: 존별 경로와 도구 집합", () => {
+  it("fin: 6종만 등록되고 /keys/v2/{keyTag}/… (createCustomKey 는 camelCase)", async () => {
+    const t = cryptoSetup("fin");
+    for (const n of ["ncloud_kms_create_key", "ncloud_kms_get_key_list", "ncloud_kms_add_acl_rule", "ncloud_kms_create_token_set"]) expect(t.has(n), n).toBe(false);
+    const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+    await t.call("ncloud_kms_encrypt", { keyTag: "tag1", plaintext: "QQ==" });
+    expect(spy).toHaveBeenCalledWith("POST", "/keys/v2/tag1/encrypt", undefined, { plaintext: "QQ==" });
+    await t.call("ncloud_kms_create_custom_key", { keyTag: "tag1", bits: 256 });
+    expect(spy).toHaveBeenCalledWith("POST", "/keys/v2/tag1/createCustomKey", undefined, { bits: 256 });
+    await t.call("ncloud_kms_verify", { keyTag: "tag1", data: "QQ==", signature: "s" });
+    expect(spy).toHaveBeenCalledWith("POST", "/keys/v2/tag1/verify", undefined, { data: "QQ==", signature: "s" });
+  });
+  it("public: 2.0 경로 그대로", async () => {
+    const t = cryptoSetup("public");
+    expect(t.has("ncloud_kms_create_key")).toBe(true);
+    const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+    await t.call("ncloud_kms_create_custom_key", { keyTag: "tag1" });
+    expect(spy).toHaveBeenCalledWith("POST", "/kms/v1/keys/tag1/create-custom-key", undefined, {});
+    await t.call("ncloud_kms_sign", { keyTag: "tag1", data: "QQ==" });
+    expect(spy).toHaveBeenCalledWith("POST", "/kms/v1/keys/tag1/sign", undefined, { data: "QQ==" });
+  });
+});
+
 /** KMS v2 Create Key — protectionType 은 민간존 문서에만 있다(security-kms2-create-key, 2026-09-30). */
 function setup(zone?: "public" | "gov") {
   const server = new McpServer({ name: "t", version: "1.0.0" });

@@ -179,10 +179,12 @@ export const SERVICE_ENDPOINTS = {
   // Global Edge 만 래핑한다. CDN+ / Global CDN 은 2026-12-31 서비스 종료 예정(신규 생성 불가)이라 두 존 모두 이식하지 않는다(2026-09-30 결정).
   globalEdge: { public: apigw("edge", "public"), gov: apigw("edge", "gov") }, // 두 존 제공(edge-overview, 오퍼레이션 18종 동일)
   // ── security ──
-  certificateManager: { public: apigw("certificatemanager", "public"), gov: apigw("certificatemanager", "gov") },
-  privateCa: { public: apigw("pca", "public"), gov: "https://privateca.apigw.gov-ntruss.com" }, // 불규칙
-  securityMonitoring: { public: apigw("securitymonitoring", "public"), gov: apigw("securitymonitoring", "gov") },
-  kms: { public: "https://ocapi.ncloud.com", gov: "https://ocapi.gov-ncloud.com" }, // apigw 아님
+  certificateManager: { public: apigw("certificatemanager", "public"), gov: apigw("certificatemanager", "gov"), fin: "https://certificatemanager.apigw.fin-ntruss.com" },
+  privateCa: { public: apigw("pca", "public"), gov: "https://privateca.apigw.gov-ntruss.com" }, // gov 불규칙; fin 미제공(security-privateca 없음)
+  securityMonitoring: { public: apigw("securitymonitoring", "public"), gov: apigw("securitymonitoring", "gov") }, // fin 미제공
+  // KMS: 민간·공공존은 API 2.0(ocapi.*, security-kms2-*, apigw 아님). 금융존 가이드에는 2.0 이 없고 v1 게이트웨이(kms.apigw.fin-ntruss.com,
+  //   security-kms-* 6 op: encrypt/decrypt/createCustomKey/reencrypt/sign/verify, 경로 /keys/v2/{keyTag}/…)만 있다 → security-kms.ts 참고.
+  kms: { public: "https://ocapi.ncloud.com", gov: "https://ocapi.gov-ncloud.com", fin: "https://kms.apigw.fin-ntruss.com" },
   // ── application ──
   // 세 서비스 모두 두 존 제공(ai-application-service-apigateway / sens-overview / ai-application-service-cloudoutboundmailer, 2026-09-30).
   // 민간존은 2026-09-17 Cloud Outbound Mailer 가 SENS 로 흡수(메일 = SENS /mail/v2, 레거시 Mailer 는 이관 프로젝트 한정),

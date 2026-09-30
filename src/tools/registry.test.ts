@@ -628,15 +628,23 @@ describe("cdn 그룹: 존별 등록", () => {
 
 describe("security 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureSecurity(zone: "public" | "gov") {
+  function captureSecurity(zone: "public" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "security")
     );
     return names;
   }
+  it("fin: Certificate Manager 3종 + KMS 암·복호화 6종만 (Private CA·Security Monitoring·KMS 2.0 은 금융존 가이드에 없음)", () => {
+    const fin = captureSecurity("fin").sort();
+    expect(fin).toEqual([
+      "ncloud_list_certificates", "ncloud_register_external_certificate", "ncloud_delete_certificate",
+      "ncloud_kms_encrypt", "ncloud_kms_decrypt", "ncloud_kms_create_custom_key", "ncloud_kms_reencrypt", "ncloud_kms_sign", "ncloud_kms_verify",
+    ].sort());
+  });
   it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고 나머지는 public 과 동일", () => {
     const pub = captureSecurity("public");
     const gov = captureSecurity("gov");
