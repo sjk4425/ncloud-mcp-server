@@ -10,6 +10,8 @@
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for managing Naver Cloud Platform (Ncloud) infrastructure directly from AI assistants.
 
+**One server for both the Public zone and the Government zone.** Set `NCLOUD_ZONE=gov` and the server switches to the Government API gateways, regions and service catalogue; unset means Public → [Zone selection](#zone-selection-public--government).
+
 ## Features
 
 Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
@@ -18,20 +20,21 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 |----------|----------|
 | **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster, Auto Scaling, Cloud Functions |
 | **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
-| **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey) |
+| **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** 🅿 |
 | **Storage** | Object Storage (S3-compatible), Ncloud Storage (S3-compatible), NAS, Archive Storage (Swift-compatible) |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
 | **Security** | Certificate Manager, Private CA, KMS, Security Monitoring |
 | **Monitoring** | Cloud Insight, Log Analytics |
-| **Management & Governance** | Activity Tracer, Cloud Advisor, Resource Manager, Sub Account |
+| **Management & Governance** | Activity Tracer, Cloud Advisor 🅿, Resource Manager, Sub Account, Web service Monitoring System (WMS) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
-| **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream, Data Catalog, Data Forest, Data Flow, Data Query |
-| **Media** | VOD Station, Live Station, Image Optimizer |
+| **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream 🅿, Data Catalog 🅿, Data Forest 🅿, Data Flow 🅿, Data Query 🅿 |
+| **Media** | VOD Station, Live Station 🅿, Image Optimizer 🅿, One Click Multi DRM |
 | **Content Delivery (CDN)** | Global Edge |
-| **Application** | API Gateway, SENS (SMS/Push) |
+| **Application** | API Gateway, SENS (SMS / Alim Talk / Brand Message / **Mail** 🅿, projects), Cloud Outbound Mailer (Public: legacy until Dec 2027 / Government: full service) |
 | **Billing** | Billing (list price, cost & usage, discount) |
 
 > ℹ️ Each category maps 1:1 to a `NCLOUD_TOOL_GROUPS` group key. To load only a subset of tools, see the [Tool Group Selection](#tool-group-selection-optional) table below.
+> 🅿 = Public zone only (not in the Government API guide). See the table in [Zone selection](#zone-selection-public--government) for every per-zone difference.
 
 Every tool carries standard MCP **tool annotations** (`readOnlyHint`/`destructiveHint`/`idempotentHint`), so supporting clients can auto-approve read-only tools and show confirmation UX for destructive ones. The `confirm` parameter gate on destructive tools is kept as a second line of defense.
 
@@ -42,9 +45,9 @@ Every tool carries standard MCP **tool annotations** (`readOnlyHint`/`destructiv
 
 ## Notes
 
-- This MCP server is built for the **Ncloud Public (민간존)** environment. API endpoints may differ for Financial or Government zones.
-- API specifications are based on the [Ncloud Official API Documentation](https://api.ncloud-docs.com/docs/home).
-- Primarily tested in the Korea (KR) region. Some APIs may behave differently in other regions.
+- Supports the **Public zone (민간존) and the Government zone (공공존)**, selected with `NCLOUD_ZONE`. Credentials must be issued by the console of the zone you target. The Financial zone is not supported.
+- API specifications follow the [Public API guide](https://api.ncloud-docs.com/docs/home) and the [Government API guide](https://api-gov.ncloud-docs.com/docs); every per-zone difference in hosts, regions and operations was checked against both.
+- Primarily tested in the Public-zone Korea (KR) region. Some APIs may behave differently in other regions or zones.
 
 ## Installation
 
@@ -76,8 +79,9 @@ npm run build
 |----------|----------|-------------|---------|
 | `NCLOUD_ACCESS_KEY` | ✅ | Ncloud API Access Key | - |
 | `NCLOUD_SECRET_KEY` | ✅ | Ncloud API Secret Key | - |
-| `NCLOUD_REGION` | - | Region code | `KR` |
-| `NCLOUD_API_URL` | - | API base URL | `https://ncloud.apigw.ntruss.com` |
+| `NCLOUD_ZONE` | - | Zone: `public` or `gov`. Any other value aborts startup (see [Zone selection](#zone-selection-public--government)) | `public` |
+| `NCLOUD_REGION` | - | Region code. Public `KR`/`JPN`/`SGN`/`USWN`/`DEN`; Government `KR` (KR-CENTRAL) / `KRS` (KR-SOUTH) | `KR` |
+| `NCLOUD_API_URL` | - | Override of the default API gateway (replaces the zone default) | Public `https://ncloud.apigw.ntruss.com` / Government `https://ncloud.apigw.gov-ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage project ID | - |
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage domain ID | - |
 | `NCLOUD_TOOL_GROUPS` | - | Select which tool groups to load at startup. All groups ON when unset. Include the `dynamic` keyword to start with core groups only and allow mid-session expansion; any other value is locked (details in [Tool Group Selection](#tool-group-selection-optional) below) | all |
@@ -85,6 +89,53 @@ npm run build
 | `NCLOUD_TIMEOUT_MS` | - | API request timeout in milliseconds. On timeout the call is aborted and a friendly message is returned (HTTP 429 is always auto-retried up to 2 times; read-only query tools also retry 503/504 and network errors) | `30000` |
 | `NCLOUD_LANG` | - | Language for client error messages. `en` for English, otherwise/unset is Korean | `ko` |
 | `NCLOUD_RESPONSE_MAXBYTES` | - | Opt-in response-size guard (bytes). When positive, large read-only responses are truncated item-by-item to stay under the threshold, adding `truncated`/`suggestedPageSize` hints. Unset/0 = guard off (response unchanged) | - |
+
+## Zone selection (Public / Government)
+
+One package serves both zones. Changing `NCLOUD_ZONE` switches the API gateway domains, the region catalogue, the per-zone service catalogue and even the API-version or field differences of individual services. Tool names and parameters are identical in both zones, so prompts need no change.
+
+| | Public (`public`, default) | Government (`gov`) |
+|---|---|---|
+| Credentials | [Public console](https://console.ncloud.com) | [Government console](https://console.gov-ncloud.com) |
+| Default gateway | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` |
+| Regions (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR` (KR-CENTRAL), `KRS` (KR-SOUTH) |
+| API guide | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs |
+
+> ⚠️ Credentials are per zone: a Public key against the Government gateway (or vice versa) fails authentication. A value other than `public`/`gov` makes the server exit at startup rather than silently use the other zone.
+
+**Government-zone example**
+
+```json
+{
+  "mcpServers": {
+    "ncloud-gov": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ZONE": "gov",
+        "NCLOUD_ACCESS_KEY": "your-gov-access-key",
+        "NCLOUD_SECRET_KEY": "your-gov-secret-key",
+        "NCLOUD_REGION": "KR"
+      }
+    }
+  }
+}
+```
+
+To use both zones at once, register two server entries with different names (`ncloud`, `ncloud-gov`).
+
+**Per-zone differences (checked against both official guides, as of 2026-09-30)**
+
+| | |
+|---|---|
+| Public-only services | Cloud DB Serverless, Cloud Advisor, Live Station, Image Optimizer, Data Stream/Catalog/Forest/Flow/Query, the SENS Mail channel |
+| Public-only operations | LB listener certificates (SNI, 3), NKS kubeconfig reset, VOD Station channel update, DRM policy copy, the SES/CDSS KVM (G3) creation and spec-catalogue operations, `protectionType` on KMS key creation |
+| Government-only operations | Cloud DB for Cache user (ACL) management (4), Certificate Manager private certificate issuance (`issuePrivate`), Cloud Outbound Mailer sending/lookup (5; the Public zone uses SENS Mail instead) |
+| Same service, different API | **Cloud Functions**: Public API v2.1 (`/ncf/api/v2`, per-region hosts) vs Government API v2.0 (`/api/v2`, Classic-only, cron/github triggers only). **Object Storage**: Government `kr`/`krs.object.gov-ncloudstorage.com` with signing regions `gov-standard`/`gov2-standard`. **NKS, NCR, SES, CDSS, Log Analytics**: the region is part of the path (Public `sgn`/`jpn`, Government `krs`) and is derived from the active region |
+| Hosts that do not follow the `*.apigw.gov-ntruss.com` rule | Container Registry `gov-ncr`, Private CA `privateca`, VOD Station `vod-station`, KMS `ocapi.gov-ncloud.com`, Ncloud Storage / Object Storage / Archive `*.gov-ncloudstorage.com` |
+| Not wrapped | CDN+ and Global CDN (end of service 2026-12-31, no new resources — use Global Edge in both zones) |
+
+Tools that a zone does not offer are simply not registered, so they never appear in the tool list. `ncloud_get_current_region` reports the zone the server is bound to and its available regions.
 
 ## MCP Client Configuration
 
@@ -224,17 +275,17 @@ Listing group keys *without* `dynamic` turns on **only those groups** and locks 
 |---|---|
 | `compute` | Server, Block Storage, Snapshot, Public IP, Login Key, Init Script, Placement Group, Fabric Cluster, Auto Scaling, Cloud Functions |
 | `network` | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
-| `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey) |
+| `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey; user/ACL management in the Government zone) / Cloud DB Serverless (MySQL, Public zone, main-account key only) |
 | `storage` | Object Storage, Ncloud Storage, NAS, Archive Storage |
 | `containers` | Ncloud Kubernetes Service (NKS), Container Registry |
 | `monitoring` | Cloud Insight, Cloud Log Analytics |
-| `governance` | Activity Tracer, Cloud Advisor, Resource Manager, Sub Account |
+| `governance` | Activity Tracer, Cloud Advisor (Public), Resource Manager, Sub Account, Web service Monitoring System |
 | `devtools` | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
-| `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query |
-| `media` | VOD Station, Live Station, Image Optimizer |
+| `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query (Public) |
+| `media` | VOD Station, Live Station (Public), Image Optimizer (Public), One Click Multi DRM |
 | `cdn` | Global Edge |
-| `security` | Certificate Manager, Private CA, KMS, Security Monitoring |
-| `application` | API Gateway, SENS |
+| `security` | Certificate Manager (private certificate issuance in the Government zone), Private CA, KMS, Security Monitoring |
+| `application` | API Gateway, SENS (SMS / Alim Talk / Brand Message / Mail (Public), projects), Cloud Outbound Mailer (Public: legacy / Government: full) |
 | `billing` | Billing (pricing, cost & usage, discounts) |
 | `common` *(always ON)* | Region / Zone shared |
 
@@ -256,6 +307,8 @@ Manage Ncloud infrastructure using natural language through your MCP client:
 
 ## Supported Regions
 
+**Public zone** (`NCLOUD_ZONE=public`)
+
 | Region | Code |
 |--------|------|
 | Korea | `KR` |
@@ -263,6 +316,15 @@ Manage Ncloud infrastructure using natural language through your MCP client:
 | Singapore | `SGN` |
 
 > **Note:** US West (`USWN`) and Germany (`DEN`) regions only support the Classic environment and are not compatible with this VPC-based MCP server.
+
+**Government zone** (`NCLOUD_ZONE=gov`)
+
+| Region | Code |
+|--------|------|
+| Korea Central (KR-CENTRAL) | `KR` |
+| Korea South (KR-SOUTH) | `KRS` |
+
+> **Note:** Government Ncloud Storage and Archive Storage are `KR`-only; Object Storage offers `KR` (`gov-standard`) and `KRS` (`gov2-standard`). `ncloud_set_region` accepts only the zone's regions.
 
 ## Troubleshooting
 
