@@ -155,7 +155,7 @@ export const SERVICE_ENDPOINTS = {
   vodStation: { public: apigw("vodstation", "public"), gov: "https://vod-station.apigw.gov-ntruss.com" }, // 불규칙
   liveStation: { public: apigw("livestation", "public") },
   imageOptimizer: { public: apigw("imageoptimizer", "public") },
-  multiDrm: { gov: "https://multi-drm.apigw.gov-ntruss.com" }, // 공공존 전용
+  multiDrm: { public: "https://multi-drm.apigw.ntruss.com", gov: "https://multi-drm.apigw.gov-ntruss.com" }, // 두 존 제공(one-click-multi-drm-api-overview), x-ncp-region_code: KR
   // ── cdn ──
   globalEdge: { public: apigw("edge", "public") },
   cdnPlus: { gov: ZONE_PROFILES.gov.defaultGateway }, // 공공존 전용, 기본 게이트웨이

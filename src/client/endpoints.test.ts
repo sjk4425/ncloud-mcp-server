@@ -93,7 +93,8 @@ describe("endpoints: 서비스 엔드포인트 테이블", () => {
     expect(isServiceAvailable("sens", "gov")).toBe(false);
     expect(isServiceAvailable("wms", "gov")).toBe(true);
     expect(isServiceAvailable("wms", "public")).toBe(true); // management-wms 는 두 존 모두 문서화
-    expect(isServiceAvailable("multiDrm", "public")).toBe(false);
+    expect(isServiceAvailable("multiDrm", "public")).toBe(true); // one-click-multi-drm 은 두 존 모두 문서화
+    expect(isServiceAvailable("liveStation", "gov")).toBe(false);
     expect(isServiceAvailable("cloudAdvisor", "gov")).toBe(false);
   });
 });

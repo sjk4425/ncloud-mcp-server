@@ -81,6 +81,7 @@ import {
   registerDataForestTools,
   registerCloudAdvisorTools,
   registerWmsTools,
+  registerMultiDrmTools,
   registerDataFlowTools,
   registerDataQueryTools,
   registerPrivateCaTools,
@@ -369,11 +370,17 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "media",
-    title: "Media (VOD Station, Live Station, Image Optimizer)",
-    register: ({ server, client }) => {
-      registerVodStationTools(server, client("https://vodstation.apigw.ntruss.com"));
-      registerLiveStationTools(server, client("https://livestation.apigw.ntruss.com"));
-      registerImageOptimizerTools(server, client("https://imageoptimizer.apigw.ntruss.com"));
+    title: "Media (VOD Station, Live Station, Image Optimizer, Multi DRM)",
+    register: ({ server, client, zone }) => {
+      // VOD Station: 공공존 호스트 불규칙(`vod-station.apigw.gov-ntruss.com`, vodstation 개요 2026-09-30). 채널 수정은 민간존 가이드에만 있다.
+      // Live Station: 민간존 전용(api-gov media-livestation 404). Image Optimizer: 두 존 API 가이드 인덱스에 모두 없음 — 민간존 기존 동작 유지, 공공존 미등록.
+      // One Click Multi DRM: 두 존 제공(multi-drm.apigw.*), 정책 복제만 민간존 전용.
+      registerVodStationTools(server, client(endpoint("vodStation", zone)), { zone });
+      const liveStation = endpoint("liveStation", zone);
+      if (liveStation) registerLiveStationTools(server, client(liveStation));
+      const imageOptimizer = endpoint("imageOptimizer", zone);
+      if (imageOptimizer) registerImageOptimizerTools(server, client(imageOptimizer));
+      registerMultiDrmTools(server, client(endpoint("multiDrm", zone)), { zone });
     },
   },
   {

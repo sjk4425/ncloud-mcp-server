@@ -61,6 +61,7 @@ export { registerDataCatalogTools } from "./analytics-datacatalog.js";
 export { registerDataForestTools } from "./analytics-dataforest.js";
 export { registerCloudAdvisorTools } from "./governance-cloud-advisor.js";
 export { registerWmsTools } from "./governance-wms.js";
+export { registerMultiDrmTools } from "./media-drm.js";
 export { registerDataFlowTools } from "./analytics-dataflow.js";
 export { registerDataQueryTools } from "./analytics-dataquery.js";
 export { registerPrivateCaTools } from "./security-private-ca.js";

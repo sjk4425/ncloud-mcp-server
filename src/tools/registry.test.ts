@@ -507,6 +507,35 @@ describe("analytics 그룹: 존별 등록", () => {
   });
 });
 
+describe("media 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureMedia(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "media")
+    );
+    return names;
+  }
+  it("public: VOD Station·Live Station·Image Optimizer·Multi DRM(복제 포함) 등록", () => {
+    const names = captureMedia("public");
+    expect(names).toContain("ncloud_vodstation_update_channel");
+    expect(names.some((n) => n.startsWith("ncloud_livestation_"))).toBe(true);
+    expect(names).toContain("ncloud_drm_list_sites");
+    expect(names).toContain("ncloud_drm_copy_policy");
+  });
+  it("gov: Live Station·Image Optimizer·VOD 채널 수정·DRM 정책 복제만 빠지고 나머지는 동일", () => {
+    const pub = captureMedia("public");
+    const gov = captureMedia("gov");
+    const publicOnly = (n: string) => n.startsWith("ncloud_livestation_") || n.startsWith("ncloud_imageoptimizer_") || n === "ncloud_vodstation_update_channel" || n === "ncloud_drm_copy_policy";
+    expect(gov.some(publicOnly)).toBe(false);
+    expect(gov.sort()).toEqual(pub.filter((n) => !publicOnly(n)).sort());
+    expect(gov).toContain("ncloud_vodstation_list_channels");
+    expect(gov).toContain("ncloud_drm_get_license_statistics");
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
