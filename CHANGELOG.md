@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+> **Zone unification (in progress).** The server is being extended to run against the Ncloud **Government zone (공공존)** as well as the Public zone, replacing the separate `ncloud-gov-mcp-server` package. Both zones share the same authentication (HMAC-SHA256 `x-ncp-apigw-*` headers), parameters and response shapes; only the gateway domains (`*.apigw.ntruss.com` → `*.apigw.gov-ntruss.com`, with a few irregular hosts), the region catalogue and the service catalogue differ. Sources: [Public API guide](https://api.ncloud-docs.com/docs/common-ncpapi), [Gov API guide](https://api-gov.ncloud-docs.com/docs/common-ncpapi-ncpapi), [getRegionList (gov)](https://api-gov.ncloud-docs.com/docs/platform-region-getregionlist).
+
+### Added
+- **`NCLOUD_ZONE` environment variable** — `public` (default) or `gov`. Unset keeps every existing deployment unchanged; an unknown value aborts startup rather than silently sending Government credentials to the Public gateway. The startup log line now names the zone and region.
+- **`src/client/endpoints.ts`** — single source for the per-zone profile (default gateway, console, docs, region catalogue) and the per-service endpoint table, including the hosts that are not a plain domain swap (`gov-ncr`, `privateca`, `vod-station`, `ocapi.gov-ncloud.com`) and the services that exist in only one zone.
+- **`common` group is zone-aware.** `ncloud_set_region` and its error message list the regions of the bound zone — Public `KR, JPN, SGN, USWN, DEN`, Government `KR` (KR-CENTRAL) / `KRS` (KR-SOUTH); the Public wording is byte-identical to 1.16.0. `ncloud_get_current_region` additionally returns the zone (`code`, `name`, `console`, `availableRegions`). `ncloud_get_regions` / `ncloud_get_zones` call the zone's own gateway.
+- `.env.example` documenting the zone variables.
+
+### Changed
+- `makeClientFactory(creds, regionCode, zone = "public", env = process.env)` — the default base URL is now derived from the zone at factory creation (`NCLOUD_API_URL` still overrides it); `ClientFactory.getZone()` and `RegisterCtx.zone` are new. The other groups still use Public-zone literals and are converted group by group.
+
 ## [1.16.0] - 2026-09-21
 
 > Follow-up to the Ncloud API release notes of 2026-09-17 ([release note](https://api.ncloud-docs.com/docs/api-releasenote-20260917)). Every item was traced to its per-operation page and compared with the tools one by one; the SENS tools were additionally re-derived from all 36 pages under the [SENS API guide](https://api.ncloud-docs.com/docs/sens-overview). **Read paths were live-verified on 2026-09-21 (KR, Sub Account key)** — see Notes.

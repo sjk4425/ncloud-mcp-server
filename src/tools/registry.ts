@@ -14,6 +14,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defineTool } from "./_tool.js";
 import { NcloudClient } from "../client/ncloud-client.js";
+import { defaultGateway, type Zone } from "../client/endpoints.js";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import {
@@ -86,8 +87,10 @@ import {
   registerBillingTools,
 } from "./index.js";
 
-const DEFAULT_BASE_URL =
-  process.env.NCLOUD_API_URL ?? "https://ncloud.apigw.ntruss.com";
+// 기본 base URL 은 존(민간/공공)별로 다르다 — `makeClientFactory` 가 `client/endpoints.ts` 의
+// `defaultGateway(zone, env)` 로 결정한다(`NCLOUD_API_URL` override 유지).
+// ⚠️ 존 통합 진행 중: 아래 그룹 클로저의 리터럴 `https://*.apigw.ntruss.com` 은 아직 민간존 고정이며
+// 그룹별 통합 단계에서 `endpoint(<service>, ctx.zone)` 로 교체한다(docs/zone-unification-plan.md).
 
 /**
  * 동적 로딩의 기본 그룹 세트(common은 always 라 제외).
@@ -109,12 +112,16 @@ export interface ClientFactory {
   setRegionAll(regionCode: string): void;
   /** 팩토리가 보관 중인 현재 리전(단일 소스). */
   getRegionCode(): string;
+  /** 이 서버 프로세스가 묶인 존(민간 `public` / 공공 `gov`). 시작 시 고정, 런타임 변경 불가. */
+  getZone(): Zone;
 }
 
 export interface RegisterCtx {
   server: McpServer;
   client: ClientFactory;
   regionCode: string;
+  /** 존 — 그룹 클로저는 이 값으로 `endpoint(service, zone)` 를 고르고, 미제공 서비스는 등록을 건너뛴다. */
+  zone: Zone;
   creds: { accessKey: string; secretKey: string };
   env: NodeJS.ProcessEnv;
 }
@@ -127,16 +134,22 @@ export interface ToolGroup {
   register: (ctx: RegisterCtx) => void;
 }
 
-/** creds + regionCode 로 base URL별 memoized NcloudClient 팩토리를 만든다. */
+/**
+ * creds + regionCode(+ zone) 로 base URL별 memoized NcloudClient 팩토리를 만든다.
+ * 인자 생략 시 base URL 은 존의 기본 게이트웨이(`NCLOUD_API_URL` 이 있으면 그것).
+ */
 export function makeClientFactory(
   creds: { accessKey: string; secretKey: string },
-  regionCode: string
+  regionCode: string,
+  zone: Zone = "public",
+  env: NodeJS.ProcessEnv = process.env
 ): ClientFactory {
   const cache = new Map<string, NcloudClient>();
   // 단일 소스로 보관 — 신규 클라이언트도 이 값으로 생성한다(생성 시점 초기 리전 고정 잠복 버그 해결).
   let currentRegion = regionCode;
+  const defaultBaseUrl = defaultGateway(zone, env);
 
-  const factory = ((baseUrl = DEFAULT_BASE_URL) => {
+  const factory = ((baseUrl = defaultBaseUrl) => {
     let c = cache.get(baseUrl);
     if (!c) {
       c = new NcloudClient({ ...creds, baseUrl, regionCode: currentRegion });
@@ -150,6 +163,7 @@ export function makeClientFactory(
     for (const c of cache.values()) c.setRegionCode(code);
   };
   factory.getRegionCode = () => currentRegion;
+  factory.getZone = () => zone;
 
   return factory;
 }

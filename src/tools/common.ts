@@ -3,15 +3,25 @@ import { z } from "zod";
 import { defineTool } from "./_tool.js";
 import { L } from "./_messages.js";
 import {
+  regionCatalog,
   regionName,
   resolveRegionCode,
   invalidRegionMessage,
   RESOURCE_DETAIL_MAP,
   unsupportedResourceTypeMessage,
 } from "./_validation.js";
+import { ZONE_PROFILES } from "../client/endpoints.js";
 import type { ClientFactory } from "./registry.js";
 
 export function registerCommonTools(server: McpServer, client: ClientFactory): void {
+  // 존(민간/공공)별 리전 카탈로그 — 도구 description 은 등록 시점의 존으로 고정된다.
+  // 민간존 문구는 통합 이전(v1.16.0)과 글자 단위로 동일하게 유지한다.
+  const zone = client.getZone();
+  const regions = regionCatalog(zone);
+  const regionCodes = regions.map((r) => r.code).join(", ");
+  const regionNames = regions.map((r) => r.ko).join(", ");
+  const zoneTag = zone === "gov" ? " (Gov)" : "";
+
   // ncloud_get_regions — List available regions
   defineTool(
     server,
@@ -38,15 +48,15 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
   defineTool(
     server,
     "ncloud_set_region",
-    "Set the active Ncloud region by code (KR, JPN, SGN, USWN, DEN) or Korean name (한국, 일본, 싱가포르, 미국, 독일)",
+    `Set the active Ncloud${zoneTag} region by code (${regionCodes}) or Korean name (${regionNames})`,
     {
-      region: z.string().describe("Region code (KR, JPN, SGN, USWN, DEN) or Korean name (한국, 일본, 싱가포르, 미국, 독일)"),
+      region: z.string().describe(`Region code (${regionCodes}) or Korean name (${regionNames})`),
     },
     async ({ region }) => {
-      const resolvedCode = resolveRegionCode(region);
+      const resolvedCode = resolveRegionCode(region, zone);
       if (!resolvedCode) {
         return {
-          content: [{ type: "text" as const, text: invalidRegionMessage(region) }],
+          content: [{ type: "text" as const, text: invalidRegionMessage(region, zone) }],
           isError: true,
         };
       }
@@ -54,11 +64,11 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
       client.setRegionAll(resolvedCode);
       const result = {
         message: L({
-          ko: `✅ 리전이 ${regionName(resolvedCode)} (${resolvedCode})으로 변경되었습니다.`,
-          en: `✅ Region changed to ${regionName(resolvedCode)} (${resolvedCode}).`,
+          ko: `✅ 리전이 ${regionName(resolvedCode, zone)} (${resolvedCode})으로 변경되었습니다.`,
+          en: `✅ Region changed to ${regionName(resolvedCode, zone)} (${resolvedCode}).`,
         }),
-        previousRegion: { code: previousCode, name: regionName(previousCode) },
-        currentRegion: { code: resolvedCode, name: regionName(resolvedCode) },
+        previousRegion: { code: previousCode, name: regionName(previousCode, zone) },
+        currentRegion: { code: resolvedCode, name: regionName(resolvedCode, zone) },
         appliedScope: {
           applied: L({
             ko: "일반 API 클라이언트 전체 (Compute, Network, Database, Cloud Insight, NKS, Billing 등)",
@@ -86,13 +96,20 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
   defineTool(
     server,
     "ncloud_get_current_region",
-    "Get the currently active Ncloud region code and name",
+    "Get the currently active Ncloud region code and name (and the zone this server is bound to: public or gov)",
     {},
     async () => {
       const code = client.getRegionCode();
+      const profile = ZONE_PROFILES[zone];
       const result = {
         regionCode: code,
-        regionName: regionName(code),
+        regionName: regionName(code, zone),
+        zone: {
+          code: zone,
+          name: L(profile.label),
+          console: profile.console,
+          availableRegions: regions.map((r) => ({ code: r.code, name: r.ko })),
+        },
       };
       return result;
     },

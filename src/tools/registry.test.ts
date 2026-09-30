@@ -55,6 +55,7 @@ function captureAllTools(): CapturedTool[] {
       server: fakeServer,
       client: makeClientFactory(creds, "KR"),
       regionCode: "KR",
+      zone: "public",
       creds,
       // archive 그룹까지 전부 등록되도록 env 주입
       env: { ...process.env, NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
@@ -220,6 +221,77 @@ describe("makeClientFactory: setRegionAll 전파 (Task 4)", () => {
   });
 });
 
+// ─── 존 통합 (민간존 public / 공공존 gov) ─────────────────────────────────────
+describe("makeClientFactory: 존별 기본 게이트웨이", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  const baseUrlOf = (c: unknown) => (c as { baseUrl: string }).baseUrl;
+
+  it("zone 생략 = public, 기본 base URL 은 민간존 게이트웨이(하위호환)", () => {
+    const factory = makeClientFactory(creds, "KR", undefined, {});
+    expect(factory.getZone()).toBe("public");
+    expect(baseUrlOf(factory())).toBe("https://ncloud.apigw.ntruss.com");
+  });
+  it("zone=gov 이면 기본 base URL 은 공공존 게이트웨이", () => {
+    const factory = makeClientFactory(creds, "KR", "gov", {});
+    expect(factory.getZone()).toBe("gov");
+    expect(baseUrlOf(factory())).toBe("https://ncloud.apigw.gov-ntruss.com");
+  });
+  it("NCLOUD_API_URL 은 존과 무관하게 기본 base URL 을 덮어쓴다", () => {
+    const factory = makeClientFactory(creds, "KR", "gov", { NCLOUD_API_URL: "https://proxy.local" });
+    expect(baseUrlOf(factory())).toBe("https://proxy.local");
+  });
+});
+
+describe("common 그룹: 존별 리전 카탈로그", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  function captureCommon(zone: "public" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({
+          name,
+          description: config?.description ?? null,
+          schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null,
+          annotations: config?.annotations,
+          hasHandler: typeof handler === "function",
+        });
+      },
+    };
+    registerGroups(
+      {
+        server: fakeServer,
+        client: makeClientFactory(creds, "KR", zone, {}),
+        regionCode: "KR",
+        zone,
+        creds,
+        env: {},
+      },
+      TOOL_GROUPS.filter((g) => g.key === "common")
+    );
+    return captured;
+  }
+
+  it("public: set_region description 은 v1.16.0 문구와 글자 단위로 동일하다(회귀 방지)", () => {
+    const tool = captureCommon("public").find((t) => t.name === "ncloud_set_region")!;
+    expect(tool.description).toBe(
+      "Set the active Ncloud region by code (KR, JPN, SGN, USWN, DEN) or Korean name (한국, 일본, 싱가포르, 미국, 독일)"
+    );
+  });
+  it("gov: set_region description 은 KR/KRS 만 안내하고 글로벌 리전을 언급하지 않는다", () => {
+    const tool = captureCommon("gov").find((t) => t.name === "ncloud_set_region")!;
+    expect(tool.description).toContain("(Gov)");
+    expect(tool.description).toContain("KR, KRS");
+    expect(tool.description).toContain("한국, 한국남부");
+    expect(tool.description).not.toMatch(/JPN|SGN|USWN|DEN/);
+  });
+  it("common 도구 이름 집합은 존과 무관하게 동일하다", () => {
+    const pub = captureCommon("public").map((t) => t.name).sort();
+    const gov = captureCommon("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+  });
+});
+
 // ─── 동적 그룹 로딩 (v1.4.0, DESIGN_long-term-dynamic-groups.md §3) ─────────────
 describe("동적 그룹 로딩: planGroups / GroupManager", () => {
   const creds = { accessKey: "x", secretKey: "y" };
@@ -247,6 +319,7 @@ describe("동적 그룹 로딩: planGroups / GroupManager", () => {
         server: fakeServer,
         client: makeClientFactory(creds, "KR"),
         regionCode: "KR",
+        zone: "public",
         creds,
         env: { ...process.env, NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
       },
