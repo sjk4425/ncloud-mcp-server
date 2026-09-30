@@ -1,9 +1,9 @@
 {
   "name": "ncloud-mcp-server",
-  "version": "1.16.0",
+  "version": "2.0.0",
   "mcpName": "io.github.sjk4425/ncloud",
   "type": "module",
-  "description": "MCP server for managing Naver Cloud Platform (Ncloud) infrastructure — Public zone and Government zone",
+  "description": "MCP server for managing Naver Cloud Platform (Ncloud) infrastructure — Public, Government and Financial zones",
   "author": "sjk4425",
   "license": "MIT",
   "homepage": "https://github.com/sjk4425/ncloud-mcp-server#readme",
@@ -28,7 +28,10 @@
     "naver",
     "ncloud-gov",
     "government-cloud",
-    "gov"
+    "gov",
+    "ncloud-fin",
+    "financial-cloud",
+    "fin"
   ],
   "bin": {
     "ncloud-mcp-server": "dist/index.js"
