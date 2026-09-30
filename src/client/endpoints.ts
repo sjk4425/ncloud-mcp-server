@@ -146,11 +146,11 @@ export const SERVICE_ENDPOINTS = {
   cloudInsight: { public: apigw("cw", "public"), gov: apigw("cw", "gov"), fin: "https://cw.apigw.fin-ntruss.com" },
   cloudLogAnalytics: { public: apigw("cloudloganalytics", "public"), gov: apigw("cloudloganalytics", "gov"), fin: "https://cloudloganalytics.apigw.fin-ntruss.com" },
   // ── governance ──
-  activityTracer: { public: apigw("cloudactivitytracer", "public"), gov: apigw("cloudactivitytracer", "gov") },
-  cloudAdvisor: { public: apigw("cloud-advisor", "public") },
-  resourceManager: { public: apigw("resourcemanager", "public"), gov: apigw("resourcemanager", "gov") },
-  subAccount: { public: apigw("subaccount", "public"), gov: apigw("subaccount", "gov") },
-  wms: { public: apigw("wms", "public"), gov: apigw("wms", "gov") }, // Web service Monitoring System — 두 존 제공(management-wms, 2026-09-30 확인)
+  activityTracer: { public: apigw("cloudactivitytracer", "public"), gov: apigw("cloudactivitytracer", "gov"), fin: "https://cloudactivitytracer.apigw.fin-ntruss.com" },
+  cloudAdvisor: { public: apigw("cloud-advisor", "public") }, // 민간존 전용 (api-gov·api-fin 에 management-cloud-advisor-* 없음)
+  resourceManager: { public: apigw("resourcemanager", "public"), gov: apigw("resourcemanager", "gov"), fin: "https://resourcemanager.apigw.fin-ntruss.com" },
+  subAccount: { public: apigw("subaccount", "public"), gov: apigw("subaccount", "gov"), fin: "https://subaccount.apigw.fin-ntruss.com" },
+  wms: { public: apigw("wms", "public"), gov: apigw("wms", "gov"), fin: "https://wms.apigw.fin-ntruss.com" }, // Web service Monitoring System — 세 존 제공(management-wms, 2026-09-30 확인)
   // ── devtools ──
   sourceCommit: { public: apigw("sourcecommit", "public"), gov: apigw("sourcecommit", "gov") },
   sourceBuild: { public: apigw("sourcebuild", "public"), gov: apigw("sourcebuild", "gov") },

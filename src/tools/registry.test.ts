@@ -475,11 +475,12 @@ describe("monitoring 그룹: 존별 등록", () => {
 
 describe("governance 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureGovernance(zone: "public" | "gov") {
+  function captureGovernance(zone: "public" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "governance")
     );
     return names;
@@ -494,6 +495,13 @@ describe("governance 그룹: 존별 등록", () => {
     const gov = captureGovernance("gov");
     expect(gov.some((n) => n.startsWith("ncloud_advisor_"))).toBe(false);
     expect(gov.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_advisor_")).sort());
+  });
+  it("fin: gov 와 동일 집합 (Cloud Advisor 없음, 구현된 Sub Account/Activity Tracer/Resource Manager/WMS op 는 금융존 가이드에 모두 있음)", () => {
+    const gov = captureGovernance("gov").sort();
+    const fin = captureGovernance("fin").sort();
+    expect(fin).toEqual(gov);
+    expect(fin).toContain("ncloud_list_sub_accounts");
+    expect(fin).toContain("ncloud_wms_list_monitors");
   });
 });
 

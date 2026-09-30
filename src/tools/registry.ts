@@ -370,12 +370,12 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "governance",
-    zones: PUBLIC_GOV,
     title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account, WMS)",
     register: ({ server, client, zone }) => {
-      // Activity Tracer·Resource Manager·Sub Account·WMS: 두 존 규칙형 호스트, 경로 동일
+      // Activity Tracer·Resource Manager·Sub Account·WMS: 세 존 모두 <svc>.apigw.* 호스트, 경로 동일
       //   (management-cloudactivitytracer / -resourcemanager / -subaccount / -wms 개요, 2026-09-30 대조).
-      // Cloud Advisor 는 민간존 전용(api-gov 에 management-cloud-advisor-* 페이지 없음) → endpoint() undefined 면 미등록.
+      //   금융존 Sub Account 는 Trust Anchor/Profile/CRL/Subject·Access Rule·Credential 페이지가 없으나 이 서버는 해당 op 를 구현하지 않는다.
+      // Cloud Advisor 는 민간존 전용(api-gov·api-fin 에 management-cloud-advisor-* 페이지 없음) → endpoint() undefined 면 미등록.
       registerActivityTracerTools(server, client(endpoint("activityTracer", zone)));
       const advisor = endpoint("cloudAdvisor", zone);
       if (advisor) registerCloudAdvisorTools(server, client(advisor));
