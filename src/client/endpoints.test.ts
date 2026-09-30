@@ -7,8 +7,20 @@ import {
   defaultGateway,
   endpoint,
   isServiceAvailable,
+  cloudFunctionsEndpoint,
   type ServiceKey,
 } from "./endpoints.js";
+
+describe("endpoints: Cloud Functions 호스트", () => {
+  it("민간존은 리전별(KR/SGN/JPN, 그 외 KR), 공공존은 단일 호스트", () => {
+    expect(cloudFunctionsEndpoint("public", "KR")).toBe("https://cloudfunctions.apigw.ntruss.com");
+    expect(cloudFunctionsEndpoint("public", "SGN")).toBe("https://sg-cloudfunctions.apigw.ntruss.com");
+    expect(cloudFunctionsEndpoint("public", "JPN")).toBe("https://jp-cloudfunctions.apigw.ntruss.com");
+    expect(cloudFunctionsEndpoint("public", "USWN")).toBe("https://cloudfunctions.apigw.ntruss.com");
+    expect(cloudFunctionsEndpoint("gov", "KR")).toBe("https://cloudfunctions.apigw.gov-ntruss.com");
+    expect(cloudFunctionsEndpoint("gov", "KRS")).toBe("https://cloudfunctions.apigw.gov-ntruss.com");
+  });
+});
 
 describe("endpoints: resolveZone (NCLOUD_ZONE)", () => {
   it("미설정/빈 값은 public (하위호환)", () => {

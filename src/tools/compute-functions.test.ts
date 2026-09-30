@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { registerCloudFunctionsTools } from "./compute-functions.js";
+import { registerCloudFunctionsTools, toKstDateTime } from "./compute-functions.js";
 
 /**
  * mcp-test-report-20260915 F-01·F-03·F-06·F-08 회귀 테스트.
@@ -45,12 +45,13 @@ describe("Cloud Functions — API v2.1 경로 (F-01)", () => {
     registerCloudFunctionsTools(server, client);
   });
 
-  it("소스 어디에도 v2.0 경로(`/api/v2` without `/ncf`)가 남아 있지 않다", () => {
+  it("경로 접두는 상수 두 개(v2.1 `/ncf/api/v2`, v2.0 `/api/v2`)로만 정의되고 리터럴 경로는 없다", () => {
     const src = readFileSync(fileURLToPath(new URL("./compute-functions.ts", import.meta.url)), "utf8");
-    const v20 = src.match(/(?<!\/ncf)\/api\/v2\//g) ?? [];
-    // 주석에서 v2.0 경로를 언급하는 곳(설계 배경 설명) 한 군데만 허용한다.
-    expect(v20.length).toBeLessThanOrEqual(1);
-    expect(src).toContain('const CF = "/ncf/api/v2"');
+    // 접두 뒤에 경로가 바로 이어지는 리터럴(`/api/v2/packages` 등)은 주석의 설계 배경 설명 외에 없어야 한다.
+    const literalPaths = src.match(/(?<!\/ncf)\/api\/v2\//g) ?? [];
+    expect(literalPaths.length).toBeLessThanOrEqual(2);
+    expect(src).toContain('const CF_V21 = "/ncf/api/v2"');
+    expect(src).toContain('const CF_V20 = "/api/v2"');
   });
 
   it("읽기 도구 전부 /ncf/api/v2 접두 경로로 호출한다", async () => {
@@ -479,6 +480,161 @@ describe("Cloud Functions — 트리거·액션 연결 (F-01)", () => {
     const res = await h({ packageName: "p", description: "d", dryRun: true }, {} as any);
     expect(spy).not.toHaveBeenCalled();
     expect(JSON.parse(text(res)).requestParams.body).toEqual({ description: "d" });
+    spy.mockRestore();
+  });
+});
+
+// ─── 공공존: API v2.0 (Classic 전용, https://api-gov.ncloud-docs.com/docs/compute-cloudfunctions) ─────────
+describe("Cloud Functions — 공공존 API v2.0 모드", () => {
+  let server: McpServer;
+  let client: NcloudClient;
+  const BASIC = {
+    packageName: "pkg", actionName: "act",
+    exec_kind: "python:3.13", exec_code: "def main(args):\n    return {'ok': True}", exec_main: "main",
+  };
+
+  beforeEach(() => {
+    server = new McpServer({ name: "test", version: "1.0.0" });
+    client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://cloudfunctions.apigw.gov-ntruss.com", regionCode: "KR" });
+    registerCloudFunctionsTools(server, client, { apiVersion: "2.0" });
+  });
+
+  it("toKstDateTime: 밀리초 epoch → yyyy-MM-ddTHH:mm:ss (KST, UTC+9)", () => {
+    expect(toKstDateTime(Date.UTC(2026, 8, 30, 15, 0, 0))).toBe("2026-10-01T00:00:00");
+    expect(toKstDateTime(0)).toBe("1970-01-01T09:00:00");
+  });
+
+  it("읽기 도구 전부 /api/v2 접두 경로이고 platform 쿼리를 보내지 않는다", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: {} });
+    const calls: Array<[string, any]> = [
+      ["ncloud_functions_list_packages", {}],
+      ["ncloud_functions_get_package", { packageName: "p" }],
+      ["ncloud_functions_list_actions", { packageName: "p" }],
+      ["ncloud_functions_get_action", { packageName: "p", actionName: "a" }],
+      ["ncloud_functions_list_triggers", {}],
+      ["ncloud_functions_get_trigger", { triggerName: "t" }],
+      ["ncloud_functions_get_activations", {}],
+    ];
+    for (const [name, args] of calls) await getToolHandler(server, name)(args, {} as any);
+    for (const c of spy.mock.calls) {
+      expect(String(c[1])).toMatch(/^\/api\/v2\//);
+      expect(String(c[1])).not.toContain("/ncf/");
+      expect(c[2]).toEqual({});
+    }
+    spy.mockRestore();
+  });
+
+  it("platform=vpc 는 스키마 단계에서 거절된다 (Classic 전용)", () => {
+    expect(() => getToolHandler(server, "ncloud_functions_list_packages")({ platform: "vpc" }, {} as any)).toThrow();
+  });
+
+  it("create_action basic: type 쿼리 대신 본문 web=false, vpc 배열 없음, limits/exec 는 동일", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: {} });
+    const res = await getToolHandler(server, "ncloud_functions_create_action")(BASIC, {} as any);
+    expect(res.isError).toBeUndefined();
+    const [method, path, query, body] = spy.mock.calls[0];
+    expect(method).toBe("PUT");
+    expect(path).toBe("/api/v2/packages/pkg/actions/act");
+    expect(query).toEqual({});
+    expect(body).toEqual({
+      web: false,
+      exec: { kind: "python:3.13", binary: false, code: BASIC.exec_code, main: "main" },
+      limits: { timeout: 60000, memory: 128 },
+    });
+    spy.mockRestore();
+  });
+
+  it("create_action web: web=true + 하이픈 키(raw-http/custom-options)", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: {} });
+    await getToolHandler(server, "ncloud_functions_create_action")({ ...BASIC, type: "web", raw_http: true }, {} as any);
+    const body = spy.mock.calls[0][3] as any;
+    expect(body.web).toBe(true);
+    expect(body["raw-http"]).toBe(true);
+    spy.mockRestore();
+  });
+
+  it("create_action: vpc_no/subnet_no 또는 'custom image' 는 API 호출 없이 거절한다", async () => {
+    const spy = vi.spyOn(client, "requestRaw");
+    const h = getToolHandler(server, "ncloud_functions_create_action");
+    const r1 = await h({ ...BASIC, vpc_no: 1, subnet_no: 2 }, {} as any);
+    expect(r1.isError).toBe(true);
+    expect(text(r1)).toContain("Classic-only");
+    const r2 = await h({ ...BASIC, exec_kind: "custom image", exec_imageUri: "r/i:t" }, {} as any);
+    expect(r2.isError).toBe(true);
+    expect(text(r2)).toContain("v2.1");
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("create_trigger cron: `trigger` 래퍼 안에 cronOption, 쿼리는 type 만", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: { name: "c", type: "cron" } });
+    await getToolHandler(server, "ncloud_functions_create_trigger")({
+      triggerName: "c", type: "cron", cronOption: "0 10 * * *", description: "d", parameters: { a: 1 },
+    }, {} as any);
+    expect(spy).toHaveBeenCalledWith("PUT", "/api/v2/triggers/c", { type: "cron" }, {
+      trigger: { description: "d", parameters: { a: 1 }, cronOption: "0 10 * * *" },
+    });
+    spy.mockRestore();
+  });
+
+  it("create_trigger github: trigger.credentials(복수) + link.productId, 응답 토큰은 가린다", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({
+      content: { name: "g", trigger: { credentials: { username: "u", accessToken: "ghp_0123456789abcdefghijklmnop", repository: "r" } } },
+    });
+    const h = getToolHandler(server, "ncloud_functions_create_trigger");
+    const res = await h({
+      triggerName: "g", type: "github",
+      credential: { username: "u", accessToken: "ghp_0123456789abcdefghijklmnop", repository: "r" },
+      events: ["push"], link: { productId: "pid", apiName: "a", stageName: "s" },
+    }, {} as any);
+    expect(spy.mock.calls[0][3]).toEqual({
+      trigger: { credentials: { username: "u", accessToken: "ghp_0123456789abcdefghijklmnop", repository: "r" }, events: ["push"] },
+      link: { productId: "pid", apiName: "a", stageName: "s" },
+    });
+    expect(text(res)).not.toContain("ghp_0123456789abcdefghijklmnop");
+    expect(JSON.parse(text(res)).secretsRedacted).toBe(true);
+
+    // productName 만 주면 v2.0 에서는 거절
+    spy.mockClear();
+    const bad = await h({
+      triggerName: "g", type: "github", credential: { username: "u", accessToken: "t", repository: "r" }, events: ["push"],
+      link: { productName: "p", apiName: "a", stageName: "s" },
+    }, {} as any);
+    expect(bad.isError).toBe(true);
+    expect(text(bad)).toContain("productId");
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("create_trigger: v2.0 에 없는 트리거 유형은 API 호출 없이 거절한다", async () => {
+    const spy = vi.spyOn(client, "requestRaw");
+    const h = getToolHandler(server, "ncloud_functions_create_trigger");
+    for (const type of ["insight", "object_storage", "source_commit", "secret_manager"]) {
+      const res = await h({ triggerName: "t", type, objectStorageLink: [{ bucketName: "b", eventRuleName: "r" }] }, {} as any);
+      expect(res.isError).toBe(true);
+      expect(text(res)).toContain("cron, github");
+    }
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("activations: start/end 밀리초 입력을 KST 'yyyy-MM-ddTHH:mm:ss' 문자열로 변환해 보낸다", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ content: {} });
+    await getToolHandler(server, "ncloud_functions_get_trigger_activations")({ triggerName: "t", start: 0, end: Date.UTC(2026, 0, 1), pageNo: 2 }, {} as any);
+    expect(spy).toHaveBeenCalledWith("GET", "/api/v2/triggers/t/activations", { pageNo: "2", start: "1970-01-01T09:00:00", end: "2026-01-01T09:00:00" });
+    spy.mockRestore();
+  });
+
+  it("invoke_action / link-action / delete: 경로는 /api/v2, 쿼리는 timeout 만", async () => {
+    const spy = vi.spyOn(client, "requestRaw").mockResolvedValue(undefined);
+    await getToolHandler(server, "ncloud_functions_invoke_action")({ packageName: "p", actionName: "a", params: { x: 1 } }, {} as any);
+    await getToolHandler(server, "ncloud_functions_link_trigger_action")({ triggerName: "t", actionName: "p/a" }, {} as any);
+    await getToolHandler(server, "ncloud_functions_delete_trigger")({ triggerName: "t", confirm: true }, {} as any);
+    expect(spy.mock.calls.map((c) => [c[0], c[1], c[2], c[3]])).toEqual([
+      ["POST", "/api/v2/packages/p/actions/a", { timeout: "60000" }, { x: 1 }],
+      ["POST", "/api/v2/triggers/t/link-action", {}, { action: "a", package: "p" }],
+      ["DELETE", "/api/v2/triggers/t", {}, undefined],
+    ]);
     spy.mockRestore();
   });
 });

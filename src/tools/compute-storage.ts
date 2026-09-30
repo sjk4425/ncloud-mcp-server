@@ -159,6 +159,22 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     }
   );
 
+  // changeBlockStorageVolumeSize: XEN(Gen2) 전용 크기 변경 엔드포인트. 두 존 모두 문서화되어 있다
+  // (compute-vserver-storage-changeblockstoragevolumesize). KVM 볼륨은 지원하지 않는다.
+  defineTool(
+    server,
+    "ncloud_change_block_storage_size",
+    "Resize a Gen2 (XEN) block storage volume through the dedicated changeBlockStorageVolumeSize endpoint (increase only: 10-2000 GB in 10 GB steps, must be larger than the current size). NOT supported for KVM (Gen3) volumes — use ncloud_change_block_storage for those. An attached volume can only be resized while its server is stopped.",
+    {
+      blockStorageInstanceNo: z.string().describe("Block storage instance number to resize"),
+      blockStorageSize: z.number().describe("New block storage size in GB (XEN: 10-2000, 10 GB increments, greater than the current size)"),
+      regionCode: z.string().optional().describe("Region code (defaults to the client region)"),
+    },
+    async (params) => {
+      return client.request("/vserver/v2/changeBlockStorageVolumeSize", params);
+    }
+  );
+
   defineTool(
     server,
     "ncloud_set_block_storage_protection",

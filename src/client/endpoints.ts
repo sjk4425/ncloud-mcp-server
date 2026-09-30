@@ -182,3 +182,16 @@ export function endpoint(service: ServiceKey, zone: Zone): string | undefined {
 export function isServiceAvailable(service: ServiceKey, zone: Zone): boolean {
   return endpoint(service, zone) !== undefined;
 }
+
+/**
+ * Cloud Functions base URL. 민간존은 리전별 호스트(KR / SGN / JPN — 미지의 리전은 KR 호스트),
+ * 공공존은 단일 호스트(`cloudfunctions.apigw.gov-ntruss.com`, API v2.0 Classic 전용).
+ * 근거: https://api.ncloud-docs.com/docs/compute-cloudfunctions , https://api-gov.ncloud-docs.com/docs/compute-cloudfunctions
+ */
+export function cloudFunctionsEndpoint(zone: Zone, regionCode: string): string {
+  if (zone === "public") {
+    if (regionCode === "SGN") return SERVICE_ENDPOINTS.cloudfunctionsSgn.public;
+    if (regionCode === "JPN") return SERVICE_ENDPOINTS.cloudfunctionsJpn.public;
+  }
+  return endpoint("cloudfunctions", zone) as string;
+}

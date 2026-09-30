@@ -14,7 +14,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defineTool } from "./_tool.js";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defaultGateway, type Zone } from "../client/endpoints.js";
+import { defaultGateway, cloudFunctionsEndpoint, type Zone } from "../client/endpoints.js";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import {
@@ -190,7 +190,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "compute",
     title: "Compute (Server, Storage, Public IP, Auto Scaling, Cloud Functions)",
-    register: ({ server, client, regionCode }) => {
+    register: ({ server, client, regionCode, zone }) => {
+      // Server(VPC)·Auto Scaling 은 두 존 모두 기본 게이트웨이(`ncloud.apigw.*`) + 같은 경로다.
+      //   민간존 https://api.ncloud-docs.com/docs/compute-vserver · 공공존 https://api-gov.ncloud-docs.com/docs/compute-vserver
       const c = client();
       registerComputeServerTools(server, c);
       registerComputeStorageTools(server, c);
@@ -200,15 +202,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerComputePlacementTools(server, c);
       registerAutoScalingTools(server, c);
 
-      // Cloud Functions는 region별 base URL
-      const cloudFunctionsBaseUrlMap: Record<string, string> = {
-        KR: "https://cloudfunctions.apigw.ntruss.com",
-        SGN: "https://sg-cloudfunctions.apigw.ntruss.com",
-        JPN: "https://jp-cloudfunctions.apigw.ntruss.com",
-      };
-      const cfBaseUrl =
-        cloudFunctionsBaseUrlMap[regionCode] ?? "https://cloudfunctions.apigw.ntruss.com";
-      registerCloudFunctionsTools(server, client(cfBaseUrl));
+      // Cloud Functions: 민간존은 리전별 호스트 + API v2.1, 공공존은 단일 호스트 + API v2.0(Classic 전용).
+      registerCloudFunctionsTools(server, client(cloudFunctionsEndpoint(zone, regionCode)), {
+        apiVersion: zone === "gov" ? "2.0" : "2.1",
+      });
     },
   },
   {

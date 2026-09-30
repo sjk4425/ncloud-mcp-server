@@ -292,6 +292,51 @@ describe("common 그룹: 존별 리전 카탈로그", () => {
   });
 });
 
+describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  function captureCompute(zone: "public" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({
+          name,
+          description: config?.description ?? null,
+          schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null,
+          annotations: config?.annotations,
+          hasHandler: typeof handler === "function",
+        });
+      },
+    };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "compute")
+    );
+    return captured;
+  }
+
+  it("public: Cloud Functions 는 API v2.1 (/ncf/api/v2)", () => {
+    const t = captureCompute("public").find((x) => x.name === "ncloud_functions_create_action")!;
+    expect(t.description).toContain("/ncf/api/v2");
+    expect(t.description).toContain("v2.1");
+  });
+  it("gov: Cloud Functions 는 API v2.0 (/api/v2, Classic 전용), 트리거는 cron/github 만", () => {
+    const tools = captureCompute("gov");
+    const action = tools.find((x) => x.name === "ncloud_functions_create_action")!;
+    expect(action.description).toContain("v2.0");
+    expect(action.description).toContain("Classic");
+    const trigger = tools.find((x) => x.name === "ncloud_functions_create_trigger")!;
+    expect(trigger.description).toContain("only cron and github");
+    expect(trigger.description).not.toContain("object_storage →");
+  });
+  it("compute 도구 이름 집합은 존과 무관하게 동일하다", () => {
+    const pub = captureCompute("public").map((t) => t.name).sort();
+    const gov = captureCompute("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+    expect(pub).toContain("ncloud_change_block_storage_size");
+  });
+});
+
 // ─── 동적 그룹 로딩 (v1.4.0, DESIGN_long-term-dynamic-groups.md §3) ─────────────
 describe("동적 그룹 로딩: planGroups / GroupManager", () => {
   const creds = { accessKey: "x", secretKey: "y" };

@@ -165,20 +165,43 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   );
 
   // ─── Update Tool ─────────────────────────────────────────────────────────
+  // Server API 에는 단일 update 오퍼레이션이 없다(`updateFabricCluster` 는 어느 존 문서에도 없음).
+  // 이름은 changeFabricClusterName, 설명은 changeFabricClusterDescription — 두 존 모두 동일
+  // (compute-vserver-fabriccluster-changefabricclustername / -changefabricclusterdescription).
+  // 도구 이름은 하위호환으로 유지하고 내부에서 필요한 엔드포인트만 순서대로 호출한다.
 
   defineTool(
     server,
     "ncloud_update_fabric_cluster",
-    "Update a fabric cluster's name or description",
+    "Update a fabric cluster's name and/or description. The Server API has no single update operation: the name is sent to changeFabricClusterName and the description to changeFabricClusterDescription (one call each, name first). Provide at least one of the two.",
     {
       fabricClusterNo: z.string({ required_error: requiredError("fabricClusterNo") }).describe("Fabric cluster number to update"),
-      fabricClusterName: z.string().max(30, {
+      fabricClusterName: z.string().min(3).max(30, {
         message: maxLenMessage("fabricClusterName", 30),
-      }).optional().describe("New fabric cluster name"),
-      fabricClusterDescription: z.string().optional().describe("New description for the fabric cluster"),
+      }).regex(/^[a-z][a-z0-9-]*[a-z0-9]$/, "fabricClusterName must be 3-30 chars of lowercase letters, digits and '-', start with a letter and end with a letter or digit").optional().describe("New fabric cluster name (3-30 chars: lowercase letters, digits, '-'; starts with a letter, ends with a letter or digit)"),
+      fabricClusterDescription: z.string().optional().describe("New description for the fabric cluster (up to 1000 bytes; an empty string clears it)"),
     },
     async (params) => {
-      return client.request("/vserver/v2/updateFabricCluster", params);
+      if (params.fabricClusterName === undefined && params.fabricClusterDescription === undefined) {
+        return {
+          content: [{ type: "text" as const, text: "Provide at least one of fabricClusterName or fabricClusterDescription." }],
+          isError: true,
+        };
+      }
+      const results: Record<string, unknown> = {};
+      if (params.fabricClusterName !== undefined) {
+        results.changeFabricClusterName = await client.request("/vserver/v2/changeFabricClusterName", {
+          fabricClusterNo: params.fabricClusterNo,
+          fabricClusterName: params.fabricClusterName,
+        });
+      }
+      if (params.fabricClusterDescription !== undefined) {
+        results.changeFabricClusterDescription = await client.request("/vserver/v2/changeFabricClusterDescription", {
+          fabricClusterNo: params.fabricClusterNo,
+          fabricClusterDescription: params.fabricClusterDescription,
+        });
+      }
+      return results;
     }
   );
 
