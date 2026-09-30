@@ -335,11 +335,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "devtools",
     title: "DevTools (SourceCommit, SourceBuild, SourceDeploy, SourcePipeline)",
-    register: ({ server, client }) => {
-      registerSourceCommitTools(server, client("https://sourcecommit.apigw.ntruss.com"));
-      registerSourceBuildTools(server, client("https://sourcebuild.apigw.ntruss.com"));
-      registerSourceDeployTools(server, client("https://vpcsourcedeploy.apigw.ntruss.com"));
-      registerSourcePipelineTools(server, client("https://vpcsourcepipeline.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // 두 존 규칙형 호스트, 오퍼레이션 목록 동일(devtools-* 81 페이지, 2026-09-30 대조).
+      // SourceDeploy·SourcePipeline 은 Classic/VPC 호스트가 따로 있고 이 서버는 VPC(`vpcsource*`)를 쓴다 — 두 존 동일.
+      registerSourceCommitTools(server, client(endpoint("sourceCommit", zone)));
+      registerSourceBuildTools(server, client(endpoint("sourceBuild", zone)));
+      registerSourceDeployTools(server, client(endpoint("sourceDeploy", zone)));
+      registerSourcePipelineTools(server, client(endpoint("sourcePipeline", zone)));
     },
   },
   {

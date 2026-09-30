@@ -454,6 +454,25 @@ describe("governance 그룹: 존별 등록", () => {
   });
 });
 
+describe("devtools 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureDevtools(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "devtools")
+    );
+    return names;
+  }
+  it("도구 이름 집합은 존과 무관하게 동일하다 (SourceCommit/Build/Deploy/Pipeline 모두 공공존 제공)", () => {
+    const pub = captureDevtools("public").sort();
+    const gov = captureDevtools("gov").sort();
+    expect(gov).toEqual(pub);
+    expect(pub.length).toBeGreaterThan(20);
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
