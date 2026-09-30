@@ -485,10 +485,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "billing",
-    zones: PUBLIC_GOV,
     title: "Billing (List Price, Cost and Usage, Discount)",
     register: ({ server, client, zone }) => {
-      // 두 존 규칙형 호스트(platform-listprice 개요: billingapi.apigw.gov-ntruss.com/billing/v1), 오퍼레이션 20종 동일.
+      // 민간·공공존 규칙형 호스트(billingapi.apigw.*), 금융존은 billingapi.apigw-pub.fin-ntruss.com — 경로 /billing/v1, 오퍼레이션 20종 세 존 동일
+      //   (platform-listprice / costandusage / discount 개요, 2026-09-30 대조).
       registerBillingTools(server, client(endpoint("billing", zone)), { zone });
     },
   },

@@ -193,7 +193,8 @@ export const SERVICE_ENDPOINTS = {
   sens: { public: apigw("sens", "public"), gov: apigw("sens", "gov"), fin: "https://sens.apigw.fin-ntruss.com" }, // sens-overview 세 존; 메일 채널은 민간존만
   outboundMailer: { public: apigw("mail", "public"), gov: apigw("mail", "gov"), fin: "https://mail.apigw.fin-ntruss.com" }, // gov·fin 은 별개 정식 서비스
   // ── billing ──
-  billing: { public: apigw("billingapi", "public"), gov: apigw("billingapi", "gov") },
+  // 금융존 Billing 은 공개형 게이트웨이 `apigw-pub` 도메인(platform-listprice/costandusage/discount 개요, 2026-09-30), 경로 /billing/v1 동일.
+  billing: { public: apigw("billingapi", "public"), gov: apigw("billingapi", "gov"), fin: "https://billingapi.apigw-pub.fin-ntruss.com" },
 } as const satisfies Record<string, Partial<Record<Zone, string>>>;
 
 export type ServiceKey = keyof typeof SERVICE_ENDPOINTS;

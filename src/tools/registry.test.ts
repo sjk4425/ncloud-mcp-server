@@ -697,23 +697,24 @@ describe("application 그룹: 존별 등록", () => {
 
 describe("billing 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureBilling(zone: "public" | "gov") {
+  function captureBilling(zone: "public" | "gov" | "fin") {
     const captured: CapturedTool[] = [];
     const fakeServer: any = {
       registerTool: (name: string, config: any, handler: any) => {
         captured.push({ name, description: config?.description ?? null, schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
       },
     };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "billing")
     );
     return captured;
   }
-  it("도구 이름 집합은 존과 무관하게 동일하다 (오퍼레이션 20종 동일)", () => {
+  it("도구 이름 집합은 존과 무관하게 동일하다 (오퍼레이션 20종 세 존 동일)", () => {
     const pub = captureBilling("public").map((t) => t.name).sort();
-    const gov = captureBilling("gov").map((t) => t.name).sort();
-    expect(gov).toEqual(pub);
+    expect(captureBilling("gov").map((t) => t.name).sort()).toEqual(pub);
+    expect(captureBilling("fin").map((t) => t.name).sort()).toEqual(pub);
     expect(pub.length).toBeGreaterThan(10);
   });
 });
