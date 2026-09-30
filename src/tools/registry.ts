@@ -64,6 +64,7 @@ import {
   registerCloudInsightTools,
   registerCloudInsightRuleTools,
   registerCloudInsightPluginTools,
+  registerCloudInsightMetricExportTools,
   registerCloudInsightIntegrationTools,
   registerSourceCommitTools,
   registerSourceBuildTools,
@@ -353,17 +354,18 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "monitoring",
-    zones: PUBLIC_GOV,
     title: "Monitoring (Cloud Insight, Log Analytics)",
     register: ({ server, client, zone }) => {
-      // 두 존 규칙형 호스트 + 동일 경로·오퍼레이션 (management-cloudinsight / analytics-cloudloganalytics 개요, 2026-09-30 대조).
+      // 세 존 모두 cw.apigw.* / cloudloganalytics.apigw.* 호스트 + 동일 경로 (management-cloudinsight / analytics-cloudloganalytics 개요, 2026-09-30 대조).
       // Cloud Insight v2(cloudinsight.apigw.*/api/v2, GetAggregatedMetrics)는 미사용 — v1(cw.apigw.*) 기준.
+      // 금융존: Metric Export 6종은 금융존 가이드에만 문서화(민간·공공존 404); Log Analytics 는 vpc 플랫폼만, 수집 해제 도구는 금융존 전용.
       registerLogAnalyticsTools(server, client(endpoint("cloudLogAnalytics", zone)), { zone });
       const cw = client(endpoint("cloudInsight", zone));
       registerCloudInsightTools(server, cw);
       registerCloudInsightRuleTools(server, cw);
       registerCloudInsightPluginTools(server, cw);
       registerCloudInsightIntegrationTools(server, cw);
+      if (zone === "fin") registerCloudInsightMetricExportTools(server, cw);
     },
   },
   {

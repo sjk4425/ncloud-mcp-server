@@ -6,14 +6,15 @@ import { ZONE_PROFILES, type Zone } from "../client/endpoints.js";
 
 // Cloud Log Analytics (NCP) API
 // Base host: https://cloudloganalytics.apigw.ntruss.com (민간존) / https://cloudloganalytics.apigw.gov-ntruss.com (공공존) — registry에서 주입
-// 경로: /api/{regionCode}-v1/...  (regionCode 는 소문자 path segment — 민간존 kr/sgn/jpn/uswn/den, 공공존 kr/krs)
+// 경로: /api/{regionCode}-v1/...  (regionCode 는 소문자 path segment — 민간존 kr/sgn/jpn/uswn/den, 공공존 kr/krs, 금융존 fkr)
 //   두 존 개요 페이지(analytics-cloudloganalytics): "요청 경로 파라미터에 리전 코드를 입력하는 경우 사용 중인 플랫폼과 리전 환경에 맞게 입력".
 //   기본값은 클라이언트의 활성 리전(NCLOUD_REGION / ncloud_set_region) — 이전에는 리전과 무관하게 항상 kr 이었다.
 // responseFormatType 미사용 → request() 대신 requestRaw() 사용.
-// 공식 docs: analytics-cloudloganalytics-* (오퍼레이션 목록 두 존 동일, 2026-09-30 대조)
+// 공식 docs: analytics-cloudloganalytics-* (오퍼레이션 목록 민간·공공존 동일, 2026-09-30 대조)
+//   금융존(api-fin): classic 플랫폼 페이지 없음(vpc 만), 서버 로그 수집 해제(deleteserverlogsetting-vpc-server)는 금융존 가이드에만 있다.
 
 export interface LogAnalyticsToolOptions {
-  /** 존 — 리전 코드 안내 문구에 쓴다. 기본 `public`. */
+  /** 존 — 리전 코드 안내 문구·플랫폼 선택지·존 전용 도구에 쓴다. 기본 `public`. */
   zone?: Zone;
 }
 
@@ -23,6 +24,10 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
   const REGION_DESC = `Region code as a lowercase path segment (${regionCodes}). Default: the client's active region`;
   /** 경로 세그먼트: 명시값 > 클라이언트 활성 리전. */
   const regionSeg = (regionCode?: string): string => (regionCode ?? client.getRegionCode()).toLowerCase();
+  // 금융존 가이드에는 classic 서버 목록 페이지가 없다(getserverlist-classic-* 404) — vpc 만 허용.
+  const platformSchema = zone === "fin"
+    ? z.enum(["vpc"]).optional().describe("Platform (Financial zone: vpc only)")
+    : z.enum(["vpc", "classic"]).optional().describe("Platform (default vpc)");
 
   // ncloud_search_logs — Search logs
   defineTool(
@@ -60,7 +65,7 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
     "List servers eligible for log collection in Cloud Log Analytics (includes per-server collection status).",
     {
       regionCode: z.string().optional().describe(REGION_DESC),
-      platform: z.enum(["vpc", "classic"]).optional().describe("Platform (default vpc)"),
+      platform: platformSchema,
       pageNo: z.number().optional().describe("Page number (1-100, default 1)"),
       pageSize: z.number().optional().describe("Page size (10-100, default 10)"),
     },
@@ -73,6 +78,51 @@ export function registerLogAnalyticsTools(server: McpServer, client: NcloudClien
       return result;
     }
   );
+
+  // ncloud_set_server_log_collection — 서버 로그 수집 설정 (analytics-cloudloganalytics-changeserverlogsetting-vpc-server, 세 존 동일 바디)
+  defineTool(
+    server,
+    "ncloud_set_server_log_collection",
+    "Configure log collection on VPC servers in Cloud Log Analytics. Returns the agent install key and the install command to run on each server.",
+    {
+      regionCode: z.string().optional().describe(REGION_DESC),
+      collectingInfos: z
+        .array(
+          z.object({
+            logPath: z.string().describe("Log path to collect, e.g. /var/log/messages"),
+            logTemplate: z.string().describe("Log template, e.g. SYSLOG, APACHE, TOMCAT"),
+            logType: z.string().describe("Log type, e.g. SYSLOG, security_log"),
+            servername: z.string().describe("Target server name (from ncloud_list_log_servers)"),
+            osType: z.string().describe("Target server OS type (from ncloud_list_log_servers)"),
+            instanceNo: z.number().describe("Target server instance number"),
+            ip: z.string().optional().describe("Target server IP address"),
+            macAddr: z.string().describe("Target server MAC address (from ncloud_list_log_servers)"),
+          })
+        )
+        .min(1)
+        .describe("Log collection settings, one entry per log path/server"),
+    },
+    async (params) => {
+      const body = { collectingInfos: params.collectingInfos };
+      return client.requestRaw("POST", `/api/${regionSeg(params.regionCode)}-v1/vpc/servers/collecting-infos`, undefined, body);
+    }
+  );
+
+  // ncloud_delete_server_log_collection — 서버 로그 수집 해제 (금융존 가이드에만: analytics-cloudloganalytics-deleteserverlogsetting-vpc-server)
+  if (zone === "fin") {
+    defineTool(
+      server,
+      "ncloud_delete_server_log_collection",
+      "⚠️ Destructive: Stop log collection for a VPC server in Cloud Log Analytics (the agent must be removed on the server separately). Set confirm=true to execute.",
+      {
+        regionCode: z.string().optional().describe(REGION_DESC),
+        instanceNo: z.number().describe("Instance number of the server to stop collecting from"),
+        confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
+      },
+      async (params) => client.requestRaw("DELETE", `/api/${regionSeg(params.regionCode)}-v1/vpc/servers/collecting-infos/${params.instanceNo}`),
+      { destructive: { message: (params) => `⚠️ This will stop log collection for server instance [${params.instanceNo}]. To execute, call again with confirm=true.` } }
+    );
+  }
 
   // ncloud_get_log_count_total — Total log count
   defineTool(

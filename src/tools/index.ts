@@ -29,7 +29,7 @@ export { registerCertificateManagerTools } from "./security-certificate-manager.
 export { registerSecurityMonitoringTools } from "./security-monitoring.js";
 export { registerCloudInsightTools } from "./monitoring-cloud-insight.js";
 export { registerCloudInsightRuleTools } from "./monitoring-cloud-insight-rule.js";
-export { registerCloudInsightPluginTools } from "./monitoring-cloud-insight-plugin.js";
+export { registerCloudInsightPluginTools, registerCloudInsightMetricExportTools } from "./monitoring-cloud-insight-plugin.js";
 export { registerCloudInsightIntegrationTools } from "./monitoring-cloud-insight-integration.js";
 export { registerSourceCommitTools } from "./devtools-sourcecommit.js";
 export { registerSourceBuildTools } from "./devtools-sourcebuild.js";

@@ -440,24 +440,36 @@ describe("storage 그룹: 존별 등록", () => {
 
 describe("monitoring 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureMonitoring(zone: "public" | "gov") {
+  function captureMonitoring(zone: "public" | "gov" | "fin") {
     const captured: CapturedTool[] = [];
     const fakeServer: any = {
       registerTool: (name: string, config: any, handler: any) => {
         captured.push({ name, description: config?.description ?? null, schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
       },
     };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "monitoring")
     );
     return captured;
   }
-  it("도구 이름 집합은 존과 무관하게 동일하다 (Cloud Insight v1·Log Analytics 오퍼레이션 목록 동일)", () => {
+  const METRIC_EXPORT_TOOLS = [
+    "ncloud_list_metric_exports", "ncloud_get_metric_export", "ncloud_get_metric_export_failed_status",
+    "ncloud_create_metric_export", "ncloud_update_metric_export", "ncloud_delete_metric_export",
+  ];
+  it("도구 이름 집합은 민간·공공존에서 동일하다 (Cloud Insight v1·Log Analytics 오퍼레이션 목록 동일)", () => {
     const pub = captureMonitoring("public").map((t) => t.name).sort();
     const gov = captureMonitoring("gov").map((t) => t.name).sort();
     expect(gov).toEqual(pub);
     expect(pub).toContain("ncloud_search_logs");
+    expect(pub).toContain("ncloud_set_server_log_collection");
+    for (const t of [...METRIC_EXPORT_TOOLS, "ncloud_delete_server_log_collection"]) expect(pub).not.toContain(t);
+  });
+  it("fin: 민간존 도구 전부 + Metric Export 6종 + 서버 로그 수집 해제 (금융존 가이드 전용)", () => {
+    const pub = captureMonitoring("public").map((t) => t.name).sort();
+    const fin = captureMonitoring("fin").map((t) => t.name).sort();
+    expect(fin).toEqual([...pub, ...METRIC_EXPORT_TOOLS, "ncloud_delete_server_log_collection"].sort());
   });
 });
 

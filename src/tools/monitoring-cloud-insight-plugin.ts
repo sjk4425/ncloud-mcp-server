@@ -561,3 +561,133 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
     { destructive: { message: (params) => `⚠️ This will permanently delete maintenance schedule [${params.maintenanceId}]. To execute, call again with confirm=true.` } }
   );
 }
+
+// ─── Metric Export (금융존 가이드에만 문서화: management-cloudinsight-*metricexport*, 민간·공공존 404, 2026-09-30) ───
+// Base: https://cw.apigw.fin-ntruss.com  prefix /cw_fea/real/cw/api/metric-export
+// 바디: common-apidatatype-postmetricexport / putmetricexport, destination: common-apidatatype-metricexportdestination
+const ME = `${CW}/metric-export`;
+const meInterval = z.enum(["Min1", "Min5", "Min30", "Hour2", "Day1"]).describe("Collection interval of the exported metrics");
+const meAggregation = z.enum(["AVG", "MIN", "MAX", "SUM", "COUNT"]).describe("Aggregation function applied to the exported metrics");
+const meTargets = z.array(z.record(z.unknown())).optional().describe("Target resources (MonitorGroupItem objects). Omit to export all resources of the product");
+const meMetrics = z.array(z.string()).optional().describe("Metric names to export. Omit to export all metrics of the product");
+const meDestination = z
+  .object({
+    type: z.string().describe("Destination service code — currently only 'OBS' (Object Storage)"),
+    regionCode: z.string().describe("Region code of the destination resource, e.g. FKR"),
+    resourceId: z.string().describe("Destination resource ID — the bucket name for Object Storage"),
+  })
+  .describe("Where the exported result is stored (Object Storage only)");
+
+export function registerCloudInsightMetricExportTools(server: McpServer, client: NcloudClient): void {
+  defineTool(
+    server,
+    "ncloud_list_metric_exports",
+    "List Cloud Insight Metric Export configurations (paged).",
+    {
+      keyword: z.string().optional().describe("Filter by Metric Export name"),
+      pageNum: z.number().optional().describe("Page number (default 1)"),
+      pageSize: z.number().optional().describe("Page size (default 100)"),
+    },
+    async (params) => {
+      const q: Record<string, string | number> = {};
+      if (params.keyword !== undefined) q.keyword = params.keyword;
+      if (params.pageNum !== undefined) q.pageNum = params.pageNum;
+      if (params.pageSize !== undefined) q.pageSize = params.pageSize;
+      return client.requestRaw("GET", `${ME}/list`, q);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_get_metric_export",
+    "Get a Cloud Insight Metric Export configuration by ID.",
+    { metricExportId: z.string().describe("Metric Export ID") },
+    async (params) => client.requestRaw("GET", `${ME}/${encodeURIComponent(params.metricExportId)}`)
+  );
+
+  defineTool(
+    server,
+    "ncloud_get_metric_export_failed_status",
+    "Get the upload failure history of a Cloud Insight Metric Export (paged).",
+    {
+      metricExportId: z.string().describe("Metric Export ID"),
+      pageNum: z.number().optional().describe("Page number (default 1)"),
+      pageSize: z.number().optional().describe("Page size (default 100)"),
+    },
+    async (params) => {
+      const q: Record<string, number> = {};
+      if (params.pageNum !== undefined) q.pageNum = params.pageNum;
+      if (params.pageSize !== undefined) q.pageSize = params.pageSize;
+      return client.requestRaw("GET", `${ME}/${encodeURIComponent(params.metricExportId)}/failed-status`, q);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_create_metric_export",
+    "Create a Cloud Insight Metric Export that periodically writes product metrics to Object Storage. Returns the new Metric Export ID.",
+    {
+      name: z.string().describe("Metric Export name (max 45 chars)"),
+      description: z.string().optional().describe("Description (max 200 chars)"),
+      productKey: z.string().describe("Product key of the Cloud Insight-integrated service to export (custom schemas are not supported)"),
+      interval: meInterval,
+      aggregation: meAggregation,
+      targets: meTargets,
+      metrics: meMetrics,
+      destination: meDestination,
+    },
+    async (params) => {
+      const body: Record<string, unknown> = {
+        name: params.name,
+        productKey: params.productKey,
+        interval: params.interval,
+        aggregation: params.aggregation,
+        destination: params.destination,
+      };
+      if (params.description !== undefined) body.description = params.description;
+      if (params.targets !== undefined) body.targets = params.targets;
+      if (params.metrics !== undefined) body.metrics = params.metrics;
+      return client.postRequest(ME, body);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_update_metric_export",
+    "Update a Cloud Insight Metric Export. The product key cannot be changed; name, interval, aggregation and destination are required by the API.",
+    {
+      metricExportId: z.string().describe("Metric Export ID to update"),
+      name: z.string().describe("Metric Export name (max 45 chars)"),
+      description: z.string().optional().describe("Description (max 200 chars)"),
+      interval: meInterval,
+      aggregation: meAggregation,
+      targets: meTargets,
+      metrics: meMetrics,
+      destination: meDestination,
+    },
+    async (params) => {
+      const body: Record<string, unknown> = {
+        name: params.name,
+        interval: params.interval,
+        aggregation: params.aggregation,
+        destination: params.destination,
+      };
+      if (params.description !== undefined) body.description = params.description;
+      if (params.targets !== undefined) body.targets = params.targets;
+      if (params.metrics !== undefined) body.metrics = params.metrics;
+      return client.putRequest(`${ME}/${encodeURIComponent(params.metricExportId)}`, body);
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_delete_metric_export",
+    "⚠️ Destructive: Delete a Cloud Insight Metric Export. Set confirm=true to execute.",
+    {
+      metricExportId: z.string().describe("Metric Export ID to delete"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
+    },
+    async (params) => client.requestRaw("DELETE", `${ME}/${encodeURIComponent(params.metricExportId)}`),
+    { destructive: { message: (params) => `⚠️ This will permanently delete Metric Export [${params.metricExportId}]. To execute, call again with confirm=true.` } }
+  );
+}

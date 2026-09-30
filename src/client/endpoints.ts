@@ -143,8 +143,8 @@ export const SERVICE_ENDPOINTS = {
   nks: { public: apigw("nks", "public"), gov: apigw("nks", "gov"), fin: "https://nks.apigw.fin-ntruss.com" }, // fin 경로 접두는 /nks/v2 (vnks 아님)
   ncr: { public: apigw("ncr", "public"), gov: "https://gov-ncr.apigw.gov-ntruss.com", fin: "https://ncr.apigw.fin-ntruss.com" }, // gov 불규칙, fin 규칙형(/ncr/api/v2)
   // ── monitoring ──
-  cloudInsight: { public: apigw("cw", "public"), gov: apigw("cw", "gov") },
-  cloudLogAnalytics: { public: apigw("cloudloganalytics", "public"), gov: apigw("cloudloganalytics", "gov") },
+  cloudInsight: { public: apigw("cw", "public"), gov: apigw("cw", "gov"), fin: "https://cw.apigw.fin-ntruss.com" },
+  cloudLogAnalytics: { public: apigw("cloudloganalytics", "public"), gov: apigw("cloudloganalytics", "gov"), fin: "https://cloudloganalytics.apigw.fin-ntruss.com" },
   // ── governance ──
   activityTracer: { public: apigw("cloudactivitytracer", "public"), gov: apigw("cloudactivitytracer", "gov") },
   cloudAdvisor: { public: apigw("cloud-advisor", "public") },
