@@ -16,7 +16,7 @@ export interface LiveStationToolOptions {
 }
 
 export function registerLiveStationTools(server: McpServer, client: NcloudClient, opts: LiveStationToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
+  const zone: Zone = opts.zone ?? "pub";
   const P = liveStationPathPrefix(zone);
   // ─── Channel Query Tools ───────────────────────────────────────────────────
 

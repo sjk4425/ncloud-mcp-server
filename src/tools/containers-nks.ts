@@ -50,7 +50,7 @@ export const NKS_ADDON_TOOLS = [
 ] as const;
 
 export function registerContainersNksTools(rawServer: McpServer, client: NcloudClient, opts: NksToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
+  const zone: Zone = opts.zone ?? "pub";
   const server = opts.addons === false ? excludingTools(rawServer, NKS_ADDON_TOOLS) : rawServer;
   /** 현재 리전의 경로 접두(리전은 런타임에 바뀔 수 있어 호출 시점에 계산). */
   const base = () => nksPathPrefix(zone, client.getRegionCode());

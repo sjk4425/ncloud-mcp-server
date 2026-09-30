@@ -43,8 +43,8 @@ export interface SesToolOptions {
 }
 
 export function registerSearchEngineServiceTools(server: McpServer, client: NcloudClient, opts: SesToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
-  const s = zone !== "public" ? excludingTools(server, SES_PUBLIC_ONLY_TOOLS) : server;
+  const zone: Zone = opts.zone ?? "pub";
+  const s = zone !== "pub" ? excludingTools(server, SES_PUBLIC_ONLY_TOOLS) : server;
   // ─── Cluster List ──────────────────────────────────────────────────────────
 
   defineTool(

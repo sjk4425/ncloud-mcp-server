@@ -36,7 +36,7 @@ export interface NcrToolOptions {
 }
 
 export function registerContainersRegistryTools(server: McpServer, client: NcloudClient, opts: NcrToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
+  const zone: Zone = opts.zone ?? "pub";
   const base = () => `${ncrPathPrefix(zone, client.getRegionCode())}/repositories`;
   const enc = (s: string) => encodeURIComponent(s);
   const pageQuery = (p: { pageNo?: number; pageSize?: number }): Record<string, string> | undefined => {

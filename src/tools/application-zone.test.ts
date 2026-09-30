@@ -8,7 +8,7 @@ import { registerSensMailTools } from "./application-sens-mail.js";
  * application 그룹 존 차이 — 민간존은 Mailer 가 SENS 로 흡수(메일 = SENS /mail/v2), 공공존은 SENS(메일 채널 없음)와
  * Cloud Outbound Mailer(정식, 발송·조회 포함)가 별개. 공공존 Mailer 5 op 스펙: api-gov …-createmailrequest 등(2026-09-30).
  */
-function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, zone?: "public" | "gov" | "fin") {
+function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, zone?: "pub" | "gov" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://x", regionCode: zone === "fin" ? "FKR" : "KR" });
   reg(server, client, zone ? { zone } : {});
@@ -18,7 +18,7 @@ function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, zone?: "pub
 }
 
 describe("Outbound Mailer: 존별 도구 집합과 레거시 태그", () => {
-  it("public: 레거시 태그 붙음, 발송·조회 5종 없음", () => {
+  it("pub: 레거시 태그 붙음, 발송·조회 5종 없음", () => {
     const t = setup(registerOutboundMailerTools);
     expect(t.desc("ncloud_mailer_get_template")).toContain("[Legacy Cloud Outbound Mailer API");
     expect(t.has("ncloud_mailer_send_mail")).toBe(false);

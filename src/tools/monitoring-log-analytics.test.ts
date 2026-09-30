@@ -8,7 +8,7 @@ import { registerLogAnalyticsTools } from "./monitoring-log-analytics.js";
  * 두 존 개요 페이지(analytics-cloudloganalytics)는 "사용 중인 플랫폼과 리전 환경에 맞게" 리전 코드를 넣으라고 한다.
  * 기본값은 클라이언트 활성 리전(이전엔 항상 kr), 명시하면 그 값을 쓴다.
  */
-function setup(regionCode: string, zone?: "public" | "gov" | "fin") {
+function setup(regionCode: string, zone?: "pub" | "gov" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://cloudloganalytics.apigw.ntruss.com", regionCode });
   registerLogAnalyticsTools(server, client, zone ? { zone } : {});

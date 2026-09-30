@@ -19,12 +19,12 @@ import { ZONE_PROFILES, type Zone, type RegionInfo } from "../client/endpoints.j
 // `public`(기존 호출부 하위호환)이며, 도구 핸들러는 `client.getZone()` 을 넘긴다.
 
 /** 존의 set_region 화이트리스트(COM 등 특수 리전 제외). */
-export function regionCatalog(zone: Zone = "public"): readonly RegionInfo[] {
+export function regionCatalog(zone: Zone = "pub"): readonly RegionInfo[] {
   return ZONE_PROFILES[zone].regions;
 }
 
 /** 코드의 한국어 표시명. 미지의 코드는 코드 그대로 반환. */
-export function regionName(code: string, zone: Zone = "public"): string {
+export function regionName(code: string, zone: Zone = "pub"): string {
   return regionCatalog(zone).find((r) => r.code === code)?.ko ?? code;
 }
 
@@ -32,7 +32,7 @@ export function regionName(code: string, zone: Zone = "public"): string {
  * 입력(코드 또는 한국어명)을 정규화된 리전 코드로 해석한다.
  * 화이트리스트에 없으면 `null`(호출자가 `invalidRegionMessage`로 안내).
  */
-export function resolveRegionCode(input: string, zone: Zone = "public"): string | null {
+export function resolveRegionCode(input: string, zone: Zone = "pub"): string | null {
   const catalog = regionCatalog(zone);
   const byName = catalog.find((r) => r.ko === input);
   const code = byName?.code ?? input.toUpperCase();
@@ -40,7 +40,7 @@ export function resolveRegionCode(input: string, zone: Zone = "public"): string 
 }
 
 /** "유효하지 않은 리전" 검증 메시지(ko/en). */
-export function invalidRegionMessage(input: string, zone: Zone = "public"): string {
+export function invalidRegionMessage(input: string, zone: Zone = "pub"): string {
   const catalog = regionCatalog(zone);
   const codes = catalog.map((r) => r.code).join(", ");
   const names = catalog.map((r) => r.ko).join(", ");

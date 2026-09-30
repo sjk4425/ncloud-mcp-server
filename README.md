@@ -79,7 +79,7 @@ npm run build
 |------|------|------|--------|
 | `NCLOUD_ACCESS_KEY` | ✅ | Ncloud API Access Key | - |
 | `NCLOUD_SECRET_KEY` | ✅ | Ncloud API Secret Key | - |
-| `NCLOUD_ZONE` | - | 존 선택. `public`(민간존), `gov`(공공존), `fin`(금융존). 잘못된 값이면 시작을 중단 (자세히는 아래 [존 선택](#존-선택-민간존--공공존--금융존)) | `public` |
+| `NCLOUD_ZONE` | - | 존 선택. `pub`(민간존), `gov`(공공존), `fin`(금융존). 잘못된 값이면 시작을 중단 (자세히는 아래 [존 선택](#존-선택-민간존--공공존--금융존)) | `pub` |
 | `NCLOUD_REGION` | - | 리전 코드. 민간존 `KR`/`JPN`/`SGN`/`USWN`/`DEN`, 공공존 `KR`(수도권)/`KRS`(남부권), 금융존 `FKR` | `KR` (금융존 `FKR`) |
 | `NCLOUD_API_URL` | - | 기본 API 게이트웨이 override(존 기본값을 덮어씀) | 민간존 `https://ncloud.apigw.ntruss.com` / 공공존 `https://ncloud.apigw.gov-ntruss.com` / 금융존 `https://fin-ncloud.apigw.fin-ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage 프로젝트 ID | - |
@@ -96,7 +96,7 @@ npm run build
 
 하나의 패키지로 세 존을 지원합니다. `NCLOUD_ZONE`만 바꾸면 API 게이트웨이 도메인, 리전 카탈로그, 존별 서비스 카탈로그, 일부 서비스의 API 버전·경로·필드 차이까지 서버가 알아서 맞춥니다. 도구 이름과 파라미터는 세 존에서 동일하므로 프롬프트를 바꿀 필요가 없습니다.
 
-| | 민간존 (`public`, 기본값) | 공공존 (`gov`) | 금융존 (`fin`) |
+| | 민간존 (`pub`, 기본값) | 공공존 (`gov`) | 금융존 (`fin`) |
 |---|---|---|---|
 | 인증키 발급 | [민간존 콘솔](https://console.ncloud.com) | [공공존 콘솔](https://console.gov-ncloud.com) | [금융존 콘솔](https://console.fin-ncloud.com) |
 | 기본 게이트웨이 | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
@@ -104,7 +104,7 @@ npm run build
 | API 가이드 | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
 | 도구 수 (전 그룹) | 1,195 | 1,007 | 839 |
 
-> ⚠️ 인증키는 존별로 별개입니다. 민간존 키로 공공존·금융존을 호출하면(또는 그 반대) 인증 오류가 납니다. `NCLOUD_ZONE`에 `public`/`gov`/`fin` 외의 값을 주면 다른 존으로 조용히 가지 않도록 서버가 시작 시 종료합니다.
+> ⚠️ 인증키는 존별로 별개입니다. 민간존 키로 공공존·금융존을 호출하면(또는 그 반대) 인증 오류가 납니다. `NCLOUD_ZONE`에 `pub`/`gov`/`fin` 외의 값을 주면 다른 존으로 조용히 가지 않도록 서버가 시작 시 종료합니다.
 
 **공공존 설정 예시**
 
@@ -313,7 +313,7 @@ MCP 클라이언트에서 자연어로 Ncloud 인프라를 관리할 수 있습�
 
 ## 지원 리전
 
-**민간존** (`NCLOUD_ZONE=public`)
+**민간존** (`NCLOUD_ZONE=pub`, 기본값)
 
 | 리전 | 코드 |
 |------|------|

@@ -33,8 +33,8 @@ export interface CdssToolOptions {
 }
 
 export function registerCloudDataStreamingTools(server: McpServer, client: NcloudClient, opts: CdssToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
-  const s = zone !== "public" ? excludingTools(server, CDSS_PUBLIC_ONLY_TOOLS) : server;
+  const zone: Zone = opts.zone ?? "pub";
+  const s = zone !== "pub" ? excludingTools(server, CDSS_PUBLIC_ONLY_TOOLS) : server;
   // 경로 접두는 등록 시점의 리전으로 고정된다(기존 동작 유지).
   const regionCode = client.getRegionCode();
   const prefix = cdssPathPrefix(zone, regionCode);

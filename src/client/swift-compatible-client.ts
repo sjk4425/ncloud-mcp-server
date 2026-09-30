@@ -64,7 +64,7 @@ export class SwiftCompatibleClient {
     this.projectId = config.projectId;
     this.domainId = config.domainId;
     this.regionCode = config.regionCode ?? "KR";
-    this.zone = config.zone ?? "public";
+    this.zone = config.zone ?? "pub";
   }
 
   getZone(): Zone {

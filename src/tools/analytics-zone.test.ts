@@ -10,7 +10,7 @@ import { excludingTools } from "./_tool.js";
  * SES / CDSS 존·리전별 경로 접두 — analytics-vpcsearchengine-cluster-getclusterinfolist,
  * analytics-clouddatastreamingservice-cluster-getclusterinfolist (두 존 원문, 2026-09-30).
  */
-function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, regionCode: string, zone?: "public" | "gov" | "fin") {
+function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, regionCode: string, zone?: "pub" | "gov" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://x.apigw.ntruss.com", regionCode });
   reg(server, client, zone ? { zone } : {});
@@ -21,12 +21,12 @@ function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, regionCode:
 
 describe("endpoints: SES/CDSS 경로 접두", () => {
   it("민간존 KR/SGN/JPN, 공공존 KR/KRS", () => {
-    expect(sesPathPrefix("public", "KR")).toBe("/api/v2");
-    expect(sesPathPrefix("public", "SGN")).toBe("/api/sgn-v2");
-    expect(sesPathPrefix("public", "JPN")).toBe("/api/jpn-v2");
+    expect(sesPathPrefix("pub", "KR")).toBe("/api/v2");
+    expect(sesPathPrefix("pub", "SGN")).toBe("/api/sgn-v2");
+    expect(sesPathPrefix("pub", "JPN")).toBe("/api/jpn-v2");
     expect(sesPathPrefix("gov", "KRS")).toBe("/api/krs-v2");
     expect(sesPathPrefix("gov", "SGN")).toBe("/api/v2"); // 공공존에 없는 리전은 기본
-    expect(cdssPathPrefix("public", "JPN")).toBe("/api/jpn-v1");
+    expect(cdssPathPrefix("pub", "JPN")).toBe("/api/jpn-v1");
     expect(cdssPathPrefix("gov", "KR")).toBe("/api/v1");
     expect(cdssPathPrefix("gov", "KRS")).toBe("/api/krs-v1");
   });

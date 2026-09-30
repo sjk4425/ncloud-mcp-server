@@ -79,7 +79,7 @@ npm run build
 |----------|----------|-------------|---------|
 | `NCLOUD_ACCESS_KEY` | ✅ | Ncloud API Access Key | - |
 | `NCLOUD_SECRET_KEY` | ✅ | Ncloud API Secret Key | - |
-| `NCLOUD_ZONE` | - | Zone: `public`, `gov` or `fin`. Any other value aborts startup (see [Zone selection](#zone-selection-public--government--financial)) | `public` |
+| `NCLOUD_ZONE` | - | Zone: `pub`, `gov` or `fin`. Any other value aborts startup (see [Zone selection](#zone-selection-public--government--financial)) | `pub` |
 | `NCLOUD_REGION` | - | Region code. Public `KR`/`JPN`/`SGN`/`USWN`/`DEN`; Government `KR` (KR-CENTRAL) / `KRS` (KR-SOUTH); Financial `FKR` | `KR` (Financial: `FKR`) |
 | `NCLOUD_API_URL` | - | Override of the default API gateway (replaces the zone default) | Public `https://ncloud.apigw.ntruss.com` / Government `https://ncloud.apigw.gov-ntruss.com` / Financial `https://fin-ncloud.apigw.fin-ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage project ID | - |
@@ -94,7 +94,7 @@ npm run build
 
 One package serves the three zones. Changing `NCLOUD_ZONE` switches the API gateway domains, the region catalogue, the per-zone service catalogue and even the API-version, path or field differences of individual services. Tool names and parameters are identical across zones, so prompts need no change.
 
-| | Public (`public`, default) | Government (`gov`) | Financial (`fin`) |
+| | Public (`pub`, default) | Government (`gov`) | Financial (`fin`) |
 |---|---|---|---|
 | Credentials | [Public console](https://console.ncloud.com) | [Government console](https://console.gov-ncloud.com) | [Financial console](https://console.fin-ncloud.com) |
 | Default gateway | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
@@ -102,7 +102,7 @@ One package serves the three zones. Changing `NCLOUD_ZONE` switches the API gate
 | API guide | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
 | Tools (all groups) | 1,195 | 1,007 | 839 |
 
-> ⚠️ Credentials are per zone: a Public key against the Government or Financial gateway (or vice versa) fails authentication. A value other than `public`/`gov`/`fin` makes the server exit at startup rather than silently use another zone.
+> ⚠️ Credentials are per zone: a Public key against the Government or Financial gateway (or vice versa) fails authentication. A value other than `pub`/`gov`/`fin` makes the server exit at startup rather than silently use another zone.
 
 **Government-zone example**
 
@@ -311,7 +311,7 @@ Manage Ncloud infrastructure using natural language through your MCP client:
 
 ## Supported Regions
 
-**Public zone** (`NCLOUD_ZONE=public`)
+**Public zone** (`NCLOUD_ZONE=pub`, default)
 
 | Region | Code |
 |--------|------|

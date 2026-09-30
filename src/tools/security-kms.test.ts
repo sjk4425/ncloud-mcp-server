@@ -4,7 +4,7 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { registerKmsTools } from "./security-kms.js";
 
 /** KMS 암·복호화 경로 — 2.0 `/kms/v1/keys/{keyTag}/{op}`, 금융존 v1 게이트웨이 `/keys/v2/{keyTag}/{op}` (security-kms-*, api-fin 2026-09-30). */
-function cryptoSetup(zone: "public" | "fin") {
+function cryptoSetup(zone: "pub" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: zone === "fin" ? "https://kms.apigw.fin-ntruss.com" : "https://ocapi.ncloud.com", regionCode: zone === "fin" ? "FKR" : "KR" });
   registerKmsTools(server, client, { zone });
@@ -25,8 +25,8 @@ describe("KMS 암·복호화: 존별 경로와 도구 집합", () => {
     await t.call("ncloud_kms_verify", { keyTag: "tag1", data: "QQ==", signature: "s" });
     expect(spy).toHaveBeenCalledWith("POST", "/keys/v2/tag1/verify", undefined, { data: "QQ==", signature: "s" });
   });
-  it("public: 2.0 경로 그대로", async () => {
-    const t = cryptoSetup("public");
+  it("pub: 2.0 경로 그대로", async () => {
+    const t = cryptoSetup("pub");
     expect(t.has("ncloud_kms_create_key")).toBe(true);
     const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
     await t.call("ncloud_kms_create_custom_key", { keyTag: "tag1" });
@@ -37,7 +37,7 @@ describe("KMS 암·복호화: 존별 경로와 도구 집합", () => {
 });
 
 /** KMS v2 Create Key — protectionType 은 민간존 문서에만 있다(security-kms2-create-key, 2026-09-30). */
-function setup(zone?: "public" | "gov") {
+function setup(zone?: "pub" | "gov") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: zone === "gov" ? "https://ocapi.gov-ncloud.com" : "https://ocapi.ncloud.com", regionCode: "KR" });
   registerKmsTools(server, client, zone ? { zone } : {});
@@ -47,7 +47,7 @@ function setup(zone?: "public" | "gov") {
 }
 
 describe("KMS create_key: protectionType 존 분기", () => {
-  it("public: 필수이며 본문에 실린다", async () => {
+  it("pub: 필수이며 본문에 실린다", async () => {
     const t = setup();
     expect(t.required).toBe(true);
     const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});

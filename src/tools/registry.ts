@@ -159,7 +159,7 @@ export function groupSupportsZone(group: ToolGroup, zone: Zone): boolean {
 }
 
 /** 금융존 가이드 대조가 아직 끝나지 않은 그룹에 붙이는 존 제한(민간·공공존만). 그룹별 검증 완료 시 제거한다. */
-const PUBLIC_GOV: readonly Zone[] = ["public", "gov"];
+const PUBLIC_GOV: readonly Zone[] = ["pub", "gov"];
 
 /**
  * creds + regionCode(+ zone) 로 base URL별 memoized NcloudClient 팩토리를 만든다.
@@ -168,7 +168,7 @@ const PUBLIC_GOV: readonly Zone[] = ["public", "gov"];
 export function makeClientFactory(
   creds: { accessKey: string; secretKey: string },
   regionCode: string,
-  zone: Zone = "public",
+  zone: Zone = "pub",
   env: NodeJS.ProcessEnv = process.env
 ): ClientFactory {
   const cache = new Map<string, NcloudClient>();
@@ -346,7 +346,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       // NCR: 호스트 불규칙(공공존 gov-ncr.apigw.gov-ntruss.com), 경로 접두 존·리전별(ncrPathPrefix).
       registerContainersNksTools(server, client(endpoint("nks", zone)), {
         zone,
-        resetKubeconfig: zone === "public",
+        resetKubeconfig: zone === "pub",
         addons: zone !== "fin",
       });
       registerContainersRegistryTools(server, client(endpoint("ncr", zone)), { zone });

@@ -44,7 +44,7 @@ export const KMS_V2_ONLY_TOOLS = [
 ] as const;
 
 export function registerKmsTools(rawServer: McpServer, client: NcloudClient, opts: KmsToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
+  const zone: Zone = opts.zone ?? "pub";
   const gov = zone === "gov";
   const fin = zone === "fin";
   const server = fin ? excludingTools(rawServer, KMS_V2_ONLY_TOOLS) : rawServer;

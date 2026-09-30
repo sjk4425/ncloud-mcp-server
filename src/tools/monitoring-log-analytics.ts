@@ -19,7 +19,7 @@ export interface LogAnalyticsToolOptions {
 }
 
 export function registerLogAnalyticsTools(server: McpServer, client: NcloudClient, opts: LogAnalyticsToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
+  const zone: Zone = opts.zone ?? "pub";
   const regionCodes = ZONE_PROFILES[zone].regions.map((r) => r.code.toLowerCase()).join(", ");
   const REGION_DESC = `Region code as a lowercase path segment (${regionCodes}). Default: the client's active region`;
   /** 경로 세그먼트: 명시값 > 클라이언트 활성 리전. */

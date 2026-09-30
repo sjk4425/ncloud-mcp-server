@@ -56,7 +56,7 @@ function captureAllTools(): CapturedTool[] {
       server: fakeServer,
       client: makeClientFactory(creds, "KR"),
       regionCode: "KR",
-      zone: "public",
+      zone: "pub",
       creds,
       // archive 그룹까지 전부 등록되도록 env 주입
       env: { ...process.env, NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
@@ -229,7 +229,7 @@ describe("makeClientFactory: 존별 기본 게이트웨이", () => {
 
   it("zone 생략 = public, 기본 base URL 은 민간존 게이트웨이(하위호환)", () => {
     const factory = makeClientFactory(creds, "KR", undefined, {});
-    expect(factory.getZone()).toBe("public");
+    expect(factory.getZone()).toBe("pub");
     expect(baseUrlOf(factory())).toBe("https://ncloud.apigw.ntruss.com");
   });
   it("zone=gov 이면 기본 base URL 은 공공존 게이트웨이", () => {
@@ -246,7 +246,7 @@ describe("makeClientFactory: 존별 기본 게이트웨이", () => {
 describe("common 그룹: 존별 리전 카탈로그", () => {
   const creds = { accessKey: "x", secretKey: "y" };
 
-  function captureCommon(zone: "public" | "gov") {
+  function captureCommon(zone: "pub" | "gov") {
     const captured: CapturedTool[] = [];
     const fakeServer: any = {
       registerTool: (name: string, config: any, handler: any) => {
@@ -273,8 +273,8 @@ describe("common 그룹: 존별 리전 카탈로그", () => {
     return captured;
   }
 
-  it("public: set_region description 은 v1.16.0 문구와 글자 단위로 동일하다(회귀 방지)", () => {
-    const tool = captureCommon("public").find((t) => t.name === "ncloud_set_region")!;
+  it("pub: set_region description 은 v1.16.0 문구와 글자 단위로 동일하다(회귀 방지)", () => {
+    const tool = captureCommon("pub").find((t) => t.name === "ncloud_set_region")!;
     expect(tool.description).toBe(
       "Set the active Ncloud region by code (KR, JPN, SGN, USWN, DEN) or Korean name (한국, 일본, 싱가포르, 미국, 독일)"
     );
@@ -287,7 +287,7 @@ describe("common 그룹: 존별 리전 카탈로그", () => {
     expect(tool.description).not.toMatch(/JPN|SGN|USWN|DEN/);
   });
   it("common 도구 이름 집합은 존과 무관하게 동일하다", () => {
-    const pub = captureCommon("public").map((t) => t.name).sort();
+    const pub = captureCommon("pub").map((t) => t.name).sort();
     const gov = captureCommon("gov").map((t) => t.name).sort();
     expect(gov).toEqual(pub);
   });
@@ -296,7 +296,7 @@ describe("common 그룹: 존별 리전 카탈로그", () => {
 describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
   const creds = { accessKey: "x", secretKey: "y" };
 
-  function captureCompute(zone: "public" | "gov") {
+  function captureCompute(zone: "pub" | "gov") {
     const captured: CapturedTool[] = [];
     const fakeServer: any = {
       registerTool: (name: string, config: any, handler: any) => {
@@ -316,8 +316,8 @@ describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
     return captured;
   }
 
-  it("public: Cloud Functions 는 API v2.1 (/ncf/api/v2)", () => {
-    const t = captureCompute("public").find((x) => x.name === "ncloud_functions_create_action")!;
+  it("pub: Cloud Functions 는 API v2.1 (/ncf/api/v2)", () => {
+    const t = captureCompute("pub").find((x) => x.name === "ncloud_functions_create_action")!;
     expect(t.description).toContain("/ncf/api/v2");
     expect(t.description).toContain("v2.1");
   });
@@ -331,13 +331,13 @@ describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
     expect(trigger.description).not.toContain("object_storage →");
   });
   it("compute 도구 이름 집합은 public/gov 에서 동일하다", () => {
-    const pub = captureCompute("public").map((t) => t.name).sort();
+    const pub = captureCompute("pub").map((t) => t.name).sort();
     const gov = captureCompute("gov").map((t) => t.name).sort();
     expect(gov).toEqual(pub);
     expect(pub).toContain("ncloud_change_block_storage_size");
   });
   it("fin: Fabric Cluster 7종·스냅샷 생성/삭제/상세·반납 보호가 빠지고, Cloud Functions 는 v2.1(VPC 전용, platform 쿼리 없음)", () => {
-    const pub = captureCompute("public");
+    const pub = captureCompute("pub");
     const fin = captureCompute("fin" as any);
     const notInFin = ["ncloud_list_fabric_clusters", "ncloud_get_fabric_cluster_detail", "ncloud_get_fabric_cluster_pools", "ncloud_create_fabric_cluster", "ncloud_update_fabric_cluster", "ncloud_change_fabric_cluster_servers", "ncloud_delete_fabric_cluster", "ncloud_create_snapshot", "ncloud_delete_snapshots", "ncloud_get_snapshot_detail", "ncloud_set_block_storage_protection"];
     const finNames = fin.map((t) => t.name);
@@ -358,7 +358,7 @@ describe("network 그룹: 존별 등록", () => {
     "ncloud_list_lb_listener_certificates",
   ];
 
-  function captureNetwork(zone: "public" | "gov") {
+  function captureNetwork(zone: "pub" | "gov") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     registerGroups(
@@ -368,18 +368,18 @@ describe("network 그룹: 존별 등록", () => {
     return names;
   }
 
-  it("public: LB 리스너 인증서 도구 3종이 등록된다", () => {
-    const names = captureNetwork("public");
+  it("pub: LB 리스너 인증서 도구 3종이 등록된다", () => {
+    const names = captureNetwork("pub");
     for (const t of LISTENER_CERT_TOOLS) expect(names).toContain(t);
   });
   it("gov: 리스너 인증서 도구 3종만 빠지고 나머지는 public 과 동일하다 (공공존 LB 가이드에 해당 오퍼레이션 없음)", () => {
-    const pub = captureNetwork("public");
+    const pub = captureNetwork("pub");
     const gov = captureNetwork("gov");
     for (const t of LISTENER_CERT_TOOLS) expect(gov).not.toContain(t);
     expect(gov.sort()).toEqual(pub.filter((n) => !LISTENER_CERT_TOOLS.includes(n)).sort());
   });
   it("fin: Global Traffic Manager 만 빠지고(금융존 미제공) 리스너 인증서 포함 나머지는 public 과 동일", () => {
-    const pub = captureNetwork("public");
+    const pub = captureNetwork("pub");
     const fin = captureNetwork("fin" as any);
     const isGtm = (n: string) => n.startsWith("ncloud_gtm_");
     expect(pub.some(isGtm)).toBe(true);
@@ -392,7 +392,7 @@ describe("network 그룹: 존별 등록", () => {
 describe("storage 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
 
-  function captureStorage(zone: "public" | "gov") {
+  function captureStorage(zone: "pub" | "gov") {
     const captured: CapturedTool[] = [];
     const fakeServer: any = {
       registerTool: (name: string, config: any, handler: any) => {
@@ -414,7 +414,7 @@ describe("storage 그룹: 존별 등록", () => {
   }
 
   it("도구 이름 집합은 존과 무관하게 동일하다 (Object·Ncloud·NAS·Archive 모두 공공존 제공)", () => {
-    const pub = captureStorage("public").map((t) => t.name).sort();
+    const pub = captureStorage("pub").map((t) => t.name).sort();
     const gov = captureStorage("gov").map((t) => t.name).sort();
     expect(gov).toEqual(pub);
     expect(pub.some((n) => n.startsWith("ncloud_ncs_"))).toBe(true);
@@ -422,7 +422,7 @@ describe("storage 그룹: 존별 등록", () => {
   });
   it("fin: Object Storage + NAS 만 등록되고 Ncloud Storage·Archive 도구는 없다", () => {
     const fin = captureStorage("fin" as any).map((t) => t.name);
-    const pub = captureStorage("public").map((t) => t.name);
+    const pub = captureStorage("pub").map((t) => t.name);
     expect(fin.some((n) => n.startsWith("ncloud_ncs_"))).toBe(false);
     expect(fin.some((n) => n.includes("archive"))).toBe(false);
     expect(fin).toContain("ncloud_list_buckets");
@@ -430,7 +430,7 @@ describe("storage 그룹: 존별 등록", () => {
     expect(fin.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_ncs_") && !n.includes("archive")).sort());
   });
   it("Ncloud Storage description 은 존의 호스트를 안내한다", () => {
-    const pub = captureStorage("public").find((t) => t.name === "ncloud_ncs_list_buckets")!;
+    const pub = captureStorage("pub").find((t) => t.name === "ncloud_ncs_list_buckets")!;
     const gov = captureStorage("gov").find((t) => t.name === "ncloud_ncs_list_buckets")!;
     expect(pub.description).toContain("kr.ncloudstorage.com");
     expect(pub.description).not.toContain("gov-");
@@ -440,7 +440,7 @@ describe("storage 그룹: 존별 등록", () => {
 
 describe("monitoring 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureMonitoring(zone: "public" | "gov" | "fin") {
+  function captureMonitoring(zone: "pub" | "gov" | "fin") {
     const captured: CapturedTool[] = [];
     const fakeServer: any = {
       registerTool: (name: string, config: any, handler: any) => {
@@ -459,7 +459,7 @@ describe("monitoring 그룹: 존별 등록", () => {
     "ncloud_create_metric_export", "ncloud_update_metric_export", "ncloud_delete_metric_export",
   ];
   it("도구 이름 집합은 민간·공공존에서 동일하다 (Cloud Insight v1·Log Analytics 오퍼레이션 목록 동일)", () => {
-    const pub = captureMonitoring("public").map((t) => t.name).sort();
+    const pub = captureMonitoring("pub").map((t) => t.name).sort();
     const gov = captureMonitoring("gov").map((t) => t.name).sort();
     expect(gov).toEqual(pub);
     expect(pub).toContain("ncloud_search_logs");
@@ -467,7 +467,7 @@ describe("monitoring 그룹: 존별 등록", () => {
     for (const t of [...METRIC_EXPORT_TOOLS, "ncloud_delete_server_log_collection"]) expect(pub).not.toContain(t);
   });
   it("fin: 민간존 도구 전부 + Metric Export 6종 + 서버 로그 수집 해제 (금융존 가이드 전용)", () => {
-    const pub = captureMonitoring("public").map((t) => t.name).sort();
+    const pub = captureMonitoring("pub").map((t) => t.name).sort();
     const fin = captureMonitoring("fin").map((t) => t.name).sort();
     expect(fin).toEqual([...pub, ...METRIC_EXPORT_TOOLS, "ncloud_delete_server_log_collection"].sort());
   });
@@ -475,7 +475,7 @@ describe("monitoring 그룹: 존별 등록", () => {
 
 describe("governance 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureGovernance(zone: "public" | "gov" | "fin") {
+  function captureGovernance(zone: "pub" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     const region = zone === "fin" ? "FKR" : "KR";
@@ -485,13 +485,13 @@ describe("governance 그룹: 존별 등록", () => {
     );
     return names;
   }
-  it("public: Cloud Advisor + WMS 모두 등록", () => {
-    const names = captureGovernance("public");
+  it("pub: Cloud Advisor + WMS 모두 등록", () => {
+    const names = captureGovernance("pub");
     expect(names.some((n) => n.startsWith("ncloud_advisor_"))).toBe(true);
     expect(names).toContain("ncloud_wms_list_monitors");
   });
   it("gov: Cloud Advisor 만 빠지고(공공존 미제공) 나머지는 public 과 동일", () => {
-    const pub = captureGovernance("public");
+    const pub = captureGovernance("pub");
     const gov = captureGovernance("gov");
     expect(gov.some((n) => n.startsWith("ncloud_advisor_"))).toBe(false);
     expect(gov.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_advisor_")).sort());
@@ -507,7 +507,7 @@ describe("governance 그룹: 존별 등록", () => {
 
 describe("devtools 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureDevtools(zone: "public" | "gov" | "fin") {
+  function captureDevtools(zone: "pub" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     const region = zone === "fin" ? "FKR" : "KR";
@@ -518,7 +518,7 @@ describe("devtools 그룹: 존별 등록", () => {
     return names;
   }
   it("도구 이름 집합은 존과 무관하게 동일하다 (SourceCommit/Build/Deploy/Pipeline 세 존 모두 제공, 81 페이지 동일)", () => {
-    const pub = captureDevtools("public").sort();
+    const pub = captureDevtools("pub").sort();
     expect(captureDevtools("gov").sort()).toEqual(pub);
     expect(captureDevtools("fin").sort()).toEqual(pub);
     expect(pub.length).toBeGreaterThan(20);
@@ -527,7 +527,7 @@ describe("devtools 그룹: 존별 등록", () => {
 
 describe("analytics 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureAnalytics(zone: "public" | "gov" | "fin") {
+  function captureAnalytics(zone: "pub" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     const region = zone === "fin" ? "FKR" : "KR";
@@ -539,14 +539,14 @@ describe("analytics 그룹: 존별 등록", () => {
   }
   const PUBLIC_ONLY_PREFIXES = ["ncloud_datastream_", "ncloud_datacatalog_", "ncloud_dataforest_", "ncloud_dataflow_", "ncloud_dataquery_"];
   const isDataService = (n: string) => PUBLIC_ONLY_PREFIXES.some((p) => n.startsWith(p));
-  it("public: Data Stream/Catalog/Forest/Flow/Query 와 SES/CDSS G3 도구가 모두 등록된다", () => {
-    const names = captureAnalytics("public");
+  it("pub: Data Stream/Catalog/Forest/Flow/Query 와 SES/CDSS G3 도구가 모두 등록된다", () => {
+    const names = captureAnalytics("pub");
     for (const p of PUBLIC_ONLY_PREFIXES) expect(names.some((n) => n.startsWith(p)), p).toBe(true);
     expect(names).toContain("ncloud_ses_create_cluster_g3");
     expect(names).toContain("ncloud_cdss_create_cluster_g3");
   });
   it("gov: Data* 서비스와 SES 8종·CDSS 6종(민간존 전용 오퍼레이션)만 빠지고 나머지는 동일", () => {
-    const pub = captureAnalytics("public");
+    const pub = captureAnalytics("pub");
     const gov = captureAnalytics("gov");
     expect(gov.some(isDataService)).toBe(false);
     const sesOnly = ["ncloud_ses_get_cluster_detail", "ncloud_ses_get_server_generations", "ncloud_ses_get_server_specs", "ncloud_ses_get_cluster_server_images", "ncloud_ses_get_subnet_list_g3", "ncloud_ses_create_cluster_g3", "ncloud_ses_get_node_spec_for_change_g3", "ncloud_ses_change_disk_size"];
@@ -569,7 +569,7 @@ describe("analytics 그룹: 존별 등록", () => {
 
 describe("media 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureMedia(zone: "public" | "gov" | "fin") {
+  function captureMedia(zone: "pub" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     const region = zone === "fin" ? "FKR" : "KR";
@@ -579,15 +579,15 @@ describe("media 그룹: 존별 등록", () => {
     );
     return names;
   }
-  it("public: VOD Station·Live Station·Image Optimizer·Multi DRM(복제 포함) 등록", () => {
-    const names = captureMedia("public");
+  it("pub: VOD Station·Live Station·Image Optimizer·Multi DRM(복제 포함) 등록", () => {
+    const names = captureMedia("pub");
     expect(names).toContain("ncloud_vodstation_update_channel");
     expect(names.some((n) => n.startsWith("ncloud_livestation_"))).toBe(true);
     expect(names).toContain("ncloud_drm_list_sites");
     expect(names).toContain("ncloud_drm_copy_policy");
   });
   it("gov: Live Station·Image Optimizer·VOD 채널 수정·DRM 정책 복제만 빠지고 나머지는 동일", () => {
-    const pub = captureMedia("public");
+    const pub = captureMedia("pub");
     const gov = captureMedia("gov");
     const publicOnly = (n: string) => n.startsWith("ncloud_livestation_") || n.startsWith("ncloud_imageoptimizer_") || n === "ncloud_vodstation_update_channel" || n === "ncloud_drm_copy_policy";
     expect(gov.some(publicOnly)).toBe(false);
@@ -596,7 +596,7 @@ describe("media 그룹: 존별 등록", () => {
     expect(gov).toContain("ncloud_drm_get_license_statistics");
   });
   it("fin: VOD Station(채널 수정 포함)·Live Station 만 등록, Image Optimizer·Multi DRM 은 금융존 가이드에 없어 빠진다", () => {
-    const pub = captureMedia("public");
+    const pub = captureMedia("pub");
     const fin = captureMedia("fin");
     const notInFin = (n: string) => n.startsWith("ncloud_imageoptimizer_") || n.startsWith("ncloud_drm_");
     expect(fin.some(notInFin)).toBe(false);
@@ -608,7 +608,7 @@ describe("media 그룹: 존별 등록", () => {
 
 describe("cdn 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureCdn(zone: "public" | "gov") {
+  function captureCdn(zone: "pub" | "gov") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     registerGroups(
@@ -618,7 +618,7 @@ describe("cdn 그룹: 존별 등록", () => {
     return names;
   }
   it("Global Edge 도구 집합은 존과 무관하게 동일하고, CDN+/Global CDN 도구는 없다", () => {
-    const pub = captureCdn("public").sort();
+    const pub = captureCdn("pub").sort();
     const gov = captureCdn("gov").sort();
     expect(gov).toEqual(pub);
     expect(pub.length).toBeGreaterThan(10);
@@ -628,7 +628,7 @@ describe("cdn 그룹: 존별 등록", () => {
 
 describe("security 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureSecurity(zone: "public" | "gov" | "fin") {
+  function captureSecurity(zone: "pub" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     const region = zone === "fin" ? "FKR" : "KR";
@@ -646,7 +646,7 @@ describe("security 그룹: 존별 등록", () => {
     ].sort());
   });
   it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고 나머지는 public 과 동일", () => {
-    const pub = captureSecurity("public");
+    const pub = captureSecurity("pub");
     const gov = captureSecurity("gov");
     expect(pub).not.toContain("ncloud_issue_private_certificate");
     expect(gov).toContain("ncloud_issue_private_certificate");
@@ -657,7 +657,7 @@ describe("security 그룹: 존별 등록", () => {
 
 describe("application 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureApplication(zone: "public" | "gov" | "fin") {
+  function captureApplication(zone: "pub" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     const region = zone === "fin" ? "FKR" : "KR";
@@ -677,15 +677,15 @@ describe("application 그룹: 존별 등록", () => {
   });
   const SENS_MAIL = ["ncloud_sens_send_mail", "ncloud_sens_list_mail_requests", "ncloud_sens_get_mail_request", "ncloud_sens_list_mails", "ncloud_sens_get_mail"];
   const MAILER_GOV = ["ncloud_mailer_send_mail", "ncloud_mailer_get_request_status", "ncloud_mailer_list_requests", "ncloud_mailer_list_mails", "ncloud_mailer_get_mail"];
-  it("public: SENS 메일 채널 도구 있음, Mailer 발송·조회 5종은 없음(SENS 로 통합)", () => {
-    const names = captureApplication("public");
+  it("pub: SENS 메일 채널 도구 있음, Mailer 발송·조회 5종은 없음(SENS 로 통합)", () => {
+    const names = captureApplication("pub");
     for (const t of SENS_MAIL) expect(names).toContain(t);
     for (const t of MAILER_GOV) expect(names).not.toContain(t);
     expect(names).toContain("ncloud_mailer_get_template");
     expect(names).toContain("ncloud_sens_list_projects");
   });
   it("gov: SENS 메일 채널 도구 없음, Mailer 발송·조회 5종 추가, 나머지는 동일", () => {
-    const pub = captureApplication("public");
+    const pub = captureApplication("pub");
     const gov = captureApplication("gov");
     for (const t of SENS_MAIL) expect(gov).not.toContain(t);
     for (const t of MAILER_GOV) expect(gov).toContain(t);
@@ -697,7 +697,7 @@ describe("application 그룹: 존별 등록", () => {
 
 describe("billing 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureBilling(zone: "public" | "gov" | "fin") {
+  function captureBilling(zone: "pub" | "gov" | "fin") {
     const captured: CapturedTool[] = [];
     const fakeServer: any = {
       registerTool: (name: string, config: any, handler: any) => {
@@ -712,7 +712,7 @@ describe("billing 그룹: 존별 등록", () => {
     return captured;
   }
   it("도구 이름 집합은 존과 무관하게 동일하다 (오퍼레이션 20종 세 존 동일)", () => {
-    const pub = captureBilling("public").map((t) => t.name).sort();
+    const pub = captureBilling("pub").map((t) => t.name).sort();
     expect(captureBilling("gov").map((t) => t.name).sort()).toEqual(pub);
     expect(captureBilling("fin").map((t) => t.name).sort()).toEqual(pub);
     expect(pub.length).toBeGreaterThan(10);
@@ -722,7 +722,7 @@ describe("billing 그룹: 존별 등록", () => {
 // ─── 금융존: 그룹별 가이드 대조 전에는 common 만 ─────────────────────────────────
 describe("금융존(fin): 그룹 존 게이트", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function manager(zone: "public" | "gov" | "fin", rawEnv?: string) {
+  function manager(zone: "pub" | "gov" | "fin", rawEnv?: string) {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     const ctx = { server: fakeServer, client: makeClientFactory(creds, zone === "fin" ? "FKR" : "KR", zone, {}), regionCode: zone === "fin" ? "FKR" : "KR", zone, creds, env: {} };
@@ -753,7 +753,7 @@ describe("금융존(fin): 그룹 존 게이트", () => {
     }
   });
   it("public/gov: 존 게이트가 기존 동작을 바꾸지 않는다 (전 그룹 startup)", () => {
-    for (const zone of ["public", "gov"] as const) {
+    for (const zone of ["pub", "gov"] as const) {
       const { m } = manager(zone);
       m.start();
       expect(m.enabledGroupKeys().length).toBe(TOOL_GROUPS.length);
@@ -764,7 +764,7 @@ describe("금융존(fin): 그룹 존 게이트", () => {
 // ─── 전 그룹 종합: 존별 도구 수 ────────────────────────────────────────────────
 describe("전 그룹: 존별 등록 요약", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureAll(zone: "public" | "gov") {
+  function captureAll(zone: "pub" | "gov") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     registerGroups(
@@ -774,7 +774,7 @@ describe("전 그룹: 존별 등록 요약", () => {
     return names;
   }
   it("두 존 모두 1000개 이상 등록되고 이름이 중복되지 않는다", () => {
-    for (const zone of ["public", "gov"] as const) {
+    for (const zone of ["pub", "gov"] as const) {
       const names = captureAll(zone);
       expect(names.length, zone).toBeGreaterThan(1000);
       expect(new Set(names).size, `${zone} duplicates`).toBe(names.length);
@@ -786,7 +786,7 @@ describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
 
-  function captureDatabase(zone: "public" | "gov") {
+  function captureDatabase(zone: "pub" | "gov") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     registerGroups(
@@ -796,20 +796,20 @@ describe("database 그룹: 존별 등록", () => {
     return names;
   }
 
-  it("public: Serverless 도구는 있고 Cache 사용자 도구는 없다", () => {
-    const names = captureDatabase("public");
+  it("pub: Serverless 도구는 있고 Cache 사용자 도구는 없다", () => {
+    const names = captureDatabase("pub");
     expect(names.some((n) => n.startsWith("ncloud_serverless_"))).toBe(true);
     for (const t of CACHE_USER_TOOLS) expect(names).not.toContain(t);
   });
   it("fin: Serverless 도구도 Cache 사용자 도구도 없고 나머지는 public 과 동일하다", () => {
-    const pub = captureDatabase("public");
+    const pub = captureDatabase("pub");
     const fin = captureDatabase("fin" as any);
     expect(fin.some((n) => n.startsWith("ncloud_serverless_"))).toBe(false);
     for (const t of CACHE_USER_TOOLS) expect(fin).not.toContain(t);
     expect(fin.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_serverless_")).sort());
   });
   it("gov: Serverless 도구는 없고(공공존 미제공) Cache 사용자 도구 4종이 추가되며, 나머지는 public 과 동일하다", () => {
-    const pub = captureDatabase("public");
+    const pub = captureDatabase("pub");
     const gov = captureDatabase("gov");
     expect(gov.some((n) => n.startsWith("ncloud_serverless_"))).toBe(false);
     for (const t of CACHE_USER_TOOLS) expect(gov).toContain(t);
@@ -846,7 +846,7 @@ describe("동적 그룹 로딩: planGroups / GroupManager", () => {
         server: fakeServer,
         client: makeClientFactory(creds, "KR"),
         regionCode: "KR",
-        zone: "public",
+        zone: "pub",
         creds,
         env: { ...process.env, NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
       },

@@ -241,7 +241,7 @@ export interface BillingToolOptions {
 }
 
 export function registerBillingTools(server: McpServer, client: NcloudClient, opts: BillingToolOptions = {}): void {
-  const REGION_CODES = ZONE_PROFILES[opts.zone ?? "public"].regions.map((r) => r.code).join(", ");
+  const REGION_CODES = ZONE_PROFILES[opts.zone ?? "pub"].regions.map((r) => r.code).join(", ");
 
   // ============================================================
   // List Price APIs — /product/...

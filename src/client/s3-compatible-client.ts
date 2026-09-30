@@ -121,7 +121,7 @@ export class S3CompatibleClient {
     this.regionCode = config.regionCode;
     this.storageType = config.storageType ?? "object";
     this.addressing = config.addressing ?? (this.storageType === "ncloud" ? "virtual-hosted" : "path");
-    this.zone = config.zone ?? "public";
+    this.zone = config.zone ?? "pub";
   }
 
   setRegionCode(regionCode: string): void {

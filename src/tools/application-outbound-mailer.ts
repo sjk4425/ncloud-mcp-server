@@ -50,7 +50,7 @@ const EMAIL_LIST = z.array(z.string().email()).min(1);
 
 export function registerOutboundMailerTools(server: McpServer, client: NcloudClient, opts: OutboundMailerToolOptions = {}): void {
   /** 공공존·금융존: Cloud Outbound Mailer 가 SENS 와 별개의 정식 서비스. */
-  const standalone = (opts.zone ?? "public") !== "public";
+  const standalone = (opts.zone ?? "pub") !== "pub";
   // 정식 서비스인 존에서는 레거시 안내를 붙이지 않는다.
   const LEGACY_TAG = standalone ? "" : LEGACY_TAG_PUBLIC;
   const regionParam = z.enum(["KR", "SGN", "JPN"]).optional().describe(

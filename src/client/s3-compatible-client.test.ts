@@ -47,10 +47,10 @@ function sentUrlOf(spy: any): string {
 
 // ─── 존별 엔드포인트·서명 리전 (client/endpoints.ts, 두 존 공식 문서 대조본) ─────────────────────
 describe("S3CompatibleClient: 공공존(gov) 엔드포인트·서명 리전", () => {
-  it("zone 생략 = public: Object Storage KR 은 kr.object.ncloudstorage.com / kr-standard (하위호환)", async () => {
+  it("zone 생략 = pub: Object Storage KR 은 kr.object.ncloudstorage.com / kr-standard (하위호환)", async () => {
     const spy = stubOkFetch();
     const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KR", storageType: "object" });
-    expect(c.getZone()).toBe("public");
+    expect(c.getZone()).toBe("pub");
     await c.request({ method: "GET", bucket: "b" });
     expect(sentUrlOf(spy)).toBe("https://kr.object.ncloudstorage.com/b");
     expect(sentHeaders(spy)["authorization"]).toMatch(/\/kr-standard\/s3\/aws4_request/);

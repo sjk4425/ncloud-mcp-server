@@ -48,9 +48,9 @@ describe("_validation: 리전", () => {
     expect(resolveRegionCode("JPN", "gov")).toBeNull();
     expect(resolveRegionCode("싱가포르", "gov")).toBeNull();
   });
-  it("public: KRS 는 유효하지 않다", () => {
+  it("pub: KRS 는 유효하지 않다", () => {
     expect(resolveRegionCode("KRS")).toBeNull();
-    expect(resolveRegionCode("KRS", "public")).toBeNull();
+    expect(resolveRegionCode("KRS", "pub")).toBeNull();
   });
   it("gov: regionName / invalidRegionMessage 는 공공존 카탈로그를 안내", () => {
     expect(regionName("KRS", "gov")).toBe("한국남부");

@@ -67,7 +67,7 @@ export interface MultiDrmToolOptions {
 }
 
 export function registerMultiDrmTools(server: McpServer, client: NcloudClient, opts: MultiDrmToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
+  const zone: Zone = opts.zone ?? "pub";
   const s = zone === "gov" ? excludingTools(server, DRM_PUBLIC_ONLY_TOOLS) : server;
   // GET helper — DRM API는 x-ncp-region_code 헤더 필요
   const get = (path: string, query?: Record<string, string | number | boolean | undefined>) =>

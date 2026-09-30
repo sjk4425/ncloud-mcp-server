@@ -29,7 +29,7 @@ if (!secretKey) {
   process.exit(1);
 }
 
-// 존 선택: NCLOUD_ZONE=public(기본)|gov. 잘못된 값이면 다른 존으로 조용히 가지 않고 종료한다.
+// 존 선택: NCLOUD_ZONE=pub(기본)|gov|fin. 잘못된 값이면 다른 존으로 조용히 가지 않고 종료한다.
 let zone: Zone;
 try {
   zone = resolveZone(process.env);

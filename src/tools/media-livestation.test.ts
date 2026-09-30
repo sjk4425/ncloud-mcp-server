@@ -8,7 +8,7 @@ import { registerLiveStationTools } from "./media-livestation.js";
  *   GET  /api/v2/channels, /api/v2/qualitySets, PUT /channels/{id}/on|off, /startRecord|/stopRecord.
  * 금융존은 같은 호스트(livestation.apigw.ntruss.com)에 접두 /api/fin-v2 (api-fin, 2026-09-30).
  */
-function setup(zone?: "public" | "fin") {
+function setup(zone?: "pub" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://livestation.apigw.ntruss.com", regionCode: zone === "fin" ? "FKR" : "KR" });
   registerLiveStationTools(server, client, zone ? { zone } : {});
@@ -18,7 +18,7 @@ function setup(zone?: "public" | "fin") {
 }
 
 describe("Live Station: 가이드 경로", () => {
-  it("public: on/off, startRecord/stopRecord, qualitySets", async () => {
+  it("pub: on/off, startRecord/stopRecord, qualitySets", async () => {
     const s = setup();
     const get = vi.spyOn(s.client, "request").mockResolvedValue({});
     const put = vi.spyOn(s.client, "putRequest").mockResolvedValue({});

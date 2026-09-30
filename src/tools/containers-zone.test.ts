@@ -29,9 +29,9 @@ function has(server: McpServer, name: string): boolean {
 
 describe("endpoints: NKS / NCR 리전별 경로 접두", () => {
   it("NKS: 민간존 KR/SGN/JPN, 공공존 KR/KRS, 미지의 리전은 /vnks/v2", () => {
-    expect(nksPathPrefix("public", "KR")).toBe("/vnks/v2");
-    expect(nksPathPrefix("public", "SGN")).toBe("/vnks/sgn-v2");
-    expect(nksPathPrefix("public", "JPN")).toBe("/vnks/jpn-v2");
+    expect(nksPathPrefix("pub", "KR")).toBe("/vnks/v2");
+    expect(nksPathPrefix("pub", "SGN")).toBe("/vnks/sgn-v2");
+    expect(nksPathPrefix("pub", "JPN")).toBe("/vnks/jpn-v2");
     expect(nksPathPrefix("gov", "KR")).toBe("/vnks/v2");
     expect(nksPathPrefix("gov", "KRS")).toBe("/vnks/krs-v2");
     expect(nksPathPrefix("gov", "SGN")).toBe("/vnks/v2");
@@ -42,9 +42,9 @@ describe("endpoints: NKS / NCR 리전별 경로 접두", () => {
     expect(ncrPathPrefix("fin", "FKR")).toBe("/ncr/api/v2");
   });
   it("NCR: 민간존 /ncr/api|sgn-api|jpn-api/v2, 공공존 /ncr/kr|krs/v2", () => {
-    expect(ncrPathPrefix("public", "KR")).toBe("/ncr/api/v2");
-    expect(ncrPathPrefix("public", "SGN")).toBe("/ncr/sgn-api/v2");
-    expect(ncrPathPrefix("public", "JPN")).toBe("/ncr/jpn-api/v2");
+    expect(ncrPathPrefix("pub", "KR")).toBe("/ncr/api/v2");
+    expect(ncrPathPrefix("pub", "SGN")).toBe("/ncr/sgn-api/v2");
+    expect(ncrPathPrefix("pub", "JPN")).toBe("/ncr/jpn-api/v2");
     expect(ncrPathPrefix("gov", "KR")).toBe("/ncr/kr/v2");
     expect(ncrPathPrefix("gov", "KRS")).toBe("/ncr/krs/v2");
   });

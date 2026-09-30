@@ -18,7 +18,7 @@ export interface VodStationToolOptions {
 }
 
 export function registerVodStationTools(server: McpServer, client: NcloudClient, opts: VodStationToolOptions = {}): void {
-  const zone: Zone = opts.zone ?? "public";
+  const zone: Zone = opts.zone ?? "pub";
   const s = zone === "gov" ? excludingTools(server, VODSTATION_PUBLIC_ONLY_TOOLS) : server;
   // ─── Channel Query Tools ───────────────────────────────────────────────────
 

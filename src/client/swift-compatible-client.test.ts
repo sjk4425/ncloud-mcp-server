@@ -9,9 +9,9 @@ import { SwiftCompatibleClient } from "./swift-compatible-client.js";
 describe("SwiftCompatibleClient: 존별 엔드포인트", () => {
   const base = { accessKey: "k", secretKey: "s", projectId: "p", domainId: "d" };
 
-  it("zone 생략 = public: kr.archive.ncloudstorage.com (:5000 인증)", () => {
+  it("zone 생략 = pub: kr.archive.ncloudstorage.com (:5000 인증)", () => {
     const c = new SwiftCompatibleClient(base);
-    expect(c.getZone()).toBe("public");
+    expect(c.getZone()).toBe("pub");
     expect(c.getEndpoints()).toEqual({ auth: "https://kr.archive.ncloudstorage.com:5000", api: "https://kr.archive.ncloudstorage.com" });
   });
 

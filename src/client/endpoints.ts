@@ -15,11 +15,11 @@
  *            https://api-gov.ncloud-docs.com/docs/platform-region-getregionlist ,
  *            https://api-gov.ncloud-docs.com/docs/compute-server (base `https://ncloud.apigw.gov-ntruss.com`)
  *
- * 존 선택은 env `NCLOUD_ZONE` (기본 `public`) — 기존 민간존 사용자는 아무 변경 없이 동작한다.
+ * 존 선택은 env `NCLOUD_ZONE` (기본 `pub`) — 기존 민간존 사용자는 아무 변경 없이 동작한다.
  */
 
-export type Zone = "public" | "gov" | "fin";
-export const ZONES: readonly Zone[] = ["public", "gov", "fin"] as const;
+export type Zone = "pub" | "gov" | "fin";
+export const ZONES: readonly Zone[] = ["pub", "gov", "fin"] as const;
 
 export interface RegionInfo {
   /** API 리전 코드 (`regionCode`). */
@@ -48,8 +48,8 @@ export interface ZoneProfile {
 }
 
 export const ZONE_PROFILES: Record<Zone, ZoneProfile> = {
-  public: {
-    zone: "public",
+  pub: {
+    zone: "pub",
     label: { ko: "민간존", en: "Public" },
     defaultGateway: "https://ncloud.apigw.ntruss.com",
     apigwSuffix: "apigw.ntruss.com",
@@ -99,12 +99,12 @@ export function isZone(value: unknown): value is Zone {
 }
 
 /**
- * env `NCLOUD_ZONE` → Zone. 미설정/빈 값은 `public`(하위호환). 대소문자·공백 무시.
+ * env `NCLOUD_ZONE` → Zone. 미설정/빈 값은 `pub`(하위호환). 대소문자·공백 무시.
  * 알 수 없는 값은 조용히 민간존으로 가지 않도록 **throw** 한다(자격증명이 다른 존으로 가면 안 됨).
  */
 export function resolveZone(env: NodeJS.ProcessEnv = process.env): Zone {
   const raw = (env.NCLOUD_ZONE ?? "").trim().toLowerCase();
-  if (raw === "") return "public";
+  if (raw === "") return "pub";
   if (isZone(raw)) return raw;
   throw new Error(
     `NCLOUD_ZONE 환경 변수 값이 올바르지 않습니다: "${env.NCLOUD_ZONE}". 사용 가능한 값: ${ZONES.join(", ")}`
@@ -131,70 +131,70 @@ function apigw(name: string, zone: Zone): string {
 export const SERVICE_ENDPOINTS = {
   // ── compute ──
   // 민간존은 리전별 호스트(KR/SGN/JPN)가 따로 있다 — registry 에서 regionCode 로 분기. 공공존은 단일.
-  cloudfunctions: { public: apigw("cloudfunctions", "public"), gov: apigw("cloudfunctions", "gov"), fin: "https://cloudfunctions.apigw.fin-ntruss.com" }, // fin: API v2.1(/ncf/api/v2), platform 쿼리 없음·VPC 전용 (compute-cloudfunctions, -v2-putaction)
-  cloudfunctionsSgn: { public: "https://sg-cloudfunctions.apigw.ntruss.com" },
-  cloudfunctionsJpn: { public: "https://jp-cloudfunctions.apigw.ntruss.com" },
+  cloudfunctions: { pub: apigw("cloudfunctions", "pub"), gov: apigw("cloudfunctions", "gov"), fin: "https://cloudfunctions.apigw.fin-ntruss.com" }, // fin: API v2.1(/ncf/api/v2), platform 쿼리 없음·VPC 전용 (compute-cloudfunctions, -v2-putaction)
+  cloudfunctionsSgn: { pub: "https://sg-cloudfunctions.apigw.ntruss.com" },
+  cloudfunctionsJpn: { pub: "https://jp-cloudfunctions.apigw.ntruss.com" },
   // ── network ──
-  globaldns: { public: apigw("globaldns", "public"), gov: apigw("globaldns", "gov"), fin: "https://globaldns.apigw.fin-ntruss.com" }, // fin: networking-globaldns-* 14 op 동일
-  globaltrafficmanager: { public: apigw("globaltrafficmanager", "public"), gov: apigw("globaltrafficmanager", "gov") }, // 금융존 미제공(2026-09-30, api-fin 404)
+  globaldns: { pub: apigw("globaldns", "pub"), gov: apigw("globaldns", "gov"), fin: "https://globaldns.apigw.fin-ntruss.com" }, // fin: networking-globaldns-* 14 op 동일
+  globaltrafficmanager: { pub: apigw("globaltrafficmanager", "pub"), gov: apigw("globaltrafficmanager", "gov") }, // 금융존 미제공(2026-09-30, api-fin 404)
   // ── database ──
-  clouddbServerless: { public: apigw("clouddb-serverless", "public") },
+  clouddbServerless: { pub: apigw("clouddb-serverless", "pub") },
   // ── containers ──
-  nks: { public: apigw("nks", "public"), gov: apigw("nks", "gov"), fin: "https://nks.apigw.fin-ntruss.com" }, // fin 경로 접두는 /nks/v2 (vnks 아님)
-  ncr: { public: apigw("ncr", "public"), gov: "https://gov-ncr.apigw.gov-ntruss.com", fin: "https://ncr.apigw.fin-ntruss.com" }, // gov 불규칙, fin 규칙형(/ncr/api/v2)
+  nks: { pub: apigw("nks", "pub"), gov: apigw("nks", "gov"), fin: "https://nks.apigw.fin-ntruss.com" }, // fin 경로 접두는 /nks/v2 (vnks 아님)
+  ncr: { pub: apigw("ncr", "pub"), gov: "https://gov-ncr.apigw.gov-ntruss.com", fin: "https://ncr.apigw.fin-ntruss.com" }, // gov 불규칙, fin 규칙형(/ncr/api/v2)
   // ── monitoring ──
-  cloudInsight: { public: apigw("cw", "public"), gov: apigw("cw", "gov"), fin: "https://cw.apigw.fin-ntruss.com" },
-  cloudLogAnalytics: { public: apigw("cloudloganalytics", "public"), gov: apigw("cloudloganalytics", "gov"), fin: "https://cloudloganalytics.apigw.fin-ntruss.com" },
+  cloudInsight: { pub: apigw("cw", "pub"), gov: apigw("cw", "gov"), fin: "https://cw.apigw.fin-ntruss.com" },
+  cloudLogAnalytics: { pub: apigw("cloudloganalytics", "pub"), gov: apigw("cloudloganalytics", "gov"), fin: "https://cloudloganalytics.apigw.fin-ntruss.com" },
   // ── governance ──
-  activityTracer: { public: apigw("cloudactivitytracer", "public"), gov: apigw("cloudactivitytracer", "gov"), fin: "https://cloudactivitytracer.apigw.fin-ntruss.com" },
-  cloudAdvisor: { public: apigw("cloud-advisor", "public") }, // 민간존 전용 (api-gov·api-fin 에 management-cloud-advisor-* 없음)
-  resourceManager: { public: apigw("resourcemanager", "public"), gov: apigw("resourcemanager", "gov"), fin: "https://resourcemanager.apigw.fin-ntruss.com" },
-  subAccount: { public: apigw("subaccount", "public"), gov: apigw("subaccount", "gov"), fin: "https://subaccount.apigw.fin-ntruss.com" },
-  wms: { public: apigw("wms", "public"), gov: apigw("wms", "gov"), fin: "https://wms.apigw.fin-ntruss.com" }, // Web service Monitoring System — 세 존 제공(management-wms, 2026-09-30 확인)
+  activityTracer: { pub: apigw("cloudactivitytracer", "pub"), gov: apigw("cloudactivitytracer", "gov"), fin: "https://cloudactivitytracer.apigw.fin-ntruss.com" },
+  cloudAdvisor: { pub: apigw("cloud-advisor", "pub") }, // 민간존 전용 (api-gov·api-fin 에 management-cloud-advisor-* 없음)
+  resourceManager: { pub: apigw("resourcemanager", "pub"), gov: apigw("resourcemanager", "gov"), fin: "https://resourcemanager.apigw.fin-ntruss.com" },
+  subAccount: { pub: apigw("subaccount", "pub"), gov: apigw("subaccount", "gov"), fin: "https://subaccount.apigw.fin-ntruss.com" },
+  wms: { pub: apigw("wms", "pub"), gov: apigw("wms", "gov"), fin: "https://wms.apigw.fin-ntruss.com" }, // Web service Monitoring System — 세 존 제공(management-wms, 2026-09-30 확인)
   // ── devtools ──
-  sourceCommit: { public: apigw("sourcecommit", "public"), gov: apigw("sourcecommit", "gov"), fin: "https://sourcecommit.apigw.fin-ntruss.com" },
-  sourceBuild: { public: apigw("sourcebuild", "public"), gov: apigw("sourcebuild", "gov"), fin: "https://sourcebuild.apigw.fin-ntruss.com" },
+  sourceCommit: { pub: apigw("sourcecommit", "pub"), gov: apigw("sourcecommit", "gov"), fin: "https://sourcecommit.apigw.fin-ntruss.com" },
+  sourceBuild: { pub: apigw("sourcebuild", "pub"), gov: apigw("sourcebuild", "gov"), fin: "https://sourcebuild.apigw.fin-ntruss.com" },
   // SourceDeploy/SourcePipeline: 민간·공공존은 Classic(source*)·VPC(vpcsource*) 호스트가 따로 있고 이 서버는 VPC 를 쓴다.
   // 금융존은 호스트가 하나뿐(sourcedeploy.apigw.fin-ntruss.com — devtools-sourcedeploy 개요, vpc 접두 없음), 경로 동일.
-  sourceDeploy: { public: apigw("vpcsourcedeploy", "public"), gov: apigw("vpcsourcedeploy", "gov"), fin: "https://sourcedeploy.apigw.fin-ntruss.com" },
-  sourcePipeline: { public: apigw("vpcsourcepipeline", "public"), gov: apigw("vpcsourcepipeline", "gov"), fin: "https://sourcepipeline.apigw.fin-ntruss.com" },
+  sourceDeploy: { pub: apigw("vpcsourcedeploy", "pub"), gov: apigw("vpcsourcedeploy", "gov"), fin: "https://sourcedeploy.apigw.fin-ntruss.com" },
+  sourcePipeline: { pub: apigw("vpcsourcepipeline", "pub"), gov: apigw("vpcsourcepipeline", "gov"), fin: "https://sourcepipeline.apigw.fin-ntruss.com" },
   // ── analytics ──
   // 금융존 SES/CDSS 호스트는 `fin-` 접두가 붙는 불규칙형 (analytics-vpcsearchengine / analytics-clouddatastreamingservice 개요, 2026-09-30).
-  searchEngine: { public: apigw("vpcsearchengine", "public"), gov: apigw("vpcsearchengine", "gov"), fin: "https://fin-vpcsearchengine.apigw.fin-ntruss.com" },
-  dataStreaming: { public: apigw("clouddatastreamingservice", "public"), gov: apigw("clouddatastreamingservice", "gov"), fin: "https://fin-clouddatastreamingservice.apigw.fin-ntruss.com" },
-  dataStream: { public: apigw("datastream", "public") },
-  dataStreamProduce: { public: "https://api.datastream.naverncp.com" }, // Data Stream 레코드 전송(produce) 전용 호스트
+  searchEngine: { pub: apigw("vpcsearchengine", "pub"), gov: apigw("vpcsearchengine", "gov"), fin: "https://fin-vpcsearchengine.apigw.fin-ntruss.com" },
+  dataStreaming: { pub: apigw("clouddatastreamingservice", "pub"), gov: apigw("clouddatastreamingservice", "gov"), fin: "https://fin-clouddatastreamingservice.apigw.fin-ntruss.com" },
+  dataStream: { pub: apigw("datastream", "pub") },
+  dataStreamProduce: { pub: "https://api.datastream.naverncp.com" }, // Data Stream 레코드 전송(produce) 전용 호스트
 
-  dataCatalog: { public: apigw("datacatalog", "public") },
-  dataForest: { public: apigw("df", "public") },
-  dataFlow: { public: apigw("dataflow", "public") },
-  dataQuery: { public: "https://kr.dataquery.naverncp.com" },
+  dataCatalog: { pub: apigw("datacatalog", "pub") },
+  dataForest: { pub: apigw("df", "pub") },
+  dataFlow: { pub: apigw("dataflow", "pub") },
+  dataQuery: { pub: "https://kr.dataquery.naverncp.com" },
   // ── media ──
-  vodStation: { public: apigw("vodstation", "public"), gov: "https://vod-station.apigw.gov-ntruss.com", fin: "https://vodstation.apigw.fin-ntruss.com" }, // gov 불규칙; fin 은 Private 게이트웨이(vodstation 개요)
+  vodStation: { pub: apigw("vodstation", "pub"), gov: "https://vod-station.apigw.gov-ntruss.com", fin: "https://vodstation.apigw.fin-ntruss.com" }, // gov 불규칙; fin 은 Private 게이트웨이(vodstation 개요)
   // Live Station 금융존: 호스트는 민간존 게이트웨이 그대로이고 경로 접두만 `/api/fin-v2` (api-fin media-livestation 개요·전 op 원문, 2026-09-30). liveStationPathPrefix() 참고.
-  liveStation: { public: apigw("livestation", "public"), fin: "https://livestation.apigw.ntruss.com" },
-  imageOptimizer: { public: apigw("imageoptimizer", "public") },
-  multiDrm: { public: "https://multi-drm.apigw.ntruss.com", gov: "https://multi-drm.apigw.gov-ntruss.com" }, // 두 존 제공(one-click-multi-drm-api-overview), x-ncp-region_code: KR
+  liveStation: { pub: apigw("livestation", "pub"), fin: "https://livestation.apigw.ntruss.com" },
+  imageOptimizer: { pub: apigw("imageoptimizer", "pub") },
+  multiDrm: { pub: "https://multi-drm.apigw.ntruss.com", gov: "https://multi-drm.apigw.gov-ntruss.com" }, // 두 존 제공(one-click-multi-drm-api-overview), x-ncp-region_code: KR
   // ── cdn ──
   // Global Edge 만 래핑한다. CDN+ / Global CDN 은 2026-12-31 서비스 종료 예정(신규 생성 불가)이라 두 존 모두 이식하지 않는다(2026-09-30 결정).
-  globalEdge: { public: apigw("edge", "public"), gov: apigw("edge", "gov") }, // 두 존 제공(edge-overview, 오퍼레이션 18종 동일)
+  globalEdge: { pub: apigw("edge", "pub"), gov: apigw("edge", "gov") }, // 두 존 제공(edge-overview, 오퍼레이션 18종 동일)
   // ── security ──
-  certificateManager: { public: apigw("certificatemanager", "public"), gov: apigw("certificatemanager", "gov"), fin: "https://certificatemanager.apigw.fin-ntruss.com" },
-  privateCa: { public: apigw("pca", "public"), gov: "https://privateca.apigw.gov-ntruss.com" }, // gov 불규칙; fin 미제공(security-privateca 없음)
-  securityMonitoring: { public: apigw("securitymonitoring", "public"), gov: apigw("securitymonitoring", "gov") }, // fin 미제공
+  certificateManager: { pub: apigw("certificatemanager", "pub"), gov: apigw("certificatemanager", "gov"), fin: "https://certificatemanager.apigw.fin-ntruss.com" },
+  privateCa: { pub: apigw("pca", "pub"), gov: "https://privateca.apigw.gov-ntruss.com" }, // gov 불규칙; fin 미제공(security-privateca 없음)
+  securityMonitoring: { pub: apigw("securitymonitoring", "pub"), gov: apigw("securitymonitoring", "gov") }, // fin 미제공
   // KMS: 민간·공공존은 API 2.0(ocapi.*, security-kms2-*, apigw 아님). 금융존 가이드에는 2.0 이 없고 v1 게이트웨이(kms.apigw.fin-ntruss.com,
   //   security-kms-* 6 op: encrypt/decrypt/createCustomKey/reencrypt/sign/verify, 경로 /keys/v2/{keyTag}/…)만 있다 → security-kms.ts 참고.
-  kms: { public: "https://ocapi.ncloud.com", gov: "https://ocapi.gov-ncloud.com", fin: "https://kms.apigw.fin-ntruss.com" },
+  kms: { pub: "https://ocapi.ncloud.com", gov: "https://ocapi.gov-ncloud.com", fin: "https://kms.apigw.fin-ntruss.com" },
   // ── application ──
   // 세 서비스 모두 두 존 제공(ai-application-service-apigateway / sens-overview / ai-application-service-cloudoutboundmailer, 2026-09-30).
   // 민간존은 2026-09-17 Cloud Outbound Mailer 가 SENS 로 흡수(메일 = SENS /mail/v2, 레거시 Mailer 는 이관 프로젝트 한정),
   // 공공존은 SENS(Project/SMS/알림톡/브랜드메시지, 메일 채널 없음)와 Cloud Outbound Mailer 가 **별개 서비스**로 유지된다.
-  apiGateway: { public: apigw("apigateway", "public"), gov: apigw("apigateway", "gov"), fin: "https://apigateway.apigw.fin-ntruss.com" },
-  sens: { public: apigw("sens", "public"), gov: apigw("sens", "gov"), fin: "https://sens.apigw.fin-ntruss.com" }, // sens-overview 세 존; 메일 채널은 민간존만
-  outboundMailer: { public: apigw("mail", "public"), gov: apigw("mail", "gov"), fin: "https://mail.apigw.fin-ntruss.com" }, // gov·fin 은 별개 정식 서비스
+  apiGateway: { pub: apigw("apigateway", "pub"), gov: apigw("apigateway", "gov"), fin: "https://apigateway.apigw.fin-ntruss.com" },
+  sens: { pub: apigw("sens", "pub"), gov: apigw("sens", "gov"), fin: "https://sens.apigw.fin-ntruss.com" }, // sens-overview 세 존; 메일 채널은 민간존만
+  outboundMailer: { pub: apigw("mail", "pub"), gov: apigw("mail", "gov"), fin: "https://mail.apigw.fin-ntruss.com" }, // gov·fin 은 별개 정식 서비스
   // ── billing ──
   // 금융존 Billing 은 공개형 게이트웨이 `apigw-pub` 도메인(platform-listprice/costandusage/discount 개요, 2026-09-30), 경로 /billing/v1 동일.
-  billing: { public: apigw("billingapi", "public"), gov: apigw("billingapi", "gov"), fin: "https://billingapi.apigw-pub.fin-ntruss.com" },
+  billing: { pub: apigw("billingapi", "pub"), gov: apigw("billingapi", "gov"), fin: "https://billingapi.apigw-pub.fin-ntruss.com" },
 } as const satisfies Record<string, Partial<Record<Zone, string>>>;
 
 export type ServiceKey = keyof typeof SERVICE_ENDPOINTS;
@@ -232,7 +232,7 @@ export interface S3RegionEndpoint {
 }
 
 export const OBJECT_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpoint>> = {
-  public: {
+  pub: {
     KR: { host: "kr.object.ncloudstorage.com", signingRegion: "kr-standard" },
     USWN: { host: "us.object.ncloudstorage.com", signingRegion: "us-standard" },
     SGN: { host: "sg.object.ncloudstorage.com", signingRegion: "sg-standard" },
@@ -249,7 +249,7 @@ export const OBJECT_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpo
 
 /** Ncloud Storage — 민간·공공존 KR 단일 리전, 서명 리전은 문서의 리전 코드 `kr`. 금융존 가이드에는 없음(storage-ncloudstorage 404, 2026-09-30) → fin 빈 표. */
 export const NCLOUD_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpoint>> = {
-  public: { KR: { host: "kr.ncloudstorage.com", signingRegion: "kr" } },
+  pub: { KR: { host: "kr.ncloudstorage.com", signingRegion: "kr" } },
   gov: { KR: { host: "kr.gov-ncloudstorage.com", signingRegion: "kr" } },
   fin: {},
 };
@@ -263,7 +263,7 @@ export interface SwiftRegionEndpoint {
 
 /** Archive Storage(OpenStack Swift) — 민간·공공존 KR 단일 리전. 금융존 가이드에는 없음(common-archivestorageapi 404, 2026-09-30) → fin 빈 표. */
 export const ARCHIVE_STORAGE_ENDPOINTS: Record<Zone, Record<string, SwiftRegionEndpoint>> = {
-  public: { KR: { auth: "https://kr.archive.ncloudstorage.com:5000", api: "https://kr.archive.ncloudstorage.com" } },
+  pub: { KR: { auth: "https://kr.archive.ncloudstorage.com:5000", api: "https://kr.archive.ncloudstorage.com" } },
   gov: { KR: { auth: "https://kr.archive.gov-ncloudstorage.com:5000", api: "https://kr.archive.gov-ncloudstorage.com" } },
   fin: {},
 };
@@ -282,7 +282,7 @@ export function hasStorageEndpoints(table: Record<Zone, Record<string, unknown>>
 export function nksPathPrefix(zone: Zone, regionCode: string): string {
   // 금융존은 접두 자체가 다르다: `/nks/v2` (https://api-fin.ncloud-docs.com/docs/nks-getclusterlist, nks-addsubnet — `vnks` 아님).
   const table: Record<Zone, Record<string, string>> = {
-    public: { KR: "/vnks/v2", SGN: "/vnks/sgn-v2", JPN: "/vnks/jpn-v2" },
+    pub: { KR: "/vnks/v2", SGN: "/vnks/sgn-v2", JPN: "/vnks/jpn-v2" },
     gov: { KR: "/vnks/v2", KRS: "/vnks/krs-v2" },
     fin: { FKR: "/nks/v2" },
   };
@@ -296,7 +296,7 @@ export function nksPathPrefix(zone: Zone, regionCode: string): string {
  */
 export function ncrPathPrefix(zone: Zone, regionCode: string): string {
   const table: Record<Zone, Record<string, string>> = {
-    public: { KR: "/ncr/api/v2", SGN: "/ncr/sgn-api/v2", JPN: "/ncr/jpn-api/v2" },
+    pub: { KR: "/ncr/api/v2", SGN: "/ncr/sgn-api/v2", JPN: "/ncr/jpn-api/v2" },
     gov: { KR: "/ncr/kr/v2", KRS: "/ncr/krs/v2" },
     fin: { FKR: "/ncr/api/v2" }, // https://api-fin.ncloud-docs.com/docs/containerregistry-getregistry
   };
@@ -313,7 +313,7 @@ export function ncrPathPrefix(zone: Zone, regionCode: string): string {
 function regionApiPrefix(zone: Zone, regionCode: string, version: string): string {
   const r = regionCode.toUpperCase();
   // 금융존(FKR)은 리전 세그먼트 없이 `/api/v2` · `/api/v1` (fin cluster-getclusterinfolist 원문, 2026-09-30).
-  const seg = zone === "public" ? ({ SGN: "sgn-", JPN: "jpn-" } as Record<string, string>)[r] : zone === "gov" ? ({ KRS: "krs-" } as Record<string, string>)[r] : undefined;
+  const seg = zone === "pub" ? ({ SGN: "sgn-", JPN: "jpn-" } as Record<string, string>)[r] : zone === "gov" ? ({ KRS: "krs-" } as Record<string, string>)[r] : undefined;
   return `/api/${seg ?? ""}${version}`;
 }
 export function sesPathPrefix(zone: Zone, regionCode: string): string {
@@ -336,9 +336,9 @@ export function cdssPathPrefix(zone: Zone, regionCode: string): string {
  * 근거: https://api.ncloud-docs.com/docs/compute-cloudfunctions , https://api-gov.ncloud-docs.com/docs/compute-cloudfunctions
  */
 export function cloudFunctionsEndpoint(zone: Zone, regionCode: string): string {
-  if (zone === "public") {
-    if (regionCode === "SGN") return SERVICE_ENDPOINTS.cloudfunctionsSgn.public;
-    if (regionCode === "JPN") return SERVICE_ENDPOINTS.cloudfunctionsJpn.public;
+  if (zone === "pub") {
+    if (regionCode === "SGN") return SERVICE_ENDPOINTS.cloudfunctionsSgn.pub;
+    if (regionCode === "JPN") return SERVICE_ENDPOINTS.cloudfunctionsJpn.pub;
   }
   return endpoint("cloudfunctions", zone) as string;
 }
