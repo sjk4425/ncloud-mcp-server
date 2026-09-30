@@ -338,12 +338,16 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "containers",
-    zones: PUBLIC_GOV,
     title: "Containers (NKS, Container Registry)",
     register: ({ server, client, zone }) => {
-      // NKS: 호스트 규칙형(nks.apigw.*), 경로 접두는 리전별(nksPathPrefix). kubeconfig 재발급은 민간존 가이드에만 있다.
+      // NKS: 호스트 규칙형(nks.apigw.*), 경로 접두는 존·리전별(nksPathPrefix — 금융존은 /nks/v2).
+      //   kubeconfig 재발급은 민간존 가이드에만, Add-on Manager 는 민간·공공존 가이드에만 있다(금융존 404, 2026-09-30).
       // NCR: 호스트 불규칙(공공존 gov-ncr.apigw.gov-ntruss.com), 경로 접두 존·리전별(ncrPathPrefix).
-      registerContainersNksTools(server, client(endpoint("nks", zone)), { zone, resetKubeconfig: zone !== "gov" });
+      registerContainersNksTools(server, client(endpoint("nks", zone)), {
+        zone,
+        resetKubeconfig: zone === "public",
+        addons: zone !== "fin",
+      });
       registerContainersRegistryTools(server, client(endpoint("ncr", zone)), { zone });
     },
   },

@@ -140,8 +140,8 @@ export const SERVICE_ENDPOINTS = {
   // ── database ──
   clouddbServerless: { public: apigw("clouddb-serverless", "public") },
   // ── containers ──
-  nks: { public: apigw("nks", "public"), gov: apigw("nks", "gov") },
-  ncr: { public: apigw("ncr", "public"), gov: "https://gov-ncr.apigw.gov-ntruss.com" }, // 불규칙
+  nks: { public: apigw("nks", "public"), gov: apigw("nks", "gov"), fin: "https://nks.apigw.fin-ntruss.com" }, // fin 경로 접두는 /nks/v2 (vnks 아님)
+  ncr: { public: apigw("ncr", "public"), gov: "https://gov-ncr.apigw.gov-ntruss.com", fin: "https://ncr.apigw.fin-ntruss.com" }, // gov 불규칙, fin 규칙형(/ncr/api/v2)
   // ── monitoring ──
   cloudInsight: { public: apigw("cw", "public"), gov: apigw("cw", "gov") },
   cloudLogAnalytics: { public: apigw("cloudloganalytics", "public"), gov: apigw("cloudloganalytics", "gov") },
@@ -273,12 +273,13 @@ export function hasStorageEndpoints(table: Record<Zone, Record<string, unknown>>
  * 표에 없는 리전은 `/vnks/v2`.
  */
 export function nksPathPrefix(zone: Zone, regionCode: string): string {
+  // 금융존은 접두 자체가 다르다: `/nks/v2` (https://api-fin.ncloud-docs.com/docs/nks-getclusterlist, nks-addsubnet — `vnks` 아님).
   const table: Record<Zone, Record<string, string>> = {
     public: { KR: "/vnks/v2", SGN: "/vnks/sgn-v2", JPN: "/vnks/jpn-v2" },
     gov: { KR: "/vnks/v2", KRS: "/vnks/krs-v2" },
-    fin: {}, // containers 그룹 금융존 대조 전
+    fin: { FKR: "/nks/v2" },
   };
-  return table[zone][regionCode.toUpperCase()] ?? "/vnks/v2";
+  return table[zone][regionCode.toUpperCase()] ?? (zone === "fin" ? "/nks/v2" : "/vnks/v2");
 }
 
 /**
@@ -290,7 +291,7 @@ export function ncrPathPrefix(zone: Zone, regionCode: string): string {
   const table: Record<Zone, Record<string, string>> = {
     public: { KR: "/ncr/api/v2", SGN: "/ncr/sgn-api/v2", JPN: "/ncr/jpn-api/v2" },
     gov: { KR: "/ncr/kr/v2", KRS: "/ncr/krs/v2" },
-    fin: {}, // containers 그룹 금융존 대조 전
+    fin: { FKR: "/ncr/api/v2" }, // https://api-fin.ncloud-docs.com/docs/containerregistry-getregistry
   };
   return table[zone][regionCode.toUpperCase()] ?? table[zone]["KR"] ?? "/ncr/api/v2";
 }

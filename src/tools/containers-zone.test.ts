@@ -36,6 +36,11 @@ describe("endpoints: NKS / NCR 리전별 경로 접두", () => {
     expect(nksPathPrefix("gov", "KRS")).toBe("/vnks/krs-v2");
     expect(nksPathPrefix("gov", "SGN")).toBe("/vnks/v2");
   });
+  it("fin: NKS 는 /nks/v2 (vnks 아님), NCR 은 /ncr/api/v2", () => {
+    expect(nksPathPrefix("fin", "FKR")).toBe("/nks/v2");
+    expect(nksPathPrefix("fin", "KR")).toBe("/nks/v2");
+    expect(ncrPathPrefix("fin", "FKR")).toBe("/ncr/api/v2");
+  });
   it("NCR: 민간존 /ncr/api|sgn-api|jpn-api/v2, 공공존 /ncr/kr|krs/v2", () => {
     expect(ncrPathPrefix("public", "KR")).toBe("/ncr/api/v2");
     expect(ncrPathPrefix("public", "SGN")).toBe("/ncr/sgn-api/v2");
@@ -138,6 +143,16 @@ describe("NKS: 존·리전별 경로 접두와 공공존 도구 집합", () => {
     c.setRegionCode("JPN");
     await handler(server, "ncloud_nks_get_versions")({});
     expect(spy.mock.calls[1][1]).toBe("/vnks/jpn-v2/option/version");
+  });
+  it("금융존 FKR 은 /nks/v2, add-on 8종과 reset_kubeconfig 는 등록되지 않는다", async () => {
+    const server = new McpServer({ name: "t", version: "1.0.0" });
+    const c = client("FKR", "https://nks.apigw.fin-ntruss.com");
+    registerContainersNksTools(server, c, { zone: "fin", resetKubeconfig: false, addons: false });
+    const spy = vi.spyOn(c, "requestRaw").mockResolvedValue({});
+    await handler(server, "ncloud_nks_list_clusters")({});
+    expect(spy).toHaveBeenCalledWith("GET", "/nks/v2/clusters");
+    for (const n of ["ncloud_nks_list_available_addons", "ncloud_nks_install_addons", "ncloud_nks_delete_addon", "ncloud_nks_reset_kubeconfig"]) expect(has(server, n), n).toBe(false);
+    expect(has(server, "ncloud_nks_add_subnet")).toBe(true);
   });
   it("공공존 KRS 는 /vnks/krs-v2, reset_kubeconfig 는 등록되지 않는다", async () => {
     const server = new McpServer({ name: "t", version: "1.0.0" });

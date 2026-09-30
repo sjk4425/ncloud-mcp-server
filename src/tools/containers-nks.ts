@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { nksPathPrefix, type Zone } from "../client/endpoints.js";
@@ -31,12 +31,27 @@ import { nksPathPrefix, type Zone } from "../client/endpoints.js";
 export interface NksToolOptions {
   /** 존 — 리전별 경로 접두 표를 고른다. 기본 `public`. */
   zone?: Zone;
-  /** `ncloud_nks_reset_kubeconfig` 등록 여부. 기본 true(민간존). 공공존 가이드에는 해당 오퍼레이션이 없다. */
+  /** `ncloud_nks_reset_kubeconfig` 등록 여부. 기본 true(민간존). 공공존·금융존 가이드에는 해당 오퍼레이션이 없다. */
   resetKubeconfig?: boolean;
+  /** Add-on Manager 도구 8종 등록 여부. 기본 true. 금융존 가이드에는 addon 오퍼레이션이 없다(2026-09-30). */
+  addons?: boolean;
 }
 
-export function registerContainersNksTools(server: McpServer, client: NcloudClient, opts: NksToolOptions = {}): void {
+/** Add-on Manager 도구 — 금융존 미제공. */
+export const NKS_ADDON_TOOLS = [
+  "ncloud_nks_list_available_addons",
+  "ncloud_nks_get_available_addon",
+  "ncloud_nks_get_available_addon_version",
+  "ncloud_nks_list_cluster_addons",
+  "ncloud_nks_get_cluster_addon",
+  "ncloud_nks_install_addons",
+  "ncloud_nks_update_addon",
+  "ncloud_nks_delete_addon",
+] as const;
+
+export function registerContainersNksTools(rawServer: McpServer, client: NcloudClient, opts: NksToolOptions = {}): void {
   const zone: Zone = opts.zone ?? "public";
+  const server = opts.addons === false ? excludingTools(rawServer, NKS_ADDON_TOOLS) : rawServer;
   /** 현재 리전의 경로 접두(리전은 런타임에 바뀔 수 있어 호출 시점에 계산). */
   const base = () => nksPathPrefix(zone, client.getRegionCode());
 
