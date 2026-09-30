@@ -295,9 +295,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "containers",
     title: "Containers (NKS, Container Registry)",
-    register: ({ server, client }) => {
-      registerContainersNksTools(server, client("https://nks.apigw.ntruss.com"));
-      registerContainersRegistryTools(server, client("https://ncr.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // NKS: 호스트 규칙형(nks.apigw.*), 경로 접두는 리전별(nksPathPrefix). kubeconfig 재발급은 민간존 가이드에만 있다.
+      // NCR: 호스트 불규칙(공공존 gov-ncr.apigw.gov-ntruss.com), 경로 접두 존·리전별(ncrPathPrefix).
+      registerContainersNksTools(server, client(endpoint("nks", zone)), { zone, resetKubeconfig: zone !== "gov" });
+      registerContainersRegistryTools(server, client(endpoint("ncr", zone)), { zone });
     },
   },
   {

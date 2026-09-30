@@ -4,18 +4,42 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
+import { nksPathPrefix, type Zone } from "../client/endpoints.js";
 
 /**
  * NKS (Ncloud Kubernetes Service) API Tools
  *
- * Base URL: https://nks.apigw.ntruss.com
+ * Base URL: https://nks.apigw.ntruss.com (민간존) / https://nks.apigw.gov-ntruss.com (공공존)
  * API Style: RESTful (GET/POST/PATCH/PUT/DELETE with JSON body)
  * Auth: x-ncp-apigw-timestamp, x-ncp-iam-access-key, x-ncp-apigw-signature-v2, Content-Type: application/json
  *
  * NOTE: NKS API does NOT use responseFormatType=json (always returns JSON).
  * All requests use client.requestRaw() instead of client.request().
+ *
+ * 경로 접두는 **리전별**이다(민간존 KR `/vnks/v2` · SGN `/vnks/sgn-v2` · JPN `/vnks/jpn-v2`, 공공존 KR `/vnks/v2` ·
+ * KRS `/vnks/krs-v2`) — 모든 경로는 `base()`(`nksPathPrefix(zone, client.getRegionCode())`)로 조립한다.
+ *
+ * 2026-09-30 두 존 공식 가이드 대조로 정정한 오퍼레이션(모두 두 존 공통 스펙):
+ *   - Cluster Subnet 추가: `PATCH /clusters/{uuid}/add-subnet`, body `{ subnets: [{ number }] }` (nks-addsubnet)
+ *   - NodePool Subnet 수정: `PATCH .../node-pool/{instanceNo}/subnets`, body `{ subnets: [number] }` (nks-updatenodepoolsubnet)
+ *   - LB Subnet 수정: **쿼리** `lbSubnetNo` | `lbSubnetNoList`(민간존, ≤2) + `igwYn`, 본문 없음 (nks-lbsubnet)
+ *   - IP ACL: `defaultAction` 필수, `entries[].comment` (nks-patchipacl)
+ *   - IAM Access Entry: `/access-entries`, 식별자 `entryUuid`(UUID), 생성 body `{type, entry, groups?, policies?}`,
+ *     수정은 **PUT** `{groups?, policies?}` (nks-createaccessentry / nks-updateaccessentry / nks-getaccessentry)
+ *   - kubeconfig 재발급(`PATCH /kubeconfig`, nks-updatekubeconfig)은 민간존 가이드에만 있다.
  */
-export function registerContainersNksTools(server: McpServer, client: NcloudClient): void {
+export interface NksToolOptions {
+  /** 존 — 리전별 경로 접두 표를 고른다. 기본 `public`. */
+  zone?: Zone;
+  /** `ncloud_nks_reset_kubeconfig` 등록 여부. 기본 true(민간존). 공공존 가이드에는 해당 오퍼레이션이 없다. */
+  resetKubeconfig?: boolean;
+}
+
+export function registerContainersNksTools(server: McpServer, client: NcloudClient, opts: NksToolOptions = {}): void {
+  const zone: Zone = opts.zone ?? "public";
+  /** 현재 리전의 경로 접두(리전은 런타임에 바뀔 수 있어 호출 시점에 계산). */
+  const base = () => nksPathPrefix(zone, client.getRegionCode());
+
   // ─── Cluster Query Tools ───────────────────────────────────────────────────
 
   defineTool(
@@ -24,7 +48,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     "List all NKS (Ncloud Kubernetes Service) clusters in the current region",
     {},
     async () => {
-      return client.requestRaw("GET", "/vnks/v2/clusters");
+      return client.requestRaw("GET", `${base()}/clusters`);
     }
   );
 
@@ -36,7 +60,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster to query"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}`);
     }
   );
 
@@ -73,17 +97,26 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       regionCode: z.string({ required_error: requiredError("regionCode") }).describe("Region code (e.g., KR, SGN, JPN)"),
       vpcNo: z.number({ required_error: requiredError("vpcNo") }).describe("VPC number"),
       subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).describe("Subnet number list for the cluster"),
-      lbPublicSubnetNo: z.number({ required_error: requiredError("lbPublicSubnetNo") }).describe("Load balancer public subnet number"),
+      lbPublicSubnetNo: z.number().optional().describe("Load balancer public subnet number. Required unless lbPublicSubnetNoList is given (Public zone) — the Government-zone guide lists it as required"),
+      lbPublicSubnetNoList: z.array(z.number()).max(2).optional().describe("Public zone only: up to 2 public LB subnet numbers in different zones (multi-zone). Alternative to lbPublicSubnetNo"),
       k8sVersion: z.string().optional().describe("Kubernetes version (from ncloud_nks_get_versions). G3/KVM uses nks.2 suffix, G2/XEN uses nks.1 suffix"),
       hypervisorCode: z.string().optional().describe("Hypervisor code: XEN (default) or KVM. Required as 'KVM' for G3 clusters"),
       zoneCode: z.string().optional().describe("Zone code (e.g., KR-2). Required when isRegional is false (default). API returns 400 without details if missing for single-zone clusters"),
+      zoneNo: z.number().optional().describe("Zone number — documented alternative to zoneCode"),
+      subnetLbNo: z.number().optional().describe("Load balancer subnet number (legacy single LB-subnet field; conditional per the guide)"),
       lbPrivateSubnetNo: z.number().optional().describe("Load balancer private subnet number. Required for G3/KVM clusters (API returns 400 without details if missing)"),
-      isRegional: z.boolean().optional().describe("Multi-zone (Regional) cluster. Default: false"),
+      lbPrivateSubnetNoList: z.array(z.number()).max(2).optional().describe("Public zone only: up to 2 private LB subnet numbers in different zones (multi-zone). Alternative to lbPrivateSubnetNo"),
+      isRegional: z.boolean().optional().describe("Multi-zone (Regional) cluster. Default: false. Public zone only (not in the Government-zone guide)"),
       publicNetwork: z.boolean().optional().describe("Subnet network type. true=Public, false=Private (default)"),
       log: z.object({ audit: z.boolean().optional() }).optional().describe("Log settings. audit=true sends the Kubernetes audit log to Cloud Log Analytics and, since 2026-09-17, is rejected (400) unless the account has an active CLA subscription"),
+      authType: z.enum(["API", "CONFIG_MAP"]).optional().describe("Cluster authentication mode. IAM access entries (ncloud_nks_*_access_entry) require API. ⚠️ Once set to API it cannot be changed back"),
+      bootstrapAccessEntry: z.boolean().optional().describe("Auto-create an IAM access entry for the creating principal (authType=API only)"),
+      kmsKeyTag: z.string().optional().describe("KMS key tag for Kubernetes secret encryption (from the Key Management Service console)"),
       nodePool: z.array(z.object({
         name: z.string().optional().describe("Node pool name"),
         nodeCount: z.number().optional().describe("Number of nodes"),
+        subnetNo: z.number().optional().describe("Subnet number for the node pool (single subnet)"),
+        subnetNoList: z.array(z.number()).optional().describe("Subnet numbers for the node pool (multiple subnets)"),
         softwareCode: z.string().optional().describe("Server image code — MUST use the FULL value from ncloud_nks_get_server_images including pipe and image number (e.g., SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604). Do NOT strip the pipe portion."),
         productCode: z.string().optional().describe("Product code (XEN/G2 only, not available for G3/KVM)"),
         serverSpecCode: z.string().optional().describe("Server spec code (KVM/G3 only, e.g., c2-g3. from ncloud_nks_get_server_specs)"),
@@ -91,13 +124,33 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         labels: z.array(z.object({ key: z.string(), value: z.string() })).optional().describe("Node labels"),
         taints: z.array(z.object({ key: z.string(), value: z.string().optional(), effect: z.string() })).optional().describe("Node taints"),
         serverRoleId: z.string().optional().describe("IAM server role ID"),
+        fabricCluster: z.object({
+          poolName: z.string().optional().describe("Fabric cluster pool name"),
+          poolNo: z.number().optional().describe("Fabric cluster pool number"),
+        }).optional().describe("Fabric cluster to place the node pool in (poolName or poolNo)"),
         zoneCode: z.string().optional().describe("Zone code (e.g., KR-1). Required for Regional clusters and, since 2026-09-17, must match the zone of the subnets assigned to this node pool — a mismatch is rejected with 400"),
       })).optional().describe("Initial node pool configurations"),
+      addons: z.array(z.object({
+        addonName: z.string().describe("Add-on name (from ncloud_nks_list_available_addons)"),
+        version: z.string().optional().describe("Add-on version (from ncloud_nks_get_available_addon)"),
+        configurationValues: z.record(z.unknown()).optional().describe("Add-on configuration values (schema from ncloud_nks_get_available_addon_version)"),
+      })).optional().describe("Add-ons to install together with the cluster"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
       // ─── G3/KVM pre-validation ────────────────────────────────────────────
       const isG3 = params.clusterType?.includes("G003") || params.hypervisorCode?.toUpperCase() === "KVM";
+
+      // 공용 LB 서브넷은 단일 값 또는(민간존) 목록 중 하나가 있어야 한다.
+      if (params.lbPublicSubnetNo === undefined && (!params.lbPublicSubnetNoList || params.lbPublicSubnetNoList.length === 0)) {
+        return {
+          content: [{ type: "text" as const, text: L({
+            ko: "❌ lbPublicSubnetNo(또는 민간존 lbPublicSubnetNoList) 중 하나는 필수입니다.",
+            en: "❌ One of lbPublicSubnetNo (or, in the Public zone, lbPublicSubnetNoList) is required.",
+          }) }],
+          isError: true,
+        };
+      }
 
       // ─── Common pre-validation (applies to both G2 and G3) ────────────────
       if (!params.isRegional && !params.zoneCode) {
@@ -162,7 +215,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       if (dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: NKS Cluster Creation",
-          endpoint: "/vnks/v2/clusters",
+          endpoint: `${base()}/clusters`,
           method: "POST",
           requestParams: body,
           noun: { ko: "클러스터", en: "cluster" },
@@ -189,7 +242,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         });
       }
 
-      const result = await client.requestRaw("POST", "/vnks/v2/clusters", undefined, body);
+      const result = await client.requestRaw("POST", `${base()}/clusters`, undefined, body);
       return result;
     }
   );
@@ -206,7 +259,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}`);
+      const result = await client.requestRaw("DELETE", `${base()}/clusters/${params.clusterUuid}`);
       return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete NKS Cluster [${params.clusterUuid}]. All node pools and workloads will be destroyed.\n\nTo execute, call this tool again with confirm=true.` } }
@@ -228,7 +281,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
       if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
       if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
-      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/upgrade`, queryParams);
+      const result = await client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/upgrade`, queryParams);
       return result;
     }
   );
@@ -245,20 +298,22 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       audit: z.boolean({ required_error: requiredError("audit") }).describe("Whether to enable audit log collection (true/false)"),
     },
     async (params) => {
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/log`, undefined, { audit: params.audit });
+      return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/log`, undefined, { audit: params.audit });
     }
   );
 
   defineTool(
     server,
     "ncloud_nks_add_subnet",
-    "Add subnets to an NKS cluster",
+    "Add subnets to an NKS cluster (PATCH /clusters/{uuid}/add-subnet; a cluster can have at most 5 subnets)",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).describe("List of subnet numbers to add"),
+      subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).min(1).describe("List of subnet numbers to add (sent as subnets[].number)"),
     },
     async (params) => {
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/subnet`, undefined, { subnetNoList: params.subnetNoList });
+      // 스펙(두 존 공통): PATCH .../add-subnet, body { subnets: [{ number }] } — 이전의 `/subnet` + subnetNoList 는 어느 존 문서에도 없다.
+      const body = { subnets: params.subnetNoList.map((number) => ({ number })) };
+      return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/add-subnet`, undefined, body);
     }
   );
 
@@ -279,7 +334,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     },
     async (params) => {
       const { clusterUuid, ...body } = params;
-      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/oidc`, undefined, body);
+      const result = await client.requestRaw("PATCH", `${base()}/clusters/${clusterUuid}/oidc`, undefined, body);
       return result;
     }
   );
@@ -292,7 +347,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/oidc`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/oidc`);
     }
   );
 
@@ -304,23 +359,28 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/ip-acl`);
     }
   );
 
   defineTool(
     server,
     "ncloud_nks_set_ip_acl",
-    "Configure IP ACL for an NKS cluster to restrict API server access",
+    "Configure IP ACL for an NKS cluster to restrict API server access. defaultAction (allow|deny) is required and applies to addresses not matched by entries.",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      defaultAction: z.enum(["allow", "deny"], { required_error: requiredError("defaultAction") }).describe("Default action for addresses not matched by any entry"),
       entries: z.array(z.object({
-        action: z.string().describe("ACL action (allow or deny)"),
+        action: z.enum(["allow", "deny"]).describe("ACL action for this entry"),
         address: z.string().describe("IP address or CIDR block"),
-      }), { required_error: requiredError("entries") }).describe("IP ACL entries"),
+        comment: z.string().optional().describe("Free-text comment"),
+      })).optional().describe("IP ACL entries (optional)"),
     },
     async (params) => {
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/ip-acl`, undefined, { entries: params.entries });
+      // 스펙(두 존 공통, nks-patchipacl): defaultAction 필수, entries 선택 — 이전 구현은 defaultAction 누락으로 항상 실패했다.
+      const body: Record<string, unknown> = { defaultAction: params.defaultAction };
+      if (params.entries) body.entries = params.entries;
+      return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/ip-acl`, undefined, body);
     }
   );
 
@@ -333,22 +393,30 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       returnProtection: z.boolean({ required_error: requiredError("returnProtection") }).describe("Enable/disable deletion protection"),
     },
     async (params) => {
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/return-protection`, undefined, { returnProtection: params.returnProtection });
+      return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/return-protection`, undefined, { returnProtection: params.returnProtection });
     }
   );
 
   defineTool(
     server,
     "ncloud_nks_update_lb_subnet",
-    "Update load balancer subnet for an NKS cluster",
+    "Update the load balancer subnet of an NKS cluster. Parameters are sent as query string (no JSON body): lbSubnetNo (or, Public zone only, lbSubnetNoList with up to 2 subnets in different zones) plus igwYn (Y = public subnet, N = private, default).",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      lbPrivateSubnetNo: z.number().optional().describe("New LB private subnet number"),
-      lbPublicSubnetNo: z.number().optional().describe("New LB public subnet number"),
+      lbSubnetNo: z.number().optional().describe("Load balancer subnet instance number (required unless lbSubnetNoList is given)"),
+      lbSubnetNoList: z.array(z.number()).max(2).optional().describe("Public zone only: up to 2 LB subnet instance numbers in different zones (multi-zone). Alternative to lbSubnetNo"),
+      igwYn: z.enum(["Y", "N"]).optional().describe("Subnet type: Y = public LB subnet, N = private (default)"),
     },
     async (params) => {
-      const { clusterUuid, ...body } = params;
-      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/lb-subnet`, undefined, body);
+      // 스펙(두 존 공통, nks-lbsubnet): PATCH + 쿼리 파라미터, 본문 없음 — 이전 구현은 존재하지 않는 body 필드를 보냈다.
+      if (params.lbSubnetNo === undefined && (!params.lbSubnetNoList || params.lbSubnetNoList.length === 0)) {
+        return { content: [{ type: "text" as const, text: "One of lbSubnetNo or lbSubnetNoList (Public zone) is required." }], isError: true };
+      }
+      const queryParams: Record<string, string> = {};
+      if (params.lbSubnetNo !== undefined) queryParams.lbSubnetNo = String(params.lbSubnetNo);
+      if (params.lbSubnetNoList && params.lbSubnetNoList.length > 0) queryParams.lbSubnetNoList = params.lbSubnetNoList.join(",");
+      if (params.igwYn) queryParams.igwYn = params.igwYn;
+      const result = await client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/lb-subnet`, queryParams);
       return result;
     }
   );
@@ -363,7 +431,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     },
     async (params) => {
       const { clusterUuid, ...body } = params;
-      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/secret-encryption`, undefined, body);
+      const result = await client.requestRaw("PATCH", `${base()}/clusters/${clusterUuid}/secret-encryption`, undefined, body);
       return result;
     }
   );
@@ -377,7 +445,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       authType: z.string({ required_error: requiredError("authType") }).describe("Auth type: API or CONFIG_MAP"),
     },
     async (params) => {
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/auth-type`, undefined, { authType: params.authType });
+      return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/auth-type`, undefined, { authType: params.authType });
     }
   );
 
@@ -392,21 +460,24 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/kubeconfig`);
     }
   );
 
-  defineTool(
-    server,
-    "ncloud_nks_reset_kubeconfig",
-    "Reset the kubeconfig credentials for a specified NKS cluster",
-    {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-    },
-    async (params) => {
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/kubeconfig`);
-    }
-  );
+  // kubeconfig 재발급은 민간존 가이드(nks-updatekubeconfig)에만 있다 — 공공존은 등록하지 않는다.
+  if (opts.resetKubeconfig ?? true) {
+    defineTool(
+      server,
+      "ncloud_nks_reset_kubeconfig",
+      "Reset the kubeconfig credentials for a specified NKS cluster",
+      {
+        clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      },
+      async (params) => {
+        return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/kubeconfig`);
+      }
+    );
+  }
 
   // ─── Worker Node Tools ─────────────────────────────────────────────────────
 
@@ -418,7 +489,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/nodes`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/nodes`);
     }
   );
 
@@ -433,7 +504,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/nodes/${params.instanceNo}`);
+      const result = await client.requestRaw("DELETE", `${base()}/clusters/${params.clusterUuid}/nodes/${params.instanceNo}`);
       return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Worker Node [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` } }
@@ -447,9 +518,10 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     "List all node pools in a specified NKS cluster",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      hypervisorCode: z.enum(["XEN", "KVM"]).optional().describe("Hypervisor filter: XEN (default) or KVM"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/node-pool`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/node-pool`, params.hypervisorCode ? { hypervisorCode: params.hypervisorCode } : undefined);
     }
   );
 
@@ -481,13 +553,13 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         // clusterUuid는 경로 세그먼트라 본문에 들어가지 않는다 — 프리뷰도 본문만 보여준다.
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: Node Pool Creation",
-          endpoint: `/vnks/v2/clusters/${clusterUuid}/node-pool`,
+          endpoint: `${base()}/clusters/${clusterUuid}/node-pool`,
           method: "POST",
           requestParams: body,
           noun: { ko: "노드풀", en: "node pool" },
         });
       }
-      const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/node-pool`, undefined, body);
+      const result = await client.requestRaw("POST", `${base()}/clusters/${clusterUuid}/node-pool`, undefined, body);
       return result;
     }
   );
@@ -510,7 +582,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       const body: Record<string, unknown> = {};
       if (params.nodeCount !== undefined) body.nodeCount = params.nodeCount;
       if (params.autoscale !== undefined) body.autoscale = params.autoscale;
-      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`, undefined, body);
+      const result = await client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`, undefined, body);
       return result;
     }
   );
@@ -526,7 +598,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`);
+      const result = await client.requestRaw("DELETE", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}`);
       return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Node Pool [${params.instanceNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` } }
@@ -548,7 +620,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       }), { required_error: requiredError("labels") }).describe("Label key/value pairs"),
     },
     async (params) => {
-      return client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/labels`, undefined, { labels: params.labels });
+      return client.requestRaw("PUT", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/labels`, undefined, { labels: params.labels });
     }
   );
 
@@ -566,7 +638,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       }), { required_error: requiredError("taints") }).describe("Taint key/value/effect objects"),
     },
     async (params) => {
-      return client.requestRaw("PUT", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/taints`, undefined, { taints: params.taints });
+      return client.requestRaw("PUT", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/taints`, undefined, { taints: params.taints });
     }
   );
 
@@ -585,7 +657,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
       if (params.maxSurge !== undefined) queryParams.maxSurge = String(params.maxSurge);
       if (params.maxUnavailable !== undefined) queryParams.maxUnavailable = String(params.maxUnavailable);
-      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/upgrade`, queryParams);
+      const result = await client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/upgrade`, queryParams);
       return result;
     }
   );
@@ -593,57 +665,69 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_update_node_pool_subnet",
-    "Update subnet for a node pool in an NKS cluster",
+    "Update the subnets of a node pool that has manually assigned subnets (PATCH .../node-pool/{instanceNo}/subnets). Not usable when subnets are auto-assigned.",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
       instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Node pool instance number"),
-      subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).describe("New subnet number list"),
+      subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).min(1).describe("New subnet number list (sent as subnets[])"),
     },
     async (params) => {
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/subnet`, undefined, { subnetNoList: params.subnetNoList });
+      // 스펙(두 존 공통, nks-updatenodepoolsubnet): `/subnets` + body { subnets: [number] } — 이전의 `/subnet` + subnetNoList 는 문서에 없다.
+      return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/subnets`, undefined, { subnets: params.subnetNoList });
     }
   );
 
   // ─── IAM Access Entry Tools ────────────────────────────────────────────────
+  // 스펙(두 존 공통): /clusters/{uuid}/access-entries, 식별자 entryUuid(UUID), 생성 POST {type, entry, groups?, policies?},
+  // 수정 PUT {groups?, policies?}(전체 교체). 클러스터 authType=API 에서만 동작한다.
+
+  const accessPolicySchema = z.array(z.object({
+    type: z.enum(["NKSClusterAdminPolicy", "NKSAdminPolicy", "NKSEditPolicy", "NKSViewPolicy"]).describe("NKS access policy type"),
+    scope: z.enum(["cluster", "namespace"]).describe("Policy scope"),
+    namespaces: z.array(z.string()).optional().describe("Target namespaces — required when scope is 'namespace'"),
+  }));
 
   defineTool(
     server,
     "ncloud_nks_list_access_entries",
-    "List IAM access entries for an NKS cluster",
+    "List IAM access entries of an NKS cluster (requires authType=API on the cluster)",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/access-entries`);
     }
   );
 
   defineTool(
     server,
     "ncloud_nks_get_access_entry",
-    "Get a specific IAM access entry for an NKS cluster",
+    "Get one IAM access entry of an NKS cluster by its UUID",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      accessEntryNo: z.number({ required_error: requiredError("accessEntryNo") }).describe("Access entry number"),
+      entryUuid: z.string({ required_error: requiredError("entryUuid") }).describe("IAM access entry UUID (from ncloud_nks_list_access_entries)"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/access-entries/${params.entryUuid}`);
     }
   );
 
   defineTool(
     server,
     "ncloud_nks_create_access_entry",
-    "Create an IAM access entry for an NKS cluster",
+    "Create an IAM access entry for an NKS cluster: maps an IAM USER or ROLE (NRN) to Kubernetes groups and/or NKS access policies. Requires authType=API.",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      principalArn: z.string().optional().describe("IAM principal ARN"),
-      kubernetesGroups: z.array(z.string()).optional().describe("Kubernetes groups"),
-      type: z.string().optional().describe("Access entry type"),
+      type: z.enum(["USER", "ROLE"], { required_error: requiredError("type") }).describe("IAM principal type"),
+      entry: z.string({ required_error: requiredError("entry") }).describe("NRN of the IAM USER or ROLE"),
+      groups: z.array(z.string()).optional().describe("Kubernetes group names to bind the principal to"),
+      policies: accessPolicySchema.optional().describe("NKS access policies to attach (type + scope, namespaces when scope is 'namespace')"),
     },
     async (params) => {
       const { clusterUuid, ...body } = params;
-      const result = await client.requestRaw("POST", `/vnks/v2/clusters/${clusterUuid}/access-entry`, undefined, body);
+      const bad = (body.policies ?? []).find((p) => p.scope === "namespace" && (!p.namespaces || p.namespaces.length === 0));
+      if (bad) return { content: [{ type: "text" as const, text: `policies[].namespaces is required when scope is 'namespace' (policy ${bad.type}).` }], isError: true };
+      const result = await client.requestRaw("POST", `${base()}/clusters/${clusterUuid}/access-entries`, undefined, body);
       return result;
     }
   );
@@ -651,15 +735,16 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_nks_update_access_entry",
-    "Update an IAM access entry for an NKS cluster",
+    "Update the Kubernetes groups and/or NKS access policies of an IAM access entry (PUT — the supplied lists replace the existing ones)",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      accessEntryNo: z.number({ required_error: requiredError("accessEntryNo") }).describe("Access entry number"),
-      kubernetesGroups: z.array(z.string()).optional().describe("Kubernetes groups"),
+      entryUuid: z.string({ required_error: requiredError("entryUuid") }).describe("IAM access entry UUID"),
+      groups: z.array(z.string()).optional().describe("Kubernetes group names (replaces the existing list)"),
+      policies: accessPolicySchema.optional().describe("NKS access policies (replaces the existing list)"),
     },
     async (params) => {
-      const { clusterUuid, accessEntryNo, ...body } = params;
-      const result = await client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/access-entry/${accessEntryNo}`, undefined, body);
+      const { clusterUuid, entryUuid, ...body } = params;
+      const result = await client.requestRaw("PUT", `${base()}/clusters/${clusterUuid}/access-entries/${entryUuid}`, undefined, body);
       return result;
     }
   );
@@ -671,14 +756,14 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     "⚠️ Destructive: Delete an IAM access entry from an NKS cluster. Set confirm=true to execute.",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      accessEntryNo: z.number({ required_error: requiredError("accessEntryNo") }).describe("Access entry number to delete"),
+      entryUuid: z.string({ required_error: requiredError("entryUuid") }).describe("IAM access entry UUID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/access-entry/${params.accessEntryNo}`);
+      const result = await client.requestRaw("DELETE", `${base()}/clusters/${params.clusterUuid}/access-entries/${params.entryUuid}`);
       return result ?? { success: true };
     },
-    { destructive: { message: (params) => `⚠️ This will delete IAM Access Entry [${params.accessEntryNo}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` } }
+    { destructive: { message: (params) => `⚠️ This will delete IAM Access Entry [${params.entryUuid}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Reference/Query Tools (Versions, Images, Specs) ───────────────────────
@@ -695,7 +780,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       const queryParams: Record<string, string> = {};
       if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
       if (params.isRegionalSupport !== undefined) queryParams.isRegionalSupport = String(params.isRegionalSupport);
-      const result = await client.requestRaw("GET", "/vnks/v2/option/version", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      const result = await client.requestRaw("GET", `${base()}/option/version`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
       return result;
     }
   );
@@ -710,7 +795,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
     async (params) => {
       const queryParams: Record<string, string> = {};
       if (params.hypervisorCode) queryParams.hypervisorCode = params.hypervisorCode;
-      const result = await client.requestRaw("GET", "/vnks/v2/option/server-image", Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      const result = await client.requestRaw("GET", `${base()}/option/server-image`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
       return result;
     }
   );
@@ -728,7 +813,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       const queryParams: Record<string, string> = { softwareCode: params.softwareCode };
       if (params.zoneCode) queryParams.zoneCode = params.zoneCode;
       if (params.zoneNo) queryParams.zoneNo = params.zoneNo;
-      const result = await client.requestRaw("GET", "/vnks/v2/option/server-product-code", queryParams);
+      const result = await client.requestRaw("GET", `${base()}/option/server-product-code`, queryParams);
       return result;
     }
   );
@@ -750,7 +835,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       const queryParams: Record<string, string> = { k8sVersion: params.k8sVersion };
       if (params.page !== undefined) queryParams.page = String(params.page);
       if (params.size !== undefined) queryParams.size = String(params.size);
-      return client.requestRaw("GET", "/vnks/v2/addon-configs", queryParams);
+      return client.requestRaw("GET", `${base()}/addon-configs`, queryParams);
     }
   );
 
@@ -763,7 +848,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/addon-configs/${params.addonName}`, { k8sVersion: params.k8sVersion });
+      return client.requestRaw("GET", `${base()}/addon-configs/${params.addonName}`, { k8sVersion: params.k8sVersion });
     }
   );
 
@@ -777,7 +862,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/addon-configs/${params.addonName}/versions/${params.version}`, { k8sVersion: params.k8sVersion });
+      return client.requestRaw("GET", `${base()}/addon-configs/${params.addonName}/versions/${params.version}`, { k8sVersion: params.k8sVersion });
     }
   );
 
@@ -796,7 +881,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       if (params.status) queryParams.status = params.status;
       if (params.page !== undefined) queryParams.page = String(params.page);
       if (params.size !== undefined) queryParams.size = String(params.size);
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/addons`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/addons`, Object.keys(queryParams).length > 0 ? queryParams : undefined);
     }
   );
 
@@ -809,7 +894,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       addonRef: z.string({ required_error: requiredError("addonRef") }).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/vnks/v2/clusters/${params.clusterUuid}/addons/${params.addonRef}`);
+      return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/addons/${params.addonRef}`);
     }
   );
 
@@ -832,14 +917,14 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
         // 요청 바디는 최상위 JSON 배열이며 clusterUuid는 경로 세그먼트다.
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: NKS Add-on Installation",
-          endpoint: `/vnks/v2/clusters/${params.clusterUuid}/addons`,
+          endpoint: `${base()}/clusters/${params.clusterUuid}/addons`,
           method: "POST",
           requestParams: params.addons,
           noun: { ko: "애드온", en: "add-on" },
         });
       }
       // 요청 바디는 최상위 JSON 배열(객체 래핑 아님).
-      const result = await client.requestRaw("POST", `/vnks/v2/clusters/${params.clusterUuid}/addons`, undefined, params.addons);
+      const result = await client.requestRaw("POST", `${base()}/clusters/${params.clusterUuid}/addons`, undefined, params.addons);
       return result;
     }
   );
@@ -870,7 +955,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
           isError: true,
         };
       }
-      return client.requestRaw("PATCH", `/vnks/v2/clusters/${clusterUuid}/addons/${addonRef}`, undefined, body);
+      return client.requestRaw("PATCH", `${base()}/clusters/${clusterUuid}/addons/${addonRef}`, undefined, body);
     }
   );
 
@@ -885,7 +970,7 @@ export function registerContainersNksTools(server: McpServer, client: NcloudClie
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
-      const result = await client.requestRaw("DELETE", `/vnks/v2/clusters/${params.clusterUuid}/addons/${params.addonRef}`);
+      const result = await client.requestRaw("DELETE", `${base()}/clusters/${params.clusterUuid}/addons/${params.addonRef}`);
       return result ?? { success: true };
     },
     { destructive: { message: (params) => `⚠️ This will uninstall Add-on [${params.addonRef}] from Cluster [${params.clusterUuid}].\n\nTo execute, call this tool again with confirm=true.` } }

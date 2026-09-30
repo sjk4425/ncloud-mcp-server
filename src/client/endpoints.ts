@@ -239,6 +239,33 @@ export const ARCHIVE_STORAGE_ENDPOINTS: Record<Zone, Record<string, SwiftRegionE
 };
 
 /**
+ * NKS(Ncloud Kubernetes Service) REST 경로 접두 — 리전이 **경로**에 들어간다(호스트는 존별 단일).
+ *   민간존: KR `/vnks/v2`, SGN `/vnks/sgn-v2`, JPN `/vnks/jpn-v2`  (https://api.ncloud-docs.com/docs/nks-getclusterlist 등 각 op 페이지)
+ *   공공존: KR `/vnks/v2`, KRS `/vnks/krs-v2`                      (https://api-gov.ncloud-docs.com/docs/nks-getclusterlist)
+ * 표에 없는 리전은 `/vnks/v2`.
+ */
+export function nksPathPrefix(zone: Zone, regionCode: string): string {
+  const table: Record<Zone, Record<string, string>> = {
+    public: { KR: "/vnks/v2", SGN: "/vnks/sgn-v2", JPN: "/vnks/jpn-v2" },
+    gov: { KR: "/vnks/v2", KRS: "/vnks/krs-v2" },
+  };
+  return table[zone][regionCode.toUpperCase()] ?? "/vnks/v2";
+}
+
+/**
+ * Container Registry(NCR) REST 경로 접두 — 역시 리전이 경로에 들어가며 존별로 규칙이 다르다.
+ *   민간존: KR `/ncr/api/v2`, SGN `/ncr/sgn-api/v2`, JPN `/ncr/jpn-api/v2` (https://api.ncloud-docs.com/docs/containerregistry-getregistry)
+ *   공공존: KR `/ncr/kr/v2`, KRS `/ncr/krs/v2`, 호스트 `gov-ncr.apigw.gov-ntruss.com` (https://api-gov.ncloud-docs.com/docs/containerregistry-getregistry)
+ */
+export function ncrPathPrefix(zone: Zone, regionCode: string): string {
+  const table: Record<Zone, Record<string, string>> = {
+    public: { KR: "/ncr/api/v2", SGN: "/ncr/sgn-api/v2", JPN: "/ncr/jpn-api/v2" },
+    gov: { KR: "/ncr/kr/v2", KRS: "/ncr/krs/v2" },
+  };
+  return table[zone][regionCode.toUpperCase()] ?? table[zone]["KR"];
+}
+
+/**
  * Cloud Functions base URL. 민간존은 리전별 호스트(KR / SGN / JPN — 미지의 리전은 KR 호스트),
  * 공공존은 단일 호스트(`cloudfunctions.apigw.gov-ntruss.com`, API v2.0 Classic 전용).
  * 근거: https://api.ncloud-docs.com/docs/compute-cloudfunctions , https://api-gov.ncloud-docs.com/docs/compute-cloudfunctions
