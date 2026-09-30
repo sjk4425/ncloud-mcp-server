@@ -407,15 +407,18 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "application",
-    title: "Application (API Gateway, SENS: SMS/Alim Talk/Brand Message/Mail, legacy Cloud Outbound Mailer)",
-    register: ({ server, client }) => {
-      registerApiGatewayTools(server, client("https://apigateway.apigw.ntruss.com"));
-      registerSensTools(server, client("https://sens.apigw.ntruss.com"));
-      registerSensBrandMessageTools(server, client("https://sens.apigw.ntruss.com"));
-      // 2026-09-17 Cloud Outbound Mailer → SENS 흡수 통합. 메일은 SENS /mail/v2(통합 API),
-      // 레거시 Outbound Mailer API(mail.apigw.ntruss.com)는 이관 프로젝트 한정 '27-12까지.
-      registerSensMailTools(server, client("https://sens.apigw.ntruss.com"));
-      registerOutboundMailerTools(server, client("https://mail.apigw.ntruss.com"));
+    title: "Application (API Gateway, SENS: SMS/Alim Talk/Brand Message/Mail, Cloud Outbound Mailer)",
+    register: ({ server, client, zone }) => {
+      // 세 서비스 모두 두 존 규칙형 호스트(2026-09-30 두 존 개요 대조).
+      // 민간존: 2026-09-17 Cloud Outbound Mailer → SENS 흡수. 메일은 SENS /mail/v2, 레거시 Mailer API 는 이관 프로젝트 한정 '27-12까지.
+      // 공공존: SENS(Project/SMS/알림톡/브랜드메시지, 메일 채널 없음)와 Cloud Outbound Mailer 가 별개 서비스 —
+      //         SENS 메일 도구는 미등록, Mailer 는 발송·조회 5종까지 포함한 정식 서비스로 등록.
+      registerApiGatewayTools(server, client(endpoint("apiGateway", zone)));
+      const sens = client(endpoint("sens", zone));
+      registerSensTools(server, sens);
+      registerSensBrandMessageTools(server, sens);
+      registerSensMailTools(server, sens, { zone });
+      registerOutboundMailerTools(server, client(endpoint("outboundMailer", zone)), { zone });
     },
   },
   {

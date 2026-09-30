@@ -577,6 +577,37 @@ describe("security 그룹: 존별 등록", () => {
   });
 });
 
+describe("application 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureApplication(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "application")
+    );
+    return names;
+  }
+  const SENS_MAIL = ["ncloud_sens_send_mail", "ncloud_sens_list_mail_requests", "ncloud_sens_get_mail_request", "ncloud_sens_list_mails", "ncloud_sens_get_mail"];
+  const MAILER_GOV = ["ncloud_mailer_send_mail", "ncloud_mailer_get_request_status", "ncloud_mailer_list_requests", "ncloud_mailer_list_mails", "ncloud_mailer_get_mail"];
+  it("public: SENS 메일 채널 도구 있음, Mailer 발송·조회 5종은 없음(SENS 로 통합)", () => {
+    const names = captureApplication("public");
+    for (const t of SENS_MAIL) expect(names).toContain(t);
+    for (const t of MAILER_GOV) expect(names).not.toContain(t);
+    expect(names).toContain("ncloud_mailer_get_template");
+    expect(names).toContain("ncloud_sens_list_projects");
+  });
+  it("gov: SENS 메일 채널 도구 없음, Mailer 발송·조회 5종 추가, 나머지는 동일", () => {
+    const pub = captureApplication("public");
+    const gov = captureApplication("gov");
+    for (const t of SENS_MAIL) expect(gov).not.toContain(t);
+    for (const t of MAILER_GOV) expect(gov).toContain(t);
+    expect(gov).toContain("ncloud_sens_list_projects");
+    expect(gov).toContain("ncloud_sens_send_brandmessage");
+    expect(gov.filter((n) => !MAILER_GOV.includes(n)).sort()).toEqual(pub.filter((n) => !SENS_MAIL.includes(n)).sort());
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];

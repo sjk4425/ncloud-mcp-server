@@ -4,9 +4,10 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
+import type { Zone } from "../client/endpoints.js";
 
 /**
- * Cloud Outbound Mailer API v1 (레거시) — Base URL: https://mail.apigw.ntruss.com
+ * Cloud Outbound Mailer API v1 (민간존: 레거시 / 공공존: 정식) — Base URL: https://mail.apigw.ntruss.com · https://mail.apigw.gov-ntruss.com
  *   리전은 경로 세그먼트: KR `/api/v1`, SGN `/api/v1-sgn`, JPN `/api/v1-jpn` (호스트 동일)
  *
  * 2026-09-17 Cloud Outbound Mailer가 SENS로 흡수 통합됐다(guide: sens-integrationguide).
@@ -24,8 +25,18 @@ import { dryRunPreview } from "./_dryrun.js";
  * 고전 Ncloud API의 `responseFormatType`/`regionCode` 쿼리는 쓰지 않으므로 `client.requestRaw`만 사용한다.
  */
 
-const LEGACY_TAG =
+/**
+ * 존 차이(2026-09-30 두 존 개요 대조): 민간존만 SENS 로 흡수됐고, **공공존은 Cloud Outbound Mailer 가 별개의 정식 서비스**다
+ * (호스트 mail.apigw.gov-ntruss.com, 같은 25 op, 같은 리전 경로). 공공존에서는 레거시 태그를 붙이지 않고,
+ * SENS 메일 채널이 없으므로 발송·조회 5 op(createMailRequest/getMailRequestList/getMailRequestStatus/getMailList/getMail)도 여기서 감싼다.
+ */
+const LEGACY_TAG_PUBLIC =
   "[Legacy Cloud Outbound Mailer API — merged into SENS on 2026-09-17; available only to projects migrated from Cloud Outbound Mailer and only for ~12 months (SENS overview: until Dec 2027). New mail sending/lookup: ncloud_sens_send_mail / ncloud_sens_list_mail_requests.] ";
+
+export interface OutboundMailerToolOptions {
+  /** 존 — 공공존이면 레거시 태그를 붙이지 않고 발송·조회 5종을 추가 등록한다. 기본 `public`. */
+  zone?: Zone;
+}
 
 const REGION_PATH: Record<string, string> = { KR: "/api/v1", SGN: "/api/v1-sgn", JPN: "/api/v1-jpn" };
 
@@ -35,7 +46,10 @@ const NAME_RULE = "1-100 chars of Korean, letters, digits, '.', '_' or '-'";
 
 const EMAIL_LIST = z.array(z.string().email()).min(1);
 
-export function registerOutboundMailerTools(server: McpServer, client: NcloudClient): void {
+export function registerOutboundMailerTools(server: McpServer, client: NcloudClient, opts: OutboundMailerToolOptions = {}): void {
+  const gov = (opts.zone ?? "public") === "gov";
+  // 공공존은 정식 서비스 — 레거시 안내를 붙이지 않는다.
+  const LEGACY_TAG = gov ? "" : LEGACY_TAG_PUBLIC;
   const regionParam = z.enum(["KR", "SGN", "JPN"]).optional().describe(
     "Region path segment (KR=/api/v1, SGN=/api/v1-sgn, JPN=/api/v1-jpn). Defaults to the server region (NCLOUD_REGION) when it is one of these, otherwise KR"
   );
@@ -288,6 +302,152 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
     async (params) => client.requestRaw("DELETE", `${basePath(params.region)}/unsubscribers`, undefined, { blockedReceivers: params.blockedReceivers }),
     { destructive: { action: "remove", noun: "unsubscribed addresses", describe: (p) => `${p.blockedReceivers.length} address(es)` } }
   );
+
+  // ─── 발송·조회 (공공존 전용 — 민간존은 SENS /mail/v2 가 대체) ──────────────────
+  // 스펙(api-gov ai-application-service-cloudoutboundmailer-createmailrequest / getmailrequestlist / getmailrequeststatus /
+  // getmaillist / getmail, 2026-09-30): POST /mails, GET /mails/requests, GET /mails/requests/{requestId}/status,
+  // GET /mails/requests/{requestId}/mails, GET /mails/{mailId}.
+  if (gov) {
+    const SEND_STATUS = "P | R | I | S | F | U | C | PF";
+
+    defineTool(
+      server,
+      "ncloud_mailer_send_mail",
+      "Send an email through Cloud Outbound Mailer (POST /mails). Either templateSid or senderAddress + title + body is required; either recipients or recipientGroupFilter is required. unsubscribeMessage is required when useBasicUnsubscribeMsg=false. Use dryRun=true to preview.",
+      {
+        senderAddress: z.string().email().optional().describe("Sender address (required unless templateSid is set)"),
+        senderName: z.string().max(69).optional().describe("Sender name (0-69 bytes)"),
+        templateSid: z.number().int().optional().describe("Template SID (from ncloud_mailer_get_template_structure)"),
+        title: z.string().max(500).optional().describe("Subject (0-500 bytes; required unless templateSid is set)"),
+        body: z.string().optional().describe("Body (≤500 KB; required unless templateSid is set)"),
+        individual: z.boolean().optional().describe("Individual (per-recipient) sending (default true)"),
+        confirmAndSend: z.boolean().optional().describe("Require confirmation before sending"),
+        advertising: z.boolean().optional().describe("Advertising mail"),
+        parameters: z.record(z.unknown()).optional().describe("Substitution parameters ({key: value})"),
+        referencesHeader: z.string().optional().describe("References header entries, '<unique_id@domain.com>' format (0-100)"),
+        reservationUtc: z.number().int().optional().describe("Scheduled send time as epoch milliseconds (UTC)"),
+        reservationDateTime: z.string().optional().describe("Scheduled send time 'yyyy-MM-dd HH:mm' (UTC+9)"),
+        attachFileIds: z.array(z.string()).optional().describe("Attachment file IDs (total ≤20 MB; upload via the console — createFile is multipart)"),
+        recipients: z.array(z.object({
+          address: z.string().email().describe("Recipient address"),
+          name: z.string().optional().describe("Recipient name"),
+          type: z.enum(["R", "C", "B"]).optional().describe("R = to, C = cc, B = bcc"),
+          parameters: z.record(z.unknown()).optional().describe("Per-recipient substitution parameters"),
+        })).optional().describe("Recipients (required unless recipientGroupFilter is given)"),
+        recipientGroupFilter: z.record(z.unknown()).optional().describe("Recipient group combination filter (address-book groups)"),
+        useBasicUnsubscribeMsg: z.boolean().optional().describe("Use the default unsubscribe message (default true)"),
+        unsubscribeMessage: z.string().optional().describe("Custom unsubscribe message (required when useBasicUnsubscribeMsg=false)"),
+        region: regionParam,
+        dryRun: z.boolean().optional().default(false).describe("Preview the request without calling the API"),
+      },
+      async (params) => {
+        const fail = (text: string) => ({ content: [{ type: "text" as const, text }], isError: true });
+        if (params.templateSid === undefined && (!params.senderAddress || params.title === undefined || params.body === undefined)) {
+          return fail("Provide templateSid, or senderAddress + title + body.");
+        }
+        if ((!params.recipients || params.recipients.length === 0) && !params.recipientGroupFilter) {
+          return fail("Provide recipients or recipientGroupFilter.");
+        }
+        if (params.useBasicUnsubscribeMsg === false && !params.unsubscribeMessage) {
+          return fail("unsubscribeMessage is required when useBasicUnsubscribeMsg is false.");
+        }
+        const { region, dryRun, ...rest } = params;
+        const body: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(rest)) if (v !== undefined) body[k] = v;
+        const endpoint = `${basePath(region)}/mails`;
+        if (dryRun) {
+          return dryRunPreview({
+            label: "🔍 Dry-Run Preview: Cloud Outbound Mailer Send",
+            endpoint,
+            method: "POST",
+            requestParams: body,
+            noun: { ko: "메일 발송 요청", en: "mail request" },
+          });
+        }
+        return client.requestRaw("POST", endpoint, undefined, body);
+      }
+    );
+
+    defineTool(
+      server,
+      "ncloud_mailer_list_requests",
+      `List mail send requests (GET /mails/requests). A time window is required: startUtc/endUtc (epoch ms) or startDateTime/endDateTime (UTC+9, 'yyyy-MM-dd', 'yyyy-MM-dd HH:mm' or 'yyyy-MM-dd HH:mm:ss.SSS'). sendStatus codes: ${SEND_STATUS}.`,
+      {
+        startUtc: z.number().int().optional().describe("Window start, epoch milliseconds"),
+        endUtc: z.number().int().optional().describe("Window end, epoch milliseconds"),
+        startDateTime: z.string().optional().describe("Window start (UTC+9) — alternative to startUtc"),
+        endDateTime: z.string().optional().describe("Window end (UTC+9) — alternative to endUtc"),
+        requestId: z.string().optional().describe("Request ID"),
+        mailId: z.string().optional().describe("Mail ID"),
+        dispatchType: z.enum(["CONSOLE", "API"]).optional().describe("Request origin"),
+        title: z.string().optional().describe("Subject (partial match)"),
+        templateSid: z.number().int().optional().describe("Template SID"),
+        senderAddress: z.string().optional().describe("Sender address"),
+        recipientAddress: z.string().optional().describe("Recipient address"),
+        sendStatus: z.string().optional().describe(`Status codes, comma-separated (${SEND_STATUS})`),
+        size: z.number().int().min(1).optional().describe("Records per page (default 10)"),
+        page: z.number().int().min(0).optional().describe("Page index (0-based)"),
+        sort: z.string().optional().describe("Sort: createUtc | recipientCount | reservationUtc | sendUtc | statusCode"),
+        region: regionParam,
+      },
+      async (params) => {
+        const hasStart = params.startUtc !== undefined || params.startDateTime !== undefined;
+        const hasEnd = params.endUtc !== undefined || params.endDateTime !== undefined;
+        if (!hasStart || !hasEnd) {
+          return { content: [{ type: "text" as const, text: "A time window is required: startUtc + endUtc, or startDateTime + endDateTime." }], isError: true };
+        }
+        const { region, ...rest } = params;
+        const q: Record<string, string | number | boolean | undefined> = {};
+        for (const [k, v] of Object.entries(rest)) if (v !== undefined) q[k] = v as string | number;
+        return client.requestRaw("GET", `${basePath(region)}/mails/requests`, q);
+      }
+    );
+
+    defineTool(
+      server,
+      "ncloud_mailer_get_request_status",
+      "Get the processing status of a mail send request (GET /mails/requests/{requestId}/status)",
+      {
+        requestId: z.string({ required_error: requiredError("requestId") }).describe("Request ID"),
+        region: regionParam,
+      },
+      async (params) => client.requestRaw("GET", `${basePath(params.region)}/mails/requests/${encodeURIComponent(params.requestId)}/status`)
+    );
+
+    defineTool(
+      server,
+      "ncloud_mailer_list_mails",
+      `List the individual mails of a send request (GET /mails/requests/{requestId}/mails). sendStatus codes: ${SEND_STATUS.replace("P | ", "")}.`,
+      {
+        requestId: z.string({ required_error: requiredError("requestId") }).describe("Request ID"),
+        mailId: z.string().optional().describe("Mail ID"),
+        recipientAddress: z.string().optional().describe("Recipient address"),
+        title: z.string().optional().describe("Subject (partial match)"),
+        sendStatus: z.string().optional().describe("Status codes, comma-separated (R | I | S | F | U | C | PF)"),
+        size: z.number().int().min(1).optional().describe("Records per page (default 10)"),
+        page: z.number().int().min(0).optional().describe("Page index (0-based)"),
+        sort: z.string().optional().describe("Sort: id | createUtc | statusCode"),
+        region: regionParam,
+      },
+      async (params) => {
+        const { region, requestId, ...rest } = params;
+        const q: Record<string, string | number | boolean | undefined> = {};
+        for (const [k, v] of Object.entries(rest)) if (v !== undefined) q[k] = v as string | number;
+        return client.requestRaw("GET", `${basePath(region)}/mails/requests/${encodeURIComponent(requestId)}/mails`, q);
+      }
+    );
+
+    defineTool(
+      server,
+      "ncloud_mailer_get_mail",
+      "Get one mail by its ID (GET /mails/{mailId})",
+      {
+        mailId: z.string({ required_error: requiredError("mailId") }).describe("Mail ID"),
+        region: regionParam,
+      },
+      async (params) => client.requestRaw("GET", `${basePath(params.region)}/mails/${encodeURIComponent(params.mailId)}`)
+    );
+  }
 
   void L; // i18n 헬퍼는 향후 안내 문구용으로 유지
 }

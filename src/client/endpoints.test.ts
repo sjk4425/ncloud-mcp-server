@@ -90,7 +90,8 @@ describe("endpoints: 서비스 엔드포인트 테이블", () => {
   });
   it("존 전용 서비스는 반대 존에서 undefined", () => {
     expect(isServiceAvailable("sens", "public")).toBe(true);
-    expect(isServiceAvailable("sens", "gov")).toBe(false);
+    expect(isServiceAvailable("sens", "gov")).toBe(true); // 공공존 SENS 는 존재(메일 채널만 없음 — 도구 레벨에서 제외)
+    expect(isServiceAvailable("dataCatalog", "gov")).toBe(false);
     expect(isServiceAvailable("wms", "gov")).toBe(true);
     expect(isServiceAvailable("wms", "public")).toBe(true); // management-wms 는 두 존 모두 문서화
     expect(isServiceAvailable("multiDrm", "public")).toBe(true); // one-click-multi-drm 은 두 존 모두 문서화
