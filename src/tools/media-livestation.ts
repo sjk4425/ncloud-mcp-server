@@ -4,8 +4,20 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
+import { liveStationPathPrefix, type Zone } from "../client/endpoints.js";
 
-export function registerLiveStationTools(server: McpServer, client: NcloudClient): void {
+// Live Station API — 공식 docs media-livestation-* (민간존·금융존; 공공존 미제공).
+// 호스트는 두 존 모두 livestation.apigw.ntruss.com, 경로 접두만 다르다(민간존 /api/v2, 금융존 /api/fin-v2).
+// 경로는 가이드 원문 기준: channels/{id}/on|off, /startRecord|/stopRecord, /qualitySets (2026-09-30 대조).
+
+export interface LiveStationToolOptions {
+  /** 존 — 경로 접두 선택. 기본 `public`. */
+  zone?: Zone;
+}
+
+export function registerLiveStationTools(server: McpServer, client: NcloudClient, opts: LiveStationToolOptions = {}): void {
+  const zone: Zone = opts.zone ?? "public";
+  const P = liveStationPathPrefix(zone);
   // ─── Channel Query Tools ───────────────────────────────────────────────────
 
   defineTool(
@@ -17,7 +29,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       pageSizeNo: z.number().optional().describe("Number of items per page (default: 20)"),
     },
     async (params) => {
-      return client.request("/api/v2/channels", params);
+      return client.request(`${P}/channels`, params);
     }
   );
 
@@ -29,7 +41,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID (e.g., ls-20250820xxxxxx)"),
     },
     async (params) => {
-      return client.request(`/api/v2/channels/${params.channelId}`);
+      return client.request(`${P}/channels/${params.channelId}`);
     }
   );
 
@@ -92,14 +104,14 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       if (params.dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: Live Station Channel Creation",
-          endpoint: "/api/v2/channels",
+          endpoint: `${P}/channels`,
           method: "POST",
           requestParams: body,
           noun: { ko: "채널", en: "channel" },
         });
       }
 
-      const result = await client.postRequest("/api/v2/channels", body);
+      const result = await client.postRequest(`${P}/channels`, body);
       const channel = result?.content || result;
       const summary = {
         리소스타입: "Live Station Channel",
@@ -125,7 +137,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const result = await client.deleteRequest(`/api/v2/channels/${params.channelId}`);
+      const result = await client.deleteRequest(`${P}/channels/${params.channelId}`);
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently terminate Live Station Channel [${params.channelId}]. Created snapshots will also be deleted. The integrated CDN will be maintained.\n\nTo execute, call this tool again with confirm=true.` } }
@@ -142,7 +154,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       pageSizeNo: z.number().optional().describe("Number of items per page (default: 20)"),
     },
     async (params) => {
-      return client.request("/api/v2/quality-sets", params);
+      // 가이드 경로는 /qualitySets (media-livestation-qualitysetting-qualitysettinglist) — 예전 /quality-sets 는 잘못된 경로였다.
+      return client.request(`${P}/qualitySets`, params);
     }
   );
 
@@ -156,7 +169,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to get service URLs for"),
     },
     async (params) => {
-      return client.request(`/api/v2/channels/${params.channelId}/serviceUrls`);
+      return client.request(`${P}/channels/${params.channelId}/serviceUrls`);
     }
   );
 
@@ -171,7 +184,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const result = await client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
+      // 가이드 경로는 /off (media-livestation-channel-channeloff) — 예전 /stop 은 잘못된 경로였다.
+      const result = await client.putRequest(`${P}/channels/${params.channelId}/off`, {});
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will stop Live Station Channel [${params.channelId}]. Streaming will be interrupted.\n\nTo execute, call this tool again with confirm=true.` } }
@@ -185,7 +199,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to resume"),
     },
     async (params) => {
-      return client.putRequest(`/api/v2/channels/${params.channelId}/resume`, {});
+      // 가이드 경로는 /on (media-livestation-channel-channelon) — 예전 /resume 은 잘못된 경로였다.
+      return client.putRequest(`${P}/channels/${params.channelId}/on`, {});
     }
   );
 
@@ -225,7 +240,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
           filePath: updateFields.recordFilePath,
         };
       }
-      const result = await client.putRequest(`/api/v2/channels/${channelId}`, body);
+      const result = await client.putRequest(`${P}/channels/${channelId}`, body);
       return result;
     }
   );
@@ -240,7 +255,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to start recording"),
     },
     async (params) => {
-      return client.putRequest(`/api/v2/channels/${params.channelId}/record/start`, {});
+      // 가이드 경로는 /startRecord (media-livestation-recording-recordingstart) — 예전 /record/start 는 잘못된 경로였다.
+      return client.putRequest(`${P}/channels/${params.channelId}/startRecord`, {});
     }
   );
 
@@ -252,7 +268,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to stop recording"),
     },
     async (params) => {
-      return client.putRequest(`/api/v2/channels/${params.channelId}/record/stop`, {});
+      // 가이드 경로는 /stopRecord (media-livestation-recording-recordingstop).
+      return client.putRequest(`${P}/channels/${params.channelId}/stopRecord`, {});
     }
   );
 }

@@ -170,8 +170,9 @@ export const SERVICE_ENDPOINTS = {
   dataFlow: { public: apigw("dataflow", "public") },
   dataQuery: { public: "https://kr.dataquery.naverncp.com" },
   // ── media ──
-  vodStation: { public: apigw("vodstation", "public"), gov: "https://vod-station.apigw.gov-ntruss.com" }, // 불규칙
-  liveStation: { public: apigw("livestation", "public") },
+  vodStation: { public: apigw("vodstation", "public"), gov: "https://vod-station.apigw.gov-ntruss.com", fin: "https://vodstation.apigw.fin-ntruss.com" }, // gov 불규칙; fin 은 Private 게이트웨이(vodstation 개요)
+  // Live Station 금융존: 호스트는 민간존 게이트웨이 그대로이고 경로 접두만 `/api/fin-v2` (api-fin media-livestation 개요·전 op 원문, 2026-09-30). liveStationPathPrefix() 참고.
+  liveStation: { public: apigw("livestation", "public"), fin: "https://livestation.apigw.ntruss.com" },
   imageOptimizer: { public: apigw("imageoptimizer", "public") },
   multiDrm: { public: "https://multi-drm.apigw.ntruss.com", gov: "https://multi-drm.apigw.gov-ntruss.com" }, // 두 존 제공(one-click-multi-drm-api-overview), x-ncp-region_code: KR
   // ── cdn ──
@@ -314,6 +315,13 @@ function regionApiPrefix(zone: Zone, regionCode: string, version: string): strin
 }
 export function sesPathPrefix(zone: Zone, regionCode: string): string {
   return regionApiPrefix(zone, regionCode, "v2");
+}
+/**
+ * Live Station 경로 접두. 민간존 `/api/v2`, 금융존 `/api/fin-v2` (같은 호스트 livestation.apigw.ntruss.com —
+ * api-fin media-livestation-channel-channellist 등 원문, 2026-09-30). 공공존은 미제공.
+ */
+export function liveStationPathPrefix(zone: Zone): string {
+  return zone === "fin" ? "/api/fin-v2" : "/api/v2";
 }
 export function cdssPathPrefix(zone: Zone, regionCode: string): string {
   return regionApiPrefix(zone, regionCode, "v1");

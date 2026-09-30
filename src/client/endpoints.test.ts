@@ -6,6 +6,7 @@ import {
   resolveZone,
   defaultGateway,
   endpoint,
+  liveStationPathPrefix,
   isServiceAvailable,
   cloudFunctionsEndpoint,
   type ServiceKey,
@@ -77,8 +78,12 @@ describe("endpoints: 서비스 엔드포인트 테이블", () => {
       const fin = endpoint(k, "fin");
       if (pub) expect(pub, `${k}.public`).not.toMatch(/gov-|fin-/);
       if (gov) expect(gov, `${k}.gov`).toMatch(/gov-(ntruss|ncloud)\.com$/);
-      if (fin) expect(fin, `${k}.fin`).toMatch(/fin-(ntruss|ncloud)\.com$/);
+      // Live Station 금융존은 민간존 호스트 + /api/fin-v2 접두라는 문서화된 예외 (media-livestation, api-fin 원문).
+      if (fin && k !== "liveStation") expect(fin, `${k}.fin`).toMatch(/fin-(ntruss|ncloud)\.com$/);
     }
+    expect(endpoint("liveStation", "fin")).toBe("https://livestation.apigw.ntruss.com");
+    expect(liveStationPathPrefix("fin")).toBe("/api/fin-v2");
+    expect(liveStationPathPrefix("public")).toBe("/api/v2");
   });
   it("불규칙 매핑 — 단순 도메인 치환으로는 틀리는 것들", () => {
     expect(endpoint("ncr", "gov")).toBe("https://gov-ncr.apigw.gov-ntruss.com");

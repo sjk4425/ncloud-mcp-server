@@ -569,11 +569,12 @@ describe("analytics 그룹: 존별 등록", () => {
 
 describe("media 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureMedia(zone: "public" | "gov") {
+  function captureMedia(zone: "public" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "media")
     );
     return names;
@@ -593,6 +594,15 @@ describe("media 그룹: 존별 등록", () => {
     expect(gov.sort()).toEqual(pub.filter((n) => !publicOnly(n)).sort());
     expect(gov).toContain("ncloud_vodstation_list_channels");
     expect(gov).toContain("ncloud_drm_get_license_statistics");
+  });
+  it("fin: VOD Station(채널 수정 포함)·Live Station 만 등록, Image Optimizer·Multi DRM 은 금융존 가이드에 없어 빠진다", () => {
+    const pub = captureMedia("public");
+    const fin = captureMedia("fin");
+    const notInFin = (n: string) => n.startsWith("ncloud_imageoptimizer_") || n.startsWith("ncloud_drm_");
+    expect(fin.some(notInFin)).toBe(false);
+    expect(fin.sort()).toEqual(pub.filter((n) => !notInFin(n)).sort());
+    expect(fin).toContain("ncloud_vodstation_update_channel");
+    expect(fin).toContain("ncloud_livestation_list_channels");
   });
 });
 
