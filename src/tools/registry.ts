@@ -14,7 +14,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defineTool } from "./_tool.js";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defaultGateway, cloudFunctionsEndpoint, type Zone } from "../client/endpoints.js";
+import { defaultGateway, endpoint, cloudFunctionsEndpoint, type Zone } from "../client/endpoints.js";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import {
@@ -211,7 +211,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "network",
     title: "Network (VPC, ACG, LB, Target Group, Global DNS, Traffic Manager)",
-    register: ({ server, client }) => {
+    register: ({ server, client, zone }) => {
+      // VPC·ACG·NACL·NAT·Route Table·Peering·NIC·LB·Target Group: 두 존 모두 기본 게이트웨이 + 같은 경로.
+      //   민간존 https://api.ncloud-docs.com/docs/networking-vpc · 공공존 https://api-gov.ncloud-docs.com/docs/networking-vpc
+      //   (vloadbalancer 도 동일). 공공존 LB 에는 리스너 인증서(SNI) 오퍼레이션 3종이 없다.
       const c = client();
       registerVpcTools(server, c);
       registerAcgTools(server, c);
@@ -220,10 +223,12 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerRouteTableTools(server, c);
       registerVpcPeeringTools(server, c);
       registerNetworkInterfaceTools(server, c);
-      registerLoadBalancerTools(server, c);
+      registerLoadBalancerTools(server, c, { listenerCertificates: zone !== "gov" });
       registerTargetGroupTools(server, c);
-      registerGlobalDnsTools(server, client("https://globaldns.apigw.ntruss.com"));
-      registerGlobalTrafficManagerTools(server, client("https://globaltrafficmanager.apigw.ntruss.com"));
+      // Global DNS / GTM: 전용 호스트, 두 존 규칙형 서브도메인, 오퍼레이션 목록 동일
+      //   (networking-globaldns-* / globaltrafficmanager-* 페이지 대조, 2026-09-30).
+      registerGlobalDnsTools(server, client(endpoint("globaldns", zone)));
+      registerGlobalTrafficManagerTools(server, client(endpoint("globaltrafficmanager", zone)));
     },
   },
   {

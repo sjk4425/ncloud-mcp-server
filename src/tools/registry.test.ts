@@ -337,6 +337,36 @@ describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
   });
 });
 
+describe("network 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  const LISTENER_CERT_TOOLS = [
+    "ncloud_add_lb_listener_certificate",
+    "ncloud_remove_lb_listener_certificate",
+    "ncloud_list_lb_listener_certificates",
+  ];
+
+  function captureNetwork(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "network")
+    );
+    return names;
+  }
+
+  it("public: LB 리스너 인증서 도구 3종이 등록된다", () => {
+    const names = captureNetwork("public");
+    for (const t of LISTENER_CERT_TOOLS) expect(names).toContain(t);
+  });
+  it("gov: 리스너 인증서 도구 3종만 빠지고 나머지는 public 과 동일하다 (공공존 LB 가이드에 해당 오퍼레이션 없음)", () => {
+    const pub = captureNetwork("public");
+    const gov = captureNetwork("gov");
+    for (const t of LISTENER_CERT_TOOLS) expect(gov).not.toContain(t);
+    expect(gov.sort()).toEqual(pub.filter((n) => !LISTENER_CERT_TOOLS.includes(n)).sort());
+  });
+});
+
 // ─── 동적 그룹 로딩 (v1.4.0, DESIGN_long-term-dynamic-groups.md §3) ─────────────
 describe("동적 그룹 로딩: planGroups / GroupManager", () => {
   const creds = { accessKey: "x", secretKey: "y" };
