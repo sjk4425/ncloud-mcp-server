@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { fetchWithTimeout } from "./_timeout.js";
+import { OBJECT_STORAGE_ENDPOINTS, NCLOUD_STORAGE_ENDPOINTS, type Zone, type S3RegionEndpoint } from "./endpoints.js";
 
 export type S3StorageType = "object" | "ncloud";
 
@@ -20,6 +21,8 @@ export interface S3CompatibleClientConfig {
    * (`ncloud` → virtual-hosted, `object` → path).
    */
   addressing?: S3Addressing;
+  /** 존(민간 `public` 기본 / 공공 `gov`). 호스트·서명 리전 표를 고른다 — `client/endpoints.ts`. */
+  zone?: Zone;
 }
 
 interface S3RequestOptions {
@@ -54,43 +57,15 @@ export class S3CompatibleError extends Error {
   }
 }
 
-/** Object Storage 엔드포인트(storageType: "object") — 리전별 제공 */
-const OBJECT_STORAGE_HOST_MAP: Record<string, string> = {
-  KR: "kr.object.ncloudstorage.com",
-  USWN: "us.object.ncloudstorage.com",
-  SGN: "sg.object.ncloudstorage.com",
-  JPN: "jp.object.ncpstorage.com",
-  DEN: "de.object.ncloudstorage.com",
-};
-
-/**
- * Ncloud Storage 엔드포인트(storageType: "ncloud").
+/*
+ * 엔드포인트·서명 리전 표는 존별 단일 소스인 `client/endpoints.ts` 에 있다
+ * (OBJECT_STORAGE_ENDPOINTS / NCLOUD_STORAGE_ENDPOINTS — 두 존 공식 문서 대조본).
  *
- * 공식 API 문서(https://api.ncloud-docs.com/docs/storage-ncloudstorage)의 요청 URL은
- * `https://{Bucket}.{regionCode}.ncloudstorage.com` 이며 **제공 리전은 한국(kr) 하나**다.
- * 이전 구현은 us/sg/jp/de 호스트를 임의로 만들어 두어 `NCLOUD_REGION`이 KR 이 아니면
- * 존재하지 않는 호스트로 요청이 나갔다. 문서에 없는 리전은 만들지 않는다 — 새 리전이
- * 열리면 문서를 확인하고 여기에 추가한다.
+ * Ncloud Storage 는 두 존 모두 **한국(kr) 단일 리전**이다. 이전 구현은 us/sg/jp/de 호스트를 임의로
+ * 만들어 두어 `NCLOUD_REGION`이 KR 이 아니면 존재하지 않는 호스트로 요청이 나갔다. 문서에 없는
+ * 리전은 만들지 않는다 — 새 리전이 열리면 문서를 확인하고 endpoints.ts 에 추가한다.
+ * 리전 표에 없는 리전 코드는 해당 존의 KR 항목으로 대체한다(설정 리전과 무관하게 실제 리전은 kr).
  */
-const NCLOUD_STORAGE_HOST_MAP: Record<string, string> = {
-  KR: "kr.ncloudstorage.com",
-};
-
-/**
- * AWS Signature V4 credential scope 의 리전 문자열.
- * Object Storage 는 `kr-standard` 형식, Ncloud Storage 는 문서의 리전 코드 `kr` 그대로다.
- */
-const OBJECT_STORAGE_SIGNING_REGION_MAP: Record<string, string> = {
-  KR: "kr-standard",
-  USWN: "us-standard",
-  SGN: "sg-standard",
-  JPN: "jp-standard",
-  DEN: "de-standard",
-};
-
-const NCLOUD_STORAGE_SIGNING_REGION_MAP: Record<string, string> = {
-  KR: "kr",
-};
 
 /**
  * RFC 3986 기준 URI 인코딩(SigV4 canonical URI/query 용).
@@ -138,6 +113,7 @@ export class S3CompatibleClient {
   private regionCode: string;
   private readonly storageType: S3StorageType;
   private readonly addressing: S3Addressing;
+  private readonly zone: Zone;
 
   constructor(config: S3CompatibleClientConfig) {
     this.accessKey = config.accessKey;
@@ -145,6 +121,7 @@ export class S3CompatibleClient {
     this.regionCode = config.regionCode;
     this.storageType = config.storageType ?? "object";
     this.addressing = config.addressing ?? (this.storageType === "ncloud" ? "virtual-hosted" : "path");
+    this.zone = config.zone ?? "public";
   }
 
   setRegionCode(regionCode: string): void {
@@ -163,6 +140,24 @@ export class S3CompatibleClient {
     return this.addressing;
   }
 
+  getZone(): Zone {
+    return this.zone;
+  }
+
+  /** 이 클라이언트의 존·서비스·리전에 해당하는 엔드포인트 항목(표에 없는 리전은 KR 로 대체). */
+  private getRegionEndpoint(): S3RegionEndpoint {
+    const table = (this.storageType === "ncloud" ? NCLOUD_STORAGE_ENDPOINTS : OBJECT_STORAGE_ENDPOINTS)[this.zone];
+    return table[this.regionCode] ?? table["KR"];
+  }
+
+  /**
+   * 요청이 나가는 호스트(버킷을 주면 virtual-hosted 방식일 때 버킷 서브도메인 포함).
+   * 도구가 description/dry-run 에 실제 엔드포인트를 표시할 때 쓴다 — 존별로 도메인이 다르다.
+   */
+  hostFor(bucket?: string): string {
+    return this.getHost(bucket);
+  }
+
   /**
    * 실제로 요청이 나가는 서비스 리전(서명 리전과 동일). Ncloud Storage 는 설정 리전이
    * 무엇이든 `kr` 이다 — 도구 응답에 리전을 표시할 때는 `getRegionCode()`가 아니라 이 값을 쓴다.
@@ -173,10 +168,7 @@ export class S3CompatibleClient {
 
   /** 버킷을 뺀 서비스 루트 호스트. */
   private getBaseHost(): string {
-    if (this.storageType === "ncloud") {
-      return NCLOUD_STORAGE_HOST_MAP[this.regionCode] ?? NCLOUD_STORAGE_HOST_MAP["KR"];
-    }
-    return OBJECT_STORAGE_HOST_MAP[this.regionCode] ?? OBJECT_STORAGE_HOST_MAP["KR"];
+    return this.getRegionEndpoint().host;
   }
 
   /** 요청 Host 헤더 값. virtual-hosted 방식이면 버킷이 서브도메인으로 들어간다. */
@@ -195,10 +187,7 @@ export class S3CompatibleClient {
   }
 
   private getSigningRegion(): string {
-    if (this.storageType === "ncloud") {
-      return NCLOUD_STORAGE_SIGNING_REGION_MAP[this.regionCode] ?? NCLOUD_STORAGE_SIGNING_REGION_MAP["KR"];
-    }
-    return OBJECT_STORAGE_SIGNING_REGION_MAP[this.regionCode] ?? OBJECT_STORAGE_SIGNING_REGION_MAP["KR"];
+    return this.getRegionEndpoint().signingRegion;
   }
 
   private getSigningKey(dateStamp: string): Buffer {
@@ -366,9 +355,11 @@ export class S3CompatibleClient {
     // 오브젝트 부재(NoSuchKey) 또는 현재 버전이 delete marker 인 경우이며, 버킷은 존재한다
     // (2026-09-17 라이브 검증에서 delete marker 키의 head_object 가 "버킷 없음" 으로 오안내된 건).
     if (code === "NoSuchBucket" || (status === 404 && !codeMatch && bucket && !key)) {
+      const objectHost = (OBJECT_STORAGE_ENDPOINTS[this.zone][this.regionCode] ?? OBJECT_STORAGE_ENDPOINTS[this.zone]["KR"]).host;
+      const ncloudHost = NCLOUD_STORAGE_ENDPOINTS[this.zone]["KR"].host;
       const other = this.storageType === "ncloud"
-        ? "Object Storage(레거시, kr.object.ncloudstorage.com) — `ncloud_ncs_` 접두 없는 `ncloud_list_buckets` 등"
-        : "Ncloud Storage(신규, {bucket}.kr.ncloudstorage.com) — `ncloud_ncs_*` 도구";
+        ? `Object Storage(레거시, ${objectHost}) — \`ncloud_ncs_\` 접두 없는 \`ncloud_list_buckets\` 등`
+        : `Ncloud Storage(신규, {bucket}.${ncloudHost}) — \`ncloud_ncs_*\` 도구`;
       lines.push(
         "",
         `힌트: 버킷 '${bucket}'이(가) ${serviceName}에 없습니다. Object Storage 와 Ncloud Storage 는 버킷 네임스페이스가 다른 별개 서비스입니다. 다른 쪽에 있는 버킷이면 ${other}를 사용하세요.`

@@ -184,6 +184,61 @@ export function isServiceAvailable(service: ServiceKey, zone: Zone): boolean {
 }
 
 /**
+ * S3 호환 스토리지(Object Storage / Ncloud Storage)와 Archive Storage(Swift)의 존별 호스트·서명 리전.
+ * AWS SigV4 credential scope 의 리전 문자열은 문서의 "리전 이름" 열을 그대로 쓴다.
+ *
+ * 근거(2026-09-30 원문 확인)
+ *   - Object Storage 민간존: https://api.ncloud-docs.com/docs/common-objectstorageapi-objectstorageapi
+ *       한국 kr-standard kr.object.ncloudstorage.com · 미국서부 us-standard · 싱가포르 sg-standard ·
+ *       일본 jp-standard jp.object.ncpstorage.com · 독일 de-standard
+ *   - Object Storage 공공존: https://api-gov.ncloud-docs.com/docs/common-objectstorageapi-objectstorageapi
+ *       수도권 gov-standard kr.object.gov-ncloudstorage.com · 남부권 gov2-standard krs.object.gov-ncloudstorage.com
+ *   - Ncloud Storage 민간존: https://api.ncloud-docs.com/docs/storage-ncloudstorage — `{Bucket}.kr.ncloudstorage.com`, 리전 `kr` 만
+ *   - Ncloud Storage 공공존: https://api-gov.ncloud-docs.com/docs/storage-ncloudstorage — `{Bucket}.kr.gov-ncloudstorage.com`, 리전 `kr` 만
+ *   - Archive Storage 민간존: https://api.ncloud-docs.com/docs/common-archivestorageapi-archivestorageapi — kr.archive.ncloudstorage.com(:5000 인증)
+ *   - Archive Storage 공공존: https://api-gov.ncloud-docs.com/docs/common-archivestorageapi-archivestorageapi — kr.archive.gov-ncloudstorage.com(:5000 인증)
+ */
+export interface S3RegionEndpoint {
+  /** 서비스 루트 호스트(버킷 제외). */
+  host: string;
+  /** SigV4 credential scope 리전 이름. */
+  signingRegion: string;
+}
+
+export const OBJECT_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpoint>> = {
+  public: {
+    KR: { host: "kr.object.ncloudstorage.com", signingRegion: "kr-standard" },
+    USWN: { host: "us.object.ncloudstorage.com", signingRegion: "us-standard" },
+    SGN: { host: "sg.object.ncloudstorage.com", signingRegion: "sg-standard" },
+    JPN: { host: "jp.object.ncpstorage.com", signingRegion: "jp-standard" },
+    DEN: { host: "de.object.ncloudstorage.com", signingRegion: "de-standard" },
+  },
+  gov: {
+    KR: { host: "kr.object.gov-ncloudstorage.com", signingRegion: "gov-standard" },
+    KRS: { host: "krs.object.gov-ncloudstorage.com", signingRegion: "gov2-standard" },
+  },
+};
+
+/** Ncloud Storage — 두 존 모두 KR 단일 리전, 서명 리전은 문서의 리전 코드 `kr`. */
+export const NCLOUD_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpoint>> = {
+  public: { KR: { host: "kr.ncloudstorage.com", signingRegion: "kr" } },
+  gov: { KR: { host: "kr.gov-ncloudstorage.com", signingRegion: "kr" } },
+};
+
+export interface SwiftRegionEndpoint {
+  /** Keystone v3 인증 URL (`/v3/auth/tokens` 앞까지). */
+  auth: string;
+  /** Swift API URL (`/v1/AUTH_{project}` 앞까지). */
+  api: string;
+}
+
+/** Archive Storage(OpenStack Swift) — 두 존 모두 KR 단일 리전. */
+export const ARCHIVE_STORAGE_ENDPOINTS: Record<Zone, Record<string, SwiftRegionEndpoint>> = {
+  public: { KR: { auth: "https://kr.archive.ncloudstorage.com:5000", api: "https://kr.archive.ncloudstorage.com" } },
+  gov: { KR: { auth: "https://kr.archive.gov-ncloudstorage.com:5000", api: "https://kr.archive.gov-ncloudstorage.com" } },
+};
+
+/**
  * Cloud Functions base URL. 민간존은 리전별 호스트(KR / SGN / JPN — 미지의 리전은 KR 호스트),
  * 공공존은 단일 호스트(`cloudfunctions.apigw.gov-ntruss.com`, API v2.0 Classic 전용).
  * 근거: https://api.ncloud-docs.com/docs/compute-cloudfunctions , https://api-gov.ncloud-docs.com/docs/compute-cloudfunctions

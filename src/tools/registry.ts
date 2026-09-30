@@ -252,11 +252,17 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "storage",
     title: "Storage (Object, Ncloud, NAS, Archive)",
-    register: ({ server, client, creds, regionCode, env }) => {
+    register: ({ server, client, creds, regionCode, env, zone }) => {
+      // 스토리지는 존 분기가 **클라이언트 레벨**이다 — 호스트·서명 리전 표는 client/endpoints.ts
+      // (OBJECT_STORAGE_ENDPOINTS / NCLOUD_STORAGE_ENDPOINTS / ARCHIVE_STORAGE_ENDPOINTS, 두 존 공식 문서 대조본).
+      //   공공존: Object Storage kr(gov-standard)/krs(gov2-standard).object.gov-ncloudstorage.com,
+      //          Ncloud Storage {bucket}.kr.gov-ncloudstorage.com(2026 출시, api-gov storage-ncloudstorage 확인),
+      //          Archive kr.archive.gov-ncloudstorage.com. NAS(vnas)는 기본 게이트웨이.
       const s3Client = new S3CompatibleClient({
         ...creds,
         regionCode,
         storageType: "object",
+        zone,
       });
       // Ncloud Storage 는 공식 문서대로 virtual-hosted 주소(`{bucket}.kr.ncloudstorage.com`)가
       // 기본. 2026-08 라이브 검증까지 동작했던 path 방식이 필요하면 env 로 되돌릴 수 있다.
@@ -265,6 +271,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
         regionCode,
         storageType: "ncloud",
         addressing: env.NCLOUD_STORAGE_ADDRESSING === "path" ? "path" : undefined,
+        zone,
       });
       registerStorageObjectTools(server, s3Client);
       registerStorageNcloudTools(server, ncloudStorageClient);
@@ -279,6 +286,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
           projectId: archiveProjectId,
           domainId: archiveDomainId,
           regionCode,
+          zone,
         });
         registerStorageArchiveTools(server, swiftClient);
       }

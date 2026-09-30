@@ -367,6 +367,46 @@ describe("network 그룹: 존별 등록", () => {
   });
 });
 
+describe("storage 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  function captureStorage(zone: "public" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({ name, description: config?.description ?? null, schemaKeys: null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
+      },
+    };
+    registerGroups(
+      {
+        server: fakeServer,
+        client: makeClientFactory(creds, "KR", zone, {}),
+        regionCode: "KR",
+        zone,
+        creds,
+        env: { NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
+      },
+      TOOL_GROUPS.filter((g) => g.key === "storage")
+    );
+    return captured;
+  }
+
+  it("도구 이름 집합은 존과 무관하게 동일하다 (Object·Ncloud·NAS·Archive 모두 공공존 제공)", () => {
+    const pub = captureStorage("public").map((t) => t.name).sort();
+    const gov = captureStorage("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+    expect(pub.some((n) => n.startsWith("ncloud_ncs_"))).toBe(true);
+    expect(pub.some((n) => n.includes("archive"))).toBe(true);
+  });
+  it("Ncloud Storage description 은 존의 호스트를 안내한다", () => {
+    const pub = captureStorage("public").find((t) => t.name === "ncloud_ncs_list_buckets")!;
+    const gov = captureStorage("gov").find((t) => t.name === "ncloud_ncs_list_buckets")!;
+    expect(pub.description).toContain("kr.ncloudstorage.com");
+    expect(pub.description).not.toContain("gov-");
+    expect(gov.description).toContain("kr.gov-ncloudstorage.com");
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];

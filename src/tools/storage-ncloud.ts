@@ -462,7 +462,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
   defineTool(
     server,
     "ncloud_ncs_list_buckets",
-    `${NCS} List Ncloud Storage buckets (GET / on kr.ncloudstorage.com). Ncloud Storage is the newer S3-compatible object storage at {bucket}.kr.ncloudstorage.com (KR only) and is a separate service from the legacy Object Storage (kr.object.ncloudstorage.com) with its own bucket namespace — for Object Storage buckets use ncloud_list_buckets and the other ncloud_* tools without the ncs_ prefix.`,
+    `${NCS} List Ncloud Storage buckets (GET / on ${client.hostFor()}). Ncloud Storage is the newer S3-compatible object storage at {bucket}.${client.hostFor()} (KR only) and is a separate service from the legacy Object Storage with its own bucket namespace — for Object Storage buckets use ncloud_list_buckets and the other ncloud_* tools without the ncs_ prefix.`,
     {
       prefix: z.string().optional().describe("Only buckets whose name starts with this prefix"),
       maxBuckets: z.number().int().min(1).max(10000).optional().describe("Buckets per page (1–10,000)"),
@@ -481,7 +481,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
   defineTool(
     server,
     "ncloud_ncs_create_bucket",
-    `${NCS} Create a Ncloud Storage bucket (PUT / on {bucket}.kr.ncloudstorage.com). Bucket names: 3–63 chars, lowercase letters/digits/hyphens, start and end alphanumeric, no dots. Optionally enable Object Lock at creation (this also turns on versioning). Use dryRun=true to preview.`,
+    `${NCS} Create a Ncloud Storage bucket (PUT / on {bucket}.${client.hostFor()}). Bucket names: 3–63 chars, lowercase letters/digits/hyphens, start and end alphanumeric, no dots. Optionally enable Object Lock at creation (this also turns on versioning). Use dryRun=true to preview.`,
     {
       bucketName: bucketNameSchema("Name of the bucket to create").regex(BUCKET_NAME_RE, {
         message: L({ ko: "버킷 이름은 3~63자의 소문자·숫자·하이픈이며 영숫자로 시작하고 끝나야 합니다(점 불가).", en: "Bucket name must be 3–63 chars of lowercase letters, digits and hyphens, starting and ending alphanumeric (no dots)." }),
@@ -492,7 +492,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     async (params) => {
       const headers: Record<string, string> = {};
       if (params.objectLockEnabled) headers["x-amz-bucket-object-lock-enabled"] = "true";
-      const endpoint = `https://${params.bucketName}.kr.ncloudstorage.com/`;
+      const endpoint = `https://${client.hostFor(params.bucketName)}/`;
       if (params.dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: Ncloud Storage Bucket Creation",

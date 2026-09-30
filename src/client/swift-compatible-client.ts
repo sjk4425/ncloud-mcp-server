@@ -13,6 +13,7 @@
  */
 
 import { fetchWithTimeout } from "./_timeout.js";
+import { ARCHIVE_STORAGE_ENDPOINTS, type Zone } from "./endpoints.js";
 
 export interface SwiftCompatibleClientConfig {
   accessKey: string;
@@ -20,6 +21,8 @@ export interface SwiftCompatibleClientConfig {
   projectId: string;
   domainId: string;
   regionCode?: string;
+  /** 존(민간 `public` 기본 / 공공 `gov`) — 인증·API 호스트 표를 고른다(`client/endpoints.ts`). */
+  zone?: Zone;
 }
 
 interface SwiftRequestOptions {
@@ -37,13 +40,8 @@ interface SwiftResponse {
   body: string;
 }
 
-const AUTH_ENDPOINT_MAP: Record<string, string> = {
-  KR: "https://kr.archive.ncloudstorage.com:5000",
-};
-
-const API_ENDPOINT_MAP: Record<string, string> = {
-  KR: "https://kr.archive.ncloudstorage.com",
-};
+// 엔드포인트 표는 존별 단일 소스 `client/endpoints.ts` 의 ARCHIVE_STORAGE_ENDPOINTS
+// (민간존 kr.archive.ncloudstorage.com / 공공존 kr.archive.gov-ncloudstorage.com, 둘 다 KR 단일 리전).
 
 /**
  * Swift-compatible client for Ncloud Archive Storage.
@@ -55,6 +53,7 @@ export class SwiftCompatibleClient {
   private readonly projectId: string;
   private readonly domainId: string;
   private regionCode: string;
+  private readonly zone: Zone;
 
   private token: string | null = null;
   private tokenExpiresAt: number = 0;
@@ -65,6 +64,17 @@ export class SwiftCompatibleClient {
     this.projectId = config.projectId;
     this.domainId = config.domainId;
     this.regionCode = config.regionCode ?? "KR";
+    this.zone = config.zone ?? "public";
+  }
+
+  getZone(): Zone {
+    return this.zone;
+  }
+
+  /** 현재 존·리전의 인증/API 엔드포인트(표에 없는 리전은 KR 로 대체). */
+  getEndpoints(): { auth: string; api: string } {
+    const table = ARCHIVE_STORAGE_ENDPOINTS[this.zone];
+    return table[this.regionCode] ?? table["KR"];
   }
 
   setRegionCode(regionCode: string): void {
@@ -83,11 +93,11 @@ export class SwiftCompatibleClient {
   }
 
   private getAuthEndpoint(): string {
-    return AUTH_ENDPOINT_MAP[this.regionCode] ?? AUTH_ENDPOINT_MAP["KR"];
+    return this.getEndpoints().auth;
   }
 
   private getApiEndpoint(): string {
-    return API_ENDPOINT_MAP[this.regionCode] ?? API_ENDPOINT_MAP["KR"];
+    return this.getEndpoints().api;
   }
 
   /**
