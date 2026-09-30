@@ -424,8 +424,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "billing",
     title: "Billing (List Price, Cost and Usage, Discount)",
-    register: ({ server, client }) => {
-      registerBillingTools(server, client("https://billingapi.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // 두 존 규칙형 호스트(platform-listprice 개요: billingapi.apigw.gov-ntruss.com/billing/v1), 오퍼레이션 20종 동일.
+      registerBillingTools(server, client(endpoint("billing", zone)), { zone });
     },
   },
 ];

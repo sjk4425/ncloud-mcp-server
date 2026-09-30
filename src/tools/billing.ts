@@ -3,10 +3,12 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { prune, paginateWithGuard } from "./_response.js";
 import { defineTool } from "./_tool.js";
+import { ZONE_PROFILES, type Zone } from "../client/endpoints.js";
 
 /**
  * Ncloud Billing API Tools
- * Base URL: https://billingapi.apigw.ntruss.com/billing/v1
+ * Base URL: https://billingapi.apigw.ntruss.com/billing/v1 (민간존) / https://billingapi.apigw.gov-ntruss.com/billing/v1 (공공존)
+ * 오퍼레이션 20종 두 존 동일(platform-listprice / -costandusage / -discount, 2026-09-30 대조). 리전 코드만 존별로 다르다.
  *
  * Categories:
  * - List Price: 요금제/서비스/가격 조회
@@ -233,7 +235,13 @@ async function runListPriceQuery(opts: {
   };
 }
 
-export function registerBillingTools(server: McpServer, client: NcloudClient): void {
+export interface BillingToolOptions {
+  /** 존 — 리전 코드 안내 문구에 쓴다. 기본 `public`. */
+  zone?: Zone;
+}
+
+export function registerBillingTools(server: McpServer, client: NcloudClient, opts: BillingToolOptions = {}): void {
+  const REGION_CODES = ZONE_PROFILES[opts.zone ?? "public"].regions.map((r) => r.code).join(", ");
 
   // ============================================================
   // List Price APIs — /product/...
@@ -282,7 +290,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
     "ncloud_get_product_list",
     "Get product (service) list for billing. Returns available products with their codes, names, descriptions, and categories. Use regionCode and optional filters to narrow results. Paginated (default 50/page, sorted by productCode); the response includes totalRows/returnedRows/hasMore/nextPageNo — follow nextPageNo to page through all results.",
     {
-      regionCode: z.string().describe("Region code (e.g. KR, JPN, SGN)"),
+      regionCode: z.string().describe(`Region code (${REGION_CODES})`),
       pageNo: z.number().optional().describe("Page number (default 1). Use nextPageNo from the response to page through results."),
       pageSize: z.number().optional().describe("Page size (default 50, max 1000). Results are server-sorted by productCode for stable pagination."),
       productItemKindCode: z.string().optional().describe("Product item kind code (e.g. VSVR, SW)"),
@@ -317,7 +325,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
     "ncloud_get_product_price_list",
     "Get product and price list. Returns products with their associated pricing information including monthly/hourly rates, conditions, and discount details. Paginated (default 50/page, sorted by productCode); the response includes totalRows/returnedRows/hasMore/nextPageNo (and truncated=true if a single page was size-capped) — follow nextPageNo to page through all results.",
     {
-      regionCode: z.string().describe("Region code (e.g. KR, JPN, SGN)"),
+      regionCode: z.string().describe(`Region code (${REGION_CODES})`),
       pageNo: z.number().optional().describe("Page number (default 1). Use nextPageNo from the response to page through results."),
       pageSize: z.number().optional().describe("Page size (default 50, max 1000). Results are server-sorted by productCode for stable pagination."),
       productItemKindCode: z.string().optional().describe("Product item kind code (e.g. VSVR)"),
@@ -429,7 +437,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       contractNo: z.string().optional().describe("Contract number to filter"),
       demandTypeCode: z.string().optional().describe("Demand type code"),
       demandTypeDetailCode: z.string().optional().describe("Demand type detail code"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR)"),
+      regionCode: z.string().optional().describe(`Region code (${REGION_CODES})`),
     },
     async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, demandTypeCode, demandTypeDetailCode, regionCode }) => {
       const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
@@ -461,7 +469,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       memberNoList: z.array(z.string()).optional().describe("Member number list (master/partner only)"),
       contractTypeCode: z.string().optional().describe("Contract type code (e.g. VSVR)"),
       contractStatusCode: z.enum(["ALL", "NOML", "NLEND"]).optional().describe("Contract status: ALL (default), NOML (normal), NLEND (terminated)"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR)"),
+      regionCode: z.string().optional().describe(`Region code (${REGION_CODES})`),
     },
     async ({ contractMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractTypeCode, contractStatusCode, regionCode }) => {
       const params: Record<string, string> = { responseFormatType: "json", contractMonth };
@@ -496,7 +504,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       contractTypeCode: z.string().optional().describe("Contract type code"),
       productItemKindDetailCode: productItemKindDetailCodeSchema,
       contractStatusCode: z.enum(["NOML", "NLEND"]).optional().describe("Contract status: NOML (normal), NLEND (terminated)"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR)"),
+      regionCode: z.string().optional().describe(`Region code (${REGION_CODES})`),
     },
     async ({ startMonth, endMonth, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, productItemKindDetailCode, contractStatusCode, regionCode }) => {
       const params: Record<string, string> = { responseFormatType: "json", startMonth, endMonth };
@@ -532,7 +540,7 @@ export function registerBillingTools(server: McpServer, client: NcloudClient): v
       contractTypeCode: z.string().optional().describe("Contract type code"),
       productItemKindCode: z.string().optional().describe("Product item kind code"),
       productItemKindDetailCode: productItemKindDetailCodeSchema,
-      regionCode: z.string().optional().describe("Region code (e.g. KR)"),
+      regionCode: z.string().optional().describe(`Region code (${REGION_CODES})`),
     },
     async ({ useStartDay, useEndDay, pageNo, pageSize, isOrganization, isPartner, memberNoList, contractNo, contractTypeCode, productItemKindCode, productItemKindDetailCode, regionCode }) => {
       const params: Record<string, string> = { responseFormatType: "json", useStartDay, useEndDay };

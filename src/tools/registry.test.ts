@@ -608,6 +608,50 @@ describe("application 그룹: 존별 등록", () => {
   });
 });
 
+describe("billing 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureBilling(zone: "public" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({ name, description: config?.description ?? null, schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
+      },
+    };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "billing")
+    );
+    return captured;
+  }
+  it("도구 이름 집합은 존과 무관하게 동일하다 (오퍼레이션 20종 동일)", () => {
+    const pub = captureBilling("public").map((t) => t.name).sort();
+    const gov = captureBilling("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+    expect(pub.length).toBeGreaterThan(10);
+  });
+});
+
+// ─── 전 그룹 종합: 존별 도구 수 ────────────────────────────────────────────────
+describe("전 그룹: 존별 등록 요약", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureAll(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: { NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" } },
+      resolveGroups(undefined)
+    );
+    return names;
+  }
+  it("두 존 모두 1000개 이상 등록되고 이름이 중복되지 않는다", () => {
+    for (const zone of ["public", "gov"] as const) {
+      const names = captureAll(zone);
+      expect(names.length, zone).toBeGreaterThan(1000);
+      expect(new Set(names).size, `${zone} duplicates`).toBe(names.length);
+    }
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
