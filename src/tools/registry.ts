@@ -305,9 +305,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "monitoring",
     title: "Monitoring (Cloud Insight, Log Analytics)",
-    register: ({ server, client }) => {
-      registerLogAnalyticsTools(server, client("https://cloudloganalytics.apigw.ntruss.com"));
-      const cw = client("https://cw.apigw.ntruss.com");
+    register: ({ server, client, zone }) => {
+      // 두 존 규칙형 호스트 + 동일 경로·오퍼레이션 (management-cloudinsight / analytics-cloudloganalytics 개요, 2026-09-30 대조).
+      // Cloud Insight v2(cloudinsight.apigw.*/api/v2, GetAggregatedMetrics)는 미사용 — v1(cw.apigw.*) 기준.
+      registerLogAnalyticsTools(server, client(endpoint("cloudLogAnalytics", zone)), { zone });
+      const cw = client(endpoint("cloudInsight", zone));
       registerCloudInsightTools(server, cw);
       registerCloudInsightRuleTools(server, cw);
       registerCloudInsightPluginTools(server, cw);

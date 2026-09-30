@@ -407,6 +407,29 @@ describe("storage 그룹: 존별 등록", () => {
   });
 });
 
+describe("monitoring 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureMonitoring(zone: "public" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({ name, description: config?.description ?? null, schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
+      },
+    };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "monitoring")
+    );
+    return captured;
+  }
+  it("도구 이름 집합은 존과 무관하게 동일하다 (Cloud Insight v1·Log Analytics 오퍼레이션 목록 동일)", () => {
+    const pub = captureMonitoring("public").map((t) => t.name).sort();
+    const gov = captureMonitoring("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+    expect(pub).toContain("ncloud_search_logs");
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
