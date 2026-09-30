@@ -430,6 +430,30 @@ describe("monitoring 그룹: 존별 등록", () => {
   });
 });
 
+describe("governance 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureGovernance(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "governance")
+    );
+    return names;
+  }
+  it("public: Cloud Advisor + WMS 모두 등록", () => {
+    const names = captureGovernance("public");
+    expect(names.some((n) => n.startsWith("ncloud_advisor_"))).toBe(true);
+    expect(names).toContain("ncloud_wms_list_monitors");
+  });
+  it("gov: Cloud Advisor 만 빠지고(공공존 미제공) 나머지는 public 과 동일", () => {
+    const pub = captureGovernance("public");
+    const gov = captureGovernance("gov");
+    expect(gov.some((n) => n.startsWith("ncloud_advisor_"))).toBe(false);
+    expect(gov.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_advisor_")).sort());
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];

@@ -135,7 +135,7 @@ export const SERVICE_ENDPOINTS = {
   cloudAdvisor: { public: apigw("cloud-advisor", "public") },
   resourceManager: { public: apigw("resourcemanager", "public"), gov: apigw("resourcemanager", "gov") },
   subAccount: { public: apigw("subaccount", "public"), gov: apigw("subaccount", "gov") },
-  wms: { gov: apigw("wms", "gov") }, // 공공존 전용 (Web Service Monitoring)
+  wms: { public: apigw("wms", "public"), gov: apigw("wms", "gov") }, // Web service Monitoring System — 두 존 제공(management-wms, 2026-09-30 확인)
   // ── devtools ──
   sourceCommit: { public: apigw("sourcecommit", "public"), gov: apigw("sourcecommit", "gov") },
   sourceBuild: { public: apigw("sourcebuild", "public"), gov: apigw("sourcebuild", "gov") },

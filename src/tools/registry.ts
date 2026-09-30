@@ -80,6 +80,7 @@ import {
   registerDataCatalogTools,
   registerDataForestTools,
   registerCloudAdvisorTools,
+  registerWmsTools,
   registerDataFlowTools,
   registerDataQueryTools,
   registerPrivateCaTools,
@@ -318,12 +319,17 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "governance",
-    title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account)",
-    register: ({ server, client }) => {
-      registerActivityTracerTools(server, client("https://cloudactivitytracer.apigw.ntruss.com"));
-      registerCloudAdvisorTools(server, client("https://cloud-advisor.apigw.ntruss.com"));
-      registerResourceManagerTools(server, client("https://resourcemanager.apigw.ntruss.com"));
-      registerSubAccountTools(server, client("https://subaccount.apigw.ntruss.com"));
+    title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account, WMS)",
+    register: ({ server, client, zone }) => {
+      // Activity Tracer·Resource Manager·Sub Account·WMS: 두 존 규칙형 호스트, 경로 동일
+      //   (management-cloudactivitytracer / -resourcemanager / -subaccount / -wms 개요, 2026-09-30 대조).
+      // Cloud Advisor 는 민간존 전용(api-gov 에 management-cloud-advisor-* 페이지 없음) → endpoint() undefined 면 미등록.
+      registerActivityTracerTools(server, client(endpoint("activityTracer", zone)));
+      const advisor = endpoint("cloudAdvisor", zone);
+      if (advisor) registerCloudAdvisorTools(server, client(advisor));
+      registerResourceManagerTools(server, client(endpoint("resourceManager", zone)));
+      registerSubAccountTools(server, client(endpoint("subAccount", zone)));
+      registerWmsTools(server, client(endpoint("wms", zone)));
     },
   },
   {
