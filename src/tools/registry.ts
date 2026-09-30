@@ -386,8 +386,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "cdn",
     title: "Content Delivery (Global Edge)",
-    register: ({ server, client }) => {
-      registerGlobalEdgeTools(server, client("https://edge.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // Global Edge: 두 존 규칙형 호스트, 오퍼레이션 18종 동일(edge-overview / edge-*, 2026-09-30 대조).
+      // CDN+ / Global CDN 은 2026-12-31 종료 예정(신규 생성 불가) → 어느 존에도 등록하지 않는다.
+      registerGlobalEdgeTools(server, client(endpoint("globalEdge", zone)));
     },
   },
   {

@@ -157,9 +157,8 @@ export const SERVICE_ENDPOINTS = {
   imageOptimizer: { public: apigw("imageoptimizer", "public") },
   multiDrm: { public: "https://multi-drm.apigw.ntruss.com", gov: "https://multi-drm.apigw.gov-ntruss.com" }, // 두 존 제공(one-click-multi-drm-api-overview), x-ncp-region_code: KR
   // ── cdn ──
-  globalEdge: { public: apigw("edge", "public") },
-  cdnPlus: { gov: ZONE_PROFILES.gov.defaultGateway }, // 공공존 전용, 기본 게이트웨이
-  globalCdn: { gov: ZONE_PROFILES.gov.defaultGateway }, // 공공존 전용, 기본 게이트웨이
+  // Global Edge 만 래핑한다. CDN+ / Global CDN 은 2026-12-31 서비스 종료 예정(신규 생성 불가)이라 두 존 모두 이식하지 않는다(2026-09-30 결정).
+  globalEdge: { public: apigw("edge", "public"), gov: apigw("edge", "gov") }, // 두 존 제공(edge-overview, 오퍼레이션 18종 동일)
   // ── security ──
   certificateManager: { public: apigw("certificatemanager", "public"), gov: apigw("certificatemanager", "gov") },
   privateCa: { public: apigw("pca", "public"), gov: "https://privateca.apigw.gov-ntruss.com" }, // 불규칙

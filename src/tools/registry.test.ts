@@ -536,6 +536,26 @@ describe("media 그룹: 존별 등록", () => {
   });
 });
 
+describe("cdn 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureCdn(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "cdn")
+    );
+    return names;
+  }
+  it("Global Edge 도구 집합은 존과 무관하게 동일하고, CDN+/Global CDN 도구는 없다", () => {
+    const pub = captureCdn("public").sort();
+    const gov = captureCdn("gov").sort();
+    expect(gov).toEqual(pub);
+    expect(pub.length).toBeGreaterThan(10);
+    expect(pub.some((n) => /cdnplus|cdn_plus|globalcdn|global_cdn/.test(n))).toBe(false);
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
