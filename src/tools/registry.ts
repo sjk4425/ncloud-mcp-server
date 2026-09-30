@@ -243,12 +243,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "network",
-    zones: PUBLIC_GOV,
     title: "Network (VPC, ACG, LB, Target Group, Global DNS, Traffic Manager)",
     register: ({ server, client, zone }) => {
-      // VPC·ACG·NACL·NAT·Route Table·Peering·NIC·LB·Target Group: 두 존 모두 기본 게이트웨이 + 같은 경로.
+      // VPC·ACG·NACL·NAT·Route Table·Peering·NIC·LB·Target Group: 세 존 모두 기본 게이트웨이 + 같은 경로.
       //   민간존 https://api.ncloud-docs.com/docs/networking-vpc · 공공존 https://api-gov.ncloud-docs.com/docs/networking-vpc
-      //   (vloadbalancer 도 동일). 공공존 LB 에는 리스너 인증서(SNI) 오퍼레이션 3종이 없다.
+      //   · 금융존 https://api-fin.ncloud-docs.com/docs/networking-vpc (vloadbalancer 도 동일, 오퍼레이션 47/27 동일).
+      //   공공존 LB 에만 리스너 인증서(SNI) 오퍼레이션 3종이 없다(금융존은 있음).
+      // Global DNS: 세 존 제공. Global Traffic Manager: 금융존 미제공(api-fin 404) → endpoint() undefined 면 미등록.
       const c = client();
       registerVpcTools(server, c);
       registerAcgTools(server, c);
@@ -262,7 +263,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
       // Global DNS / GTM: 전용 호스트, 두 존 규칙형 서브도메인, 오퍼레이션 목록 동일
       //   (networking-globaldns-* / globaltrafficmanager-* 페이지 대조, 2026-09-30).
       registerGlobalDnsTools(server, client(endpoint("globaldns", zone)));
-      registerGlobalTrafficManagerTools(server, client(endpoint("globaltrafficmanager", zone)));
+      const gtm = endpoint("globaltrafficmanager", zone);
+      if (gtm) registerGlobalTrafficManagerTools(server, client(gtm));
     },
   },
   {

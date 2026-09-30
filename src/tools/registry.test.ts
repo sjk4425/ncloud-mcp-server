@@ -378,6 +378,15 @@ describe("network 그룹: 존별 등록", () => {
     for (const t of LISTENER_CERT_TOOLS) expect(gov).not.toContain(t);
     expect(gov.sort()).toEqual(pub.filter((n) => !LISTENER_CERT_TOOLS.includes(n)).sort());
   });
+  it("fin: Global Traffic Manager 만 빠지고(금융존 미제공) 리스너 인증서 포함 나머지는 public 과 동일", () => {
+    const pub = captureNetwork("public");
+    const fin = captureNetwork("fin" as any);
+    const isGtm = (n: string) => n.startsWith("ncloud_gtm_");
+    expect(pub.some(isGtm)).toBe(true);
+    expect(fin.some(isGtm)).toBe(false);
+    for (const t of LISTENER_CERT_TOOLS) expect(fin).toContain(t);
+    expect(fin.sort()).toEqual(pub.filter((n) => !isGtm(n)).sort());
+  });
 });
 
 describe("storage 그룹: 존별 등록", () => {

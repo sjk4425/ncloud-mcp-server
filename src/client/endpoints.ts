@@ -135,8 +135,8 @@ export const SERVICE_ENDPOINTS = {
   cloudfunctionsSgn: { public: "https://sg-cloudfunctions.apigw.ntruss.com" },
   cloudfunctionsJpn: { public: "https://jp-cloudfunctions.apigw.ntruss.com" },
   // ── network ──
-  globaldns: { public: apigw("globaldns", "public"), gov: apigw("globaldns", "gov") },
-  globaltrafficmanager: { public: apigw("globaltrafficmanager", "public"), gov: apigw("globaltrafficmanager", "gov") },
+  globaldns: { public: apigw("globaldns", "public"), gov: apigw("globaldns", "gov"), fin: "https://globaldns.apigw.fin-ntruss.com" }, // fin: networking-globaldns-* 14 op 동일
+  globaltrafficmanager: { public: apigw("globaltrafficmanager", "public"), gov: apigw("globaltrafficmanager", "gov") }, // 금융존 미제공(2026-09-30, api-fin 404)
   // ── database ──
   clouddbServerless: { public: apigw("clouddb-serverless", "public") },
   // ── containers ──
