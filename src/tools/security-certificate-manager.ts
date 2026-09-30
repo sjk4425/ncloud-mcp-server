@@ -59,7 +59,15 @@ function assertReturnCode(result: any): any {
   return result;
 }
 
-export function registerCertificateManagerTools(server: McpServer, client: NcloudClient): void {
+export interface CertificateManagerToolOptions {
+  /**
+   * 사설 인증서 발급(`POST /api/v1/certificate/issuePrivate`) 도구 등록 여부. 기본 false.
+   * 공공존 가이드(security-certificatemanager-issueprivate)에만 있는 오퍼레이션이다(2026-09-30 확인).
+   */
+  issuePrivate?: boolean;
+}
+
+export function registerCertificateManagerTools(server: McpServer, client: NcloudClient, opts: CertificateManagerToolOptions = {}): void {
   // ─── 인증서 목록 조회 ──────────────────────────────────────────────────────
 
   defineTool(
@@ -141,4 +149,39 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
           `To execute, call this tool again with confirm=true.`,
         ].join("\n") } }
   );
+
+  // ─── 사설 인증서 발급 (공공존 전용) ──────────────────────────────────────────
+  // 스펙: POST /api/v1/certificate/issuePrivate — caTag·certificateName·certificateType·keyType·period·
+  // registPrivateKey·commonName 필수, 조직/주소 필드·SAN 배열 선택 (api-gov security-certificatemanager-issueprivate).
+  if (opts.issuePrivate) {
+    defineTool(
+      server,
+      "ncloud_issue_private_certificate",
+      "Issue a private SSL/TLS certificate from a Private CA through Certificate Manager (Government zone only). Requires the caTag of an existing Private CA (ncloud_pca_list_cas).",
+      {
+        caTag: z.string().describe("CA identifier (caTag) from the Private CA list"),
+        certificateName: z.string().describe("Certificate name (3-30 chars: letters, numbers, '-', must be unique)"),
+        certificateType: z.enum(["NCP_PRIVATE", "NCP_PRIVATE_SSL"]).describe("Certificate type: NCP_PRIVATE or NCP_PRIVATE_SSL"),
+        keyType: z.enum(["RSA2048", "RSA4096", "EC256", "EC521"]).describe("Key type: RSA2048 | RSA4096 | EC256 | EC521"),
+        period: z.string().describe("Validity period: '1'~'3650' days, or 'MAX' for the maximum allowed"),
+        registPrivateKey: z.boolean().describe("Whether to store the private key in Certificate Manager"),
+        commonName: z.string().describe("Common Name (CN) — 1-64 characters"),
+        organization: z.string().optional().describe("Organization (O) — 0-64 chars"),
+        organizationUnit: z.string().optional().describe("Organizational Unit (OU) — 0-128 chars"),
+        locality: z.string().optional().describe("Locality/city (L) — 0-128 chars"),
+        stateProvince: z.string().optional().describe("State/Province (ST) — 0-128 chars"),
+        streetAddress: z.string().optional().describe("Street address — 0-128 chars"),
+        country: z.string().optional().describe("Country code (C) — ISO 3166-1 alpha-2"),
+        dnsSans: z.array(z.string()).optional().describe("DNS Subject Alternative Names"),
+        emailSans: z.array(z.string()).optional().describe("Email Subject Alternative Names"),
+        ipSans: z.array(z.string()).optional().describe("IP Subject Alternative Names"),
+      },
+      async (params) => {
+        const body: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(params)) if (v !== undefined) body[k] = v;
+        const result = await client.requestRaw("POST", "/api/v1/certificate/issuePrivate", undefined, body);
+        return assertReturnCode(result);
+      }
+    );
+  }
 }

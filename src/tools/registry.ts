@@ -395,11 +395,14 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "security",
     title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring)",
-    register: ({ server, client }) => {
-      registerCertificateManagerTools(server, client("https://certificatemanager.apigw.ntruss.com"));
-      registerPrivateCaTools(server, client("https://pca.apigw.ntruss.com"));
-      registerKmsTools(server, client("https://ocapi.ncloud.com"));
-      registerSecurityMonitoringTools(server, client("https://securitymonitoring.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // Certificate Manager: 규칙형 호스트. 공공존 가이드는 v1 4종(목록·외부등록·삭제·**사설 발급 issuePrivate**) — 사설 발급은 gov 에만 있다.
+      // Private CA: 공공존 호스트 불규칙(privateca.apigw.gov-ntruss.com, security-privateca 개요), 오퍼레이션 15종 동일.
+      // KMS v2: apigw 가 아닌 ocapi.ncloud.com / ocapi.gov-ncloud.com (security-kms2-* 페이지). Security Monitoring: 규칙형.
+      registerCertificateManagerTools(server, client(endpoint("certificateManager", zone)), { issuePrivate: zone === "gov" });
+      registerPrivateCaTools(server, client(endpoint("privateCa", zone)));
+      registerKmsTools(server, client(endpoint("kms", zone)), { zone });
+      registerSecurityMonitoringTools(server, client(endpoint("securityMonitoring", zone)));
     },
   },
   {

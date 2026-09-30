@@ -556,6 +556,27 @@ describe("cdn 그룹: 존별 등록", () => {
   });
 });
 
+describe("security 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureSecurity(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "security")
+    );
+    return names;
+  }
+  it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고 나머지는 public 과 동일", () => {
+    const pub = captureSecurity("public");
+    const gov = captureSecurity("gov");
+    expect(pub).not.toContain("ncloud_issue_private_certificate");
+    expect(gov).toContain("ncloud_issue_private_certificate");
+    expect(gov.filter((n) => n !== "ncloud_issue_private_certificate").sort()).toEqual(pub.sort());
+    expect(pub).toContain("ncloud_kms_create_key");
+  });
+});
+
 describe("database 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
   const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];

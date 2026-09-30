@@ -2,13 +2,27 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import type { Zone } from "../client/endpoints.js";
 
 /**
  * Ncloud Key Management Service (KMS) API 2.0
- * Base URL: https://ocapi.ncloud.com
+ * Base URL: https://ocapi.ncloud.com (민간존) / https://ocapi.gov-ncloud.com (공공존) — apigw 게이트웨이가 아니다.
  * Auth: Account Auth (x-ncp-apigw-timestamp, x-ncp-iam-access-key, x-ncp-apigw-signature-v2)
+ *
+ * 두 존 오퍼레이션 목록(security-kms2-*, 45 페이지) 동일. 단 Create Key 의 `protectionType`(BASIC | COMMON_HSM)은
+ * 민간존 문서에만 있고(필수) 공공존 문서에는 없다(2026-09-30 원문 확인) → 공공존에서는 받지도 보내지도 않는다.
  */
-export function registerKmsTools(server: McpServer, client: NcloudClient): void {
+export interface KmsToolOptions {
+  /** 존 — Create Key 의 protectionType 처리. 기본 `public`. */
+  zone?: Zone;
+}
+
+export function registerKmsTools(server: McpServer, client: NcloudClient, opts: KmsToolOptions = {}): void {
+  const gov = (opts.zone ?? "public") === "gov";
+  const PROTECTION_TYPES = ["BASIC", "COMMON_HSM"] as const;
+  const protectionTypeSchema = gov
+    ? z.enum(PROTECTION_TYPES).optional().describe("Not available in the Government zone (the gov Create Key API has no protectionType) — leave unset")
+    : z.enum(PROTECTION_TYPES).describe("Key storage type: BASIC (encrypted internal storage) or COMMON_HSM (Hardware Security Module)");
 
   // ─── Key Management ───────────────────────────────────────────────────────────
 
@@ -20,17 +34,20 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
     {
       keyName: z.string().describe("Key name (3-15 chars, alphanumeric + '-' + '_', must start with letter)"),
       keyType: z.enum(["AES256", "RSA2048", "ECDSA"]).describe("Key type: AES256 (symmetric 256-bit), RSA2048 (asymmetric 2048-bit), ECDSA (asymmetric 256-bit)"),
-      protectionType: z.enum(["BASIC", "COMMON_HSM"]).describe("Key storage type: BASIC (encrypted internal storage) or COMMON_HSM (Hardware Security Module)"),
+      protectionType: protectionTypeSchema,
       isAutoRotation: z.boolean().optional().describe("Enable auto rotation (default: false)"),
       rotationPeriod: z.number().optional().describe("Auto rotation period in days (1-730, default: 90). Only when isAutoRotation is true"),
       memo: z.string().optional().describe("Key memo/description (0-100 chars)"),
       isConvergent: z.boolean().optional().describe("Enable convergent encryption (only for AES256, default: false)"),
     },
     async (params) => {
+      if (gov && params.protectionType !== undefined) {
+        return { content: [{ type: "text" as const, text: "protectionType is not accepted by the Government-zone KMS API — remove it." }], isError: true };
+      }
       const body: Record<string, unknown> = {
         keyName: params.keyName,
         keyType: params.keyType,
-        protectionType: params.protectionType,
+        ...(gov ? {} : { protectionType: params.protectionType }),
         isAutoRotation: params.isAutoRotation ?? false,
       };
       if (params.rotationPeriod !== undefined) body.rotationPeriod = params.rotationPeriod;
@@ -38,7 +55,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.isConvergent !== undefined) body.isConvergent = params.isConvergent;
 
       const result = await client.requestRaw("POST", "/kms/v1/keys", undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -70,7 +87,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.pageSize !== undefined) query.pageSize = params.pageSize;
 
       const result = await client.requestRaw("GET", "/kms/v1/keys", query);
-      return result;
+      return result;
     }
   );
 
@@ -195,7 +212,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
       }
       const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/request-deletion`);
-      return result;
+      return result;
     }
   );
 
@@ -226,7 +243,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
       }
       const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete KMS key [${params.keyTag}]. This is irreversible. To execute, call this tool again with confirm=true.` } }
   );
@@ -305,7 +322,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.context !== undefined) body.context = params.context;
 
       const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/encrypt`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -324,7 +341,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.context !== undefined) body.context = params.context;
 
       const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/decrypt`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -346,7 +363,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.context !== undefined) body.context = params.context;
 
       const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/create-custom-key`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -365,7 +382,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.context !== undefined) body.context = params.context;
 
       const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/reencrypt`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -455,7 +472,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.memo !== undefined) body.memo = params.memo;
 
       const result = await client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/ip-acl/rules`, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -474,7 +491,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         return { content: [{ type: "text" as const, text: "Error: keyTag and ruleId are required" }], isError: true };
       }
       const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}/ip-acl/rules/${params.ruleId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will delete ACL rule [${params.ruleId}] from KMS key [${params.keyTag}]. To execute, call this tool again with confirm=true.` } }
   );
@@ -534,7 +551,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
         return { content: [{ type: "text" as const, text: "Error: keyTag is required and cannot be empty" }], isError: true };
       }
       const result = await client.requestRaw("DELETE", `/kms/v1/keys/${params.keyTag}/token-generator`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will delete the token generator for KMS key [${params.keyTag}] and invalidate all existing tokens. To execute, call this tool again with confirm=true.` } }
   );
@@ -570,7 +587,7 @@ export function registerKmsTools(server: McpServer, client: NcloudClient): void 
       if (params.pageSize !== undefined) query.pageSize = params.pageSize;
 
       const result = await client.requestRaw("GET", `/kms/v1/keys/${params.keyTag}/activity-logs`, query);
-      return result;
+      return result;
     }
   );
 
