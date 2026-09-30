@@ -5,7 +5,26 @@ import { defineTool } from "./_tool.js";
 import { L, maxLenMessage, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
-export function registerDatabaseCacheTools(server: McpServer, client: NcloudClient): void {
+export interface DatabaseCacheToolOptions {
+  /**
+   * 사용자(ACL) 관리 도구 4종 등록 여부. 기본 false.
+   * get/add/change/deleteCloudCacheUserList 는 **공공존 가이드에만** 있다
+   * (api-gov.ncloud-docs.com/docs/database-vcache-*cloudcacheuserlist, 민간존 동일 페이지는 404 — 2026-09-30 확인).
+   */
+  userList?: boolean;
+}
+
+/** 공공존 가이드의 사용자명 규칙: 영문자·숫자·'_'·'-' 조합 4~16자, 영문자로 시작. */
+const CACHE_USER_NAME = /^[A-Za-z][A-Za-z0-9_-]{3,15}$/;
+/** 공공존 가이드의 비밀번호 규칙: 9~20자, 영문·숫자·특수문자 각 1자 이상, ` & + \ " ' ^ > / 공백 사용 불가. */
+function cacheUserPasswordError(pw: string): string | null {
+  if (pw.length < 9 || pw.length > 20) return "password must be 9-20 characters";
+  if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw) || !/[^A-Za-z0-9]/.test(pw)) return "password must contain at least one letter, one digit and one special character";
+  if (/[`&+\\"'^>/ ]/.test(pw)) return "password must not contain ` & + \\ \" ' ^ > / or spaces";
+  return null;
+}
+
+export function registerDatabaseCacheTools(server: McpServer, client: NcloudClient, opts: DatabaseCacheToolOptions = {}): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
   defineTool(
@@ -565,6 +584,111 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       return client.request("/vcache/v2/getCloudCacheBucketList", params);
     }
   );
+
+  // ─── User (ACL) Management Tools — 공공존 전용 ─────────────────────────────
+  // 스펙: /vcache/v2/{get,add,change,delete}CloudCacheUserList (Valkey·Redis 공용; *CloudRedisUserList 는 Redis 전용 구버전).
+  // 리스트 파라미터는 `cloudCacheUserList.N.name` / `.password` (1-based) 형식.
+
+  if (opts.userList) {
+    const userEntry = z.object({
+      name: z.string().describe("User name: 4-16 chars of letters, digits, '_' and '-', starting with a letter"),
+      password: z.string().describe("Password: 9-20 chars with at least one letter, one digit and one special character; ` & + \\ \" ' ^ > / and spaces are not allowed"),
+    });
+    const validateUsers = (users: Array<{ name: string; password?: string }>, checkPassword: boolean) => {
+      for (const u of users) {
+        if (!CACHE_USER_NAME.test(u.name)) {
+          return `Invalid user name '${u.name}': 4-16 chars of letters, digits, '_' and '-', starting with a letter.`;
+        }
+        if (checkPassword) {
+          const err = cacheUserPasswordError(u.password ?? "");
+          if (err) return `Invalid password for user '${u.name}': ${err}.`;
+        }
+      }
+      return null;
+    };
+    const userListParams = (cloudCacheInstanceNo: string, regionCode: string | undefined, users: Array<{ name: string; password?: string }>) => {
+      const requestParams: Record<string, any> = { cloudCacheInstanceNo };
+      if (regionCode) requestParams.regionCode = regionCode;
+      users.forEach((u, i) => {
+        requestParams[`cloudCacheUserList.${i + 1}.name`] = u.name;
+        if (u.password !== undefined) requestParams[`cloudCacheUserList.${i + 1}.password`] = u.password;
+      });
+      return requestParams;
+    };
+    const fail = (text: string) => ({ content: [{ type: "text" as const, text }], isError: true });
+
+    defineTool(
+      server,
+      "ncloud_list_cache_users",
+      "List the DB users (ACL) of a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (getCloudCacheUserList)",
+      {
+        cloudCacheInstanceNo: z.string({
+          required_error: requiredError("cloudCacheInstanceNo"),
+        }).describe("Cloud Cache instance number"),
+        regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
+      },
+      async (params) => {
+        return client.request("/vcache/v2/getCloudCacheUserList", params);
+      }
+    );
+
+    defineTool(
+      server,
+      "ncloud_add_cache_users",
+      "Add DB users (ACL) to a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (addCloudCacheUserList). Name and password rules are checked before the call.",
+      {
+        cloudCacheInstanceNo: z.string({
+          required_error: requiredError("cloudCacheInstanceNo"),
+        }).describe("Cloud Cache instance number"),
+        cloudCacheUserList: z.array(userEntry).min(1).describe("Users to add (sent as cloudCacheUserList.N.name / .password)"),
+        regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
+      },
+      async (params) => {
+        const err = validateUsers(params.cloudCacheUserList, true);
+        if (err) return fail(err);
+        return client.request("/vcache/v2/addCloudCacheUserList", userListParams(params.cloudCacheInstanceNo, params.regionCode, params.cloudCacheUserList));
+      }
+    );
+
+    defineTool(
+      server,
+      "ncloud_change_cache_users",
+      "Change the passwords of existing DB users (ACL) on a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (changeCloudCacheUserList). Password rules are checked before the call.",
+      {
+        cloudCacheInstanceNo: z.string({
+          required_error: requiredError("cloudCacheInstanceNo"),
+        }).describe("Cloud Cache instance number"),
+        cloudCacheUserList: z.array(userEntry).min(1).describe("Existing users with their new passwords (sent as cloudCacheUserList.N.name / .password)"),
+        regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
+      },
+      async (params) => {
+        const err = validateUsers(params.cloudCacheUserList, true);
+        if (err) return fail(err);
+        return client.request("/vcache/v2/changeCloudCacheUserList", userListParams(params.cloudCacheInstanceNo, params.regionCode, params.cloudCacheUserList));
+      }
+    );
+
+    defineTool(
+      server,
+      "ncloud_delete_cache_users",
+      "⚠️ Destructive: Delete DB users (ACL) from a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (deleteCloudCacheUserList). Set confirm=true to execute.",
+      {
+        cloudCacheInstanceNo: z.string({
+          required_error: requiredError("cloudCacheInstanceNo"),
+        }).describe("Cloud Cache instance number"),
+        userNameList: z.array(z.string()).min(1).describe("User names to delete (sent as cloudCacheUserList.N.name)"),
+        regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
+        confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
+      },
+      async (params) => {
+        return client.request(
+          "/vcache/v2/deleteCloudCacheUserList",
+          userListParams(params.cloudCacheInstanceNo, params.regionCode, params.userNameList.map((name) => ({ name })))
+        );
+      },
+      { destructive: { message: (params) => `⚠️ This will permanently delete users [${params.userNameList.join(", ")}] from Cache instance [${params.cloudCacheInstanceNo}].\n\nTo execute, call this tool again with confirm=true.` } }
+    );
+  }
 
   // ─── Destructive Tools (with confirm gate) ─────────────────────────────────
 

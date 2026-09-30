@@ -403,3 +403,76 @@ describe("Cloud DB for Cache — 모드↔config group 정합성 사전 검증 (
     spy.mockRestore();
   });
 });
+
+// ─── 공공존 전용: 사용자(ACL) 4종 (api-gov.ncloud-docs.com/docs/database-vcache-*cloudcacheuserlist) ─────────
+describe("Cloud DB for Cache — 사용자(ACL) 도구 (공공존 전용, userList 옵션)", () => {
+  let server: McpServer;
+  let client: NcloudClient;
+
+  beforeEach(() => {
+    server = new McpServer({ name: "test", version: "1.0.0" });
+    client = createMockClient();
+    registerDatabaseCacheTools(server, client, { userList: true });
+  });
+
+  it("옵션 없이 등록하면 사용자 도구 4종은 없다 (민간존 가이드에 오퍼레이션 없음)", () => {
+    const s2 = new McpServer({ name: "t", version: "1.0.0" });
+    registerDatabaseCacheTools(s2, createMockClient());
+    for (const t of ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"]) {
+      expect(() => getTool(s2, t)).toThrow();
+    }
+  });
+
+  it("add: cloudCacheUserList.N.name / .password 형식(1-based)으로 addCloudCacheUserList 를 부른다", async () => {
+    const spy = vi.spyOn(client, "request").mockResolvedValue({ addCloudCacheUserListResponse: {} });
+    await getToolHandler(server, "ncloud_add_cache_users")({
+      cloudCacheInstanceNo: "123", regionCode: "KRS",
+      cloudCacheUserList: [{ name: "user_01", password: "Passw0rd!x" }, { name: "admin-2", password: "Secret#123" }],
+    }, {} as any);
+    expect(spy).toHaveBeenCalledWith("/vcache/v2/addCloudCacheUserList", {
+      cloudCacheInstanceNo: "123", regionCode: "KRS",
+      "cloudCacheUserList.1.name": "user_01", "cloudCacheUserList.1.password": "Passw0rd!x",
+      "cloudCacheUserList.2.name": "admin-2", "cloudCacheUserList.2.password": "Secret#123",
+    });
+    spy.mockRestore();
+  });
+
+  it("add/change: 가이드의 이름·비밀번호 규칙을 어기면 API 호출 없이 거절한다", async () => {
+    const spy = vi.spyOn(client, "request");
+    const add = getToolHandler(server, "ncloud_add_cache_users");
+    const cases = [
+      { name: "1abc", password: "Passw0rd!x" },        // 영문자로 시작해야 함
+      { name: "ab", password: "Passw0rd!x" },          // 4자 미만
+      { name: "user01", password: "short1!" },         // 9자 미만
+      { name: "user01", password: "NoDigits!!" },      // 숫자 없음
+      { name: "user01", password: "Passw0rd\"x" },     // 금지 문자 "
+      { name: "user01", password: "Passw0rd x" },      // 공백
+    ];
+    for (const u of cases) {
+      const res = await add({ cloudCacheInstanceNo: "1", cloudCacheUserList: [u] }, {} as any);
+      expect(res.isError, JSON.stringify(u)).toBe(true);
+    }
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("delete: confirm 게이트를 지나면 cloudCacheUserList.N.name 만 실어 deleteCloudCacheUserList 를 부른다", async () => {
+    const spy = vi.spyOn(client, "request").mockResolvedValue({});
+    const h = getToolHandler(server, "ncloud_delete_cache_users");
+    const gated = await h({ cloudCacheInstanceNo: "1", userNameList: ["u1"], confirm: false }, {} as any);
+    expect(gated.content[0].text).toContain("⚠️");
+    expect(spy).not.toHaveBeenCalled();
+    await h({ cloudCacheInstanceNo: "1", userNameList: ["u1", "u2"], confirm: true }, {} as any);
+    expect(spy).toHaveBeenCalledWith("/vcache/v2/deleteCloudCacheUserList", {
+      cloudCacheInstanceNo: "1", "cloudCacheUserList.1.name": "u1", "cloudCacheUserList.2.name": "u2",
+    });
+    spy.mockRestore();
+  });
+
+  it("list: getCloudCacheUserList 에 인스턴스 번호(+regionCode)를 그대로 넘긴다", async () => {
+    const spy = vi.spyOn(client, "request").mockResolvedValue({});
+    await getToolHandler(server, "ncloud_list_cache_users")({ cloudCacheInstanceNo: "9" }, {} as any);
+    expect(spy).toHaveBeenCalledWith("/vcache/v2/getCloudCacheUserList", { cloudCacheInstanceNo: "9" });
+    spy.mockRestore();
+  });
+});

@@ -367,6 +367,36 @@ describe("network 그룹: 존별 등록", () => {
   });
 });
 
+describe("database 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
+
+  function captureDatabase(zone: "public" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "database")
+    );
+    return names;
+  }
+
+  it("public: Serverless 도구는 있고 Cache 사용자 도구는 없다", () => {
+    const names = captureDatabase("public");
+    expect(names.some((n) => n.startsWith("ncloud_serverless_"))).toBe(true);
+    for (const t of CACHE_USER_TOOLS) expect(names).not.toContain(t);
+  });
+  it("gov: Serverless 도구는 없고(공공존 미제공) Cache 사용자 도구 4종이 추가되며, 나머지는 public 과 동일하다", () => {
+    const pub = captureDatabase("public");
+    const gov = captureDatabase("gov");
+    expect(gov.some((n) => n.startsWith("ncloud_serverless_"))).toBe(false);
+    for (const t of CACHE_USER_TOOLS) expect(gov).toContain(t);
+    const pubCore = pub.filter((n) => !n.startsWith("ncloud_serverless_")).sort();
+    const govCore = gov.filter((n) => !CACHE_USER_TOOLS.includes(n)).sort();
+    expect(govCore).toEqual(pubCore);
+  });
+});
+
 // ─── 동적 그룹 로딩 (v1.4.0, DESIGN_long-term-dynamic-groups.md §3) ─────────────
 describe("동적 그룹 로딩: planGroups / GroupManager", () => {
   const creds = { accessKey: "x", secretKey: "y" };

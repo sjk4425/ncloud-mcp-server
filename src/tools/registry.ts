@@ -234,15 +234,19 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "database",
     title: "Database (MySQL, PostgreSQL, MSSQL, MongoDB, Cache, Serverless)",
-    register: ({ server, client }) => {
+    register: ({ server, client, zone }) => {
+      // MySQL/PostgreSQL/MSSQL/MongoDB/Cache: 두 존 모두 기본 게이트웨이 + 같은 경로(database-v* 개요 페이지, 2026-09-30 대조).
+      //   오퍼레이션 목록도 동일하되, 공공존 Cache 에만 사용자(ACL) 4종(get/add/change/deleteCloudCacheUserList)이 있다.
       const c = client();
       registerDatabaseMysqlTools(server, c);
       registerDatabasePostgresqlTools(server, c);
       registerDatabaseMssqlTools(server, c);
       registerDatabaseMongodbTools(server, c);
-      registerDatabaseCacheTools(server, c);
+      registerDatabaseCacheTools(server, c, { userList: zone === "gov" });
       // Cloud DB Serverless(2026-09-17 신규): 표준 REST, 별도 base URL. 2026-09-21 실측 "sub account is not supported yet"(403).
-      registerDatabaseServerlessTools(server, client("https://clouddb-serverless.apigw.ntruss.com"));
+      //   공공존 미제공(api-gov 에 pub-clouddb-serverless-* 페이지 없음) → endpoint() 가 undefined 면 등록하지 않는다.
+      const serverless = endpoint("clouddbServerless", zone);
+      if (serverless) registerDatabaseServerlessTools(server, client(serverless));
     },
   },
   {
