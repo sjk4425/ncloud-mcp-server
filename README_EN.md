@@ -47,7 +47,7 @@ Every tool carries standard MCP **tool annotations** (`readOnlyHint`/`destructiv
 
 - Supports the **Public zone (민간존) and the Government zone (공공존)**, selected with `NCLOUD_ZONE`. Credentials must be issued by the console of the zone you target. The Financial zone is not supported.
 - API specifications follow the [Public API guide](https://api.ncloud-docs.com/docs/home) and the [Government API guide](https://api-gov.ncloud-docs.com/docs); every per-zone difference in hosts, regions and operations was checked against both.
-- Primarily tested in the Public-zone Korea (KR) region. Some APIs may behave differently in other regions or zones.
+- Live-tested primarily in the Public-zone Korea (KR) region. **Government-zone support is verified against the official Government API guide and by unit tests, but has not yet been exercised against a live Government account** — please open an issue if something misbehaves there. Some APIs may behave differently in other regions or zones.
 
 ## Installation
 
