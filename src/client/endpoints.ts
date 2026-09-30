@@ -152,10 +152,12 @@ export const SERVICE_ENDPOINTS = {
   subAccount: { public: apigw("subaccount", "public"), gov: apigw("subaccount", "gov"), fin: "https://subaccount.apigw.fin-ntruss.com" },
   wms: { public: apigw("wms", "public"), gov: apigw("wms", "gov"), fin: "https://wms.apigw.fin-ntruss.com" }, // Web service Monitoring System — 세 존 제공(management-wms, 2026-09-30 확인)
   // ── devtools ──
-  sourceCommit: { public: apigw("sourcecommit", "public"), gov: apigw("sourcecommit", "gov") },
-  sourceBuild: { public: apigw("sourcebuild", "public"), gov: apigw("sourcebuild", "gov") },
-  sourceDeploy: { public: apigw("vpcsourcedeploy", "public"), gov: apigw("vpcsourcedeploy", "gov") },
-  sourcePipeline: { public: apigw("vpcsourcepipeline", "public"), gov: apigw("vpcsourcepipeline", "gov") },
+  sourceCommit: { public: apigw("sourcecommit", "public"), gov: apigw("sourcecommit", "gov"), fin: "https://sourcecommit.apigw.fin-ntruss.com" },
+  sourceBuild: { public: apigw("sourcebuild", "public"), gov: apigw("sourcebuild", "gov"), fin: "https://sourcebuild.apigw.fin-ntruss.com" },
+  // SourceDeploy/SourcePipeline: 민간·공공존은 Classic(source*)·VPC(vpcsource*) 호스트가 따로 있고 이 서버는 VPC 를 쓴다.
+  // 금융존은 호스트가 하나뿐(sourcedeploy.apigw.fin-ntruss.com — devtools-sourcedeploy 개요, vpc 접두 없음), 경로 동일.
+  sourceDeploy: { public: apigw("vpcsourcedeploy", "public"), gov: apigw("vpcsourcedeploy", "gov"), fin: "https://sourcedeploy.apigw.fin-ntruss.com" },
+  sourcePipeline: { public: apigw("vpcsourcepipeline", "public"), gov: apigw("vpcsourcepipeline", "gov"), fin: "https://sourcepipeline.apigw.fin-ntruss.com" },
   // ── analytics ──
   searchEngine: { public: apigw("vpcsearchengine", "public"), gov: apigw("vpcsearchengine", "gov") },
   dataStreaming: { public: apigw("clouddatastreamingservice", "public"), gov: apigw("clouddatastreamingservice", "gov") },

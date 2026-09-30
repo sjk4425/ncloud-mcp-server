@@ -507,19 +507,20 @@ describe("governance 그룹: 존별 등록", () => {
 
 describe("devtools 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureDevtools(zone: "public" | "gov") {
+  function captureDevtools(zone: "public" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "devtools")
     );
     return names;
   }
-  it("도구 이름 집합은 존과 무관하게 동일하다 (SourceCommit/Build/Deploy/Pipeline 모두 공공존 제공)", () => {
+  it("도구 이름 집합은 존과 무관하게 동일하다 (SourceCommit/Build/Deploy/Pipeline 세 존 모두 제공, 81 페이지 동일)", () => {
     const pub = captureDevtools("public").sort();
-    const gov = captureDevtools("gov").sort();
-    expect(gov).toEqual(pub);
+    expect(captureDevtools("gov").sort()).toEqual(pub);
+    expect(captureDevtools("fin").sort()).toEqual(pub);
     expect(pub.length).toBeGreaterThan(20);
   });
 });

@@ -386,11 +386,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "devtools",
-    zones: PUBLIC_GOV,
     title: "DevTools (SourceCommit, SourceBuild, SourceDeploy, SourcePipeline)",
     register: ({ server, client, zone }) => {
-      // 두 존 규칙형 호스트, 오퍼레이션 목록 동일(devtools-* 81 페이지, 2026-09-30 대조).
-      // SourceDeploy·SourcePipeline 은 Classic/VPC 호스트가 따로 있고 이 서버는 VPC(`vpcsource*`)를 쓴다 — 두 존 동일.
+      // 세 존 오퍼레이션 목록 동일(devtools-* 81 페이지, 2026-09-30 대조), 경로 동일.
+      // SourceDeploy·SourcePipeline 은 민간·공공존에 Classic/VPC 호스트가 따로 있고 이 서버는 VPC(`vpcsource*`)를 쓴다;
+      //   금융존은 `sourcedeploy.apigw.fin-ntruss.com` 단일 호스트(SERVICE_ENDPOINTS 참고).
       registerSourceCommitTools(server, client(endpoint("sourceCommit", zone)));
       registerSourceBuildTools(server, client(endpoint("sourceBuild", zone)));
       registerSourceDeployTools(server, client(endpoint("sourceDeploy", zone)));
