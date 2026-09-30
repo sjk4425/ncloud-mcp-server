@@ -399,12 +399,12 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "analytics",
-    zones: PUBLIC_GOV,
     title: "Analytics (SES, Hadoop, CDSS, Data Stream/Catalog/Forest/Flow/Query)",
     register: ({ server, client, zone }) => {
-      // SES·CDSS: 규칙형 호스트, 경로 접두 리전별(sesPathPrefix/cdssPathPrefix), 민간존 전용 KVM/G3 오퍼레이션은 gov 미등록.
-      // Cloud Hadoop: 기본 게이트웨이(/vhadoop/v2) 두 존 동일.
-      // Data Stream/Catalog/Forest/Flow/Query: 민간존 전용(api-gov 개요 페이지 404, 2026-09-30) → endpoint() undefined 면 미등록.
+      // SES·CDSS: 호스트는 SERVICE_ENDPOINTS(금융존은 fin-vpcsearchengine / fin-clouddatastreamingservice 불규칙형),
+      //   경로 접두 존·리전별(sesPathPrefix/cdssPathPrefix — 금융존 FKR 은 /api/v2, /api/v1), 민간존 전용 KVM/G3 오퍼레이션은 gov·fin 미등록.
+      // Cloud Hadoop: 기본 게이트웨이(/vhadoop/v2) 세 존 동일 (fin analytics-cloudhadoop-* 28 op = 이 서버의 28 op, 2026-09-30).
+      // Data Stream/Catalog/Forest/Flow/Query: 민간존 전용(api-gov·api-fin 개요 페이지 404, 2026-09-30) → endpoint() undefined 면 미등록.
       registerSearchEngineServiceTools(server, client(endpoint("searchEngine", zone)), { zone });
       registerCloudHadoopTools(server, client());
       registerCloudDataStreamingTools(server, client(endpoint("dataStreaming", zone)), { zone });

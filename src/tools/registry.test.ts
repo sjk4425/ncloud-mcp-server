@@ -527,11 +527,12 @@ describe("devtools 그룹: 존별 등록", () => {
 
 describe("analytics 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureAnalytics(zone: "public" | "gov") {
+  function captureAnalytics(zone: "public" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
     registerGroups(
-      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
       TOOL_GROUPS.filter((g) => g.key === "analytics")
     );
     return names;
@@ -556,6 +557,13 @@ describe("analytics 그룹: 존별 등록", () => {
     expect(gov).toContain("ncloud_ses_list_clusters");
     expect(gov).toContain("ncloud_cdss_list_clusters");
     expect(gov.some((n) => n.startsWith("ncloud_hadoop_") || n.includes("hadoop"))).toBe(true);
+  });
+  it("fin: gov 와 동일 집합 (Data* 없음, SES/CDSS KVM·G3 페이지 없음, Cloud Hadoop 28 op 동일)", () => {
+    const gov = captureAnalytics("gov").sort();
+    const fin = captureAnalytics("fin").sort();
+    expect(fin).toEqual(gov);
+    expect(fin).toContain("ncloud_ses_list_clusters");
+    expect(fin).not.toContain("ncloud_ses_create_cluster_g3");
   });
 });
 

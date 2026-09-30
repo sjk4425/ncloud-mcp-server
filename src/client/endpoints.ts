@@ -159,8 +159,9 @@ export const SERVICE_ENDPOINTS = {
   sourceDeploy: { public: apigw("vpcsourcedeploy", "public"), gov: apigw("vpcsourcedeploy", "gov"), fin: "https://sourcedeploy.apigw.fin-ntruss.com" },
   sourcePipeline: { public: apigw("vpcsourcepipeline", "public"), gov: apigw("vpcsourcepipeline", "gov"), fin: "https://sourcepipeline.apigw.fin-ntruss.com" },
   // ── analytics ──
-  searchEngine: { public: apigw("vpcsearchengine", "public"), gov: apigw("vpcsearchengine", "gov") },
-  dataStreaming: { public: apigw("clouddatastreamingservice", "public"), gov: apigw("clouddatastreamingservice", "gov") },
+  // 금융존 SES/CDSS 호스트는 `fin-` 접두가 붙는 불규칙형 (analytics-vpcsearchengine / analytics-clouddatastreamingservice 개요, 2026-09-30).
+  searchEngine: { public: apigw("vpcsearchengine", "public"), gov: apigw("vpcsearchengine", "gov"), fin: "https://fin-vpcsearchengine.apigw.fin-ntruss.com" },
+  dataStreaming: { public: apigw("clouddatastreamingservice", "public"), gov: apigw("clouddatastreamingservice", "gov"), fin: "https://fin-clouddatastreamingservice.apigw.fin-ntruss.com" },
   dataStream: { public: apigw("datastream", "public") },
   dataStreamProduce: { public: "https://api.datastream.naverncp.com" }, // Data Stream 레코드 전송(produce) 전용 호스트
 
@@ -307,7 +308,8 @@ export function ncrPathPrefix(zone: Zone, regionCode: string): string {
  */
 function regionApiPrefix(zone: Zone, regionCode: string, version: string): string {
   const r = regionCode.toUpperCase();
-  const seg = zone === "public" ? ({ SGN: "sgn-", JPN: "jpn-" } as Record<string, string>)[r] : ({ KRS: "krs-" } as Record<string, string>)[r];
+  // 금융존(FKR)은 리전 세그먼트 없이 `/api/v2` · `/api/v1` (fin cluster-getclusterinfolist 원문, 2026-09-30).
+  const seg = zone === "public" ? ({ SGN: "sgn-", JPN: "jpn-" } as Record<string, string>)[r] : zone === "gov" ? ({ KRS: "krs-" } as Record<string, string>)[r] : undefined;
   return `/api/${seg ?? ""}${version}`;
 }
 export function sesPathPrefix(zone: Zone, regionCode: string): string {

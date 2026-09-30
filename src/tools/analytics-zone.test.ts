@@ -10,7 +10,7 @@ import { excludingTools } from "./_tool.js";
  * SES / CDSS 존·리전별 경로 접두 — analytics-vpcsearchengine-cluster-getclusterinfolist,
  * analytics-clouddatastreamingservice-cluster-getclusterinfolist (두 존 원문, 2026-09-30).
  */
-function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, regionCode: string, zone?: "public" | "gov") {
+function setup(reg: (s: McpServer, c: NcloudClient, o: any) => void, regionCode: string, zone?: "public" | "gov" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: "https://x.apigw.ntruss.com", regionCode });
   reg(server, client, zone ? { zone } : {});
@@ -61,6 +61,16 @@ describe("SES: 존별 접두와 도구 집합", () => {
     for (const n of ["ncloud_ses_get_cluster_detail", "ncloud_ses_create_cluster_g3", "ncloud_ses_change_disk_size", "ncloud_ses_get_server_specs"]) expect(t.has(n), n).toBe(false);
     expect(t.has("ncloud_ses_get_node_list")).toBe(true);
   });
+  it("fin FKR: /api/v2 (리전 세그먼트 없음), 민간존 전용 8종 미등록", async () => {
+    expect(sesPathPrefix("fin", "FKR")).toBe("/api/v2");
+    expect(cdssPathPrefix("fin", "FKR")).toBe("/api/v1");
+    const t = setup(registerSearchEngineServiceTools, "FKR", "fin");
+    const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+    await t.call("ncloud_ses_list_clusters", {});
+    expect(String(spy.mock.calls[0][1])).toBe("/api/v2/cluster/getClusterInfoList");
+    for (const n of ["ncloud_ses_get_cluster_detail", "ncloud_ses_create_cluster_g3", "ncloud_ses_get_subnet_list_g3"]) expect(t.has(n), n).toBe(false);
+    expect(t.has("ncloud_ses_get_node_list")).toBe(true);
+  });
 });
 
 describe("CDSS: 존별 접두와 도구 집합", () => {
@@ -72,6 +82,16 @@ describe("CDSS: 존별 접두와 도구 집합", () => {
     const path = String((spy.mock.calls[0] ?? spy2.mock.calls[0])[0] === "POST" ? spy2.mock.calls[0][1] : spy.mock.calls[0]?.[0] ?? spy2.mock.calls[0]?.[1]);
     expect(path).toContain("/api/krs-v1/cluster/getClusterInfoList");
     for (const n of ["ncloud_cdss_create_cluster_g3", "ncloud_cdss_get_server_spec_list", "ncloud_cdss_get_cluster_server_images"]) expect(t.has(n), n).toBe(false);
+    expect(t.has("ncloud_cdss_get_kafka_versions")).toBe(true);
+  });
+  it("fin FKR: /api/v1, 민간존 전용 6종 미등록", async () => {
+    const t = setup(registerCloudDataStreamingTools, "FKR", "fin");
+    const spy = vi.spyOn(t.client, "postRequest").mockResolvedValue({});
+    const spy2 = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+    await t.call("ncloud_cdss_list_clusters", {});
+    const path = String(spy.mock.calls[0]?.[0] ?? spy2.mock.calls[0]?.[1]);
+    expect(path).toContain("/api/v1/cluster/getClusterInfoList");
+    for (const n of ["ncloud_cdss_create_cluster_g3", "ncloud_cdss_get_subnet_list_g3", "ncloud_cdss_get_server_generations"]) expect(t.has(n), n).toBe(false);
     expect(t.has("ncloud_cdss_get_kafka_versions")).toBe(true);
   });
 });

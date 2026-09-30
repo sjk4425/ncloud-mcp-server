@@ -17,7 +17,7 @@ import { cdssPathPrefix, type Zone } from "../client/endpoints.js";
  *   getServerSpecList·getClusterServerImageList → 공공존에서는 해당 도구를 등록하지 않는다(CDSS_PUBLIC_ONLY_TOOLS).
  */
 
-/** 민간존 가이드에만 있는 오퍼레이션을 감싼 도구 — 공공존에서는 미등록. */
+/** 민간존 가이드에만 있는 오퍼레이션(cdss-* KVM/G3 계열)을 감싼 도구 — 공공존·금융존에서는 미등록(api-gov·api-fin 인덱스에 없음, 2026-09-30). */
 export const CDSS_PUBLIC_ONLY_TOOLS = [
   "ncloud_cdss_create_cluster_g3",
   "ncloud_cdss_get_subnet_list_g3",
@@ -34,7 +34,7 @@ export interface CdssToolOptions {
 
 export function registerCloudDataStreamingTools(server: McpServer, client: NcloudClient, opts: CdssToolOptions = {}): void {
   const zone: Zone = opts.zone ?? "public";
-  const s = zone === "gov" ? excludingTools(server, CDSS_PUBLIC_ONLY_TOOLS) : server;
+  const s = zone !== "public" ? excludingTools(server, CDSS_PUBLIC_ONLY_TOOLS) : server;
   // 경로 접두는 등록 시점의 리전으로 고정된다(기존 동작 유지).
   const regionCode = client.getRegionCode();
   const prefix = cdssPathPrefix(zone, regionCode);

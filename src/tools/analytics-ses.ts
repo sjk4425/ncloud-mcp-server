@@ -25,7 +25,7 @@ function getApiPrefix(zone: Zone, regionCode: string): string {
   return sesPathPrefix(zone, regionCode);
 }
 
-/** 민간존 가이드에만 있는 오퍼레이션을 감싼 도구 — 공공존에서는 미등록. */
+/** 민간존 가이드에만 있는 오퍼레이션(ses-* KVM/G3·getclusterinfo 계열)을 감싼 도구 — 공공존·금융존에서는 미등록(api-gov·api-fin 인덱스에 없음, 2026-09-30). */
 export const SES_PUBLIC_ONLY_TOOLS = [
   "ncloud_ses_get_cluster_detail",
   "ncloud_ses_get_server_generations",
@@ -44,7 +44,7 @@ export interface SesToolOptions {
 
 export function registerSearchEngineServiceTools(server: McpServer, client: NcloudClient, opts: SesToolOptions = {}): void {
   const zone: Zone = opts.zone ?? "public";
-  const s = zone === "gov" ? excludingTools(server, SES_PUBLIC_ONLY_TOOLS) : server;
+  const s = zone !== "public" ? excludingTools(server, SES_PUBLIC_ONLY_TOOLS) : server;
   // ─── Cluster List ──────────────────────────────────────────────────────────
 
   defineTool(
