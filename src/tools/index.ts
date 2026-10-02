@@ -36,6 +36,7 @@ export { registerSourceBuildTools } from "./devtools-sourcebuild.js";
 export { registerSourceDeployTools } from "./devtools-sourcedeploy.js";
 export { registerSourcePipelineTools } from "./devtools-sourcepipeline.js";
 export { registerGlobalEdgeTools } from "./cdn-global-edge.js";
+export { registerCdnPlusTools } from "./cdn-cdnplus.js";
 export { registerVodStationTools } from "./media-vodstation.js";
 export { registerLiveStationTools } from "./media-livestation.js";
 export { registerComputePlacementTools } from "./compute-placement.js";

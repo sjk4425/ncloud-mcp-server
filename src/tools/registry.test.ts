@@ -615,7 +615,7 @@ describe("media 그룹: 존별 등록", () => {
 
 describe("cdn 그룹: 존별 등록", () => {
   const creds = { accessKey: "x", secretKey: "y" };
-  function captureCdn(zone: "pub" | "gov") {
+  function captureCdn(zone: "pub" | "gov" | "fin") {
     const names: string[] = [];
     const fakeServer: any = { registerTool: (name: string) => names.push(name) };
     registerGroups(
@@ -624,12 +624,19 @@ describe("cdn 그룹: 존별 등록", () => {
     );
     return names;
   }
-  it("Global Edge 도구 집합은 존과 무관하게 동일하고, CDN+/Global CDN 도구는 없다", () => {
+  it("pub·gov: Global Edge 도구 집합이 동일하고 CDN+/Global CDN 도구는 없다 (민간 종료, 공공 2026-12-31 종료 예정)", () => {
     const pub = captureCdn("pub").sort();
     const gov = captureCdn("gov").sort();
     expect(gov).toEqual(pub);
     expect(pub.length).toBeGreaterThan(10);
     expect(pub.some((n) => /cdnplus|cdn_plus|globalcdn|global_cdn/.test(n))).toBe(false);
+  });
+  it("fin: Global Edge 없이 CDN+ 5종만 (api-fin cdnplus 개요 — 종료 공지 없음)", () => {
+    const fin = captureCdn("fin").sort();
+    expect(fin).toEqual([
+      "ncloud_cdnplus_list_instances", "ncloud_cdnplus_get_monitoring", "ncloud_cdnplus_get_usage",
+      "ncloud_cdnplus_request_purge", "ncloud_cdnplus_get_purge_history",
+    ].sort());
   });
 });
 

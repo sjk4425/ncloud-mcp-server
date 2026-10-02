@@ -100,7 +100,7 @@ One package serves the three zones. Changing `NCLOUD_ZONE` switches the API gate
 | Default gateway | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | Regions (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR` (KR-CENTRAL), `KRS` (KR-SOUTH) | `FKR` |
 | API guide | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| Tools (all groups) | 1,223 | 1,007 | 857 |
+| Tools (all groups) | 1,223 | 1,007 | 862 |
 
 > Counts are without `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID`; setting them adds the 10 Archive Storage tools in the Public and Government zones.
 
@@ -134,7 +134,7 @@ For the Financial zone use `"NCLOUD_ZONE": "fin"` with `"NCLOUD_REGION": "FKR"` 
 | Public-only services | Cloud DB Serverless, Cloud Advisor, Live Station (also Financial), Data Stream/Catalog/Forest/Flow/Query, the SENS Mail channel |
 | Public-only operations | LB listener certificates (SNI, 3 — also Financial), NKS kubeconfig reset, VOD Station channel update (also Financial), DRM policy copy, the SES/CDSS KVM (G3) creation and spec-catalogue operations, `protectionType` on KMS key creation |
 | Government-only operations | Cloud DB for Cache user (ACL) management (4), Certificate Manager private certificate issuance (`issuePrivate`), Cloud Outbound Mailer sending/lookup (5 — also Financial; the Public zone uses SENS Mail instead) |
-| Not offered in the Financial zone | Global Traffic Manager, Ncloud Storage, Archive Storage, Cloud DB Serverless, Fabric Cluster, NKS Add-on Manager, Cloud Advisor, Data*, One Click Multi DRM, **Global Edge (the whole `cdn` group)**, Private CA, Security Monitoring, KMS API 2.0 (key management / ACL / tokens) |
+| Not offered in the Financial zone | Global Traffic Manager, Ncloud Storage, Archive Storage, Cloud DB Serverless, Fabric Cluster, NKS Add-on Manager, Cloud Advisor, Data*, One Click Multi DRM, Global Edge (the Financial `cdn` group holds the 5 CDN+ tools instead), Private CA, Security Monitoring, KMS API 2.0 (key management / ACL / tokens) |
 | Financial-only operations | Cloud Insight **Metric Export** (6), Cloud Log Analytics collection removal (`ncloud_delete_server_log_collection`) |
 | Same service, different API | **Cloud Functions**: Public and Financial API v2.1 (`/ncf/api/v2`; Financial is VPC-only with no `platform` query) vs Government API v2.0 (`/api/v2`, Classic-only, cron/github triggers only). **Object Storage**: Government `kr`/`krs.object.gov-ncloudstorage.com` (signing regions `gov-standard`/`gov2-standard`), Financial `kr.object.fin-ncloudstorage.com` (`fin-standard`). **NKS, NCR, SES, CDSS, Log Analytics**: the region is part of the path (Public `sgn`/`jpn`, Government `krs`, Financial `fkr`) and is derived from the active region. **NKS (Financial)** uses the `/nks/v2` prefix (`/vnks/v2` elsewhere). **Live Station (Financial)** uses the Public host with the `/api/fin-v2` prefix. **KMS (Financial)**: only the six crypto operations on the v1 gateway `kms.apigw.fin-ntruss.com` |
 | Government hosts that do not follow the `*.apigw.gov-ntruss.com` rule | Container Registry `gov-ncr`, Private CA `privateca`, VOD Station `vod-station`, KMS `ocapi.gov-ncloud.com`, Ncloud Storage / Object Storage / Archive `*.gov-ncloudstorage.com` |
@@ -289,7 +289,7 @@ Listing group keys *without* `dynamic` turns on **only those groups** and locks 
 | `devtools` | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
 | `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query (Public) |
 | `media` | VOD Station, Live Station (Public, Financial), One Click Multi DRM |
-| `cdn` | Global Edge (Public and Government zones — not offered in the Financial zone) |
+| `cdn` | Global Edge (Public and Government) · CDN+ (Financial only — retired in Public, retiring in Government on 2026-12-31, so not registered there) |
 | `security` | Certificate Manager (private certificate issuance in the Government zone; 2.0 `ncloud_cm2_*` in the Public zone — main-account key only), Private CA, KMS, Security Monitoring |
 | `application` | API Gateway, SENS (SMS / Alim Talk / Brand Message / Mail (Public), projects), Cloud Outbound Mailer (Public: legacy / Government: full) |
 | `billing` | Billing (pricing, cost & usage, discounts) |

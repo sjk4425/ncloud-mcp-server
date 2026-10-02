@@ -102,7 +102,7 @@ npm run build
 | 기본 게이트웨이 | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | 리전 (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR`(수도권), `KRS`(남부권) | `FKR` |
 | API 가이드 | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| 도구 수 (전 그룹) | 1,223 | 1,007 | 857 |
+| 도구 수 (전 그룹) | 1,223 | 1,007 | 862 |
 
 > 도구 수는 `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID` 미설정 기준입니다. 설정하면 Archive Storage 도구 10개가 민간존·공공존에 추가됩니다.
 
@@ -136,7 +136,7 @@ npm run build
 | 민간존 전용 서비스 | Cloud DB Serverless, Cloud Advisor, Live Station(금융존은 제공), Data Stream/Catalog/Forest/Flow/Query, SENS Mail 채널 |
 | 민간존 전용 오퍼레이션 | LB 리스너 인증서(SNI) 3종(금융존은 제공), NKS kubeconfig 재발급, VOD Station 채널 수정(금융존은 제공), DRM 정책 복제, SES/CDSS의 KVM(G3) 생성·스펙 조회 계열, KMS 키 생성의 `protectionType` |
 | 공공존 전용 오퍼레이션 | Cloud DB for Cache 사용자(ACL) 관리 4종, Certificate Manager 사설 인증서 발급(`issuePrivate`), Cloud Outbound Mailer 발송·조회 5종(금융존도 제공; 민간존은 SENS Mail로 대체) |
-| 금융존 미제공 서비스 | Global Traffic Manager, Ncloud Storage, Archive Storage, Cloud DB Serverless, Fabric Cluster, NKS Add-on Manager, Cloud Advisor, Data*, One Click Multi DRM, **Global Edge(`cdn` 그룹 전체)**, Private CA, Security Monitoring, KMS API 2.0(키 관리·ACL·토큰) |
+| 금융존 미제공 서비스 | Global Traffic Manager, Ncloud Storage, Archive Storage, Cloud DB Serverless, Fabric Cluster, NKS Add-on Manager, Cloud Advisor, Data*, One Click Multi DRM, Global Edge(금융존 `cdn` 그룹은 CDN+ 5종), Private CA, Security Monitoring, KMS API 2.0(키 관리·ACL·토큰) |
 | 금융존 전용 오퍼레이션 | Cloud Insight **Metric Export** 6종, Cloud Log Analytics 서버 로그 수집 해제(`ncloud_delete_server_log_collection`) |
 | 같은 서비스, 다른 API | **Cloud Functions**: 민간존·금융존 API v2.1(`/ncf/api/v2`; 금융존은 VPC 전용, `platform` 쿼리 없음) / 공공존 API v2.0(`/api/v2`, Classic 전용, cron·github 트리거만). **Object Storage**: 공공존 `kr`/`krs.object.gov-ncloudstorage.com`(서명 리전 `gov-standard`/`gov2-standard`), 금융존 `kr.object.fin-ncloudstorage.com`(`fin-standard`). **NKS·NCR·SES·CDSS·Log Analytics**: 리전이 경로에 들어가며(민간존 `sgn`/`jpn`, 공공존 `krs`, 금융존 `fkr`) 서버가 활성 리전으로 조립. **NKS 금융존** 경로 접두 `/nks/v2`(다른 존 `/vnks/v2`). **Live Station 금융존**: 민간존 호스트에 경로 접두 `/api/fin-v2`. **KMS 금융존**: v1 게이트웨이(`kms.apigw.fin-ntruss.com`)의 암·복호화 6종만 |
 | 호스트가 규칙(`*.apigw.gov-ntruss.com`)과 다른 공공존 서비스 | Container Registry `gov-ncr`, Private CA `privateca`, VOD Station `vod-station`, KMS `ocapi.gov-ncloud.com`, Ncloud Storage/Object Storage/Archive `*.gov-ncloudstorage.com` |
@@ -291,7 +291,7 @@ npm run build
 | `devtools` | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
 | `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query(민간존) |
 | `media` | VOD Station, Live Station(민간존·금융존), One Click Multi DRM |
-| `cdn` | Global Edge (민간존·공공존 — 금융존 미제공) |
+| `cdn` | Global Edge (민간존·공공존) · CDN+ (금융존 전용 — 민간은 종료, 공공은 2026-12-31 종료 예정이라 미등록) |
 | `security` | Certificate Manager(공공존은 사설 인증서 발급 포함, 민간존은 2.0 `ncloud_cm2_*` 포함 — 메인 계정 키 전용), Private CA, KMS, Security Monitoring |
 | `application` | API Gateway, SENS (SMS/알림톡/브랜드메시지/Mail(민간존), 프로젝트), Cloud Outbound Mailer(민간존 레거시 / 공공존 정식) |
 | `billing` | Billing (요금/가격 조회, 비용·사용량, 할인) |

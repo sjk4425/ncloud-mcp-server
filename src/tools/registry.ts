@@ -70,6 +70,7 @@ import {
   registerSourceDeployTools,
   registerSourcePipelineTools,
   registerGlobalEdgeTools,
+  registerCdnPlusTools,
   registerVodStationTools,
   registerLiveStationTools,
   registerSubAccountTools,
@@ -442,13 +443,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "cdn",
-    // 금융존: Global Edge 가 금융존 가이드에 없다(edge-overview 404, 인덱스에 CDN+ 4 op 뿐 — 2026-09-30 대조) → 그룹 자체를 금융존에서 닫아 둔다.
-    zones: PUBLIC_GOV,
-    title: "Content Delivery (Global Edge)",
+    title: "Content Delivery (Global Edge; CDN+ in the Financial zone)",
     register: ({ server, client, zone }) => {
-      // Global Edge: 민간·공공존 규칙형 호스트, 오퍼레이션 18종 동일(edge-overview / edge-*, 2026-09-30 대조).
-      // CDN+ / Global CDN 은 2026-12-31 종료 예정(신규 생성 불가) → 어느 존에도 등록하지 않는다(금융존 인덱스의 CDN+ 4 op 포함).
-      registerGlobalEdgeTools(server, client(endpoint("globalEdge", zone)));
+      // Global Edge: 민간·공공존 규칙형 호스트(edge-overview / edge-*, 2026-09-30·10-02 대조). 금융존 가이드에는 없다(edge-overview 404).
+      // CDN+ / Global CDN: 민간존은 종료(fade-out)됐고 공공존은 2026-12-31 종료 예정이라 두 존에는 등록하지 않는다.
+      //   금융존은 Global Edge 없이 CDN+ 5 op 만 제공되고 종료 공지가 없다(api-fin cdnplus 개요, 2026-10-02) → 금융존에만 CDN+ 등록.
+      if (zone === "fin") registerCdnPlusTools(server, client());
+      else registerGlobalEdgeTools(server, client(endpoint("globalEdge", zone)));
     },
   },
   {
