@@ -336,13 +336,13 @@ describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
     expect(gov).toEqual(pub);
     expect(pub).toContain("ncloud_change_block_storage_size");
   });
-  it("fin: Fabric Cluster 7종·스냅샷 생성/삭제/상세·반납 보호가 빠지고, Cloud Functions 는 v2.1(VPC 전용, platform 쿼리 없음)", () => {
+  it("fin: Fabric Cluster 7종만 빠지고(스냅샷 생성/삭제/상세·반납 보호는 금융존 가이드에 있음 — compute-vserve-snapshot-*, setblockstoragereturnprotection), Cloud Functions 는 v2.1(VPC 전용, platform 쿼리 없음)", () => {
     const pub = captureCompute("pub");
     const fin = captureCompute("fin" as any);
-    const notInFin = ["ncloud_list_fabric_clusters", "ncloud_get_fabric_cluster_detail", "ncloud_get_fabric_cluster_pools", "ncloud_create_fabric_cluster", "ncloud_update_fabric_cluster", "ncloud_change_fabric_cluster_servers", "ncloud_delete_fabric_cluster", "ncloud_create_snapshot", "ncloud_delete_snapshots", "ncloud_get_snapshot_detail", "ncloud_set_block_storage_protection"];
+    const notInFin = ["ncloud_list_fabric_clusters", "ncloud_get_fabric_cluster_detail", "ncloud_get_fabric_cluster_pools", "ncloud_create_fabric_cluster", "ncloud_update_fabric_cluster", "ncloud_change_fabric_cluster_servers", "ncloud_delete_fabric_cluster"];
     const finNames = fin.map((t) => t.name);
     for (const t of notInFin) { expect(pub.map((x) => x.name)).toContain(t); expect(finNames).not.toContain(t); }
-    expect(finNames).toContain("ncloud_list_snapshots");
+    for (const t of ["ncloud_list_snapshots", "ncloud_create_snapshot", "ncloud_delete_snapshots", "ncloud_get_snapshot_detail", "ncloud_set_block_storage_protection"]) expect(finNames).toContain(t);
     expect(finNames.sort()).toEqual(pub.map((t) => t.name).filter((n) => !notInFin.includes(n)).sort());
     const cf = fin.find((t) => t.name === "ncloud_functions_create_action")!;
     expect(cf.description).toContain("/ncf/api/v2");

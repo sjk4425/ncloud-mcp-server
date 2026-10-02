@@ -5,16 +5,9 @@ import { defineTool, excludingTools } from "./_tool.js";
 import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
-/**
- * 금융존 가이드에 없는 오퍼레이션(api-fin 404, 2026-09-30): 스냅샷 생성·삭제·상세(목록 getBlockStorageSnapshotInstanceList 는 있음),
- * setBlockStorageReturnProtection.
- */
-export const STORAGE_TOOLS_NOT_IN_FIN = [
-  "ncloud_create_snapshot",
-  "ncloud_delete_snapshots",
-  "ncloud_get_snapshot_detail",
-  "ncloud_set_block_storage_protection",
-] as const;
+// 2026-09-30 에는 금융존 가이드에 스냅샷 생성·삭제·상세·반납 보호가 없다고 보고 fin 에서 제외했으나, 2026-10-02 재확인 결과 네 op 모두
+// 금융존 가이드에 있다 — 슬러그만 다르다(`compute-vserve-snapshot-*`(r 누락 오탈자), 접두 없는 `setblockstoragereturnprotection`).
+// 경로·파라미터는 민간존과 동일(ncloud.apigw.fin-ntruss.com/vserver/v2/...)이므로 세 존 모두 등록한다.
 
 export interface ComputeStorageToolOptions {
   /** 이름을 지정한 도구는 등록하지 않는다(존별 미제공 오퍼레이션). */

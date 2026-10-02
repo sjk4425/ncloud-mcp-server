@@ -31,7 +31,6 @@ import {
   registerCommonTools,
   registerComputeServerTools,
   registerComputeStorageTools,
-  STORAGE_TOOLS_NOT_IN_FIN,
   registerComputePublicIpTools,
   registerComputeLoginKeyTools,
   registerComputeInitScriptTools,
@@ -220,11 +219,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
       // Server(VPC)·Auto Scaling 은 세 존 모두 기본 게이트웨이 + 같은 경로다.
       //   민간존 https://api.ncloud-docs.com/docs/compute-vserver · 공공존 https://api-gov.ncloud-docs.com/docs/compute-vserver
       //   금융존 https://api-fin.ncloud-docs.com/docs/compute-vserver (fin-ncloud.apigw.fin-ntruss.com/vserver/v2)
-      // 금융존 가이드에 없는 오퍼레이션(2026-09-30, 404 확인): Fabric Cluster 전부, 스냅샷 생성·삭제·상세, 블록 스토리지 반납 보호.
+      // 금융존 가이드에 없는 오퍼레이션(2026-09-30, 404 확인): Fabric Cluster 전부.
+      //   스냅샷 생성·삭제·상세·블록 스토리지 반납 보호는 2026-10-02 재확인 결과 금융존 가이드에 있다(슬러그만 `compute-vserve-snapshot-*`,
+      //   `setblockstoragereturnprotection` 으로 불규칙) → 세 존 모두 등록.
       const fin = zone === "fin";
       const c = client();
       registerComputeServerTools(server, c);
-      registerComputeStorageTools(server, c, { exclude: fin ? STORAGE_TOOLS_NOT_IN_FIN : [] });
+      registerComputeStorageTools(server, c);
       registerComputePublicIpTools(server, c);
       registerComputeLoginKeyTools(server, c);
       registerComputeInitScriptTools(server, c);
