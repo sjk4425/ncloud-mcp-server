@@ -45,6 +45,9 @@ docs/
 # 개발용 검증 스크립트 (그룹 라우팅 등) — 레포에 업로드하지 않음
 scripts/
 
+# 라이브 검증 하네스·결과 (실계정 응답·리소스 ID 포함) — 레포에 업로드하지 않음
+.tmp-live/
+
 # Temporary files
 *.bak
 *.tmp
