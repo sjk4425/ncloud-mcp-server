@@ -1,33 +1,62 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { L, maxLenMessage } from "./_messages.js";
+import { cdssPathPrefix, type Zone } from "../client/endpoints.js";
 
 /**
  * Cloud Data Streaming Service (CDSS) — Apache Kafka 관리형 서비스
  *
- * Base URL: https://clouddatastreamingservice.apigw.ntruss.com
- * 리전별 경로: /api/v1/ (KR), /api/sgn-v1/ (SGN), /api/jpn-v1/ (JPN)
+ * Base URL: https://clouddatastreamingservice.apigw.ntruss.com (민간존) / https://clouddatastreamingservice.apigw.gov-ntruss.com (공공존)
+ * 리전별 경로 접두(`cdssPathPrefix`): 민간존 KR /api/v1 · SGN /api/sgn-v1 · JPN /api/jpn-v1, 공공존 KR /api/v1 · KRS /api/krs-v1
+ *
+ * 공공존 가이드에 없는 오퍼레이션(2026-09-30, api-gov 에서 404 확인): `cdss-*` 계열 KVM/G3·스펙 조회
+ *   createKvmCluster·getVpcAvailableSubnetList·getServerSpecListForSpecChange·getServerGenerationList·
+ *   getServerSpecList·getClusterServerImageList → 공공존에서는 해당 도구를 등록하지 않는다(CDSS_PUBLIC_ONLY_TOOLS).
  */
 
-function getApiPrefix(regionCode: string): string {
-  switch (regionCode) {
-    case "SGN": return "/api/sgn-v1";
-    case "JPN": return "/api/jpn-v1";
-    default: return "/api/v1";
-  }
+/** 민간존 가이드에만 있는 오퍼레이션(cdss-* KVM/G3 계열)을 감싼 도구 — 공공존·금융존에서는 미등록(api-gov·api-fin 인덱스에 없음, 2026-09-30). */
+export const CDSS_PUBLIC_ONLY_TOOLS = [
+  "ncloud_cdss_create_cluster_g3",
+  "ncloud_cdss_get_subnet_list_g3",
+  "ncloud_cdss_get_node_spec_for_change_g3",
+  "ncloud_cdss_get_server_generations",
+  "ncloud_cdss_get_server_spec_list",
+  "ncloud_cdss_get_cluster_server_images",
+] as const;
+
+/**
+ * 공공존 가이드에만 있는 오퍼레이션 — 민간존·금융존에서는 미등록.
+ * restartCMAKService: api-gov `analytics-clouddatastreamingservice-cluster-restartcmakservice` 만 존재(민간·금융 404, 2026-10-02).
+ * 민간존 쪽은 2026-09-17 릴리스 노트의 "CMAK 재시작 API 제공 종료" 로 제거된 op 다.
+ */
+export const CDSS_GOV_ONLY_TOOLS = ["ncloud_cdss_restart_cmak_service"] as const;
+
+/** 민간존·금융존 가이드에만 있는 오퍼레이션(`cdss-getclusternodestorage`) — 공공존 인덱스에 없음(2026-10-02). */
+export const CDSS_PUBLIC_FIN_TOOLS = ["ncloud_cdss_get_node_storage"] as const;
+
+export interface CdssToolOptions {
+  /** 존 — 리전별 경로 접두와 미제공 도구 제외. 기본 `public`. */
+  zone?: Zone;
 }
 
-export function registerCloudDataStreamingTools(server: McpServer, client: NcloudClient): void {
+export function registerCloudDataStreamingTools(server: McpServer, client: NcloudClient, opts: CdssToolOptions = {}): void {
+  const zone: Zone = opts.zone ?? "pub";
+  const excluded: string[] = [];
+  if (zone !== "pub") excluded.push(...CDSS_PUBLIC_ONLY_TOOLS);
+  if (zone !== "gov") excluded.push(...CDSS_GOV_ONLY_TOOLS);
+  if (zone === "gov") excluded.push(...CDSS_PUBLIC_FIN_TOOLS);
+  const s = excluded.length > 0 ? excludingTools(server, excluded) : server;
+  // 경로 접두는 등록 시점의 리전으로 고정된다(기존 동작 유지).
   const regionCode = client.getRegionCode();
-  const prefix = getApiPrefix(regionCode);
+  const prefix = cdssPathPrefix(zone, regionCode);
 
   // ─── Cluster Query Tools ─────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_list_clusters",
     "List Cloud Data Streaming Service (Kafka) clusters with optional filtering. The cmakPort and cmakVersion fields in the response are deprecated by Ncloud (2026-09-17, CMAK is being phased out) and may be absent or stale.",
     {
@@ -50,7 +79,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_cluster_detail",
     "Get detailed information about a specific CDSS (Kafka) cluster",
     {
@@ -64,7 +93,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_cluster_status",
     "Get health status of a CDSS cluster (broker and zookeeper status per node). result.cmakStatus is deprecated by Ncloud (2026-09-17, CMAK is being phased out) and may be absent or stale — do not rely on it.",
     {
@@ -78,7 +107,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_cluster_acg",
     "Get ACG (Access Control Group) rules for a CDSS cluster",
     {
@@ -93,7 +122,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_certificate",
     "Get TLS certificate used for cluster communication encryption",
     {
@@ -109,7 +138,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Version & Product Query Tools ───────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_kafka_versions",
     "Get available Kafka version list (kafkaVersionCode) for CDSS cluster creation",
     {},
@@ -123,7 +152,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_node_products",
     "Get available node server types (product codes) for CDSS cluster creation (G2)",
     {
@@ -140,7 +169,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_os_products",
     "Get available operating system types for CDSS cluster creation",
     {},
@@ -152,7 +181,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_vpc_list",
     "Get available VPC list for CDSS cluster creation",
     {},
@@ -164,7 +193,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_subnet_list",
     "Get available subnet list for CDSS cluster creation (G2)",
     {
@@ -182,7 +211,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_subnet_list_g3",
     "Get available subnet list for CDSS cluster creation (G3/KVM only)",
     {
@@ -204,7 +233,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_node_spec_for_change_g3",
     "Get the server specs a running CDSS cluster's nodes can be changed to (G3/KVM only). " +
       "The G2 equivalent is ncloud_cdss_get_node_spec.",
@@ -222,7 +251,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Cluster Create Tool ─────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_create_cluster",
     "Create a new CDSS (Kafka) cluster (G2). Set returnClusterId=true to get the new cluster's " +
       "serviceGroupInstanceNo back — the default operation returns only success/failure, so you would " +
@@ -266,7 +295,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_create_cluster_g3",
     "Create a new CDSS (Kafka) cluster on 3rd-generation KVM servers (G3). " +
       "⚠️ Broker node parameters are named dataNode* here, not brokerNode* as in the G2 tool. " +
@@ -318,7 +347,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Cluster Destructive Tool ────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_delete_cluster",
     "⚠️ Destructive: Permanently delete a CDSS (Kafka) cluster. All data will be lost. Set confirm=true to execute.",
     {
@@ -340,7 +369,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Node Management Tools ───────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_list_nodes",
     "List all nodes (broker, manager) in a CDSS cluster",
     {
@@ -353,8 +382,24 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     }
   );
 
+  // 가이드 cdss-getclusternodestorage(민간·금융존, 2026-10-02): GET {prefix}/cluster/getBlockStorage/{computeInstanceNo}.
+  // 민간존 페이지는 GET 과 POST 표를 둘 다 싣지만 curl 예시는 GET — GET 을 쓴다. 공공존 인덱스에는 없다(CDSS_PUBLIC_FIN_TOOLS).
   defineTool(
-    server,
+    s,
+    "ncloud_cdss_get_node_storage",
+    "Get the block storage attached to a CDSS cluster node (computeInstanceNo from ncloud_cdss_list_nodes). Public and Financial zones only.",
+    {
+      computeInstanceNo: z.string().describe("Node server instance number (from ncloud_cdss_list_nodes)"),
+    },
+    async (params) => {
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/getBlockStorage/${params.computeInstanceNo}`
+        );
+    }
+  );
+
+  defineTool(
+    s,
     "ncloud_cdss_add_nodes",
     "Add broker nodes to a CDSS cluster. " +
       "⚠️ newBrokerNodeCount is HOW MANY TO ADD, not the resulting total — a cluster with 3 brokers " +
@@ -378,7 +423,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_broker_info",
     "Get broker node communication info (endpoints, ports) for a CDSS cluster",
     {
@@ -392,7 +437,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_node_spec",
     "Get current server spec details for nodes in a CDSS cluster",
     {
@@ -406,7 +451,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_node_product_for_change",
     "Get the server types a running CDSS cluster's nodes can be changed to (G2 clusters only). " +
       "⚠️ On a G3/KVM cluster this returns empty lists rather than an error — use " +
@@ -425,7 +470,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_change_node_spec",
     "Change server spec for nodes in a CDSS cluster. " +
       "⚠️ Downgrades are refused by the service — check `isChangeSpec` in " +
@@ -450,7 +495,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Cluster Service Restart Tools ───────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_restart_all_services",
     "Restart all services (Kafka + ZooKeeper + CMAK) in a CDSS cluster",
     {
@@ -465,7 +510,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_restart_kafka",
     "Restart Kafka and ZooKeeper services in a CDSS cluster",
     {
@@ -481,9 +526,25 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // `ncloud_cdss_restart_cmak`(op restartCMAKService)는 2026-09-17 릴리스 노트에서 "클러스터 CMAK 재시작 API
   // 제공 종료"로 확정되어 제거했다(1.16.0 Breaking). 대체: ncloud_cdss_restart_all_services.
   // CMAK 자체가 단계적으로 폐기되는 중이다 — 조회 응답의 cmakPort/cmakVersion/cmakStatus는 Deprecated 표기.
+  // 공공존 가이드에는 아직 있다(analytics-clouddatastreamingservice-cluster-restartcmakservice, 수도권 /api/v1 · 남부권
+  // /api/krs-v1) → 공공존에서만 ncloud_cdss_restart_cmak_service 로 등록(CDSS_GOV_ONLY_TOOLS).
+  defineTool(
+    s,
+    "ncloud_cdss_restart_cmak_service",
+    "Restart the CMAK service of a CDSS cluster (Government zone only — the Public zone retired this API on 2026-09-17; CMAK itself is being phased out).",
+    {
+      serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
+    },
+    async (params) => {
+      // 재시작 계열은 전부 GET (가이드 원문 GET /cluster/restartCMAKService/{serviceGroupInstanceNo}).
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/restartCMAKService/${params.serviceGroupInstanceNo}`
+        );
+    }
+  );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_restart_kafka_per_node",
     "Restart Kafka on one or more specific nodes in a CDSS cluster",
     {
@@ -520,7 +581,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Public Domain & Endpoint Tools ──────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_enable_public_domain",
     "Enable public domain for CMAK management tool access. CMAK is being phased out by Ncloud (the CMAK restart API ended 2026-09-17); this operation is still documented but may be discontinued.",
     {
@@ -536,7 +597,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_disable_public_domain",
     "Disable public domain for CMAK management tool access. CMAK is being phased out by Ncloud (the CMAK restart API ended 2026-09-17); this operation is still documented but may be discontinued.",
     {
@@ -550,7 +611,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_enable_public_endpoint",
     "Enable a public endpoint for broker nodes. Requires a load balancer — list the available ones " +
       "with ncloud_cdss_get_load_balancers.",
@@ -568,7 +629,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_disable_public_endpoint",
     "Disable the public endpoint for broker nodes",
     {
@@ -582,7 +643,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_reset_cmak_password",
     "Reset the CMAK access account password for a CDSS cluster. CMAK is being phased out by Ncloud (the CMAK restart API ended 2026-09-17); this operation is still documented but may be discontinued.",
     {
@@ -607,7 +668,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Monitoring Tools ────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_monitoring",
     "Get Kafka monitoring metrics for a CDSS cluster node",
     {
@@ -637,7 +698,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_os_monitoring",
     "Get OS-level monitoring metrics (CPU, memory, disk) for a CDSS cluster node",
     {
@@ -664,7 +725,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Config Group Tools ──────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_list_config_groups",
     "List Config Groups for CDSS (Kafka configuration templates) for a given Kafka version",
     {
@@ -686,7 +747,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_config_group_detail",
     "Get Config Group details (name, Kafka version, description) for a CDSS config group",
     {
@@ -705,7 +766,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_kafka_config",
     "Get the Kafka settings held by a Config Group (default and custom values per setting)",
     {
@@ -724,7 +785,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_config_group_clusters",
     "List the CDSS clusters a Config Group is currently applied to. Call this before deleting a group.",
     {
@@ -743,7 +804,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_create_config_group",
     "Create a new Config Group for CDSS cluster configuration",
     {
@@ -770,7 +831,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_apply_config_group",
     "Apply a Config Group to a CDSS cluster. The cluster must run the same Kafka version as the group.",
     {
@@ -792,7 +853,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_set_config_group_description",
     "Change a Config Group's description. An empty string clears it.",
     {
@@ -812,7 +873,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_change_kafka_config",
     "⚠️ Replaces the Config Group's ENTIRE custom configuration. Any setting you omit loses its custom value " +
       "and reverts to the default — the API reports SUCCESS either way, so the revert is silent. " +
@@ -892,7 +953,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_delete_config_group",
     "⚠️ Destructive: Delete a Config Group. Check which clusters still use it with " +
       "ncloud_cdss_get_config_group_clusters first. Set confirm=true to execute.",
@@ -924,7 +985,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Rolling Restart & Upgrade Tools ──────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_rolling_restart",
     "Perform a rolling restart of all nodes in a CDSS cluster",
     {
@@ -941,7 +1002,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_rolling_restart_precheck",
     "Pre-check before performing a rolling restart",
     {
@@ -956,7 +1017,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_rolling_restart_status",
     "Get the progress status of a rolling restart operation. result.cmakStatus in the response is deprecated by Ncloud (2026-09-17) and may be absent or stale.",
     {
@@ -972,7 +1033,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_upgrade_version",
     "Upgrade the Kafka version of a CDSS cluster. Run ncloud_cdss_upgrade_precheck first.",
     {
@@ -992,7 +1053,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_upgrade_precheck",
     "Pre-check whether a CDSS Kafka version upgrade can proceed",
     {
@@ -1011,7 +1072,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_upgrade_status",
     "Get the progress status of a version upgrade operation. result.cmakStatus in the response is deprecated by Ncloud (2026-09-17) and may be absent or stale.",
     {
@@ -1029,7 +1090,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Server Generation & G3 Tools ───────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_server_generations",
     "Get available server generations (hypervisor types) for CDSS",
     {},
@@ -1041,7 +1102,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_server_spec_list",
     "Get available server specs for CDSS (G3/KVM). softwareProductCode must be a G3 image code — " +
       "a G2 code from ncloud_cdss_get_os_products is rejected.",
@@ -1058,7 +1119,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_cluster_server_images",
     "Get available OS images for CDSS (G3/KVM). The returned image code is the softwareProductCode for ncloud_cdss_get_server_spec_list, ncloud_cdss_get_subnet_list_g3 and ncloud_cdss_create_cluster_g3. For G2 use ncloud_cdss_get_os_products.",
     {
@@ -1076,7 +1137,7 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // ─── Load Balancer Query Tool ────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_cdss_get_load_balancers",
     "Get available load balancers for CDSS broker node public endpoint",
     {

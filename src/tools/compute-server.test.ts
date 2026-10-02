@@ -70,15 +70,15 @@ describe("Feature: ncloud-mcp-server, Property 9: 파괴적 작업 확인 게이
     await fc.assert(
       fc.asyncProperty(
         fc.array(fc.stringMatching(/^[0-9]{4,10}$/), { minLength: 1, maxLength: 5 }),
-        async (serverImageInstanceNoList) => {
+        async (serverImageNoList) => {
           const requestSpy = vi.spyOn(client, "request");
           const handler = getToolHandler(server, "ncloud_delete_server_images");
-          const result = await handler({ serverImageInstanceNoList, confirm: false }, {} as any);
+          const result = await handler({ serverImageNoList, confirm: false }, {} as any);
 
           expect(requestSpy).not.toHaveBeenCalled();
           const text = result.content[0].text;
           expect(text).toContain("⚠️");
-          for (const id of serverImageInstanceNoList) {
+          for (const id of serverImageNoList) {
             expect(text).toContain(id);
           }
           expect(result.isError).toBeUndefined();
@@ -255,14 +255,14 @@ describe("Unit: confirm=true triggers API call", () => {
     requestSpy.mockRestore();
   });
 
-  it("ncloud_delete_server_images with confirm=true should call deleteServerImageInstances API", async () => {
+  it("ncloud_delete_server_images with confirm=true should call deleteServerImage API", async () => {
     const mockResponse = { serverImageInstanceList: [] };
     const requestSpy = vi.spyOn(client, "request").mockResolvedValue(mockResponse);
     const handler = getToolHandler(server, "ncloud_delete_server_images");
-    const result = await handler({ serverImageInstanceNoList: ["99999"], confirm: true }, {} as any);
+    const result = await handler({ serverImageNoList: ["99999"], confirm: true }, {} as any);
 
-    expect(requestSpy).toHaveBeenCalledWith("/vserver/v2/deleteServerImageInstances", {
-      serverImageInstanceNoList: ["99999"],
+    expect(requestSpy).toHaveBeenCalledWith("/vserver/v2/deleteServerImage", {
+      serverImageNoList: ["99999"],
     });
     expect(result.isError).toBeUndefined();
     requestSpy.mockRestore();

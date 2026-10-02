@@ -5,7 +5,16 @@ import { defineTool } from "./_tool.js";
 import { maxLenMessage, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
-export function registerLoadBalancerTools(server: McpServer, client: NcloudClient): void {
+export interface LoadBalancerToolOptions {
+  /**
+   * 리스너 인증서(SNI) 도구 3종 등록 여부. 기본 true.
+   * 공공존 Load Balancer API 에는 add/remove/getLoadBalancerListenerCertificate* 오퍼레이션이 없다
+   * (api-gov.ncloud-docs.com 의 networking-vloadbalancer-loadbalancer-*listenercertificate* 페이지 부재, 2026-09-30 확인).
+   */
+  listenerCertificates?: boolean;
+}
+
+export function registerLoadBalancerTools(server: McpServer, client: NcloudClient, opts: LoadBalancerToolOptions = {}): void {
   // ─── Load Balancer Query Tools ─────────────────────────────────────────────
 
   defineTool(
@@ -239,8 +248,9 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     }
   );
 
-  // ─── Listener Certificate Tools ────────────────────────────────────────────
+  // ─── Listener Certificate Tools (민간존 전용) ──────────────────────────────
 
+  if (opts.listenerCertificates ?? true) {
   defineTool(
     server,
     "ncloud_add_lb_listener_certificate",
@@ -292,6 +302,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
       return client.request("/vloadbalancer/v2/getLoadBalancerListenerCertificateList", params);
     }
   );
+  }
 
   // ─── Listener Query Tools ──────────────────────────────────────────────────
 

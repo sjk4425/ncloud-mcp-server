@@ -124,6 +124,24 @@ describe("defineTool: destructive 옵션 (confirm 게이트)", () => {
     const r = await t.handler({});
     expect(JSON.parse(textOf(r))).toEqual({ items: [] });
   });
+
+  it("API 응답이 Spring Page 형태(content 배열 + 데이터 type 문자열)여도 MCP 완성 응답으로 오인하지 않는다 (Global DNS 레코드 회귀)", async () => {
+    const page = { content: [{ id: 1, type: "NS", content: "ns1.example" }, { id: 2, type: "A", content: "1.2.3.4" }], totalElements: 2 };
+    const t = capture((server) =>
+      defineTool(server, "ncloud_dns_list_records", "d", {}, async () => page)
+    );
+    const r = await t.handler({});
+    expect(r.content[0].type).toBe("text");
+    expect(JSON.parse(textOf(r))).toEqual(page);
+  });
+
+  it("핸들러가 만든 진짜 MCP 응답(text 블록)은 그대로 통과한다", async () => {
+    const t = capture((server) =>
+      defineTool(server, "ncloud_list_things", "d", {}, async () => ({ content: [{ type: "text", text: "done" }], isError: true }))
+    );
+    const r = await t.handler({});
+    expect(r).toEqual({ content: [{ type: "text", text: "done" }], isError: true });
+  });
 });
 
 // ─── 응답 크기 가드 (DESIGN_post-1.6.0 §3, v1.7.0) ───

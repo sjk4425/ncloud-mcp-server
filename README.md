@@ -10,28 +10,31 @@
 
 Naver Cloud Platform(Ncloud) 인프라를 AI 어시스턴트에서 직접 관리할 수 있는 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 서버입니다.
 
+**민간존(Public)·공공존(Government)·금융존(Financial)을 하나의 서버로 지원**합니다. `NCLOUD_ZONE=gov` 또는 `NCLOUD_ZONE=fin` 한 줄로 해당 존의 API 게이트웨이·리전·서비스 카탈로그로 전환되며, 미설정 시 민간존입니다 → [존 선택](#존-선택-민간존--공공존--금융존).
+
 ## 주요 기능
 
 Ncloud의 **60개 이상 서비스**, **1,000개 이상 API 도구**를 MCP 프로토콜로 제공합니다.
 
 | 카테고리 | 서비스 |
 |---------|--------|
-| **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster, Auto Scaling, Cloud Functions |
-| **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
-| **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** |
-| **Storage** | Object Storage (S3 호환), Ncloud Storage (S3 호환), NAS, Archive Storage (Swift 호환) |
+| **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster ⓕ, Auto Scaling, Cloud Functions |
+| **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager ⓕ |
+| **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** 🅿 |
+| **Storage** | Object Storage (S3 호환), Ncloud Storage (S3 호환) ⓕ, NAS, Archive Storage (Swift 호환) ⓕ |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
-| **Security** | Certificate Manager, Private CA, KMS, Security Monitoring |
+| **Security** | Certificate Manager (2.0은 민간존 전용·메인 계정 키 필요), Private CA ⓕ, KMS (금융존은 암·복호화 6종만), Security Monitoring ⓕ, Secret Manager 🅿 |
 | **Monitoring** | Cloud Insight, Log Analytics |
-| **Management & Governance** | Activity Tracer, Cloud Advisor, Resource Manager, Sub Account |
+| **Management & Governance** | Activity Tracer, Cloud Advisor 🅿, Resource Manager, Sub Account, Web service Monitoring System (WMS), STS(호출자 식별) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
-| **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream, Data Catalog, Data Forest, Data Flow, Data Query |
-| **Media** | VOD Station, Live Station, Image Optimizer |
-| **Content Delivery (CDN)** | Global Edge |
-| **Application** | API Gateway, SENS (SMS/알림톡/Push/**Mail**, 프로젝트), Cloud Outbound Mailer(레거시, '27-12까지) |
+| **Analytics** | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream 🅿, Data Catalog 🅿, Data Forest 🅿, Data Flow 🅿, Data Query 🅿, Datafence 🅿, Cloud Data Box 🅿 |
+| **Media** | VOD Station, Live Station ⓖ, One Click Multi DRM ⓕ |
+| **Content Delivery (CDN)** | Global Edge ⓕ, CDN+ (금융존 전용) |
+| **Application** | API Gateway, SENS (SMS/알림톡/브랜드메시지/**Mail** 🅿, 프로젝트), Cloud Outbound Mailer(민간존: 레거시 '27-12까지 / 공공존·금융존: 정식) |
 | **Billing** | Billing (요금/가격 조회, 비용·사용량, 할인) |
 
 > ℹ️ 각 카테고리는 `NCLOUD_TOOL_GROUPS`의 그룹 key와 1:1로 대응합니다. 도구 일부만 로딩하려면 아래 [도구 그룹 선택](#도구-그룹-선택-선택) 표를 참고하세요.
+> 🅿 = 민간존 전용(공공존·금융존 API 가이드에 없음) · ⓖ = 공공존 미제공 · ⓕ = 금융존 미제공. 존별 세부 차이는 [존 선택](#존-선택-민간존--공공존--금융존)의 표를 참고하세요.
 
 모든 도구에 MCP 표준 **tool annotations**(`readOnlyHint`/`destructiveHint`/`idempotentHint`)이 부여되어, 지원 클라이언트에서 조회 도구 자동 승인·파괴적 도구 확인 UX를 적용할 수 있습니다. 파괴적 도구의 `confirm` 파라미터 게이트는 그대로 유지됩니다(이중 방어).
 
@@ -42,9 +45,9 @@ Ncloud의 **60개 이상 서비스**, **1,000개 이상 API 도구**를 MCP 프�
 
 ## 참고 사항
 
-- 이 MCP 서버는 **Ncloud 민간존(Public)** 기준으로 구현되었습니다. 금융존/공공존 환경에서는 API 엔드포인트가 다를 수 있습니다.
-- API 스펙은 [Ncloud API 공식 문서](https://api.ncloud-docs.com/docs/home)를 기반으로 작성되었습니다.
-- 한국(KR) 리전 위주로 테스트되었습니다. 다른 리전에서는 일부 API의 동작이 다를 수 있습니다.
+- **민간존(Public)·공공존(Government)·금융존(Financial)** 을 지원합니다. `NCLOUD_ZONE`으로 선택하며, 인증키는 반드시 해당 존 콘솔에서 발급한 것을 써야 합니다.
+- API 스펙은 [민간존 API 가이드](https://api.ncloud-docs.com/docs/home), [공공존 API 가이드](https://api-gov.ncloud-docs.com/docs), [금융존 API 가이드](https://api-fin.ncloud-docs.com/docs/api-overview)를 기반으로 작성되었으며, 존별 엔드포인트·리전·오퍼레이션 차이는 세 가이드를 대조해 반영했습니다.
+- 민간존 한국(KR) 리전 위주로 실계정 테스트되었습니다. **공공존·금융존 지원은 각 존의 공식 API 가이드 대조와 단위 테스트로 검증되었으며 아직 실계정으로 확인되지 않았습니다** — 공공존·금융존에서 문제가 있으면 이슈로 알려 주세요. 다른 리전·존에서는 일부 API의 동작이 다를 수 있습니다.
 
 ## 설치
 
@@ -76,8 +79,9 @@ npm run build
 |------|------|------|--------|
 | `NCLOUD_ACCESS_KEY` | ✅ | Ncloud API Access Key | - |
 | `NCLOUD_SECRET_KEY` | ✅ | Ncloud API Secret Key | - |
-| `NCLOUD_REGION` | - | 리전 코드 | `KR` |
-| `NCLOUD_API_URL` | - | API 기본 URL | `https://ncloud.apigw.ntruss.com` |
+| `NCLOUD_ZONE` | - | 존 선택. `pub`(민간존), `gov`(공공존), `fin`(금융존). 잘못된 값이면 시작을 중단 (자세히는 아래 [존 선택](#존-선택-민간존--공공존--금융존)) | `pub` |
+| `NCLOUD_REGION` | - | 리전 코드. 민간존 `KR`/`JPN`/`SGN`/`USWN`/`DEN`, 공공존 `KR`(수도권)/`KRS`(남부권), 금융존 `FKR` | `KR` (금융존 `FKR`) |
+| `NCLOUD_API_URL` | - | 기본 API 게이트웨이 override(존 기본값을 덮어씀) | 민간존 `https://ncloud.apigw.ntruss.com` / 공공존 `https://ncloud.apigw.gov-ntruss.com` / 금융존 `https://fin-ncloud.apigw.fin-ntruss.com` |
 | `NCLOUD_ARCHIVE_PROJECT_ID` | - | Archive Storage 프로젝트 ID | - |
 | `NCLOUD_ARCHIVE_DOMAIN_ID` | - | Archive Storage 도메인 ID | - |
 | `NCLOUD_SENS_SERVICE_ID` | - | SENS 채널 공통 기본 serviceId(NRN, 예 `ncp:sms:kr:…`). 채널별 변수 `NCLOUD_SENS_SMS_SERVICE_ID` / `NCLOUD_SENS_ALIMTALK_SERVICE_ID` / `NCLOUD_SENS_BRANDMESSAGE_SERVICE_ID`(미설정 시 알림톡 값 사용) / `NCLOUD_SENS_MAIL_SERVICE_ID`가 우선. 모든 SENS 도구는 `serviceId` 파라미터로 호출별 override 가능하며, NRN은 `ncloud_sens_list_projects`로 조회 | - |
@@ -87,6 +91,65 @@ npm run build
 | `NCLOUD_TIMEOUT_MS` | - | API 요청 타임아웃(밀리초). 초과 시 호출이 중단되고 안내 메시지를 반환 (HTTP 429는 항상 최대 2회 자동 재시도, 조회 도구는 503/504·네트워크 오류도 재시도) | `30000` |
 | `NCLOUD_LANG` | - | 클라이언트 에러 메시지 언어. `en`이면 영문, 그 외/미설정이면 한국어 | `ko` |
 | `NCLOUD_RESPONSE_MAXBYTES` | - | 옵트인 응답 크기 가드(바이트). 양수면 조회 도구의 대형 응답을 항목 단위로 잘라 임계 이하로 만들고 `truncated`/`suggestedPageSize` 힌트를 덧붙임. 미설정/0이면 가드 OFF(응답 무변경) | - |
+
+## 존 선택 (민간존 / 공공존 / 금융존)
+
+하나의 패키지로 세 존을 지원합니다. `NCLOUD_ZONE`만 바꾸면 API 게이트웨이 도메인, 리전 카탈로그, 존별 서비스 카탈로그, 일부 서비스의 API 버전·경로·필드 차이까지 서버가 알아서 맞춥니다. 도구 이름과 파라미터는 세 존에서 동일하므로 프롬프트를 바꿀 필요가 없습니다.
+
+| | 민간존 (`pub`, 기본값) | 공공존 (`gov`) | 금융존 (`fin`) |
+|---|---|---|---|
+| 인증키 발급 | [민간존 콘솔](https://console.ncloud.com) | [공공존 콘솔](https://console.gov-ncloud.com) | [금융존 콘솔](https://console.fin-ncloud.com) |
+| 기본 게이트웨이 | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
+| 리전 (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR`(수도권), `KRS`(남부권) | `FKR` |
+| API 가이드 | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
+| 도구 수 (전 그룹) | 1,300 | 1,007 | 862 |
+
+> 도구 수는 `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID` 미설정 기준입니다. 설정하면 Archive Storage 도구 10개가 민간존·공공존에 추가됩니다.
+
+> ⚠️ 인증키는 존별로 별개입니다. 민간존 키로 공공존·금융존을 호출하면(또는 그 반대) 인증 오류가 납니다. `NCLOUD_ZONE`에 `pub`/`gov`/`fin` 외의 값을 주면 다른 존으로 조용히 가지 않도록 서버가 시작 시 종료합니다.
+
+> 🔑 **계정·키 관련 주의 (2.0.0)**
+> - **Certificate Manager 2.0** (`ncloud_cm2_*`, 민간존)은 **메인 계정 Access Key로만** 호출됩니다(Ncloud 기술지원 확인). 서브 계정 키는 2.0 엔드포인트가 HTTP 403으로 거부하며, 이때 서버는 호출자 정보와 함께 안내문을 돌려주고 조회·외부 인증서 등록은 어떤 키로든 되는 1.0 도구(`ncloud_list_certificates`, `ncloud_register_external_certificate`)를 안내합니다.
+> - **Secret Manager** (`ncloud_secret_*`, 민간존)은 시크릿을 암호화한 KMS 키 종류에 따라 호스트가 다릅니다. 모든 도구의 `keyIsolation` 파라미터로 고릅니다 — `global`(기본, `secretmanager.apigw.ntruss.com`) / `regional`(KMS 리전 격리 키, `ocapi-kr.ncloud.com/secretmanager`; 일본 리전은 격리 키만). 격리 키 호스트는 서버 시작 시 리전(`NCLOUD_REGION`)으로 정해집니다.
+> - **Cloud DB Serverless** (`ncloud_serverless_*`, 민간존)도 **메인 계정 Access Key로만** 호출됩니다. 서브 계정 키는 API가 HTTP 403 `sub account is not supported yet`로 거부하며(2026-10-02 재확인, NCP_ADMINISTRATOR 서브 계정), 서버는 그 403에 메인 계정 키를 쓰라는 안내를 덧붙입니다. 같은 키로 Cloud DB for MySQL 등 다른 DB 도구는 정상 동작합니다.
+> - 현재 키가 메인 계정인지 서브 계정인지는 `ncloud_get_caller_identity`(STS, 세 존)로 확인할 수 있습니다.
+
+**공공존 설정 예시**
+
+```json
+{
+  "mcpServers": {
+    "ncloud-gov": {
+      "command": "npx",
+      "args": ["-y", "ncloud-mcp-server"],
+      "env": {
+        "NCLOUD_ZONE": "gov",
+        "NCLOUD_ACCESS_KEY": "your-gov-access-key",
+        "NCLOUD_SECRET_KEY": "your-gov-secret-key",
+        "NCLOUD_REGION": "KR"
+      }
+    }
+  }
+}
+```
+
+금융존은 `"NCLOUD_ZONE": "fin"`, `"NCLOUD_REGION": "FKR"`(생략 가능 — 금융존 기본값)에 금융존 콘솔에서 발급한 키를 넣으면 됩니다. 여러 존을 동시에 쓰려면 위처럼 이름이 다른 서버 항목을 여러 개(`ncloud`, `ncloud-gov`, `ncloud-fin`) 등록하면 됩니다.
+
+**존별 차이 (공식 가이드 대조, 2026-09-30 기준)**
+
+| 구분 | 내용 |
+|---|---|
+| 민간존 전용 서비스 | Cloud DB Serverless, Cloud Advisor, Live Station(금융존은 제공), Data Stream/Catalog/Forest/Flow/Query, Datafence, Cloud Data Box, Secret Manager, Certificate Manager 2.0, SENS Mail 채널 |
+| 민간존 전용 오퍼레이션 | LB 리스너 인증서(SNI) 3종(금융존은 제공), NKS kubeconfig 재발급, VOD Station 채널 수정(금융존은 제공), DRM 정책 복제, SES/CDSS의 KVM(G3) 생성·스펙 조회 계열, KMS 키 생성의 `protectionType` |
+| 공공존 전용 오퍼레이션 | Cloud DB for Cache 사용자(ACL) 관리 4종, Certificate Manager 사설 인증서 발급(`issuePrivate`), Cloud Outbound Mailer 발송·조회 5종(금융존도 제공; 민간존은 SENS Mail로 대체) |
+| 금융존 미제공 서비스 | Global Traffic Manager, Ncloud Storage, Archive Storage, Cloud DB Serverless, Fabric Cluster, NKS Add-on Manager, Cloud Advisor, Data*, One Click Multi DRM, Global Edge(금융존 `cdn` 그룹은 CDN+ 5종), Private CA, Security Monitoring, KMS API 2.0(키 관리·ACL·토큰) |
+| 금융존 전용 오퍼레이션 | Cloud Insight **Metric Export** 6종, Cloud Log Analytics 서버 로그 수집 해제(`ncloud_delete_server_log_collection`) |
+| 같은 서비스, 다른 API | **Cloud Functions**: 민간존·금융존 API v2.1(`/ncf/api/v2`; 금융존은 VPC 전용, `platform` 쿼리 없음) / 공공존 API v2.0(`/api/v2`, Classic 전용, cron·github 트리거만). **Object Storage**: 공공존 `kr`/`krs.object.gov-ncloudstorage.com`(서명 리전 `gov-standard`/`gov2-standard`), 금융존 `kr.object.fin-ncloudstorage.com`(`fin-standard`). **NKS·NCR·SES·CDSS·Log Analytics**: 리전이 경로에 들어가며(민간존 `sgn`/`jpn`, 공공존 `krs`, 금융존 `fkr`) 서버가 활성 리전으로 조립. **NKS 금융존** 경로 접두 `/nks/v2`(다른 존 `/vnks/v2`). **Live Station 금융존**: 민간존 호스트에 경로 접두 `/api/fin-v2`. **KMS 금융존**: v1 게이트웨이(`kms.apigw.fin-ntruss.com`)의 암·복호화 6종만 |
+| 호스트가 규칙(`*.apigw.gov-ntruss.com`)과 다른 공공존 서비스 | Container Registry `gov-ncr`, Private CA `privateca`, VOD Station `vod-station`, KMS `ocapi.gov-ncloud.com`, Ncloud Storage/Object Storage/Archive `*.gov-ncloudstorage.com` |
+| 호스트가 규칙(`*.apigw.fin-ntruss.com`)과 다른 금융존 서비스 | 기본 게이트웨이 `fin-ncloud`, SES `fin-vpcsearchengine`, CDSS `fin-clouddatastreamingservice`, Billing `billingapi.apigw-pub`, SourceDeploy/SourcePipeline(`vpc` 접두 없음), Live Station(민간존 호스트), Object Storage `kr.object.fin-ncloudstorage.com` |
+| 이식하지 않은 서비스 | 민간·공공존의 CDN+, Global CDN (민간은 종료, 공공은 2026-12-31 종료 예정 — Global Edge 사용). 금융존은 Global Edge가 없어 CDN+ 5종을 등록 |
+
+해당 존에서 제공되지 않는 도구는 등록 자체가 되지 않으므로 도구 목록에 나타나지 않습니다. `ncloud_get_current_region`으로 현재 서버가 묶인 존과 사용 가능한 리전을 확인할 수 있습니다.
 
 ## MCP 클라이언트 설정
 
@@ -226,21 +289,20 @@ npm run build
 |---|---|
 | `compute` | Server, Block Storage, Snapshot, Public IP, Login Key, Init Script, Placement Group, Fabric Cluster, Auto Scaling, Cloud Functions |
 | `network` | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
-| `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey) / Cloud DB Serverless (MySQL, 메인 계정 키 전용) |
+| `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey; 공공존은 사용자(ACL) 관리 포함) / Cloud DB Serverless (MySQL, 민간존·메인 계정 키 전용) |
 | `storage` | Object Storage, Ncloud Storage, NAS, Archive Storage |
 | `containers` | Ncloud Kubernetes Service(NKS), Container Registry |
 | `monitoring` | Cloud Insight, Cloud Log Analytics |
-| `governance` | Activity Tracer, Cloud Advisor, Resource Manager, Sub Account |
+| `governance` | Activity Tracer, Cloud Advisor(민간존), Resource Manager, Sub Account, Web service Monitoring System, STS 호출자 식별(`ncloud_get_caller_identity`) |
 | `devtools` | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
-| `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query |
-| `media` | VOD Station, Live Station, Image Optimizer |
-| `cdn` | Global Edge |
-| `security` | Certificate Manager, Private CA, KMS, Security Monitoring |
-| `application` | API Gateway, SENS (SMS/알림톡/Push/Mail, 프로젝트), Cloud Outbound Mailer(레거시) |
+| `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query(민간존), Datafence·Cloud Data Box(민간존) |
+| `media` | VOD Station, Live Station(민간존·금융존), One Click Multi DRM |
+| `cdn` | Global Edge (민간존·공공존) · CDN+ (금융존 전용 — 민간은 종료, 공공은 2026-12-31 종료 예정이라 미등록) |
+| `security` | Certificate Manager(공공존은 사설 인증서 발급 포함, 민간존은 2.0 `ncloud_cm2_*` 포함 — 메인 계정 키 전용), Private CA, KMS, Security Monitoring, Secret Manager(민간존, `keyIsolation`) |
+| `application` | API Gateway, SENS (SMS/알림톡/브랜드메시지/Mail(민간존), 프로젝트), Cloud Outbound Mailer(민간존 레거시 / 공공존 정식) |
 | `billing` | Billing (요금/가격 조회, 비용·사용량, 할인) |
 | `common` *(항상 ON)* | Region / Zone 공통 |
 
-> ℹ️ **그룹 key 변경 안내 (v1.2.0):** `integration` → `application`으로 이름이 바뀌었고, `global`은 `cdn`(Global Edge)과 `network`(Global DNS/Traffic Manager)로 나뉘었습니다. 옛 key는 자동 호환되지 않으니 새 key로 변경하세요(옛 key를 지정하면 서버가 안내 메시지를 출력하고 무시합니다).
 
 ## 사용 예시
 
@@ -258,6 +320,8 @@ MCP 클라이언트에서 자연어로 Ncloud 인프라를 관리할 수 있습�
 
 ## 지원 리전
 
+**민간존** (`NCLOUD_ZONE=pub`, 기본값)
+
 | 리전 | 코드 |
 |------|------|
 | 한국 | `KR` |
@@ -265,6 +329,23 @@ MCP 클라이언트에서 자연어로 Ncloud 인프라를 관리할 수 있습�
 | 싱가포르 | `SGN` |
 
 > **참고:** 미국 서부(`USWN`), 독일(`DEN`) 리전은 Classic 환경만 지원되어 VPC 기반인 본 MCP 서버에서는 사용이 제한됩니다.
+
+**공공존** (`NCLOUD_ZONE=gov`)
+
+| 리전 | 코드 |
+|------|------|
+| 한국 수도권 (KR-CENTRAL) | `KR` |
+| 한국 남부권 (KR-SOUTH) | `KRS` |
+
+> **참고:** 공공존 Ncloud Storage·Archive Storage는 `KR` 단일 리전이며, Object Storage는 `KR`(`gov-standard`)·`KRS`(`gov2-standard`) 두 리전을 제공합니다. `ncloud_set_region`은 존의 리전 목록만 허용합니다.
+
+**금융존** (`NCLOUD_ZONE=fin`)
+
+| 리전 | 코드 |
+|------|------|
+| 한국 (금융) | `FKR` |
+
+> **참고:** 금융존은 `FKR` 단일 리전이며 `NCLOUD_REGION` 미설정 시 `FKR`이 기본값입니다. Object Storage는 `kr.object.fin-ncloudstorage.com`(서명 리전 `fin-standard`)을 씁니다.
 
 ## 문제 해결
 

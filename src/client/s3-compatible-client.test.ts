@@ -40,6 +40,73 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** fetch 에 실제로 전달된 URL. */
+function sentUrlOf(spy: any): string {
+  return spy.mock.calls[0][0] as string;
+}
+
+// ─── 존별 엔드포인트·서명 리전 (client/endpoints.ts, 두 존 공식 문서 대조본) ─────────────────────
+describe("S3CompatibleClient: 공공존(gov) 엔드포인트·서명 리전", () => {
+  it("zone 생략 = pub: Object Storage KR 은 kr.object.ncloudstorage.com / kr-standard (하위호환)", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KR", storageType: "object" });
+    expect(c.getZone()).toBe("pub");
+    await c.request({ method: "GET", bucket: "b" });
+    expect(sentUrlOf(spy)).toBe("https://kr.object.ncloudstorage.com/b");
+    expect(sentHeaders(spy)["authorization"]).toMatch(/\/kr-standard\/s3\/aws4_request/);
+  });
+
+  it("gov Object Storage KR(수도권): kr.object.gov-ncloudstorage.com / gov-standard", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KR", storageType: "object", zone: "gov" });
+    await c.request({ method: "GET", bucket: "b" });
+    expect(sentUrlOf(spy)).toBe("https://kr.object.gov-ncloudstorage.com/b");
+    expect(sentHeaders(spy)["authorization"]).toMatch(/\/gov-standard\/s3\/aws4_request/);
+    expect(c.getServiceRegion()).toBe("gov-standard");
+  });
+
+  it("gov Object Storage KRS(남부권): krs.object.gov-ncloudstorage.com / gov2-standard", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KRS", storageType: "object", zone: "gov" });
+    await c.request({ method: "GET" });
+    expect(sentUrlOf(spy)).toBe("https://krs.object.gov-ncloudstorage.com/");
+    expect(sentHeaders(spy)["authorization"]).toMatch(/\/gov2-standard\/s3\/aws4_request/);
+  });
+
+  it("gov 에 없는 리전(JPN)은 KR 항목으로 대체된다 (민간존 글로벌 리전을 공공존에 만들지 않는다)", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "JPN", storageType: "object", zone: "gov" });
+    await c.request({ method: "GET" });
+    expect(sentUrlOf(spy)).toBe("https://kr.object.gov-ncloudstorage.com/");
+  });
+
+  it("gov Ncloud Storage: {bucket}.kr.gov-ncloudstorage.com (virtual-hosted), 서명 리전 kr", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KR", storageType: "ncloud", zone: "gov" });
+    await c.request({ method: "GET", bucket: "my-bucket", key: "a.txt" });
+    expect(sentUrlOf(spy)).toBe("https://my-bucket.kr.gov-ncloudstorage.com/a.txt");
+    expect(sentHeaders(spy)["authorization"]).toMatch(/\/kr\/s3\/aws4_request/);
+    expect(c.hostFor()).toBe("kr.gov-ncloudstorage.com");
+    expect(c.hostFor("my-bucket")).toBe("my-bucket.kr.gov-ncloudstorage.com");
+  });
+
+  it("fin Object Storage FKR: kr.object.fin-ncloudstorage.com / fin-standard; Ncloud Storage 는 표가 없어 명확한 오류", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "FKR", storageType: "object", zone: "fin" });
+    await c.request({ method: "GET", bucket: "b" });
+    expect(sentUrlOf(spy)).toBe("https://kr.object.fin-ncloudstorage.com/b");
+    expect(sentHeaders(spy)["authorization"]).toMatch(/\/fin-standard\/s3\/aws4_request/);
+    const ncs = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "FKR", storageType: "ncloud", zone: "fin" });
+    await expect(ncs.request({ method: "GET" })).rejects.toThrow(/not configured for zone 'fin'/);
+  });
+
+  it("NoSuchBucket 힌트는 존의 도메인으로 안내한다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("<Error><Code>NoSuchBucket</Code><Message>x</Message></Error>", { status: 404 })));
+    const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KR", storageType: "ncloud", zone: "gov" });
+    await expect(c.request({ method: "GET", bucket: "b" })).rejects.toThrow(/kr\.object\.gov-ncloudstorage\.com/);
+  });
+});
+
 describe("S3CompatibleClient: content-md5 자동 주입", () => {
   const xmlBody = "<LifecycleConfiguration><Rule><ID>r1</ID></Rule></LifecycleConfiguration>";
 

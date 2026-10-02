@@ -1,10 +1,27 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { maxLenMessage, requiredError } from "./_messages.js";
 
-export function registerComputePlacementTools(server: McpServer, client: NcloudClient): void {
+/** Fabric Cluster 도구 — 금융존 가이드에는 fabriccluster 오퍼레이션이 없다(api-fin 404, 2026-09-30). */
+export const FABRIC_CLUSTER_TOOLS = [
+  "ncloud_list_fabric_clusters",
+  "ncloud_get_fabric_cluster_detail",
+  "ncloud_get_fabric_cluster_pools",
+  "ncloud_create_fabric_cluster",
+  "ncloud_update_fabric_cluster",
+  "ncloud_change_fabric_cluster_servers",
+  "ncloud_delete_fabric_cluster",
+] as const;
+
+export interface ComputePlacementToolOptions {
+  /** Fabric Cluster 도구 등록 여부. 기본 true. */
+  fabricCluster?: boolean;
+}
+
+export function registerComputePlacementTools(server: McpServer, client: NcloudClient, opts: ComputePlacementToolOptions = {}): void {
+  const s = opts.fabricCluster === false ? excludingTools(server, FABRIC_CLUSTER_TOOLS) : server;
   // ═══════════════════════════════════════════════════════════════════════════
   // Placement Group Tools
   // ═══════════════════════════════════════════════════════════════════════════
@@ -12,7 +29,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_list_placement_groups",
     "List all placement groups in the current region",
     {
@@ -25,7 +42,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_get_placement_group_detail",
     "Get detailed information about a specific placement group",
     {
@@ -39,7 +56,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   // ─── Create Tool ─────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_create_placement_group",
     "Create a new placement group for physical server placement control",
     {
@@ -56,7 +73,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   // ─── Server Management Tools ───────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_add_placement_group_server",
     "Add a server instance to a placement group",
     {
@@ -69,7 +86,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_remove_placement_group_server",
     "⚠️ Destructive: Remove a server instance from a placement group. Set confirm=true to execute.",
     {
@@ -88,7 +105,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   // ─── Destructive Tool ──────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_delete_placement_group",
     "⚠️ Destructive: Permanently delete a placement group. Set confirm=true to execute.",
     {
@@ -110,7 +127,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_list_fabric_clusters",
     "List all fabric clusters in the current region",
     {
@@ -123,7 +140,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_get_fabric_cluster_detail",
     "Get detailed information about a specific fabric cluster",
     {
@@ -135,7 +152,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_get_fabric_cluster_pools",
     "List available fabric cluster pools (physical resource pools)",
     {
@@ -149,7 +166,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   // ─── Create Tool ─────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_create_fabric_cluster",
     "Create a new fabric cluster for dedicated physical server grouping",
     {
@@ -165,27 +182,50 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   );
 
   // ─── Update Tool ─────────────────────────────────────────────────────────
+  // Server API 에는 단일 update 오퍼레이션이 없다(`updateFabricCluster` 는 어느 존 문서에도 없음).
+  // 이름은 changeFabricClusterName, 설명은 changeFabricClusterDescription — 두 존 모두 동일
+  // (compute-vserver-fabriccluster-changefabricclustername / -changefabricclusterdescription).
+  // 도구 이름은 하위호환으로 유지하고 내부에서 필요한 엔드포인트만 순서대로 호출한다.
 
   defineTool(
-    server,
+    s,
     "ncloud_update_fabric_cluster",
-    "Update a fabric cluster's name or description",
+    "Update a fabric cluster's name and/or description. The Server API has no single update operation: the name is sent to changeFabricClusterName and the description to changeFabricClusterDescription (one call each, name first). Provide at least one of the two.",
     {
       fabricClusterNo: z.string({ required_error: requiredError("fabricClusterNo") }).describe("Fabric cluster number to update"),
-      fabricClusterName: z.string().max(30, {
+      fabricClusterName: z.string().min(3).max(30, {
         message: maxLenMessage("fabricClusterName", 30),
-      }).optional().describe("New fabric cluster name"),
-      fabricClusterDescription: z.string().optional().describe("New description for the fabric cluster"),
+      }).regex(/^[a-z][a-z0-9-]*[a-z0-9]$/, "fabricClusterName must be 3-30 chars of lowercase letters, digits and '-', start with a letter and end with a letter or digit").optional().describe("New fabric cluster name (3-30 chars: lowercase letters, digits, '-'; starts with a letter, ends with a letter or digit)"),
+      fabricClusterDescription: z.string().optional().describe("New description for the fabric cluster (up to 1000 bytes; an empty string clears it)"),
     },
     async (params) => {
-      return client.request("/vserver/v2/updateFabricCluster", params);
+      if (params.fabricClusterName === undefined && params.fabricClusterDescription === undefined) {
+        return {
+          content: [{ type: "text" as const, text: "Provide at least one of fabricClusterName or fabricClusterDescription." }],
+          isError: true,
+        };
+      }
+      const results: Record<string, unknown> = {};
+      if (params.fabricClusterName !== undefined) {
+        results.changeFabricClusterName = await client.request("/vserver/v2/changeFabricClusterName", {
+          fabricClusterNo: params.fabricClusterNo,
+          fabricClusterName: params.fabricClusterName,
+        });
+      }
+      if (params.fabricClusterDescription !== undefined) {
+        results.changeFabricClusterDescription = await client.request("/vserver/v2/changeFabricClusterDescription", {
+          fabricClusterNo: params.fabricClusterNo,
+          fabricClusterDescription: params.fabricClusterDescription,
+        });
+      }
+      return results;
     }
   );
 
   // ─── Server Management Tool ────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_change_fabric_cluster_servers",
     "Change server instances assigned to a fabric cluster",
     {
@@ -200,7 +240,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
   // ─── Destructive Tool ──────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_delete_fabric_cluster",
     "⚠️ Destructive: Permanently delete a fabric cluster. Set confirm=true to execute.",
     {

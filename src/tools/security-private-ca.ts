@@ -24,7 +24,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
       const queryParams: Record<string, string | number | undefined> = {};
       if (params.pageNo !== undefined) queryParams.pageNo = params.pageNo;
       const result = await client.requestRaw("GET", "/api/v1/ca", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -91,7 +91,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
       const path = `/api/v1/ca${queryString ? `?${queryString}` : ""}`;
 
       const result = await client.requestRaw("POST", path, undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -120,7 +120,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/ca/${params.caTag}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Private CA [${params.caTag}] and destroy its private key (irreversible). To execute, call this tool again with confirm=true.` } }
   );
@@ -202,7 +202,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     "Create OCSP and deploy the OCSP URL to certificates issued by this CA.",
     {
       caTag: z.string().describe("CA tag value"),
-      ocspServers: z.string().describe("OCSP URL (format: https://pca.apigw.ntruss.com/ext/{caTag}/ocsp)"),
+      ocspServers: z.string().describe("OCSP URL (format: https://<Private CA host>/ext/{caTag}/ocsp — pca.apigw.ntruss.com in the Public zone, privateca.apigw.gov-ntruss.com in the Government zone)"),
     },
     async (params) => {
       return client.requestRaw("PUT", `/api/v1/ca/${params.caTag}/urls`, undefined, { ocsp_servers: params.ocspServers });
@@ -220,7 +220,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/api/v1/ca/${params.caTag}/urls`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will delete the OCSP configuration for CA [${params.caTag}] and remove the OCSP URL from all its issued certificates. To execute, call this tool again with confirm=true.` } }
   );
@@ -342,7 +342,7 @@ export function registerPrivateCaTools(server: McpServer, client: NcloudClient):
       if (params.ip !== undefined) body.x509Parameters.ip = params.ip;
 
       const result = await client.requestRaw("POST", `/api/v1/ca/${params.caTag}/cert`, undefined, body);
-      return result;
+      return result;
     }
   );
 

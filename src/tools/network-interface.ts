@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
+import { requiredError } from "./_messages.js";
 
 export function registerNetworkInterfaceTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -52,13 +53,20 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
   defineTool(
     server,
     "ncloud_create_network_interface",
-    "Create a new network interface. Use dryRun=true to preview.",
+    // Guide compute-vserver-networkinterface-createnetworkinterface (verified 2026-10-02): vpcNo, subnetNo and
+    // accessControlGroupNoList.N are Required; the primary IP parameter is `ip`.
+    "Create a new network interface in a VPC subnet. vpcNo, subnetNo and 1-3 ACG numbers are required. Use dryRun=true to preview.",
     {
-      subnetNo: z.string().describe("Subnet number to create the network interface in"),
-      accessControlGroupNoList: z.array(z.string()).min(1).describe("List of ACG numbers to apply"),
-      networkInterfaceName: z.string().optional().describe("Network interface name"),
-      networkInterfaceDescription: z.string().optional().describe("Network interface description"),
-      privateIp: z.string().optional().describe("Private IP address to assign"),
+      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number the subnet belongs to (required; see ncloud_list_vpcs)"),
+      subnetNo: z.string({ required_error: requiredError("subnetNo") }).describe("Subnet number to create the network interface in (required)"),
+      accessControlGroupNoList: z.array(z.string()).min(1).max(3).describe("List of ACG numbers to apply (1-3)"),
+      networkInterfaceName: z.string().optional().describe("Network interface name (3-30 chars: lowercase letters, digits, '-'; auto-generated when omitted)"),
+      networkInterfaceDescription: z.string().optional().describe("Network interface description (up to 1000 bytes)"),
+      ip: z.string().optional().describe("Primary private IP within the subnet range (auto-assigned when omitted; the first 6 and the last subnet addresses are reserved)"),
+      serverInstanceNo: z.string().optional().describe("Server instance to attach to on creation (private-subnet interfaces only)"),
+      secondaryIpList: z.array(z.string()).optional().describe("Secondary IPs to assign (together with secondaryIpCount at most 5)"),
+      secondaryIpCount: z.number().int().min(0).max(5).optional().describe("Number of secondary IPs to auto-assign (0-5)"),
+      isBareMetal: z.boolean().optional().describe("true for a bare-metal server interface (requires serverInstanceNo)"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {

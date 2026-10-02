@@ -1,15 +1,29 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
+import type { Zone } from "../client/endpoints.js";
 
-export function registerVodStationTools(server: McpServer, client: NcloudClient): void {
+/**
+ * VOD Station — Base URL 민간존 https://vodstation.apigw.ntruss.com / 공공존 https://vod-station.apigw.gov-ntruss.com(하이픈, 불규칙).
+ * 채널 수정(`vodstation-channel-update`, PUT /api/v2/channels/{id})은 민간존 가이드에만 있다(api-gov 404, 2026-09-30) → 공공존 미등록.
+ */
+export const VODSTATION_PUBLIC_ONLY_TOOLS = ["ncloud_vodstation_update_channel"] as const;
+
+export interface VodStationToolOptions {
+  /** 존 — 민간존 전용 도구 제외. 기본 `public`. */
+  zone?: Zone;
+}
+
+export function registerVodStationTools(server: McpServer, client: NcloudClient, opts: VodStationToolOptions = {}): void {
+  const zone: Zone = opts.zone ?? "pub";
+  const s = zone === "gov" ? excludingTools(server, VODSTATION_PUBLIC_ONLY_TOOLS) : server;
   // ─── Channel Query Tools ───────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_list_channels",
     "List all VOD Station streaming channels with pagination",
     {
@@ -22,7 +36,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_get_channel",
     "Get detailed information about a specific VOD Station channel",
     {
@@ -36,7 +50,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   // ─── Channel Create Tool ───────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_create_channel",
     "Create a new VOD Station streaming channel. Use dryRun=true to preview without creating.",
     {
@@ -94,7 +108,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   // ─── Channel Update Tool ───────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_update_channel",
     "Update a VOD Station streaming channel's details (name, protocols, segment settings, encryption/DRM). This is a PUT that replaces the channel configuration, so provide the full desired state.",
     {
@@ -134,7 +148,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   // ─── Channel Delete Tool ───────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_delete_channel",
     "⚠️ Destructive: Permanently delete a VOD Station channel. Only channels in STOPPED status can be deleted. Set confirm=true to execute.",
     {
@@ -151,7 +165,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   // ─── Channel Control Tools ─────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_start_channel",
     "Start (resume) a VOD Station channel that is in STOPPED status",
     {
@@ -163,7 +177,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_stop_channel",
     "Stop a VOD Station channel that is in READY status",
     {
@@ -177,7 +191,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   // ─── Category Tools ────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_list_categories",
     "List all VOD Station encoding categories",
     {
@@ -190,7 +204,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient)
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_vodstation_create_category",
     "Create a new VOD Station encoding category. Use dryRun=true to preview without creating.",
     {

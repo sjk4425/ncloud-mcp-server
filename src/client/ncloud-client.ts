@@ -347,6 +347,64 @@ export class NcloudClient {
     });
   }
 
+  /**
+   * 바이너리 응답(xlsx·keytab 등)을 받는 호출. JSON 파싱을 시도하지 않는다.
+   * - 실패(비 2xx)면 본문이 JSON 에러일 가능성이 높으므로 requestRaw 와 같은 에러 경로로 보낸다.
+   * - 성공이면 content-type·크기와, `maxInlineBytes` 이하일 때만 base64 본문을 돌려준다.
+   *   `savePath` 가 있으면 파일로 저장하고 base64 는 생략한다(대형 응답이 MCP 응답 한도를 넘지 않도록).
+   */
+  async requestBinary(
+    method: string,
+    path: string,
+    queryParams?: Record<string, string | number | boolean | undefined>,
+    body?: unknown,
+    opts?: { regionHeader?: boolean; savePath?: string; maxInlineBytes?: number }
+  ): Promise<{ contentType: string; bytes: number; savedTo?: string; base64?: string; note?: string }> {
+    const upperMethod = method.toUpperCase();
+    let urlPath = path;
+    if (queryParams && Object.keys(queryParams).length > 0) {
+      const normalized: Record<string, string> = {};
+      for (const [k, v] of Object.entries(queryParams)) if (v !== undefined) normalized[k] = String(v);
+      if (Object.keys(normalized).length > 0) urlPath = `${path}?${new URLSearchParams(normalized).toString()}`;
+    }
+    const serializedBody = body !== undefined && upperMethod !== "GET" ? JSON.stringify(body) : undefined;
+    const response = await this.fetchWithRetry(urlPath, () => {
+      const headers = this.buildAuthHeaders(upperMethod, urlPath);
+      headers["Accept"] = "*/*";
+      if (serializedBody !== undefined) headers["Content-Type"] = "application/json";
+      if (opts?.regionHeader) headers["x-ncp-region_code"] = this.regionCode;
+      const fetchOptions: RequestInit = { method: upperMethod, headers };
+      if (serializedBody !== undefined) fetchOptions.body = serializedBody;
+      return fetchOptions;
+    });
+    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+    const buf = Buffer.from(await response.arrayBuffer());
+    if (!response.ok) {
+      const text = buf.toString("utf8");
+      if (text.trim().length === 0) throw new Error(messages().emptyBody(response.status));
+      this.parseBodyAndHandle(text, response.status, false, { request: `${upperMethod} ${path}`, headers: response.headers ?? null });
+    }
+    const out: { contentType: string; bytes: number; savedTo?: string; base64?: string; note?: string } = {
+      contentType,
+      bytes: buf.byteLength,
+    };
+    if (opts?.savePath) {
+      const fs = await import("node:fs/promises");
+      const pathMod = await import("node:path");
+      await fs.mkdir(pathMod.dirname(opts.savePath), { recursive: true });
+      await fs.writeFile(opts.savePath, buf);
+      out.savedTo = opts.savePath;
+      return out;
+    }
+    const maxInline = opts?.maxInlineBytes ?? 256 * 1024;
+    if (buf.byteLength <= maxInline) {
+      out.base64 = buf.toString("base64");
+    } else {
+      out.note = `Response is ${buf.byteLength} bytes (> ${maxInline}); call again with savePath to write it to a file.`;
+    }
+    return out;
+  }
+
   // post/put/delete 는 requestRaw 위의 얇은 래퍼.
   // 기존 동작 보존: Cloud Insight 계열이 의존하는 x-ncp-region_code 헤더를 유지(regionHeader: true).
   // 200/201 + 빈 본문도 requestRaw 가 { success: true } 로 안전 처리한다(과거 .json() 직접 호출 버그 수정).

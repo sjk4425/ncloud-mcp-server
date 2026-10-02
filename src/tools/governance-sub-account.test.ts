@@ -37,6 +37,17 @@ describe("Sub Account tools — Ncloud Sub Account API 대조 수정분", () => 
     spy = vi.spyOn(client, "requestRaw").mockResolvedValue({ success: true });
   });
 
+  describe("login alias — GET/PUT /api/v1/login-alias (management-subaccount-{get,put}loginalias)", () => {
+    it("get: GET /api/v1/login-alias", async () => {
+      await getToolHandler(server, "ncloud_get_login_alias")({}, {} as any);
+      expect(spy).toHaveBeenCalledWith("GET", "/api/v1/login-alias");
+    });
+    it("set: PUT /api/v1/login-alias { loginAlias }", async () => {
+      await getToolHandler(server, "ncloud_set_login_alias")({ loginAlias: "myteam01" }, {} as any);
+      expect(spy).toHaveBeenCalledWith("PUT", "/api/v1/login-alias", undefined, { loginAlias: "myteam01" });
+    });
+  });
+
   describe("detach policy — 정책 ID는 경로가 아니라 바디의 policyIdList", () => {
     it("sub account: DELETEs /sub-accounts/{id}/policies with a policyIdList body", async () => {
       const handler = getToolHandler(server, "ncloud_detach_policy_from_sub_account");

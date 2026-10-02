@@ -119,13 +119,24 @@ export function deriveAnnotations(name: string): ToolAnnotations {
   return {};
 }
 
-/** 핸들러가 이미 완성된 MCP 응답({ content: [...] })을 반환했는지 판별. */
+/** MCP content block 종류. 이 밖의 `type` 값은 API 응답 데이터(예: DNS 레코드의 `type: "NS"`)로 본다. */
+const MCP_CONTENT_TYPES = new Set(["text", "image", "audio", "resource", "resource_link"]);
+
+/**
+ * 핸들러가 이미 완성된 MCP 응답({ content: [...] })을 반환했는지 판별.
+ * Global DNS 레코드 목록처럼 API 가 Spring Page 형태(`{ content: [{…, type: "NS"}], totalElements }`)로
+ * 응답하면 `content` 배열 + 문자열 `type` 만으로는 구분이 안 돼 클라이언트가 "Invalid tools/call result" 를
+ * 돌려줬다(2026-10-02 라이브 확인) → content block 의 `type` 이 MCP 종류이고 text 블록이면 `text` 가 문자열일 때만 완성 응답으로 본다.
+ */
 function isToolResult(v: any): boolean {
-  return (
-    v !== null &&
-    typeof v === "object" &&
-    Array.isArray(v.content) &&
-    v.content.every((c: any) => c && typeof c === "object" && typeof c.type === "string")
+  if (v === null || typeof v !== "object" || !Array.isArray(v.content)) return false;
+  return v.content.every(
+    (c: any) =>
+      c &&
+      typeof c === "object" &&
+      typeof c.type === "string" &&
+      MCP_CONTENT_TYPES.has(c.type) &&
+      (c.type !== "text" || typeof c.text === "string")
   );
 }
 
@@ -135,6 +146,25 @@ function isToolResult(v: any): boolean {
  * @param handler raw 데이터(직렬화 전)를 반환하거나, 직접 만든 완성 응답을 반환한다.
  *                throw 된 에러는 `{ isError: true }` 텍스트 응답으로 변환된다.
  */
+/**
+ * 지정한 이름의 도구 등록을 조용히 건너뛰는 서버 래퍼 — 존별로 제공되지 않는 오퍼레이션용.
+ * `registerTool` 만 가로채고 나머지 멤버는 원본 서버에 바인딩해 그대로 위임한다.
+ * 모듈 하나에 존 전용 도구가 몇 개 섞여 있을 때 `defineTool(excludingTools(server, [...]), ...)` 로 쓴다.
+ */
+export function excludingTools(server: McpServer, names: Iterable<string>): McpServer {
+  const skip = new Set(names);
+  return new Proxy(server, {
+    get(target, prop, receiver) {
+      if (prop === "registerTool") {
+        return (name: string, ...rest: unknown[]) =>
+          skip.has(name) ? undefined : (target as any).registerTool(name, ...rest);
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as McpServer;
+}
+
 export function defineTool<Schema extends ZodRawShape>(
   server: McpServer,
   name: string,

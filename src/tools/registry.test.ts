@@ -7,6 +7,7 @@ import {
   GroupManager,
   DEFAULT_GROUP_KEYS,
   TOOL_GROUPS,
+  groupSupportsZone,
 } from "./registry.js";
 
 // 전 도구를 가짜 서버에 등록시켜 구조 불변식을 검사한다(API 호출·비용 없음).
@@ -55,6 +56,7 @@ function captureAllTools(): CapturedTool[] {
       server: fakeServer,
       client: makeClientFactory(creds, "KR"),
       regionCode: "KR",
+      zone: "pub",
       creds,
       // archive 그룹까지 전부 등록되도록 env 주입
       env: { ...process.env, NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
@@ -220,6 +222,628 @@ describe("makeClientFactory: setRegionAll 전파 (Task 4)", () => {
   });
 });
 
+// ─── 존 통합 (민간존 public / 공공존 gov) ─────────────────────────────────────
+describe("makeClientFactory: 존별 기본 게이트웨이", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  const baseUrlOf = (c: unknown) => (c as { baseUrl: string }).baseUrl;
+
+  it("zone 생략 = public, 기본 base URL 은 민간존 게이트웨이(하위호환)", () => {
+    const factory = makeClientFactory(creds, "KR", undefined, {});
+    expect(factory.getZone()).toBe("pub");
+    expect(baseUrlOf(factory())).toBe("https://ncloud.apigw.ntruss.com");
+  });
+  it("zone=gov 이면 기본 base URL 은 공공존 게이트웨이", () => {
+    const factory = makeClientFactory(creds, "KR", "gov", {});
+    expect(factory.getZone()).toBe("gov");
+    expect(baseUrlOf(factory())).toBe("https://ncloud.apigw.gov-ntruss.com");
+  });
+  it("NCLOUD_API_URL 은 존과 무관하게 기본 base URL 을 덮어쓴다", () => {
+    const factory = makeClientFactory(creds, "KR", "gov", { NCLOUD_API_URL: "https://proxy.local" });
+    expect(baseUrlOf(factory())).toBe("https://proxy.local");
+  });
+});
+
+describe("common 그룹: 존별 리전 카탈로그", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  function captureCommon(zone: "pub" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({
+          name,
+          description: config?.description ?? null,
+          schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null,
+          annotations: config?.annotations,
+          hasHandler: typeof handler === "function",
+        });
+      },
+    };
+    registerGroups(
+      {
+        server: fakeServer,
+        client: makeClientFactory(creds, "KR", zone, {}),
+        regionCode: "KR",
+        zone,
+        creds,
+        env: {},
+      },
+      TOOL_GROUPS.filter((g) => g.key === "common")
+    );
+    return captured;
+  }
+
+  it("pub: set_region description 은 v1.16.0 문구와 글자 단위로 동일하다(회귀 방지)", () => {
+    const tool = captureCommon("pub").find((t) => t.name === "ncloud_set_region")!;
+    expect(tool.description).toBe(
+      "Set the active Ncloud region by code (KR, JPN, SGN, USWN, DEN) or Korean name (한국, 일본, 싱가포르, 미국, 독일)"
+    );
+  });
+  it("gov: set_region description 은 KR/KRS 만 안내하고 글로벌 리전을 언급하지 않는다", () => {
+    const tool = captureCommon("gov").find((t) => t.name === "ncloud_set_region")!;
+    expect(tool.description).toContain("(Gov)");
+    expect(tool.description).toContain("KR, KRS");
+    expect(tool.description).toContain("한국, 한국남부");
+    expect(tool.description).not.toMatch(/JPN|SGN|USWN|DEN/);
+  });
+  it("common 도구 이름 집합은 존과 무관하게 동일하다", () => {
+    const pub = captureCommon("pub").map((t) => t.name).sort();
+    const gov = captureCommon("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+  });
+});
+
+describe("compute 그룹: 존별 Cloud Functions API 버전", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  function captureCompute(zone: "pub" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({
+          name,
+          description: config?.description ?? null,
+          schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null,
+          annotations: config?.annotations,
+          hasHandler: typeof handler === "function",
+        });
+      },
+    };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "compute")
+    );
+    return captured;
+  }
+
+  it("pub: Cloud Functions 는 API v2.1 (/ncf/api/v2)", () => {
+    const t = captureCompute("pub").find((x) => x.name === "ncloud_functions_create_action")!;
+    expect(t.description).toContain("/ncf/api/v2");
+    expect(t.description).toContain("v2.1");
+  });
+  it("gov: Cloud Functions 는 API v2.0 (/api/v2, Classic 전용), 트리거는 cron/github 만", () => {
+    const tools = captureCompute("gov");
+    const action = tools.find((x) => x.name === "ncloud_functions_create_action")!;
+    expect(action.description).toContain("v2.0");
+    expect(action.description).toContain("Classic");
+    const trigger = tools.find((x) => x.name === "ncloud_functions_create_trigger")!;
+    expect(trigger.description).toContain("only cron and github");
+    expect(trigger.description).not.toContain("object_storage →");
+  });
+  it("compute 도구 이름 집합은 public/gov 에서 동일하다", () => {
+    const pub = captureCompute("pub").map((t) => t.name).sort();
+    const gov = captureCompute("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+    expect(pub).toContain("ncloud_change_block_storage_size");
+  });
+  it("fin: Fabric Cluster 7종만 빠지고(스냅샷 생성/삭제/상세·반납 보호는 금융존 가이드에 있음 — compute-vserve-snapshot-*, setblockstoragereturnprotection), Cloud Functions 는 v2.1(VPC 전용, platform 쿼리 없음)", () => {
+    const pub = captureCompute("pub");
+    const fin = captureCompute("fin" as any);
+    const notInFin = ["ncloud_list_fabric_clusters", "ncloud_get_fabric_cluster_detail", "ncloud_get_fabric_cluster_pools", "ncloud_create_fabric_cluster", "ncloud_update_fabric_cluster", "ncloud_change_fabric_cluster_servers", "ncloud_delete_fabric_cluster"];
+    const finNames = fin.map((t) => t.name);
+    for (const t of notInFin) { expect(pub.map((x) => x.name)).toContain(t); expect(finNames).not.toContain(t); }
+    for (const t of ["ncloud_list_snapshots", "ncloud_create_snapshot", "ncloud_delete_snapshots", "ncloud_get_snapshot_detail", "ncloud_set_block_storage_protection"]) expect(finNames).toContain(t);
+    expect(finNames.sort()).toEqual(pub.map((t) => t.name).filter((n) => !notInFin.includes(n)).sort());
+    const cf = fin.find((t) => t.name === "ncloud_functions_create_action")!;
+    expect(cf.description).toContain("/ncf/api/v2");
+    expect(cf.description).not.toContain("Classic only");
+  });
+});
+
+describe("network 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  const LISTENER_CERT_TOOLS = [
+    "ncloud_add_lb_listener_certificate",
+    "ncloud_remove_lb_listener_certificate",
+    "ncloud_list_lb_listener_certificates",
+  ];
+
+  function captureNetwork(zone: "pub" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "network")
+    );
+    return names;
+  }
+
+  it("pub: LB 리스너 인증서 도구 3종이 등록된다", () => {
+    const names = captureNetwork("pub");
+    for (const t of LISTENER_CERT_TOOLS) expect(names).toContain(t);
+  });
+  it("gov: 리스너 인증서 도구 3종만 빠지고 나머지는 public 과 동일하다 (공공존 LB 가이드에 해당 오퍼레이션 없음)", () => {
+    const pub = captureNetwork("pub");
+    const gov = captureNetwork("gov");
+    for (const t of LISTENER_CERT_TOOLS) expect(gov).not.toContain(t);
+    expect(gov.sort()).toEqual(pub.filter((n) => !LISTENER_CERT_TOOLS.includes(n)).sort());
+  });
+  it("fin: Global Traffic Manager 만 빠지고(금융존 미제공) 리스너 인증서 포함 나머지는 public 과 동일", () => {
+    const pub = captureNetwork("pub");
+    const fin = captureNetwork("fin" as any);
+    const isGtm = (n: string) => n.startsWith("ncloud_gtm_");
+    expect(pub.some(isGtm)).toBe(true);
+    expect(fin.some(isGtm)).toBe(false);
+    for (const t of LISTENER_CERT_TOOLS) expect(fin).toContain(t);
+    expect(fin.sort()).toEqual(pub.filter((n) => !isGtm(n)).sort());
+  });
+});
+
+describe("storage 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+
+  function captureStorage(zone: "pub" | "gov") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({ name, description: config?.description ?? null, schemaKeys: null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
+      },
+    };
+    registerGroups(
+      {
+        server: fakeServer,
+        client: makeClientFactory(creds, "KR", zone, {}),
+        regionCode: "KR",
+        zone,
+        creds,
+        env: { NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
+      },
+      TOOL_GROUPS.filter((g) => g.key === "storage")
+    );
+    return captured;
+  }
+
+  it("도구 이름 집합은 존과 무관하게 동일하다 (Object·Ncloud·NAS·Archive 모두 공공존 제공)", () => {
+    const pub = captureStorage("pub").map((t) => t.name).sort();
+    const gov = captureStorage("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+    expect(pub.some((n) => n.startsWith("ncloud_ncs_"))).toBe(true);
+    expect(pub.some((n) => n.includes("archive"))).toBe(true);
+  });
+  it("fin: Object Storage + NAS 만 등록되고 Ncloud Storage·Archive 도구는 없다", () => {
+    const fin = captureStorage("fin" as any).map((t) => t.name);
+    const pub = captureStorage("pub").map((t) => t.name);
+    expect(fin.some((n) => n.startsWith("ncloud_ncs_"))).toBe(false);
+    expect(fin.some((n) => n.includes("archive"))).toBe(false);
+    expect(fin).toContain("ncloud_list_buckets");
+    expect(fin).toContain("ncloud_list_nas_volumes");
+    expect(fin.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_ncs_") && !n.includes("archive")).sort());
+  });
+  it("Ncloud Storage description 은 존의 호스트를 안내한다", () => {
+    const pub = captureStorage("pub").find((t) => t.name === "ncloud_ncs_list_buckets")!;
+    const gov = captureStorage("gov").find((t) => t.name === "ncloud_ncs_list_buckets")!;
+    expect(pub.description).toContain("kr.ncloudstorage.com");
+    expect(pub.description).not.toContain("gov-");
+    expect(gov.description).toContain("kr.gov-ncloudstorage.com");
+  });
+});
+
+describe("monitoring 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureMonitoring(zone: "pub" | "gov" | "fin") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({ name, description: config?.description ?? null, schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
+      },
+    };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "monitoring")
+    );
+    return captured;
+  }
+  const METRIC_EXPORT_TOOLS = [
+    "ncloud_list_metric_exports", "ncloud_get_metric_export", "ncloud_get_metric_export_failed_status",
+    "ncloud_create_metric_export", "ncloud_update_metric_export", "ncloud_delete_metric_export",
+  ];
+  it("도구 이름 집합은 민간·공공존에서 동일하다 (Cloud Insight v1·Log Analytics 오퍼레이션 목록 동일)", () => {
+    const pub = captureMonitoring("pub").map((t) => t.name).sort();
+    const gov = captureMonitoring("gov").map((t) => t.name).sort();
+    expect(gov).toEqual(pub);
+    expect(pub).toContain("ncloud_search_logs");
+    expect(pub).toContain("ncloud_set_server_log_collection");
+    for (const t of [...METRIC_EXPORT_TOOLS, "ncloud_delete_server_log_collection"]) expect(pub).not.toContain(t);
+  });
+  it("fin: 민간존 도구 전부 + Metric Export 6종 + 서버 로그 수집 해제 (금융존 가이드 전용)", () => {
+    const pub = captureMonitoring("pub").map((t) => t.name).sort();
+    const fin = captureMonitoring("fin").map((t) => t.name).sort();
+    expect(fin).toEqual([...pub, ...METRIC_EXPORT_TOOLS, "ncloud_delete_server_log_collection"].sort());
+  });
+});
+
+describe("governance 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureGovernance(zone: "pub" | "gov" | "fin") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "governance")
+    );
+    return names;
+  }
+  it("pub: Cloud Advisor + WMS 모두 등록", () => {
+    const names = captureGovernance("pub");
+    expect(names.some((n) => n.startsWith("ncloud_advisor_"))).toBe(true);
+    expect(names).toContain("ncloud_wms_list_monitors");
+  });
+  it("gov: Cloud Advisor 만 빠지고(공공존 미제공) 나머지는 public 과 동일", () => {
+    const pub = captureGovernance("pub");
+    const gov = captureGovernance("gov");
+    expect(gov.some((n) => n.startsWith("ncloud_advisor_"))).toBe(false);
+    expect(gov.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_advisor_")).sort());
+  });
+  it("fin: gov 와 동일 집합 (Cloud Advisor 없음, 구현된 Sub Account/Activity Tracer/Resource Manager/WMS op 는 금융존 가이드에 모두 있음)", () => {
+    const gov = captureGovernance("gov").sort();
+    const fin = captureGovernance("fin").sort();
+    expect(fin).toEqual(gov);
+    expect(fin).toContain("ncloud_list_sub_accounts");
+    expect(fin).toContain("ncloud_wms_list_monitors");
+  });
+});
+
+describe("devtools 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureDevtools(zone: "pub" | "gov" | "fin") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "devtools")
+    );
+    return names;
+  }
+  it("도구 이름 집합은 존과 무관하게 동일하다 (SourceCommit/Build/Deploy/Pipeline 세 존 모두 제공, 81 페이지 동일)", () => {
+    const pub = captureDevtools("pub").sort();
+    expect(captureDevtools("gov").sort()).toEqual(pub);
+    expect(captureDevtools("fin").sort()).toEqual(pub);
+    expect(pub.length).toBeGreaterThan(20);
+  });
+});
+
+describe("analytics 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureAnalytics(zone: "pub" | "gov" | "fin") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "analytics")
+    );
+    return names;
+  }
+  const PUBLIC_ONLY_PREFIXES = ["ncloud_datastream_", "ncloud_datacatalog_", "ncloud_dataforest_", "ncloud_dataflow_", "ncloud_dataquery_", "ncloud_datafence_", "ncloud_databox_"];
+  const isDataService = (n: string) => PUBLIC_ONLY_PREFIXES.some((p) => n.startsWith(p));
+  it("pub: Data Stream/Catalog/Forest/Flow/Query 와 SES/CDSS G3 도구가 모두 등록된다", () => {
+    const names = captureAnalytics("pub");
+    for (const p of PUBLIC_ONLY_PREFIXES) expect(names.some((n) => n.startsWith(p)), p).toBe(true);
+    expect(names).toContain("ncloud_ses_create_cluster_g3");
+    expect(names).toContain("ncloud_cdss_create_cluster_g3");
+  });
+  it("gov: Data* 서비스와 SES 8종·CDSS 6종(민간존 전용 오퍼레이션)만 빠지고 나머지는 동일", () => {
+    const pub = captureAnalytics("pub");
+    const gov = captureAnalytics("gov");
+    expect(gov.some(isDataService)).toBe(false);
+    const sesOnly = ["ncloud_ses_get_cluster_detail", "ncloud_ses_get_server_generations", "ncloud_ses_get_server_specs", "ncloud_ses_get_cluster_server_images", "ncloud_ses_get_subnet_list_g3", "ncloud_ses_create_cluster_g3", "ncloud_ses_get_node_spec_for_change_g3", "ncloud_ses_change_disk_size", "ncloud_ses_get_node_storage"];
+    // cdss-getclusternodestorage 는 민간·금융존 인덱스에만, restartCMAKService 는 공공존 가이드에만 있다(2026-10-02).
+    const cdssOnly = ["ncloud_cdss_create_cluster_g3", "ncloud_cdss_get_subnet_list_g3", "ncloud_cdss_get_node_spec_for_change_g3", "ncloud_cdss_get_server_generations", "ncloud_cdss_get_server_spec_list", "ncloud_cdss_get_cluster_server_images", "ncloud_cdss_get_node_storage"];
+    const cdssGovOnly = ["ncloud_cdss_restart_cmak_service"];
+    for (const t of [...sesOnly, ...cdssOnly]) { expect(pub).toContain(t); expect(gov).not.toContain(t); }
+    for (const t of cdssGovOnly) { expect(pub).not.toContain(t); expect(gov).toContain(t); }
+    const expected = [...pub.filter((n) => !isDataService(n) && !sesOnly.includes(n) && !cdssOnly.includes(n)), ...cdssGovOnly].sort();
+    expect(gov.sort()).toEqual(expected);
+    expect(gov).toContain("ncloud_ses_list_clusters");
+    expect(gov).toContain("ncloud_cdss_list_clusters");
+    expect(gov.some((n) => n.startsWith("ncloud_hadoop_") || n.includes("hadoop"))).toBe(true);
+  });
+  it("fin: gov 와 같되 CDSS 노드 스토리지(금융존 가이드 있음)만 추가되고 CMAK 재시작(공공존 전용)은 빠진다", () => {
+    const gov = captureAnalytics("gov").sort();
+    const fin = captureAnalytics("fin").sort();
+    expect(fin).toContain("ncloud_cdss_get_node_storage");
+    expect(fin).not.toContain("ncloud_cdss_restart_cmak_service");
+    expect(fin).not.toContain("ncloud_ses_get_node_storage");
+    expect(fin.filter((n) => n !== "ncloud_cdss_get_node_storage")).toEqual(gov.filter((n) => n !== "ncloud_cdss_restart_cmak_service"));
+    expect(fin).toContain("ncloud_ses_list_clusters");
+    expect(fin).not.toContain("ncloud_ses_create_cluster_g3");
+  });
+});
+
+describe("media 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureMedia(zone: "pub" | "gov" | "fin") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "media")
+    );
+    return names;
+  }
+  it("pub: VOD Station·Live Station·Multi DRM(복제 포함) 등록, Image Optimizer 는 어느 존 가이드에도 없어 제거됨", () => {
+    const names = captureMedia("pub");
+    expect(names).toContain("ncloud_vodstation_update_channel");
+    expect(names.some((n) => n.startsWith("ncloud_livestation_"))).toBe(true);
+    expect(names).toContain("ncloud_drm_list_sites");
+    expect(names).toContain("ncloud_drm_copy_policy");
+    expect(names.some((n) => n.startsWith("ncloud_imageoptimizer_"))).toBe(false);
+  });
+  it("gov: Live Station·VOD 채널 수정·DRM 정책 복제만 빠지고 나머지는 동일", () => {
+    const pub = captureMedia("pub");
+    const gov = captureMedia("gov");
+    const publicOnly = (n: string) => n.startsWith("ncloud_livestation_") || n === "ncloud_vodstation_update_channel" || n === "ncloud_drm_copy_policy";
+    expect(gov.some(publicOnly)).toBe(false);
+    expect(gov.sort()).toEqual(pub.filter((n) => !publicOnly(n)).sort());
+    expect(gov).toContain("ncloud_vodstation_list_channels");
+    expect(gov).toContain("ncloud_drm_get_license_statistics");
+  });
+  it("fin: VOD Station(채널 수정 포함)·Live Station 만 등록, Multi DRM 은 금융존 가이드에 없어 빠진다", () => {
+    const pub = captureMedia("pub");
+    const fin = captureMedia("fin");
+    const notInFin = (n: string) => n.startsWith("ncloud_drm_");
+    expect(fin.some(notInFin)).toBe(false);
+    expect(fin.sort()).toEqual(pub.filter((n) => !notInFin(n)).sort());
+    expect(fin).toContain("ncloud_vodstation_update_channel");
+    expect(fin).toContain("ncloud_livestation_list_channels");
+  });
+});
+
+describe("cdn 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureCdn(zone: "pub" | "gov" | "fin") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "cdn")
+    );
+    return names;
+  }
+  it("pub·gov: Global Edge 도구 집합이 동일하고 CDN+/Global CDN 도구는 없다 (민간 종료, 공공 2026-12-31 종료 예정)", () => {
+    const pub = captureCdn("pub").sort();
+    const gov = captureCdn("gov").sort();
+    expect(gov).toEqual(pub);
+    expect(pub.length).toBeGreaterThan(10);
+    expect(pub.some((n) => /cdnplus|cdn_plus|globalcdn|global_cdn/.test(n))).toBe(false);
+  });
+  it("fin: Global Edge 없이 CDN+ 5종만 (api-fin cdnplus 개요 — 종료 공지 없음)", () => {
+    const fin = captureCdn("fin").sort();
+    expect(fin).toEqual([
+      "ncloud_cdnplus_list_instances", "ncloud_cdnplus_get_monitoring", "ncloud_cdnplus_get_usage",
+      "ncloud_cdnplus_request_purge", "ncloud_cdnplus_get_purge_history",
+    ].sort());
+  });
+});
+
+describe("security 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureSecurity(zone: "pub" | "gov" | "fin") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "security")
+    );
+    return names;
+  }
+  it("fin: Certificate Manager 3종 + KMS 암·복호화 6종만 (Private CA·Security Monitoring·KMS 2.0 은 금융존 가이드에 없음)", () => {
+    const fin = captureSecurity("fin").sort();
+    expect(fin).toEqual([
+      "ncloud_list_certificates", "ncloud_register_external_certificate", "ncloud_delete_certificate",
+      "ncloud_kms_encrypt", "ncloud_kms_decrypt", "ncloud_kms_create_custom_key", "ncloud_kms_reencrypt", "ncloud_kms_sign", "ncloud_kms_verify",
+    ].sort());
+  });
+  it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고, pub 에만 KMS 키 리전 이전(migrate-key)·Certificate Manager 2.0(ncloud_cm2_*)이 있으며 나머지는 동일", () => {
+    const pub = captureSecurity("pub");
+    const gov = captureSecurity("gov");
+    expect(pub).not.toContain("ncloud_issue_private_certificate");
+    expect(gov).toContain("ncloud_issue_private_certificate");
+    expect(pub).toContain("ncloud_kms_migrate_key");
+    expect(gov).not.toContain("ncloud_kms_migrate_key");
+    const cm2 = pub.filter((n) => n.startsWith("ncloud_cm2_"));
+    expect(cm2.length).toBe(23);
+    expect(gov.some((n) => n.startsWith("ncloud_cm2_"))).toBe(false);
+    expect(captureSecurity("fin").some((n) => n.startsWith("ncloud_cm2_"))).toBe(false);
+    // Secret Manager 는 민간존 전용(secretmanager-api-overview; 공공·금융 인덱스에 없음)
+    expect(pub.filter((n) => n.startsWith("ncloud_secret_")).length).toBe(32);
+    expect(gov.some((n) => n.startsWith("ncloud_secret_"))).toBe(false);
+    expect(captureSecurity("fin").some((n) => n.startsWith("ncloud_secret_"))).toBe(false);
+    const pubOnly = (n: string) => n === "ncloud_kms_migrate_key" || n.startsWith("ncloud_cm2_") || n.startsWith("ncloud_secret_");
+    expect(gov.filter((n) => n !== "ncloud_issue_private_certificate").sort()).toEqual(pub.filter((n) => !pubOnly(n)).sort());
+    expect(pub).toContain("ncloud_kms_create_key");
+  });
+});
+
+describe("application 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureApplication(zone: "pub" | "gov" | "fin") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "application")
+    );
+    return names;
+  }
+  it("fin: gov 와 동일 집합 (SENS 메일 채널 없음, Mailer 는 별개 정식 서비스로 발송·조회 포함)", () => {
+    const gov = captureApplication("gov").sort();
+    const fin = captureApplication("fin").sort();
+    expect(fin).toEqual(gov);
+    expect(fin).toContain("ncloud_mailer_send_mail");
+    expect(fin).not.toContain("ncloud_sens_send_mail");
+    expect(fin).toContain("ncloud_apigw_list_products");
+  });
+  const SENS_MAIL = ["ncloud_sens_send_mail", "ncloud_sens_list_mail_requests", "ncloud_sens_get_mail_request", "ncloud_sens_list_mails", "ncloud_sens_get_mail"];
+  const MAILER_GOV = ["ncloud_mailer_send_mail", "ncloud_mailer_get_request_status", "ncloud_mailer_list_requests", "ncloud_mailer_list_mails", "ncloud_mailer_get_mail"];
+  it("pub: SENS 메일 채널 도구 있음, Mailer 발송·조회 5종은 없음(SENS 로 통합)", () => {
+    const names = captureApplication("pub");
+    for (const t of SENS_MAIL) expect(names).toContain(t);
+    for (const t of MAILER_GOV) expect(names).not.toContain(t);
+    expect(names).toContain("ncloud_mailer_get_template");
+    expect(names).toContain("ncloud_sens_list_projects");
+  });
+  it("gov: SENS 메일 채널 도구 없음, Mailer 발송·조회 5종 추가, 나머지는 동일", () => {
+    const pub = captureApplication("pub");
+    const gov = captureApplication("gov");
+    for (const t of SENS_MAIL) expect(gov).not.toContain(t);
+    for (const t of MAILER_GOV) expect(gov).toContain(t);
+    expect(gov).toContain("ncloud_sens_list_projects");
+    expect(gov).toContain("ncloud_sens_send_brandmessage");
+    expect(gov.filter((n) => !MAILER_GOV.includes(n)).sort()).toEqual(pub.filter((n) => !SENS_MAIL.includes(n)).sort());
+  });
+});
+
+describe("billing 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureBilling(zone: "pub" | "gov" | "fin") {
+    const captured: CapturedTool[] = [];
+    const fakeServer: any = {
+      registerTool: (name: string, config: any, handler: any) => {
+        captured.push({ name, description: config?.description ?? null, schemaKeys: config?.inputSchema ? Object.keys(config.inputSchema) : null, annotations: config?.annotations, hasHandler: typeof handler === "function" });
+      },
+    };
+    const region = zone === "fin" ? "FKR" : "KR";
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, region, zone, {}), regionCode: region, zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "billing")
+    );
+    return captured;
+  }
+  it("도구 이름 집합은 존과 무관하게 동일하다 (오퍼레이션 20종 세 존 동일)", () => {
+    const pub = captureBilling("pub").map((t) => t.name).sort();
+    expect(captureBilling("gov").map((t) => t.name).sort()).toEqual(pub);
+    expect(captureBilling("fin").map((t) => t.name).sort()).toEqual(pub);
+    expect(pub.length).toBeGreaterThan(10);
+  });
+});
+
+// ─── 금융존: 그룹별 가이드 대조 전에는 common 만 ─────────────────────────────────
+describe("금융존(fin): 그룹 존 게이트", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function manager(zone: "pub" | "gov" | "fin", rawEnv?: string) {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    const ctx = { server: fakeServer, client: makeClientFactory(creds, zone === "fin" ? "FKR" : "KR", zone, {}), regionCode: zone === "fin" ? "FKR" : "KR", zone, creds, env: {} };
+    const m = new GroupManager(ctx, planGroups(rawEnv));
+    return { m, names };
+  }
+  const finGroups = TOOL_GROUPS.filter((g) => groupSupportsZone(g, "fin")).map((g) => g.key);
+  const gatedGroup = TOOL_GROUPS.find((g) => !g.always && !groupSupportsZone(g, "fin"))?.key;
+
+  it("fin: 시작 시 금융존 대조가 끝난 그룹만 등록되고(common 포함), set_region 은 FKR 만 안내한다", () => {
+    const { m, names } = manager("fin");
+    m.start();
+    expect(m.enabledGroupKeys().sort()).toEqual([...finGroups].sort());
+    expect(names).toContain("ncloud_set_region");
+    const server2 = { registerTool: (name: string, config: any) => { if (name === "ncloud_set_region") expect(config.description).toContain("FKR"); } };
+    registerGroups({ server: server2 as any, client: makeClientFactory(creds, "FKR", "fin", {}), regionCode: "FKR", zone: "fin", creds, env: {} }, TOOL_GROUPS.filter((g) => g.key === "common"));
+  });
+  it("fin: dynamic 모드에서 대조 전 그룹은 enable 대상·카탈로그에 나오지 않고 enable 요청은 안내로 끝난다", () => {
+    const { m } = manager("fin", "dynamic");
+    m.start();
+    for (const k of m.enableableKeys()) expect(finGroups).toContain(k);
+    for (const g of m.catalog().groups) expect(finGroups).toContain(g.key);
+    if (gatedGroup) {
+      expect(m.enableableKeys()).not.toContain(gatedGroup);
+      const out = m.enable(gatedGroup);
+      expect(out.status).toBe("unknown");
+      expect(out.message).toContain("fin");
+    }
+  });
+  it("public/gov: 존 게이트가 기존 동작을 바꾸지 않는다 (전 그룹 startup)", () => {
+    for (const zone of ["pub", "gov"] as const) {
+      const { m } = manager(zone);
+      m.start();
+      expect(m.enabledGroupKeys().length).toBe(TOOL_GROUPS.length);
+    }
+  });
+});
+
+// ─── 전 그룹 종합: 존별 도구 수 ────────────────────────────────────────────────
+describe("전 그룹: 존별 등록 요약", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  function captureAll(zone: "pub" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: { NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" } },
+      resolveGroups(undefined)
+    );
+    return names;
+  }
+  it("두 존 모두 1000개 이상 등록되고 이름이 중복되지 않는다", () => {
+    for (const zone of ["pub", "gov"] as const) {
+      const names = captureAll(zone);
+      expect(names.length, zone).toBeGreaterThan(1000);
+      expect(new Set(names).size, `${zone} duplicates`).toBe(names.length);
+    }
+  });
+});
+
+describe("database 그룹: 존별 등록", () => {
+  const creds = { accessKey: "x", secretKey: "y" };
+  const CACHE_USER_TOOLS = ["ncloud_list_cache_users", "ncloud_add_cache_users", "ncloud_change_cache_users", "ncloud_delete_cache_users"];
+
+  function captureDatabase(zone: "pub" | "gov") {
+    const names: string[] = [];
+    const fakeServer: any = { registerTool: (name: string) => names.push(name) };
+    registerGroups(
+      { server: fakeServer, client: makeClientFactory(creds, "KR", zone, {}), regionCode: "KR", zone, creds, env: {} },
+      TOOL_GROUPS.filter((g) => g.key === "database")
+    );
+    return names;
+  }
+
+  it("pub: Serverless 도구는 있고 Cache 사용자 도구는 없다", () => {
+    const names = captureDatabase("pub");
+    expect(names.some((n) => n.startsWith("ncloud_serverless_"))).toBe(true);
+    for (const t of CACHE_USER_TOOLS) expect(names).not.toContain(t);
+  });
+  it("fin: Serverless 도구도 Cache 사용자 도구도 없고 나머지는 public 과 동일하다", () => {
+    const pub = captureDatabase("pub");
+    const fin = captureDatabase("fin" as any);
+    expect(fin.some((n) => n.startsWith("ncloud_serverless_"))).toBe(false);
+    for (const t of CACHE_USER_TOOLS) expect(fin).not.toContain(t);
+    expect(fin.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_serverless_")).sort());
+  });
+  it("gov: Serverless 도구는 없고(공공존 미제공) Cache 사용자 도구 4종이 추가되며, 나머지는 public 과 동일하다", () => {
+    const pub = captureDatabase("pub");
+    const gov = captureDatabase("gov");
+    expect(gov.some((n) => n.startsWith("ncloud_serverless_"))).toBe(false);
+    for (const t of CACHE_USER_TOOLS) expect(gov).toContain(t);
+    const pubCore = pub.filter((n) => !n.startsWith("ncloud_serverless_")).sort();
+    const govCore = gov.filter((n) => !CACHE_USER_TOOLS.includes(n)).sort();
+    expect(govCore).toEqual(pubCore);
+  });
+});
+
 // ─── 동적 그룹 로딩 (v1.4.0, DESIGN_long-term-dynamic-groups.md §3) ─────────────
 describe("동적 그룹 로딩: planGroups / GroupManager", () => {
   const creds = { accessKey: "x", secretKey: "y" };
@@ -247,6 +871,7 @@ describe("동적 그룹 로딩: planGroups / GroupManager", () => {
         server: fakeServer,
         client: makeClientFactory(creds, "KR"),
         regionCode: "KR",
+        zone: "pub",
         creds,
         env: { ...process.env, NCLOUD_ARCHIVE_PROJECT_ID: "p", NCLOUD_ARCHIVE_DOMAIN_ID: "d" },
       },

@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sjk4425/ncloud",
-  "description": "MCP server for managing Naver Cloud Platform (Ncloud) infrastructure",
+  "description": "MCP server for managing Naver Cloud Platform (Ncloud) infrastructure — Public, Government (NCLOUD_ZONE=gov) and Financial (NCLOUD_ZONE=fin) zones",
   "repository": {
     "url": "https://github.com/sjk4425/ncloud-mcp-server",
     "source": "github"
   },
-  "version": "1.16.0",
+  "version": "2.0.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "ncloud-mcp-server",
-      "version": "1.16.0",
+      "version": "2.0.0",
       "transport": {
         "type": "stdio"
       },
@@ -31,7 +31,14 @@
           "name": "NCLOUD_SECRET_KEY"
         },
         {
-          "description": "Ncloud region code (KR, JPN, SGN, USWN, DEN)",
+          "description": "Zone: 'pub' (default, Public zone), 'gov' (Government zone) or 'fin' (Financial zone). Selects the API gateways, regions and service catalogue; credentials must be issued by that zone's console. Any other value aborts startup.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "NCLOUD_ZONE"
+        },
+        {
+          "description": "Ncloud region code. Public zone: KR, JPN, SGN, USWN, DEN. Government zone: KR (KR-CENTRAL), KRS (KR-SOUTH). Financial zone: FKR. Default KR (FKR in the Financial zone).",
           "isRequired": false,
           "format": "string",
           "isSecret": false,

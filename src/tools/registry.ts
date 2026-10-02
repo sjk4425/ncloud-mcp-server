@@ -14,6 +14,17 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { defineTool } from "./_tool.js";
 import { NcloudClient } from "../client/ncloud-client.js";
+import {
+  defaultGateway,
+  endpoint,
+  isServiceAvailable,
+  cloudFunctionsEndpoint,
+  hasStorageEndpoints,
+  OBJECT_STORAGE_ENDPOINTS,
+  NCLOUD_STORAGE_ENDPOINTS,
+  ARCHIVE_STORAGE_ENDPOINTS,
+  type Zone,
+} from "../client/endpoints.js";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import {
@@ -52,15 +63,16 @@ import {
   registerCloudInsightTools,
   registerCloudInsightRuleTools,
   registerCloudInsightPluginTools,
+  registerCloudInsightMetricExportTools,
   registerCloudInsightIntegrationTools,
   registerSourceCommitTools,
   registerSourceBuildTools,
   registerSourceDeployTools,
   registerSourcePipelineTools,
   registerGlobalEdgeTools,
+  registerCdnPlusTools,
   registerVodStationTools,
   registerLiveStationTools,
-  registerImageOptimizerTools,
   registerSubAccountTools,
   registerApiGatewayTools,
   registerSensTools,
@@ -79,15 +91,23 @@ import {
   registerDataCatalogTools,
   registerDataForestTools,
   registerCloudAdvisorTools,
+  registerWmsTools,
+  registerStsTools,
+  registerSecretManagerTools,
+  registerMultiDrmTools,
   registerDataFlowTools,
   registerDataQueryTools,
+  registerDatafenceTools,
+  registerDataBoxTools,
   registerPrivateCaTools,
   registerKmsTools,
   registerBillingTools,
 } from "./index.js";
 
-const DEFAULT_BASE_URL =
-  process.env.NCLOUD_API_URL ?? "https://ncloud.apigw.ntruss.com";
+// 기본 base URL 은 존(민간/공공)별로 다르다 — `makeClientFactory` 가 `client/endpoints.ts` 의
+// `defaultGateway(zone, env)` 로 결정한다(`NCLOUD_API_URL` override 유지).
+// ⚠️ 존 통합 진행 중: 아래 그룹 클로저의 리터럴 `https://*.apigw.ntruss.com` 은 아직 민간존 고정이며
+// 그룹별 통합 단계에서 `endpoint(<service>, ctx.zone)` 로 교체한다(docs/zone-unification-plan.md).
 
 /**
  * 동적 로딩의 기본 그룹 세트(common은 always 라 제외).
@@ -109,12 +129,16 @@ export interface ClientFactory {
   setRegionAll(regionCode: string): void;
   /** 팩토리가 보관 중인 현재 리전(단일 소스). */
   getRegionCode(): string;
+  /** 이 서버 프로세스가 묶인 존(민간 `public` / 공공 `gov`). 시작 시 고정, 런타임 변경 불가. */
+  getZone(): Zone;
 }
 
 export interface RegisterCtx {
   server: McpServer;
   client: ClientFactory;
   regionCode: string;
+  /** 존 — 그룹 클로저는 이 값으로 `endpoint(service, zone)` 를 고르고, 미제공 서비스는 등록을 건너뛴다. */
+  zone: Zone;
   creds: { accessKey: string; secretKey: string };
   env: NodeJS.ProcessEnv;
 }
@@ -124,19 +148,38 @@ export interface ToolGroup {
   title: string;
   /** common 처럼 그룹 선택과 무관하게 항상 등록. */
   always?: boolean;
+  /**
+   * 이 그룹을 제공하는 존. 미설정 = 전 존. 새 존(예: 금융존)은 그룹별로 공식 가이드 대조가 끝난 뒤에만 여기에 추가한다 —
+   * 대조 전 존에서는 시작 시 등록도, 런타임 enable 도, 카탈로그 노출도 되지 않는다.
+   */
+  zones?: readonly Zone[];
   register: (ctx: RegisterCtx) => void;
 }
 
-/** creds + regionCode 로 base URL별 memoized NcloudClient 팩토리를 만든다. */
+/** 그룹이 해당 존을 제공하는지(미설정 = 전 존). */
+export function groupSupportsZone(group: ToolGroup, zone: Zone): boolean {
+  return group.zones === undefined || group.zones.includes(zone);
+}
+
+/** 금융존 가이드 대조가 아직 끝나지 않은 그룹에 붙이는 존 제한(민간·공공존만). 그룹별 검증 완료 시 제거한다. */
+const PUBLIC_GOV: readonly Zone[] = ["pub", "gov"];
+
+/**
+ * creds + regionCode(+ zone) 로 base URL별 memoized NcloudClient 팩토리를 만든다.
+ * 인자 생략 시 base URL 은 존의 기본 게이트웨이(`NCLOUD_API_URL` 이 있으면 그것).
+ */
 export function makeClientFactory(
   creds: { accessKey: string; secretKey: string },
-  regionCode: string
+  regionCode: string,
+  zone: Zone = "pub",
+  env: NodeJS.ProcessEnv = process.env
 ): ClientFactory {
   const cache = new Map<string, NcloudClient>();
   // 단일 소스로 보관 — 신규 클라이언트도 이 값으로 생성한다(생성 시점 초기 리전 고정 잠복 버그 해결).
   let currentRegion = regionCode;
+  const defaultBaseUrl = defaultGateway(zone, env);
 
-  const factory = ((baseUrl = DEFAULT_BASE_URL) => {
+  const factory = ((baseUrl = defaultBaseUrl) => {
     let c = cache.get(baseUrl);
     if (!c) {
       c = new NcloudClient({ ...creds, baseUrl, regionCode: currentRegion });
@@ -150,6 +193,7 @@ export function makeClientFactory(
     for (const c of cache.values()) c.setRegionCode(code);
   };
   factory.getRegionCode = () => currentRegion;
+  factory.getZone = () => zone;
 
   return factory;
 }
@@ -176,31 +220,42 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "compute",
     title: "Compute (Server, Storage, Public IP, Auto Scaling, Cloud Functions)",
-    register: ({ server, client, regionCode }) => {
+    register: ({ server, client, regionCode, zone }) => {
+      // Server(VPC)·Auto Scaling 은 세 존 모두 기본 게이트웨이 + 같은 경로다.
+      //   민간존 https://api.ncloud-docs.com/docs/compute-vserver · 공공존 https://api-gov.ncloud-docs.com/docs/compute-vserver
+      //   금융존 https://api-fin.ncloud-docs.com/docs/compute-vserver (fin-ncloud.apigw.fin-ntruss.com/vserver/v2)
+      // 금융존 가이드에 없는 오퍼레이션(2026-09-30, 404 확인): Fabric Cluster 전부.
+      //   스냅샷 생성·삭제·상세·블록 스토리지 반납 보호는 2026-10-02 재확인 결과 금융존 가이드에 있다(슬러그만 `compute-vserve-snapshot-*`,
+      //   `setblockstoragereturnprotection` 으로 불규칙) → 세 존 모두 등록.
+      const fin = zone === "fin";
       const c = client();
       registerComputeServerTools(server, c);
       registerComputeStorageTools(server, c);
       registerComputePublicIpTools(server, c);
       registerComputeLoginKeyTools(server, c);
       registerComputeInitScriptTools(server, c);
-      registerComputePlacementTools(server, c);
+      registerComputePlacementTools(server, c, { fabricCluster: !fin });
       registerAutoScalingTools(server, c);
 
-      // Cloud Functions는 region별 base URL
-      const cloudFunctionsBaseUrlMap: Record<string, string> = {
-        KR: "https://cloudfunctions.apigw.ntruss.com",
-        SGN: "https://sg-cloudfunctions.apigw.ntruss.com",
-        JPN: "https://jp-cloudfunctions.apigw.ntruss.com",
-      };
-      const cfBaseUrl =
-        cloudFunctionsBaseUrlMap[regionCode] ?? "https://cloudfunctions.apigw.ntruss.com";
-      registerCloudFunctionsTools(server, client(cfBaseUrl));
+      // Cloud Functions: 민간존 리전별 호스트 + API v2.1 / 공공존 단일 호스트 + API v2.0(Classic 전용) /
+      //   금융존 단일 호스트 + API v2.1(VPC 전용, platform 쿼리 없음).
+      if (isServiceAvailable("cloudfunctions", zone)) {
+        registerCloudFunctionsTools(server, client(cloudFunctionsEndpoint(zone, regionCode)), {
+          apiVersion: zone === "gov" ? "2.0" : "2.1",
+          ...(fin ? { platforms: ["vpc"] as const, sendPlatformQuery: false } : {}),
+        });
+      }
     },
   },
   {
     key: "network",
     title: "Network (VPC, ACG, LB, Target Group, Global DNS, Traffic Manager)",
-    register: ({ server, client }) => {
+    register: ({ server, client, zone }) => {
+      // VPC·ACG·NACL·NAT·Route Table·Peering·NIC·LB·Target Group: 세 존 모두 기본 게이트웨이 + 같은 경로.
+      //   민간존 https://api.ncloud-docs.com/docs/networking-vpc · 공공존 https://api-gov.ncloud-docs.com/docs/networking-vpc
+      //   · 금융존 https://api-fin.ncloud-docs.com/docs/networking-vpc (vloadbalancer 도 동일, 오퍼레이션 47/27 동일).
+      //   공공존 LB 에만 리스너 인증서(SNI) 오퍼레이션 3종이 없다(금융존은 있음).
+      // Global DNS: 세 존 제공. Global Traffic Manager: 금융존 미제공(api-fin 404) → endpoint() undefined 면 미등록.
       const c = client();
       registerVpcTools(server, c);
       registerAcgTools(server, c);
@@ -209,34 +264,55 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerRouteTableTools(server, c);
       registerVpcPeeringTools(server, c);
       registerNetworkInterfaceTools(server, c);
-      registerLoadBalancerTools(server, c);
+      registerLoadBalancerTools(server, c, { listenerCertificates: zone !== "gov" });
       registerTargetGroupTools(server, c);
-      registerGlobalDnsTools(server, client("https://globaldns.apigw.ntruss.com"));
-      registerGlobalTrafficManagerTools(server, client("https://globaltrafficmanager.apigw.ntruss.com"));
+      // Global DNS / GTM: 전용 호스트, 두 존 규칙형 서브도메인, 오퍼레이션 목록 동일
+      //   (networking-globaldns-* / globaltrafficmanager-* 페이지 대조, 2026-09-30).
+      registerGlobalDnsTools(server, client(endpoint("globaldns", zone)));
+      const gtm = endpoint("globaltrafficmanager", zone);
+      if (gtm) registerGlobalTrafficManagerTools(server, client(gtm));
     },
   },
   {
     key: "database",
     title: "Database (MySQL, PostgreSQL, MSSQL, MongoDB, Cache, Serverless)",
-    register: ({ server, client }) => {
+    register: ({ server, client, zone }) => {
+      // MySQL/PostgreSQL/MSSQL/MongoDB/Cache: 세 존 모두 기본 게이트웨이 + 같은 경로(database-v* 개요 페이지, 2026-09-30 대조;
+      //   금융존 fin-ncloud.apigw.fin-ntruss.com, 오퍼레이션 목록 동일 — 차이는 metric 문서 페이지뿐).
+      //   공공존 Cache 에만 사용자(ACL) 4종(get/add/change/deleteCloudCacheUserList)이 있다.
+      //   Serverless 는 민간존 전용(api-gov·api-fin 모두 404).
       const c = client();
       registerDatabaseMysqlTools(server, c);
       registerDatabasePostgresqlTools(server, c);
       registerDatabaseMssqlTools(server, c);
       registerDatabaseMongodbTools(server, c);
-      registerDatabaseCacheTools(server, c);
+      registerDatabaseCacheTools(server, c, { userList: zone === "gov" });
       // Cloud DB Serverless(2026-09-17 신규): 표준 REST, 별도 base URL. 2026-09-21 실측 "sub account is not supported yet"(403).
-      registerDatabaseServerlessTools(server, client("https://clouddb-serverless.apigw.ntruss.com"));
+      //   공공존 미제공(api-gov 에 pub-clouddb-serverless-* 페이지 없음) → endpoint() 가 undefined 면 등록하지 않는다.
+      const serverless = endpoint("clouddbServerless", zone);
+      if (serverless) registerDatabaseServerlessTools(server, client(serverless));
     },
   },
   {
     key: "storage",
     title: "Storage (Object, Ncloud, NAS, Archive)",
-    register: ({ server, client, creds, regionCode, env }) => {
+    register: ({ server, client, creds, regionCode, env, zone }) => {
+      // 존에 엔드포인트 표가 없는 S3/Swift 서비스는 등록하지 않는다(표가 비면 클라이언트가 오류를 내므로 사전 차단).
+      //   금융존(2026-09-30): Object Storage kr.object.fin-ncloudstorage.com(fin-standard)·NAS(기본 게이트웨이)만 제공,
+      //   Ncloud Storage·Archive Storage 는 가이드 없음(404).
+      const hasObject = hasStorageEndpoints(OBJECT_STORAGE_ENDPOINTS, zone);
+      const hasNcloud = hasStorageEndpoints(NCLOUD_STORAGE_ENDPOINTS, zone);
+      const hasArchive = hasStorageEndpoints(ARCHIVE_STORAGE_ENDPOINTS, zone);
+      // 스토리지는 존 분기가 **클라이언트 레벨**이다 — 호스트·서명 리전 표는 client/endpoints.ts
+      // (OBJECT_STORAGE_ENDPOINTS / NCLOUD_STORAGE_ENDPOINTS / ARCHIVE_STORAGE_ENDPOINTS, 두 존 공식 문서 대조본).
+      //   공공존: Object Storage kr(gov-standard)/krs(gov2-standard).object.gov-ncloudstorage.com,
+      //          Ncloud Storage {bucket}.kr.gov-ncloudstorage.com(2026 출시, api-gov storage-ncloudstorage 확인),
+      //          Archive kr.archive.gov-ncloudstorage.com. NAS(vnas)는 기본 게이트웨이.
       const s3Client = new S3CompatibleClient({
         ...creds,
         regionCode,
         storageType: "object",
+        zone,
       });
       // Ncloud Storage 는 공식 문서대로 virtual-hosted 주소(`{bucket}.kr.ncloudstorage.com`)가
       // 기본. 2026-08 라이브 검증까지 동작했던 path 방식이 필요하면 env 로 되돌릴 수 있다.
@@ -245,20 +321,22 @@ export const TOOL_GROUPS: ToolGroup[] = [
         regionCode,
         storageType: "ncloud",
         addressing: env.NCLOUD_STORAGE_ADDRESSING === "path" ? "path" : undefined,
+        zone,
       });
-      registerStorageObjectTools(server, s3Client);
-      registerStorageNcloudTools(server, ncloudStorageClient);
+      if (hasObject) registerStorageObjectTools(server, s3Client);
+      if (hasNcloud) registerStorageNcloudTools(server, ncloudStorageClient);
       registerStorageNasTools(server, client());
 
       // Archive Storage는 NCLOUD_ARCHIVE_PROJECT_ID/DOMAIN_ID 가 있을 때만 (Swift 클라이언트)
       const archiveProjectId = env.NCLOUD_ARCHIVE_PROJECT_ID;
       const archiveDomainId = env.NCLOUD_ARCHIVE_DOMAIN_ID;
-      if (archiveProjectId && archiveDomainId) {
+      if (hasArchive && archiveProjectId && archiveDomainId) {
         const swiftClient = new SwiftCompatibleClient({
           ...creds,
           projectId: archiveProjectId,
           domainId: archiveDomainId,
           regionCode,
+          zone,
         });
         registerStorageArchiveTools(server, swiftClient);
       }
@@ -267,105 +345,176 @@ export const TOOL_GROUPS: ToolGroup[] = [
   {
     key: "containers",
     title: "Containers (NKS, Container Registry)",
-    register: ({ server, client }) => {
-      registerContainersNksTools(server, client("https://nks.apigw.ntruss.com"));
-      registerContainersRegistryTools(server, client("https://ncr.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // NKS: 호스트 규칙형(nks.apigw.*), 경로 접두는 존·리전별(nksPathPrefix — 금융존은 /nks/v2).
+      //   kubeconfig 재발급은 민간존 가이드에만, Add-on Manager 는 민간·공공존 가이드에만 있다(금융존 404, 2026-09-30).
+      // NCR: 호스트 불규칙(공공존 gov-ncr.apigw.gov-ntruss.com), 경로 접두 존·리전별(ncrPathPrefix).
+      registerContainersNksTools(server, client(endpoint("nks", zone)), {
+        zone,
+        resetKubeconfig: zone === "pub",
+        addons: zone !== "fin",
+      });
+      registerContainersRegistryTools(server, client(endpoint("ncr", zone)), { zone });
     },
   },
   {
     key: "monitoring",
     title: "Monitoring (Cloud Insight, Log Analytics)",
-    register: ({ server, client }) => {
-      registerLogAnalyticsTools(server, client("https://cloudloganalytics.apigw.ntruss.com"));
-      const cw = client("https://cw.apigw.ntruss.com");
+    register: ({ server, client, zone }) => {
+      // 세 존 모두 cw.apigw.* / cloudloganalytics.apigw.* 호스트 + 동일 경로 (management-cloudinsight / analytics-cloudloganalytics 개요, 2026-09-30 대조).
+      // Cloud Insight v2(cloudinsight.apigw.*/api/v2, GetAggregatedMetrics)는 미사용 — v1(cw.apigw.*) 기준.
+      // 금융존: Metric Export 6종은 금융존 가이드에만 문서화(민간·공공존 404); Log Analytics 는 vpc 플랫폼만, 수집 해제 도구는 금융존 전용.
+      registerLogAnalyticsTools(server, client(endpoint("cloudLogAnalytics", zone)), { zone });
+      const cw = client(endpoint("cloudInsight", zone));
       registerCloudInsightTools(server, cw);
       registerCloudInsightRuleTools(server, cw);
       registerCloudInsightPluginTools(server, cw);
       registerCloudInsightIntegrationTools(server, cw);
+      if (zone === "fin") registerCloudInsightMetricExportTools(server, cw);
     },
   },
   {
     key: "governance",
-    title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account)",
-    register: ({ server, client }) => {
-      registerActivityTracerTools(server, client("https://cloudactivitytracer.apigw.ntruss.com"));
-      registerCloudAdvisorTools(server, client("https://cloud-advisor.apigw.ntruss.com"));
-      registerResourceManagerTools(server, client("https://resourcemanager.apigw.ntruss.com"));
-      registerSubAccountTools(server, client("https://subaccount.apigw.ntruss.com"));
+    title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account, WMS)",
+    register: ({ server, client, zone }) => {
+      // Activity Tracer·Resource Manager·Sub Account·WMS: 세 존 모두 <svc>.apigw.* 호스트, 경로 동일
+      //   (management-cloudactivitytracer / -resourcemanager / -subaccount / -wms 개요, 2026-09-30 대조).
+      //   금융존 Sub Account 는 Trust Anchor/Profile/CRL/Subject·Access Rule·Credential 페이지가 없으나 이 서버는 해당 op 를 구현하지 않는다.
+      // Cloud Advisor 는 민간존 전용(api-gov·api-fin 에 management-cloud-advisor-* 페이지 없음) → endpoint() undefined 면 미등록.
+      registerActivityTracerTools(server, client(endpoint("activityTracer", zone)));
+      const advisor = endpoint("cloudAdvisor", zone);
+      if (advisor) registerCloudAdvisorTools(server, client(advisor));
+      registerResourceManagerTools(server, client(endpoint("resourceManager", zone)));
+      registerSubAccountTools(server, client(endpoint("subAccount", zone)));
+      registerWmsTools(server, client(endpoint("wms", zone)));
+      // STS 호출자 식별(세 존, sts.apigw.*) — 메인/서브 계정 구분용 (가이드 슬러그 get-caller-identity).
+      registerStsTools(server, client(endpoint("sts", zone)));
     },
   },
   {
     key: "devtools",
     title: "DevTools (SourceCommit, SourceBuild, SourceDeploy, SourcePipeline)",
-    register: ({ server, client }) => {
-      registerSourceCommitTools(server, client("https://sourcecommit.apigw.ntruss.com"));
-      registerSourceBuildTools(server, client("https://sourcebuild.apigw.ntruss.com"));
-      registerSourceDeployTools(server, client("https://vpcsourcedeploy.apigw.ntruss.com"));
-      registerSourcePipelineTools(server, client("https://vpcsourcepipeline.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // 세 존 오퍼레이션 목록 동일(devtools-* 81 페이지, 2026-09-30 대조), 경로 동일.
+      // SourceDeploy·SourcePipeline 은 민간·공공존에 Classic/VPC 호스트가 따로 있고 이 서버는 VPC(`vpcsource*`)를 쓴다;
+      //   금융존은 `sourcedeploy.apigw.fin-ntruss.com` 단일 호스트(SERVICE_ENDPOINTS 참고).
+      registerSourceCommitTools(server, client(endpoint("sourceCommit", zone)));
+      registerSourceBuildTools(server, client(endpoint("sourceBuild", zone)));
+      registerSourceDeployTools(server, client(endpoint("sourceDeploy", zone)));
+      registerSourcePipelineTools(server, client(endpoint("sourcePipeline", zone)));
     },
   },
   {
     key: "analytics",
-    title: "Analytics (SES, Hadoop, CDSS, Data Stream/Catalog/Forest/Flow/Query)",
-    register: ({ server, client }) => {
-      registerSearchEngineServiceTools(server, client("https://vpcsearchengine.apigw.ntruss.com"));
+    title: "Analytics (SES, Hadoop, CDSS, Data Stream/Catalog/Forest/Flow/Query, Datafence, Data Box)",
+    register: ({ server, client, zone }) => {
+      // SES·CDSS: 호스트는 SERVICE_ENDPOINTS(금융존은 fin-vpcsearchengine / fin-clouddatastreamingservice 불규칙형),
+      //   경로 접두 존·리전별(sesPathPrefix/cdssPathPrefix — 금융존 FKR 은 /api/v2, /api/v1), 민간존 전용 KVM/G3 오퍼레이션은 gov·fin 미등록.
+      // Cloud Hadoop: 기본 게이트웨이(/vhadoop/v2) 세 존 동일 (fin analytics-cloudhadoop-* 28 op = 이 서버의 28 op, 2026-09-30).
+      // Data Stream/Catalog/Forest/Flow/Query: 민간존 전용(api-gov·api-fin 개요 페이지 404, 2026-09-30) → endpoint() undefined 면 미등록.
+      registerSearchEngineServiceTools(server, client(endpoint("searchEngine", zone)), { zone });
       registerCloudHadoopTools(server, client());
-      registerCloudDataStreamingTools(server, client("https://clouddatastreamingservice.apigw.ntruss.com"));
-      registerDataStreamTools(
-        server,
-        client("https://datastream.apigw.ntruss.com"),
-        client("https://api.datastream.naverncp.com")
-      );
-      registerDataCatalogTools(server, client("https://datacatalog.apigw.ntruss.com"));
-      registerDataForestTools(server, client("https://df.apigw.ntruss.com"));
-      registerDataFlowTools(server, client("https://dataflow.apigw.ntruss.com"));
-      registerDataQueryTools(server, client("https://kr.dataquery.naverncp.com"));
+      registerCloudDataStreamingTools(server, client(endpoint("dataStreaming", zone)), { zone });
+      const dataStream = endpoint("dataStream", zone);
+      const dataStreamProduce = endpoint("dataStreamProduce", zone);
+      if (dataStream && dataStreamProduce) registerDataStreamTools(server, client(dataStream), client(dataStreamProduce));
+      const dataCatalog = endpoint("dataCatalog", zone);
+      if (dataCatalog) registerDataCatalogTools(server, client(dataCatalog));
+      const dataForest = endpoint("dataForest", zone);
+      if (dataForest) registerDataForestTools(server, client(dataForest));
+      const dataFlow = endpoint("dataFlow", zone);
+      if (dataFlow) registerDataFlowTools(server, client(dataFlow));
+      const dataQuery = endpoint("dataQuery", zone);
+      if (dataQuery) registerDataQueryTools(server, client(dataQuery));
+      // Datafence / Cloud Data Box: 민간존 전용(datafence-overview, data-box-overview — 가이드 슬러그가 접두 없는 get-datafence 등, 2026-10-02 대조).
+      const datafence = endpoint("datafence", zone);
+      if (datafence) registerDatafenceTools(server, client(datafence));
+      const databox = endpoint("databox", zone);
+      if (databox) registerDataBoxTools(server, client(databox));
     },
   },
   {
     key: "media",
-    title: "Media (VOD Station, Live Station, Image Optimizer)",
-    register: ({ server, client }) => {
-      registerVodStationTools(server, client("https://vodstation.apigw.ntruss.com"));
-      registerLiveStationTools(server, client("https://livestation.apigw.ntruss.com"));
-      registerImageOptimizerTools(server, client("https://imageoptimizer.apigw.ntruss.com"));
+    title: "Media (VOD Station, Live Station, Multi DRM)",
+    register: ({ server, client, zone }) => {
+      // VOD Station: 공공존 호스트 불규칙(`vod-station.apigw.gov-ntruss.com`), 금융존 `vodstation.apigw.fin-ntruss.com`(vodstation 개요 2026-09-30).
+      //   채널 수정(channel-update)은 민간존·금융존 가이드에 있고 공공존에는 없다.
+      // Live Station: 민간존·금융존(api-gov media-livestation 404). 금융존은 같은 호스트에 경로 접두 /api/fin-v2 (liveStationPathPrefix).
+      // Image Optimizer: 세 존 API 가이드 어디에도 없고(2026-10-02 재확인) 민간존 라이브에서도 전 경로 404 → 2.0.0 에서 제거.
+      // One Click Multi DRM: 민간·공공존 제공(multi-drm.apigw.*), 금융존 인덱스에 없음(2026-09-30) → 미등록. 정책 복제만 민간존 전용.
+      registerVodStationTools(server, client(endpoint("vodStation", zone)), { zone });
+      const liveStation = endpoint("liveStation", zone);
+      if (liveStation) registerLiveStationTools(server, client(liveStation), { zone });
+      const multiDrm = endpoint("multiDrm", zone);
+      if (multiDrm) registerMultiDrmTools(server, client(multiDrm), { zone });
     },
   },
   {
     key: "cdn",
-    title: "Content Delivery (Global Edge)",
-    register: ({ server, client }) => {
-      registerGlobalEdgeTools(server, client("https://edge.apigw.ntruss.com"));
+    title: "Content Delivery (Global Edge; CDN+ in the Financial zone)",
+    register: ({ server, client, zone }) => {
+      // Global Edge: 민간·공공존 규칙형 호스트(edge-overview / edge-*, 2026-09-30·10-02 대조). 금융존 가이드에는 없다(edge-overview 404).
+      // CDN+ / Global CDN: 민간존은 종료(fade-out)됐고 공공존은 2026-12-31 종료 예정이라 두 존에는 등록하지 않는다.
+      //   금융존은 Global Edge 없이 CDN+ 5 op 만 제공되고 종료 공지가 없다(api-fin cdnplus 개요, 2026-10-02) → 금융존에만 CDN+ 등록.
+      if (zone === "fin") registerCdnPlusTools(server, client());
+      else registerGlobalEdgeTools(server, client(endpoint("globalEdge", zone)));
     },
   },
   {
     key: "security",
-    title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring)",
-    register: ({ server, client }) => {
-      registerCertificateManagerTools(server, client("https://certificatemanager.apigw.ntruss.com"));
-      registerPrivateCaTools(server, client("https://pca.apigw.ntruss.com"));
-      registerKmsTools(server, client("https://ocapi.ncloud.com"));
-      registerSecurityMonitoringTools(server, client("https://securitymonitoring.apigw.ntruss.com"));
+    title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring, Secret Manager)",
+    register: ({ server, client, zone, regionCode }) => {
+      // Certificate Manager: 규칙형 호스트(세 존). 공공존 가이드는 v1 4종(목록·외부등록·삭제·**사설 발급 issuePrivate**) — 사설 발급은 gov 에만,
+      //   금융존은 3종(목록·외부등록·삭제, security-certificatemanager-* 2026-09-30).
+      // Private CA: 공공존 호스트 불규칙(privateca.apigw.gov-ntruss.com), 오퍼레이션 21종 동일 — 개요(security-privateca) 표의
+      //   14종 + 별도 슬러그 7종(get-crl-config/update-crl-config/get-sub-csr/rotate-crl/sign-end-csr/sign-sub-csr/trim-ca; 2026-10-02 두 존 대조).
+      //   금융존 미제공(상품 없음) → endpoint() undefined 면 미등록.
+      // KMS: 민간·공공존은 2.0(ocapi.*, security-kms2-*). 금융존은 v1 게이트웨이(kms.apigw.fin-ntruss.com) 암·복호화 6종만(security-kms.ts).
+      // Security Monitoring: 민간·공공존 규칙형, 금융존 미제공.
+      // Certificate Manager 2.0(ncloud_cm2_*, /api/v2)은 민간존 가이드에만 있다(공공·금융은 1.0 op 뿐). 2.0 엔드포인트는 서브 계정 키를
+      //   빈 403 으로 거부한다(Ncloud 티켓 답변 + 2026-10-02 라이브 확인, NCP_ADMINISTRATOR 서브 계정) → 메인 계정 전용 안내에 STS 호출자 식별을 붙인다.
+      registerCertificateManagerTools(server, client(endpoint("certificateManager", zone)), {
+        issuePrivate: zone === "gov",
+        v2: zone === "pub",
+        stsClient: client(endpoint("sts", zone)),
+      });
+      // Secret Manager: 민간존 전용(secretmanager-api-overview). 전역 키 시크릿은 apigw 호스트, 리전 격리 키 시크릿은 ocapi 호스트(+/secretmanager 접두,
+      //   모듈이 붙임). 격리 키 호스트는 등록 시점 리전으로 고른다(KR→ocapi-kr, JPN→ocapi-jp; 런타임 set_region 은 반영되지 않음).
+      const secretManager = endpoint("secretManager", zone);
+      if (secretManager) {
+        const regionalHost = endpoint(regionCode === "JPN" ? "secretManagerRegionalJpn" : "secretManagerRegionalKr", zone) ?? "https://ocapi-kr.ncloud.com";
+        registerSecretManagerTools(server, { global: client(secretManager), regional: client(regionalHost) });
+      }
+      const privateCa = endpoint("privateCa", zone);
+      if (privateCa) registerPrivateCaTools(server, client(privateCa));
+      registerKmsTools(server, client(endpoint("kms", zone)), { zone });
+      const securityMonitoring = endpoint("securityMonitoring", zone);
+      if (securityMonitoring) registerSecurityMonitoringTools(server, client(securityMonitoring));
     },
   },
   {
     key: "application",
-    title: "Application (API Gateway, SENS: SMS/Alim Talk/Brand Message/Mail, legacy Cloud Outbound Mailer)",
-    register: ({ server, client }) => {
-      registerApiGatewayTools(server, client("https://apigateway.apigw.ntruss.com"));
-      registerSensTools(server, client("https://sens.apigw.ntruss.com"));
-      registerSensBrandMessageTools(server, client("https://sens.apigw.ntruss.com"));
-      // 2026-09-17 Cloud Outbound Mailer → SENS 흡수 통합. 메일은 SENS /mail/v2(통합 API),
-      // 레거시 Outbound Mailer API(mail.apigw.ntruss.com)는 이관 프로젝트 한정 '27-12까지.
-      registerSensMailTools(server, client("https://sens.apigw.ntruss.com"));
-      registerOutboundMailerTools(server, client("https://mail.apigw.ntruss.com"));
+    title: "Application (API Gateway, SENS: SMS/Alim Talk/Brand Message/Mail, Cloud Outbound Mailer)",
+    register: ({ server, client, zone }) => {
+      // 세 서비스 모두 세 존 규칙형 호스트(2026-09-30 세 존 개요 대조; API Gateway 133 op·Mailer 25 op 동일).
+      // 민간존: 2026-09-17 Cloud Outbound Mailer → SENS 흡수. 메일은 SENS /mail/v2, 레거시 Mailer API 는 이관 프로젝트 한정 '27-12까지.
+      // 공공존·금융존: SENS(Project/SMS/알림톡/브랜드메시지, 메일 채널 없음 — sens-* 30 페이지 동일)와 Cloud Outbound Mailer 가 별개 서비스 —
+      //         SENS 메일 도구는 미등록, Mailer 는 발송·조회 5종까지 포함한 정식 서비스로 등록.
+      registerApiGatewayTools(server, client(endpoint("apiGateway", zone)));
+      const sens = client(endpoint("sens", zone));
+      registerSensTools(server, sens);
+      registerSensBrandMessageTools(server, sens);
+      registerSensMailTools(server, sens, { zone });
+      registerOutboundMailerTools(server, client(endpoint("outboundMailer", zone)), { zone });
     },
   },
   {
     key: "billing",
     title: "Billing (List Price, Cost and Usage, Discount)",
-    register: ({ server, client }) => {
-      registerBillingTools(server, client("https://billingapi.apigw.ntruss.com"));
+    register: ({ server, client, zone }) => {
+      // 민간·공공존 규칙형 호스트(billingapi.apigw.*), 금융존은 billingapi.apigw-pub.fin-ntruss.com — 경로 /billing/v1, 오퍼레이션 20종 세 존 동일
+      //   (platform-listprice / costandusage / discount 개요, 2026-09-30 대조).
+      registerBillingTools(server, client(endpoint("billing", zone)), { zone });
     },
   },
 ];
@@ -467,6 +616,7 @@ export function resolveGroups(raw: string | undefined): ToolGroup[] {
 /** 선택된 그룹을 순회하며 도구를 등록한다. */
 export function registerGroups(ctx: RegisterCtx, groups: ToolGroup[]): void {
   for (const group of groups) {
+    if (!groupSupportsZone(group, ctx.zone)) continue;
     group.register(ctx);
   }
 }
@@ -506,6 +656,7 @@ export class GroupManager {
   /** 시작 시 ON 그룹 등록 + (동적 enable 가능 시) 메타 도구 등록. */
   start(): void {
     for (const group of this.plan.startup) {
+      if (!groupSupportsZone(group, this.ctx.zone)) continue; // 이 존에서 미제공(가이드 대조 전) 그룹
       group.register(this.ctx);
       this.enabledKeys.add(group.key);
     }
@@ -522,7 +673,7 @@ export class GroupManager {
   /** 동적으로 켤 수 있는 그룹 key (시작 ON·always·blocked 제외). */
   enableableKeys(): string[] {
     return TOOL_GROUPS.filter(
-      (g) => !g.always && !this.plan.startupKeys.has(g.key) && !this.plan.blocked.has(g.key)
+      (g) => !g.always && groupSupportsZone(g, this.ctx.zone) && !this.plan.startupKeys.has(g.key) && !this.plan.blocked.has(g.key)
     ).map((g) => g.key);
   }
 
@@ -548,7 +699,7 @@ export class GroupManager {
 
   /** ncloud_list_tool_groups 응답 페이로드. */
   catalog() {
-    const groups = TOOL_GROUPS.filter((g) => !g.always).map((g) => {
+    const groups = TOOL_GROUPS.filter((g) => !g.always && groupSupportsZone(g, this.ctx.zone)).map((g) => {
       const blocked = this.plan.blocked.has(g.key);
       const enabled = this.enabledKeys.has(g.key);
       return {
@@ -589,6 +740,14 @@ export class GroupManager {
         status: "unknown",
         group: key,
         message: `No tool group named '${key}'. Choose one of the available groups.`,
+        availableGroups: this.enableableKeys(),
+      };
+    }
+    if (!groupSupportsZone(group, this.ctx.zone)) {
+      return {
+        status: "unknown",
+        group: key,
+        message: `Group '${key}' is not available in the '${this.ctx.zone}' zone of this server build.`,
         availableGroups: this.enableableKeys(),
       };
     }

@@ -41,24 +41,55 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_create_launch_config",
-    "Create a new launch configuration for Auto Scaling. Use dryRun=true to preview without creating.",
+    // 스펙(세 존 동일, compute-vautoscaling-launchconfiguration-createlaunchconfiguration): 이미지 소스는
+    // serverImageProductCode / serverImageNo / memberServerImageInstanceNo 중 **정확히 하나**.
+    // 스펙 코드(serverImageProductCode ↔ serverProductCode, serverImageNo ↔ serverSpecCode)는 가이드상 Conditional이지만
+    // 실제 API는 생략 시 `900 Required field… serverProductCode or serverSpecNo or serverSpecCode`를 돌려준다(2026-10-01 라이브 확인)
+    // → 도구에서 하나를 필수로 검증한다.
+    "Create a new launch configuration for Auto Scaling. Exactly one image source must be provided: serverImageProductCode, serverImageNo, or memberServerImageInstanceNo. A server spec is also required: serverImageProductCode → serverProductCode (XEN/RHV); serverImageNo / memberServerImageInstanceNo → serverSpecCode (KVM, see ncloud_get_server_specs). Use dryRun=true to preview without creating.",
     {
-      serverImageProductCode: z.string({
-        required_error: requiredError("serverImageProductCode"),
-      }).describe("Server image product code"),
-      serverProductCode: z.string({
-        required_error: requiredError("serverProductCode"),
-      }).describe("Server product (spec) code"),
+      serverImageProductCode: z.string().optional().describe("Server image product code — for a new (public) server image, RHV/XEN. One of serverImageProductCode / serverImageNo / memberServerImageInstanceNo is required."),
+      serverImageNo: z.string().optional().describe("Server image number — for a new (public) server image (required path for KVM/Gen3). One of serverImageProductCode / serverImageNo / memberServerImageInstanceNo is required."),
+      memberServerImageInstanceNo: z.string().optional().describe("Member server image instance number — for a user-created server image. One of serverImageProductCode / serverImageNo / memberServerImageInstanceNo is required."),
+      serverProductCode: z.string().optional().describe("Server product (spec) code — pair with serverImageProductCode (XEN/RHV). One of serverProductCode / serverSpecCode is required (the API rejects a request without a spec)."),
+      serverSpecCode: z.string().optional().describe("Server spec code — pair with serverImageNo or memberServerImageInstanceNo (KVM/Gen3, e.g. c2-g3, s2-g3). One of serverProductCode / serverSpecCode is required (the API rejects a request without a spec)."),
       launchConfigurationName: z.string().max(255, {
         message: maxLenMessage("launchConfigurationName", 255),
-      }).optional().describe("Launch configuration name"),
-      loginKeyName: z.string().optional().describe("Login key name for SSH access"),
-      initScriptNo: z.string().optional().describe("Init script number to run on launch"),
-      isEncryptedVolume: z.boolean().optional().describe("Whether to encrypt the root volume"),
-      memberServerImageInstanceNo: z.string().optional().describe("Member server image instance number (alternative to serverImageProductCode)"),
+      }).optional().describe("Launch configuration name (1-255 chars: lowercase letters, digits, '-'; auto-generated when omitted)"),
+      loginKeyName: z.string().optional().describe("Login key name for SSH access (defaults to the most recently created key)"),
+      initScriptNo: z.string().optional().describe("Init script number to run on first boot"),
+      isEncryptedVolume: z.boolean().optional().describe("Whether to encrypt the root volume (RHV only)"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
+      const imageSources = [
+        params.serverImageProductCode,
+        params.serverImageNo,
+        params.memberServerImageInstanceNo,
+      ].filter((v) => v !== undefined && v !== "");
+      if (imageSources.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: "One image source is required: provide exactly one of serverImageProductCode, serverImageNo, or memberServerImageInstanceNo." }],
+          isError: true,
+        };
+      }
+      if (imageSources.length > 1) {
+        return {
+          content: [{ type: "text" as const, text: "Only one image source may be provided. Choose exactly one of serverImageProductCode, serverImageNo, or memberServerImageInstanceNo." }],
+          isError: true,
+        };
+      }
+      if (!params.serverProductCode && !params.serverSpecCode) {
+        return {
+          content: [{ type: "text" as const, text: "A server spec is required: provide serverSpecCode (with serverImageNo / memberServerImageInstanceNo; see ncloud_get_server_specs) or serverProductCode (with serverImageProductCode). The API rejects a launch configuration without a spec (error 900)." }],
+          isError: true,
+        };
+      }
+      const imageSource =
+        params.serverImageProductCode !== undefined ? `serverImageProductCode=${params.serverImageProductCode}` :
+        params.serverImageNo !== undefined ? `serverImageNo=${params.serverImageNo}` :
+        `memberServerImageInstanceNo=${params.memberServerImageInstanceNo}`;
+
       const { dryRun, ...apiParams } = params;
       if (dryRun) {
         return dryRunPreview({
@@ -66,6 +97,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
           endpoint: "/vautoscaling/v2/createLaunchConfiguration",
           requestParams: apiParams,
           noun: { ko: "런치 설정", en: "launch configuration" },
+          notes: {
+            imageSource,
+            serverSpec: params.serverSpecCode ?? params.serverProductCode,
+          },
         });
       }
       const result = await client.request("/vautoscaling/v2/createLaunchConfiguration", apiParams);

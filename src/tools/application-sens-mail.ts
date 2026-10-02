@@ -1,10 +1,29 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { withQuery } from "./_sens.js";
+import type { Zone } from "../client/endpoints.js";
+
+/**
+ * 존 차이(2026-09-30 두 존 sens-overview 대조): 공공존 SENS 에는 **메일 채널(/mail/v2)이 없다** — 공공존은
+ * Cloud Outbound Mailer 가 별개 서비스로 남아 있다(`application-outbound-mailer.ts`). 프로젝트(/common/v2)는 두 존 동일.
+ * → 공공존에서는 아래 메일 도구 5종을 등록하지 않는다.
+ */
+export const SENS_MAIL_PUBLIC_ONLY_TOOLS = [
+  "ncloud_sens_send_mail",
+  "ncloud_sens_list_mail_requests",
+  "ncloud_sens_get_mail_request",
+  "ncloud_sens_list_mails",
+  "ncloud_sens_get_mail",
+] as const;
+
+export interface SensMailToolOptions {
+  /** 존 — 공공존이면 메일 채널 도구를 제외(프로젝트 도구만 등록). 기본 `public`. */
+  zone?: Zone;
+}
 
 /**
  * SENS(Simple & Easy Notification Service) — Mail(/mail/v2) + Project(/common/v2)
@@ -32,7 +51,9 @@ const PAGE_PARAMS = {
 
 const MAIL_STATUS = ["PREPARING", "READY", "RESERVED", "SENDING", "COMPLETED", "FAILED", "PARTIAL_FAILED", "CANCELED"] as const;
 
-export function registerSensMailTools(server: McpServer, client: NcloudClient): void {
+export function registerSensMailTools(server: McpServer, client: NcloudClient, opts: SensMailToolOptions = {}): void {
+  // 메일 채널(sens-mail-*)은 민간존 가이드에만 있다 — 공공존·금융존 인덱스에 없음(2026-09-30).
+  const s = (opts.zone ?? "pub") !== "pub" ? excludingTools(server, SENS_MAIL_PUBLIC_ONLY_TOOLS) : server;
   const envMailServiceId = process.env.NCLOUD_SENS_MAIL_SERVICE_ID ?? process.env.NCLOUD_SENS_SERVICE_ID ?? "";
 
   const serviceIdParam = z.string().optional().describe(
@@ -60,7 +81,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   // ─── Mail: send ─────────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_send_mail",
     "Send email through SENS Mail (POST /mail/v2/services/{serviceId}/requests — the unified API that replaced Cloud Outbound Mailer on 2026-09-17). " +
       "Either templateNo, or all of senderAddress/title/body, is required; either recipients or recipientGroupFilter is required. " +
@@ -183,7 +204,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   // ─── Mail: lookups ──────────────────────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_list_mail_requests",
     "List SENS mail send requests in a period (GET /mail/v2/services/{serviceId}/requests). fromDateTime and toDateTime are required (ISO 8601 with offset).",
     {
@@ -209,7 +230,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_get_mail_request",
     "Get one SENS mail send request with status counts (GET /mail/v2/services/{serviceId}/requests/{requestId}): status, requestCount, sentCount, finishCount, countsByStatus[].",
     {
@@ -224,7 +245,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_list_mails",
     "List the individual mails of a SENS mail send request (GET /mail/v2/services/{serviceId}/requests/{requestId}/mails). Mails whose only recipients were unsubscribed/blocked are counted as FAILED.",
     {
@@ -245,7 +266,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_get_mail",
     "Get one SENS mail in detail (GET /mail/v2/services/{serviceId}/requests/{requestId}/mails/{mailId}): substituted title/body, attachFiles[], and per-recipient status / sendResultCode / received / retryCount.",
     {
@@ -267,7 +288,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   // ─── Project (/common/v2/projects) ───────────────────────────────────────────
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_list_projects",
     "List SENS projects (GET /common/v2/projects). Each project carries the per-channel service IDs in NRN form — smsService.serviceId, kkoBizMsgService.serviceId and mailService.serviceId (ncp:mail:kr:…) — which the SMS/Alimtalk/Mail tools take as serviceId; useMail marks projects with the Mail channel. Projects migrated from Cloud Outbound Mailer are named 'mail-<UUID>'.",
     {
@@ -279,7 +300,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_get_project",
     "Get one SENS project with its channel service IDs (GET /common/v2/projects/{projectId}).",
     {
@@ -289,9 +310,12 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_create_project",
-    "Create a SENS project (POST /common/v2/projects). projectName: lowercase letters, digits, '-' and '_', ≤24 chars. Returns the created channel service IDs (NRN).",
+    // 가이드(sens-project-create)에는 약관 동의 필드가 없다. 라이브(2026-10-01)에서 useSms/useKkoBizMsg 모두 false 면
+    // "You must select at least one service", 하나를 켜면 계정이 콘솔에서 SENS 이용약관·개인정보 동의를 마치지 않은 경우
+    // "You must agree to both the Terms of Service and the Privacy Policy" 를 돌려준다 — API 로는 해결할 수 없어 설명에 안내만 둔다.
+    "Create a SENS project (POST /common/v2/projects). projectName: lowercase letters, digits, '-' and '_', ≤24 chars. Enable at least one of useSms / useKkoBizMsg (the API rejects a project with no service). The account must already have accepted the SENS Terms of Service and Privacy Policy in the console — the API has no agreement field and returns 'You must agree to both the Terms of Service and the Privacy Policy' otherwise. Returns the created channel service IDs (NRN).",
     {
       projectName: z.string({ required_error: requiredError("projectName") })
         .regex(/^[a-z0-9_-]{1,24}$/, "projectName must be 1-24 chars of lowercase letters, digits, '-' or '_'")
@@ -320,7 +344,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_update_project",
     "Update a SENS project's description or enabled channels (PUT /common/v2/projects/{projectId}). At least one field must be given.",
     {
@@ -345,7 +369,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient): 
   );
 
   defineTool(
-    server,
+    s,
     "ncloud_sens_delete_project",
     "⚠️ Destructive: Delete a SENS project and its channel services (DELETE /common/v2/projects/{projectId}, 204 on success). Message history and service IDs under the project become unusable. Set confirm=true to execute.",
     {

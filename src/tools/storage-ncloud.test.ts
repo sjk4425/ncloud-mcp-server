@@ -316,6 +316,51 @@ describe("Ncloud Storage: 버전 관리 / 위치 / Object Lock", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it("put_object_lock_configuration: 가이드(putobjectlockconfiguration)대로 Rule 은 선택 — mode 생략 시 ObjectLockEnabled 만 보내고, 기간만 주면 거부", async () => {
+    const spy = vi.spyOn(client, "request").mockResolvedValue(mockResponse());
+    const ok = dataOf(await call(server, "ncloud_ncs_put_object_lock_configuration", { bucketName: "b" }));
+    const req = (spy.mock.calls[0] as any)[0];
+    expect(req.method).toBe("PUT");
+    expect(req.bucket).toBe("b");
+    expect(req.queryParams).toEqual({ "object-lock": "" });
+    expect(req.headers["content-type"]).toBe("application/xml");
+    expect(req.body).toContain("<ObjectLockConfiguration");
+    expect(req.body).toContain("<ObjectLockEnabled>Enabled</ObjectLockEnabled>");
+    expect(req.body).not.toContain("<Rule>");
+    expect(ok.objectLockEnabled).toBe("Enabled");
+    expect(ok.mode).toBeUndefined();
+
+    spy.mockClear();
+    const bad = await call(server, "ncloud_ncs_put_object_lock_configuration", { bucketName: "b", days: 7 });
+    expect(bad.isError).toBe(true);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("put_object_lock_configuration: Days ≤ 36,500 / Years ≤ 100 (가이드 InvalidArgument 상한)을 스키마에서 막고, dryRun 은 호출 없이 XML 을 보여준다", async () => {
+    const spy = vi.spyOn(client, "request").mockResolvedValue(mockResponse());
+    const tool = getTool(server, "ncloud_ncs_put_object_lock_configuration");
+    expect(() => tool.inputSchema.parse({ bucketName: "b", mode: "GOVERNANCE", days: 36501 })).toThrow();
+    expect(() => tool.inputSchema.parse({ bucketName: "b", mode: "GOVERNANCE", years: 101 })).toThrow();
+    expect(() => tool.inputSchema.parse({ bucketName: "b", mode: "GOVERNANCE", years: 100 })).not.toThrow();
+
+    const preview = dataOf(await call(server, "ncloud_ncs_put_object_lock_configuration", { bucketName: "b", mode: "GOVERNANCE", years: 2, dryRun: true }));
+    expect(preview.method).toBe("PUT");
+    expect(preview.requestParams.body).toContain("<Years>2</Years>");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("objectLock=false 로 등록하면 Object Lock 6종만 빠진다 (공공존: 가이드에 해당 op 없음)", () => {
+    const gov = new McpServer({ name: "test", version: "1.0.0" });
+    registerStorageNcloudTools(gov, createMockClient(), { objectLock: false });
+    for (const name of ["get_object_lock_configuration", "put_object_lock_configuration", "get_object_retention", "put_object_retention", "get_object_legal_hold", "put_object_legal_hold"]) {
+      expect(hasTool(gov, `ncloud_ncs_${name}`), name).toBe(false);
+      expect(hasTool(server, `ncloud_ncs_${name}`), name).toBe(true);
+    }
+    expect(hasTool(gov, "ncloud_ncs_put_bucket_lifecycle")).toBe(true);
+    const count = (s: McpServer) => { const r = (s as any)._registeredTools; return r instanceof Map ? r.size : Object.keys(r).length; };
+    expect(count(gov)).toBe(count(server) - 6);
+  });
+
   it("create_bucket: objectLockEnabled 는 x-amz-bucket-object-lock-enabled 헤더로, 이름 규칙은 스키마로 검사한다", async () => {
     const spy = vi.spyOn(client, "request").mockResolvedValueOnce(mockResponse());
     await call(server, "ncloud_ncs_create_bucket", { bucketName: "my-bucket-01", objectLockEnabled: true, dryRun: false });

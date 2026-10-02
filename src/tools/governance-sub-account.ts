@@ -705,4 +705,32 @@ export function registerSubAccountTools(server: McpServer, client: NcloudClient)
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete IAM Role [${params.roleNo}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
+
+  // ─── Login Alias (sub-account login access key) ────────────────────────────
+  // Guides management-subaccount-getloginalias (GET /api/v1/login-alias) and management-subaccount-putloginalias
+  // (PUT /api/v1/login-alias { loginAlias }) — pub/fin; the gov page is the typo slug `managemen-subaccount-putloginalias`. Same path in all zones.
+
+  defineTool(
+    server,
+    "ncloud_get_login_alias",
+    "Get the sub-account login alias (the account-level login access key used in the sub-account console URL).",
+    {},
+    async () => {
+      return client.requestRaw("GET", "/api/v1/login-alias");
+    }
+  );
+
+  defineTool(
+    server,
+    "ncloud_set_login_alias",
+    "Set the sub-account login alias (3-20 chars of lowercase letters and digits). Sub accounts sign in through this alias.",
+    {
+      loginAlias: z.string({ required_error: requiredError("loginAlias") })
+        .regex(/^[a-z0-9]{3,20}$/, "loginAlias must be 3-20 chars of lowercase letters and digits")
+        .describe("Login alias (3-20 chars, lowercase letters and digits)"),
+    },
+    async (params) => {
+      return client.requestRaw("PUT", "/api/v1/login-alias", undefined, { loginAlias: params.loginAlias });
+    }
+  );
 }

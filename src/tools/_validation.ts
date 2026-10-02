@@ -10,46 +10,43 @@
  */
 
 import { L } from "./_messages.js";
+import { ZONE_PROFILES, type Zone, type RegionInfo } from "../client/endpoints.js";
 
 // ─── 리전 ──────────────────────────────────────────────────────────────────
+//
+// 리전 카탈로그는 존별로 다르다(민간존 KR/JPN/SGN/USWN/DEN, 공공존 KR/KRS) — 단일 소스는
+// `client/endpoints.ts` 의 ZONE_PROFILES 이고 여기서는 조회·검증만 한다. zone 인자 기본값은
+// `public`(기존 호출부 하위호환)이며, 도구 핸들러는 `client.getZone()` 을 넘긴다.
 
-/** 한국어 리전명 → 코드. */
-const REGION_NAME_MAP: Record<string, string> = {
-  "한국": "KR",
-  "일본": "JPN",
-  "싱가포르": "SGN",
-  "미국": "USWN",
-  "독일": "DEN",
-};
-
-/** 리전 코드 → 한국어 리전명(유효 코드 화이트리스트 겸용). */
-const REGION_CODE_MAP: Record<string, string> = {
-  KR: "한국",
-  JPN: "일본",
-  SGN: "싱가포르",
-  USWN: "미국",
-  DEN: "독일",
-};
+/** 존의 set_region 화이트리스트(COM 등 특수 리전 제외). */
+export function regionCatalog(zone: Zone = "pub"): readonly RegionInfo[] {
+  return ZONE_PROFILES[zone].regions;
+}
 
 /** 코드의 한국어 표시명. 미지의 코드는 코드 그대로 반환. */
-export function regionName(code: string): string {
-  return REGION_CODE_MAP[code] ?? code;
+export function regionName(code: string, zone: Zone = "pub"): string {
+  return regionCatalog(zone).find((r) => r.code === code)?.ko ?? code;
 }
 
 /**
  * 입력(코드 또는 한국어명)을 정규화된 리전 코드로 해석한다.
  * 화이트리스트에 없으면 `null`(호출자가 `invalidRegionMessage`로 안내).
  */
-export function resolveRegionCode(input: string): string | null {
-  const code = REGION_NAME_MAP[input] ?? input.toUpperCase();
-  return REGION_CODE_MAP[code] ? code : null;
+export function resolveRegionCode(input: string, zone: Zone = "pub"): string | null {
+  const catalog = regionCatalog(zone);
+  const byName = catalog.find((r) => r.ko === input);
+  const code = byName?.code ?? input.toUpperCase();
+  return catalog.some((r) => r.code === code) ? code : null;
 }
 
 /** "유효하지 않은 리전" 검증 메시지(ko/en). */
-export function invalidRegionMessage(input: string): string {
+export function invalidRegionMessage(input: string, zone: Zone = "pub"): string {
+  const catalog = regionCatalog(zone);
+  const codes = catalog.map((r) => r.code).join(", ");
+  const names = catalog.map((r) => r.ko).join(", ");
   return L({
-    ko: `유효하지 않은 리전입니다: "${input}". 사용 가능한 리전: KR, JPN, SGN, USWN, DEN (또는 한국, 일본, 싱가포르, 미국, 독일)`,
-    en: `Invalid region: "${input}". Available regions: KR, JPN, SGN, USWN, DEN (or 한국, 일본, 싱가포르, 미국, 독일).`,
+    ko: `유효하지 않은 리전입니다: "${input}". 사용 가능한 리전: ${codes} (또는 ${names})`,
+    en: `Invalid region: "${input}". Available regions: ${codes} (or ${names}).`,
   });
 }
 
