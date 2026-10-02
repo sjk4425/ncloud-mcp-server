@@ -453,7 +453,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
     register: ({ server, client, zone }) => {
       // Certificate Manager: 규칙형 호스트(세 존). 공공존 가이드는 v1 4종(목록·외부등록·삭제·**사설 발급 issuePrivate**) — 사설 발급은 gov 에만,
       //   금융존은 3종(목록·외부등록·삭제, security-certificatemanager-* 2026-09-30).
-      // Private CA: 공공존 호스트 불규칙(privateca.apigw.gov-ntruss.com), 오퍼레이션 15종 동일. 금융존 미제공 → endpoint() undefined 면 미등록.
+      // Private CA: 공공존 호스트 불규칙(privateca.apigw.gov-ntruss.com), 오퍼레이션 21종 동일 — 개요(security-privateca) 표의
+      //   14종 + 별도 슬러그 7종(get-crl-config/update-crl-config/get-sub-csr/rotate-crl/sign-end-csr/sign-sub-csr/trim-ca; 2026-10-02 두 존 대조).
+      //   금융존 미제공(상품 없음) → endpoint() undefined 면 미등록.
       // KMS: 민간·공공존은 2.0(ocapi.*, security-kms2-*). 금융존은 v1 게이트웨이(kms.apigw.fin-ntruss.com) 암·복호화 6종만(security-kms.ts).
       // Security Monitoring: 민간·공공존 규칙형, 금융존 미제공.
       registerCertificateManagerTools(server, client(endpoint("certificateManager", zone)), { issuePrivate: zone === "gov" });
