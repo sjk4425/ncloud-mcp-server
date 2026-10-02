@@ -25,7 +25,7 @@ describe("KMS 암·복호화: 존별 경로와 도구 집합", () => {
     await t.call("ncloud_kms_verify", { keyTag: "tag1", data: "QQ==", signature: "s" });
     expect(spy).toHaveBeenCalledWith("POST", "/keys/v2/tag1/verify", undefined, { data: "QQ==", signature: "s" });
   });
-  it("pub: 2.0 경로 그대로", async () => {
+  it("pub: 2.0 경로 그대로 (재암호화는 /re-encrypt)", async () => {
     const t = cryptoSetup("pub");
     expect(t.has("ncloud_kms_create_key")).toBe(true);
     const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
@@ -33,6 +33,67 @@ describe("KMS 암·복호화: 존별 경로와 도구 집합", () => {
     expect(spy).toHaveBeenCalledWith("POST", "/kms/v1/keys/tag1/create-custom-key", undefined, {});
     await t.call("ncloud_kms_sign", { keyTag: "tag1", data: "QQ==" });
     expect(spy).toHaveBeenCalledWith("POST", "/kms/v1/keys/tag1/sign", undefined, { data: "QQ==" });
+    await t.call("ncloud_kms_reencrypt", { keyTag: "tag1", ciphertext: "c" });
+    expect(spy).toHaveBeenCalledWith("POST", "/kms/v1/keys/tag1/re-encrypt", undefined, { ciphertext: "c" });
+  });
+  it("fin: 재암호화는 v1 게이트웨이 /reencrypt", async () => {
+    const t = cryptoSetup("fin");
+    const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+    await t.call("ncloud_kms_reencrypt", { keyTag: "tag1", ciphertext: ["a", "b"] });
+    expect(spy).toHaveBeenCalledWith("POST", "/keys/v2/tag1/reencrypt", undefined, { ciphertext: ["a", "b"] });
+  });
+});
+
+/** KMS 2.0 키 관리·ACL·토큰·로그 — 경로/메서드를 공식 가이드(security-kms2-*, 2026-10-02 대조)에 맞춘다. */
+describe("KMS 2.0 관리 도구: 가이드 경로·메서드", () => {
+  const t = cryptoSetup("pub");
+  const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+  const last = () => spy.mock.calls[spy.mock.calls.length - 1];
+
+  it("public key: POST get-pub-key (keyVersion 선택)", async () => {
+    await t.call("ncloud_kms_get_public_key", { keyTag: "k" });
+    expect(last()).toEqual(["POST", "/kms/v1/keys/k/get-pub-key", undefined, {}]);
+    await t.call("ncloud_kms_get_public_key", { keyTag: "k", keyVersion: 2 });
+    expect(last()).toEqual(["POST", "/kms/v1/keys/k/get-pub-key", undefined, { keyVersion: 2 }]);
+  });
+  it("name / memo / rotation-period 는 PUT", async () => {
+    await t.call("ncloud_kms_update_key_name", { keyTag: "k", keyName: "n2" });
+    expect(last()).toEqual(["PUT", "/kms/v1/keys/k/name", undefined, { keyName: "n2" }]);
+    await t.call("ncloud_kms_update_memo", { keyTag: "k", memo: "m" });
+    expect(last()).toEqual(["PUT", "/kms/v1/keys/k/memo", undefined, { memo: "m" }]);
+    await t.call("ncloud_kms_update_rotation_period", { keyTag: "k", rotationPeriod: 30 });
+    expect(last()).toEqual(["PUT", "/kms/v1/keys/k/rotation-period", undefined, { rotationPeriod: 30 }]);
+  });
+  it("IP ACL: /acl 계열, ipList 본문, DELETE 는 confirm 게이트", async () => {
+    await t.call("ncloud_kms_enable_ip_acl", { keyTag: "k" });
+    expect(last()[0]).toBe("POST"); expect(last()[1]).toBe("/kms/v1/keys/k/acl/enable");
+    await t.call("ncloud_kms_disable_ip_acl", { keyTag: "k" });
+    expect(last()[1]).toBe("/kms/v1/keys/k/acl/disable");
+    await t.call("ncloud_kms_get_acl_rule_list", { keyTag: "k" });
+    expect(last()[0]).toBe("GET"); expect(last()[1]).toBe("/kms/v1/keys/k/acl");
+    await t.call("ncloud_kms_add_acl_rule", { keyTag: "k", ipList: ["10.0.0.1"] });
+    expect(last()).toEqual(["POST", "/kms/v1/keys/k/acl", undefined, { ipList: ["10.0.0.1"] }]);
+    spy.mockClear();
+    const refused = await t.call("ncloud_kms_delete_acl_rule", { keyTag: "k", ipList: ["10.0.0.1"] });
+    expect(spy).not.toHaveBeenCalled();
+    expect(JSON.stringify(refused)).toContain("confirm=true");
+    await t.call("ncloud_kms_delete_acl_rule", { keyTag: "k", ipList: ["10.0.0.1"], confirm: true });
+    expect(last()).toEqual(["DELETE", "/kms/v1/keys/k/acl", undefined, { ipList: ["10.0.0.1"] }]);
+  });
+  it("token generator PUT, token-set POST(유효시간 선택)", async () => {
+    await t.call("ncloud_kms_update_token_generator", { keyTag: "k" });
+    expect(last()[0]).toBe("PUT"); expect(last()[1]).toBe("/kms/v1/keys/k/token-generator");
+    await t.call("ncloud_kms_create_token_set", { keyTag: "k" });
+    expect(last()).toEqual(["POST", "/kms/v1/keys/k/token-set", undefined, {}]);
+    await t.call("ncloud_kms_create_token_set", { keyTag: "k", accessTokenHours: 24, refreshTokenHours: "UL" });
+    expect(last()).toEqual(["POST", "/kms/v1/keys/k/token-set", undefined, { accessTokenHours: 24, refreshTokenHours: "UL" }]);
+  });
+  it("activities / last-use-info", async () => {
+    await t.call("ncloud_kms_get_key_activity_logs", { keyTag: "k", keyword: "enc", timestampFrom: 1, pageSize: 10 });
+    expect(last()[0]).toBe("GET"); expect(last()[1]).toBe("/kms/v1/keys/k/activities");
+    expect(last()[2]).toEqual({ keyword: "enc", timestampFrom: 1, pageSize: 10 });
+    await t.call("ncloud_kms_get_latest_use_info", { keyTag: "k" });
+    expect(last()[1]).toBe("/kms/v1/keys/k/last-use-info");
   });
 });
 

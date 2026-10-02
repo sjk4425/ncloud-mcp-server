@@ -25,7 +25,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
         queryParams.domainName = params.domainName;
       }
       const result = await client.requestRaw("GET", "/dns/v1/ncpdns/domain", queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -55,7 +55,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
         body.comment = params.comment;
       }
       const result = await client.requestRaw("POST", "/dns/v1/ncpdns/domain", undefined, body);
-      return result;
+      return result;
     }
   );
 
@@ -69,7 +69,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/domain/${params.domainId}`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Global DNS Domain [${params.domainId}] and all associated records.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -96,7 +96,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     },
     async (params) => {
       const result = await client.requestRaw("PUT", `/dns/v1/ncpdns/domain/${params.domainId}/rollback`);
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will rollback Global DNS Domain [${params.domainId}] to the previously applied state. All pending changes will be discarded.\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -109,9 +109,10 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_list_records",
     "List DNS records for a specific Global DNS domain with pagination",
     {
+      // Guide networking-globaldns-record-getrecordlist: page and size are Required query params → send defaults when omitted.
       domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to list records for"),
-      page: z.number({ required_error: requiredError("page") }).describe("Page number (0-based)"),
-      size: z.number({ required_error: requiredError("size") }).describe("Number of items per page"),
+      page: z.number().int().min(0).optional().default(0).describe("Page number (0-based, default 0)"),
+      size: z.number().int().min(1).optional().default(100).describe("Number of items per page (default 100)"),
       recordType: z.enum(["A", "AAAA", "CNAME", "MX", "PTR", "SPF", "TXT", "NS", "SRV", "CAA", "DS"]).optional().describe("Filter by record type"),
       searchContent: z.string().optional().describe("Search filter for record content"),
     },
@@ -127,7 +128,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
         queryParams.searchContent = params.searchContent;
       }
       const result = await client.requestRaw("GET", `/dns/v1/ncpdns/record/${params.domainId}`, queryParams);
-      return result;
+      return result;
     }
   );
 
@@ -185,7 +186,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     },
     async (params) => {
       const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, { recordIds: params.recordIds });
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete ${params.recordIds.length} DNS record(s) from Domain [${params.domainId}].\n\nTo execute, call this tool again with confirm=true.` } }
   );
@@ -218,7 +219,7 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
         queryParams.domainId = String(params.domainId);
       }
       const result = await client.requestRaw("GET", "/dns/v1/ncpdns/domain/monitoring", queryParams);
-      return result;
+      return result;
     }
   );
 }

@@ -312,7 +312,10 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
   defineTool(
     s,
     "ncloud_sens_create_project",
-    "Create a SENS project (POST /common/v2/projects). projectName: lowercase letters, digits, '-' and '_', ≤24 chars. Returns the created channel service IDs (NRN).",
+    // 가이드(sens-project-create)에는 약관 동의 필드가 없다. 라이브(2026-10-01)에서 useSms/useKkoBizMsg 모두 false 면
+    // "You must select at least one service", 하나를 켜면 계정이 콘솔에서 SENS 이용약관·개인정보 동의를 마치지 않은 경우
+    // "You must agree to both the Terms of Service and the Privacy Policy" 를 돌려준다 — API 로는 해결할 수 없어 설명에 안내만 둔다.
+    "Create a SENS project (POST /common/v2/projects). projectName: lowercase letters, digits, '-' and '_', ≤24 chars. Enable at least one of useSms / useKkoBizMsg (the API rejects a project with no service). The account must already have accepted the SENS Terms of Service and Privacy Policy in the console — the API has no agreement field and returns 'You must agree to both the Terms of Service and the Privacy Policy' otherwise. Returns the created channel service IDs (NRN).",
     {
       projectName: z.string({ required_error: requiredError("projectName") })
         .regex(/^[a-z0-9_-]{1,24}$/, "projectName must be 1-24 chars of lowercase letters, digits, '-' or '_'")

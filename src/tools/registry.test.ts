@@ -579,26 +579,27 @@ describe("media 그룹: 존별 등록", () => {
     );
     return names;
   }
-  it("pub: VOD Station·Live Station·Image Optimizer·Multi DRM(복제 포함) 등록", () => {
+  it("pub: VOD Station·Live Station·Multi DRM(복제 포함) 등록, Image Optimizer 는 어느 존 가이드에도 없어 제거됨", () => {
     const names = captureMedia("pub");
     expect(names).toContain("ncloud_vodstation_update_channel");
     expect(names.some((n) => n.startsWith("ncloud_livestation_"))).toBe(true);
     expect(names).toContain("ncloud_drm_list_sites");
     expect(names).toContain("ncloud_drm_copy_policy");
+    expect(names.some((n) => n.startsWith("ncloud_imageoptimizer_"))).toBe(false);
   });
-  it("gov: Live Station·Image Optimizer·VOD 채널 수정·DRM 정책 복제만 빠지고 나머지는 동일", () => {
+  it("gov: Live Station·VOD 채널 수정·DRM 정책 복제만 빠지고 나머지는 동일", () => {
     const pub = captureMedia("pub");
     const gov = captureMedia("gov");
-    const publicOnly = (n: string) => n.startsWith("ncloud_livestation_") || n.startsWith("ncloud_imageoptimizer_") || n === "ncloud_vodstation_update_channel" || n === "ncloud_drm_copy_policy";
+    const publicOnly = (n: string) => n.startsWith("ncloud_livestation_") || n === "ncloud_vodstation_update_channel" || n === "ncloud_drm_copy_policy";
     expect(gov.some(publicOnly)).toBe(false);
     expect(gov.sort()).toEqual(pub.filter((n) => !publicOnly(n)).sort());
     expect(gov).toContain("ncloud_vodstation_list_channels");
     expect(gov).toContain("ncloud_drm_get_license_statistics");
   });
-  it("fin: VOD Station(채널 수정 포함)·Live Station 만 등록, Image Optimizer·Multi DRM 은 금융존 가이드에 없어 빠진다", () => {
+  it("fin: VOD Station(채널 수정 포함)·Live Station 만 등록, Multi DRM 은 금융존 가이드에 없어 빠진다", () => {
     const pub = captureMedia("pub");
     const fin = captureMedia("fin");
-    const notInFin = (n: string) => n.startsWith("ncloud_imageoptimizer_") || n.startsWith("ncloud_drm_");
+    const notInFin = (n: string) => n.startsWith("ncloud_drm_");
     expect(fin.some(notInFin)).toBe(false);
     expect(fin.sort()).toEqual(pub.filter((n) => !notInFin(n)).sort());
     expect(fin).toContain("ncloud_vodstation_update_channel");

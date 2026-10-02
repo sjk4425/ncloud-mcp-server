@@ -429,17 +429,20 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_delete_server_images",
-    "⚠️ Destructive: Delete one or more server image instances. Set confirm=true to execute.",
+    // Guide compute-vserver-serverimage-deleteserverimage (pub/gov, verified 2026-10-02): /vserver/v2/deleteServerImage with
+    // serverImageNoList.N. `deleteServerImageInstances` exists in no zone's guide. Member (user-created) images use
+    // ncloud_delete_member_server_images.
+    "⚠️ Destructive: Delete one or more server images (serverImageNo from ncloud_get_server_images). For user-created member images use ncloud_delete_member_server_images. Set confirm=true to execute.",
     {
-      serverImageInstanceNoList: z.array(z.string()).min(1).describe("List of server image instance numbers to delete"),
+      serverImageNoList: z.array(z.string()).min(1).describe("List of server image numbers to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const { confirm, ...apiParams } = params;
-      const result = await client.request("/vserver/v2/deleteServerImageInstances", apiParams);
+      const result = await client.request("/vserver/v2/deleteServerImage", apiParams);
       return result;
     },
-    { destructive: { noun: "ServerImage", describe: (params) => params.serverImageInstanceNoList.join(", ") } }
+    { destructive: { noun: "ServerImage", describe: (params) => params.serverImageNoList.join(", ") } }
   );
 
   defineTool(

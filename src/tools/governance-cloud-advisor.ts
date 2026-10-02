@@ -67,7 +67,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
         ? `/api/v1/categories/${params.categoryCode}/dashboard`
         : `/api/v1/categories/dashboard`;
       const result = await client.requestRaw("GET", path);
-      return result;
+      return result;
     }
   );
 
@@ -151,7 +151,7 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
         `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/result-detail`,
         queryParams
       );
-      return result;
+      return result;
     }
   );
 
@@ -195,16 +195,21 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
     }
   );
 
+  // Excel downloads (guide management-cloud-advisor-excel / -excel-categories / -excel-all, verified 2026-10-02).
+  // The response is an xlsx binary, not JSON — use requestBinary and either save to a file or return base64 (≤256 KB).
+  const savePathSchema = z.string().optional().describe("Local file path to save the .xlsx to (recommended). If omitted, the file is returned inline as base64 when it is 256 KB or smaller.");
+
   // ncloud_advisor_download_category_results — Download check results for a category (Excel)
   defineTool(
     server,
     "ncloud_advisor_download_category_results",
-    "Download check results for all items in a category. Returns the download URL or binary data for the Excel report.",
+    "Download the Excel report of check results for all items in a category. Saves to savePath or returns base64 content.",
     {
       categoryCode: z.enum(["SECURITY", "COST"]).describe("Check category code: SECURITY or COST"),
+      savePath: savePathSchema,
     },
     async (params) => {
-      return client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/excel`);
+      return client.requestBinary("GET", `/api/v1/categories/${params.categoryCode}/checkitems/excel`, undefined, undefined, { savePath: params.savePath });
     }
   );
 
@@ -212,13 +217,14 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
   defineTool(
     server,
     "ncloud_advisor_download_item_results",
-    "Download check results for a specific check item. Returns the download URL or binary data for the Excel report.",
+    "Download the Excel report of check results for a specific check item. Saves to savePath or returns base64 content.",
     {
       categoryCode: z.enum(["SECURITY", "COST"]).describe("Check category code: SECURITY or COST"),
       itemCode: z.string().describe("Check item code"),
+      savePath: savePathSchema,
     },
     async (params) => {
-      return client.requestRaw("GET", `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/excel`);
+      return client.requestBinary("GET", `/api/v1/categories/${params.categoryCode}/checkitems/${params.itemCode}/excel`, undefined, undefined, { savePath: params.savePath });
     }
   );
 
@@ -226,10 +232,12 @@ export function registerCloudAdvisorTools(server: McpServer, client: NcloudClien
   defineTool(
     server,
     "ncloud_advisor_download_all_results",
-    "Download check results for all categories. Returns the download URL or binary data for the complete Excel report.",
-    {},
-    async () => {
-      return client.requestRaw("GET", "/api/v1/excel");
+    "Download the complete Excel report of check results for all categories. Saves to savePath or returns base64 content.",
+    {
+      savePath: savePathSchema,
+    },
+    async (params) => {
+      return client.requestBinary("GET", "/api/v1/categories/checkitems/excel", undefined, undefined, { savePath: params.savePath });
     }
   );
 }

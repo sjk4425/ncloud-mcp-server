@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
+import { requiredError } from "./_messages.js";
 
 export function registerSourceDeployTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Tools ─────────────────────────────────────────────────────────
@@ -409,13 +410,16 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     }
   );
 
+  // Auxiliary lookups — paths per guide devtools-sourcedeploy-{autoscalinggrouplist,kubernetesserviceclusterlist,
+  // objectstoragebucketlist,objectstorageobjectlist,sourcecommitrepolist,sourcecommitbranchlist,sourcebuildlist,targetgrouplist}
+  // (verified 2026-10-02; identical in gov/fin).
   defineTool(
     server,
     "ncloud_sourcedeploy_get_autoscaling_groups",
     "Get the list of available Auto Scaling groups for SourceDeploy stage configuration",
     {},
     async () => {
-      return client.requestRaw("GET", "/api/v1/autoscalinggroup");
+      return client.requestRaw("GET", "/api/v1/autoscaling");
     }
   );
 
@@ -425,7 +429,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     "Get the list of available Kubernetes Service clusters for SourceDeploy stage configuration",
     {},
     async () => {
-      return client.requestRaw("GET", "/api/v1/kubernetesservice");
+      return client.requestRaw("GET", "/api/v1/kubernetes/cluster");
     }
   );
 
@@ -435,7 +439,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     "Get the list of available Object Storage buckets for SourceDeploy stage configuration",
     {},
     async () => {
-      return client.requestRaw("GET", "/api/v1/objectstorage");
+      return client.requestRaw("GET", "/api/v1/objectstorage/bucket");
     }
   );
 
@@ -447,7 +451,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       bucketName: z.string().describe("Name of the Object Storage bucket"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/api/v1/objectstorage/${encodeURIComponent(params.bucketName)}`);
+      return client.requestRaw("GET", `/api/v1/objectstorage/bucket/${encodeURIComponent(params.bucketName)}`);
     }
   );
 
@@ -458,7 +462,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     "Get the list of available SourceCommit repositories for scenario source configuration",
     {},
     async () => {
-      return client.requestRaw("GET", "/api/v1/sourcecommit");
+      return client.requestRaw("GET", "/api/v1/sourcecommit/repository");
     }
   );
 
@@ -470,7 +474,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       repositoryName: z.string().describe("Name of the SourceCommit repository"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/api/v1/sourcecommit/${encodeURIComponent(params.repositoryName)}/branch`);
+      return client.requestRaw("GET", `/api/v1/sourcecommit/repository/${encodeURIComponent(params.repositoryName)}/branch`);
     }
   );
 
@@ -480,7 +484,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     "Get the list of available SourceBuild projects for scenario source configuration",
     {},
     async () => {
-      return client.requestRaw("GET", "/api/v1/sourcebuild");
+      return client.requestRaw("GET", "/api/v1/sourcebuild/project");
     }
   );
 
@@ -489,10 +493,10 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     "ncloud_sourcedeploy_get_target_groups",
     "Get the list of load balancer target groups connected to an Auto Scaling group",
     {
-      autoScalingGroupNo: z.number().describe("Auto Scaling group number"),
+      autoScalingName: z.string({ required_error: requiredError("autoScalingName") }).describe("Auto Scaling group name (see ncloud_sourcedeploy_get_autoscaling_groups)"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/api/v1/autoscalinggroup/${params.autoScalingGroupNo}/targetgroup`);
+      return client.requestRaw("GET", `/api/v1/autoscaling/${encodeURIComponent(params.autoScalingName)}`);
     }
   );
 }

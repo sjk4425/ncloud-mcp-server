@@ -88,14 +88,14 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
   defineTool(
     server,
     "ncloud_dataforest_get_kerberos_keytab",
-    "Download Kerberos keytab file for a Data Forest account (returns binary info)",
+    // Guide analytics-dataforest-accounts-getkerberoskeytab: POST, the response is the `{accountName}.keytab` binary file.
+    "Download the Kerberos keytab file for a Data Forest account. The response is a binary file: pass savePath to write it to disk, otherwise it is returned inline as base64 (≤256 KB).",
     {
       id: z.string().max(22).describe("Account unique identifier (Base62-encoded UUID)"),
+      savePath: z.string().optional().describe("Local file path to save the .keytab file to (recommended)"),
     },
     async (params) => {
-      return client.postRequest("/api/v2/accounts/getKerberosKeytab", {
-          id: params.id,
-        });
+      return client.requestBinary("POST", "/api/v2/accounts/getKerberosKeytab", undefined, { id: params.id }, { regionHeader: true, savePath: params.savePath });
     }
   );
 
@@ -164,7 +164,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       const result = await client.postRequest("/api/v2/accounts/delete", {
         id: params.id,
       });
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Data Forest account [${params.id}].\n\nTo execute, call again with confirm=true.` } }
   );
@@ -260,7 +260,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       if (params.description) body.description = params.description;
       if (params.dependentIds) body.dependentIds = params.dependentIds;
       const result = await client.postRequest("/api/v2/apps/create", body);
-      return result;
+      return result;
     }
   );
 
@@ -399,7 +399,7 @@ export function registerDataForestTools(server: McpServer, client: NcloudClient)
       const result = await client.postRequest("/api/v2/apps/delete", {
         id: params.id,
       });
-      return result;
+      return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete Data Forest app [${params.id}].\n\nTo execute, call again with confirm=true.` } }
   );

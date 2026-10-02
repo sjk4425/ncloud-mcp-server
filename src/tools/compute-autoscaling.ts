@@ -41,16 +41,18 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_create_launch_config",
-    // 스펙(두 존 동일, compute-vautoscaling-launchconfiguration-createlaunchconfiguration): 이미지 소스는
-    // serverImageProductCode / serverImageNo / memberServerImageInstanceNo 중 **정확히 하나**. 스펙 코드는 선택
-    // (serverImageProductCode ↔ serverProductCode, serverImageNo ↔ serverSpecCode; 생략 시 최소 사양).
-    "Create a new launch configuration for Auto Scaling. Exactly one image source must be provided: serverImageProductCode, serverImageNo, or memberServerImageInstanceNo. Spec pairing: serverImageProductCode → serverProductCode (XEN/RHV); serverImageNo → serverSpecCode (KVM; XEN/RHV also allow this). Spec code is optional — omit to use the minimum spec. Use dryRun=true to preview without creating.",
+    // 스펙(세 존 동일, compute-vautoscaling-launchconfiguration-createlaunchconfiguration): 이미지 소스는
+    // serverImageProductCode / serverImageNo / memberServerImageInstanceNo 중 **정확히 하나**.
+    // 스펙 코드(serverImageProductCode ↔ serverProductCode, serverImageNo ↔ serverSpecCode)는 가이드상 Conditional이지만
+    // 실제 API는 생략 시 `900 Required field… serverProductCode or serverSpecNo or serverSpecCode`를 돌려준다(2026-10-01 라이브 확인)
+    // → 도구에서 하나를 필수로 검증한다.
+    "Create a new launch configuration for Auto Scaling. Exactly one image source must be provided: serverImageProductCode, serverImageNo, or memberServerImageInstanceNo. A server spec is also required: serverImageProductCode → serverProductCode (XEN/RHV); serverImageNo / memberServerImageInstanceNo → serverSpecCode (KVM, see ncloud_get_server_specs). Use dryRun=true to preview without creating.",
     {
       serverImageProductCode: z.string().optional().describe("Server image product code — for a new (public) server image, RHV/XEN. One of serverImageProductCode / serverImageNo / memberServerImageInstanceNo is required."),
       serverImageNo: z.string().optional().describe("Server image number — for a new (public) server image (required path for KVM/Gen3). One of serverImageProductCode / serverImageNo / memberServerImageInstanceNo is required."),
       memberServerImageInstanceNo: z.string().optional().describe("Member server image instance number — for a user-created server image. One of serverImageProductCode / serverImageNo / memberServerImageInstanceNo is required."),
-      serverProductCode: z.string().optional().describe("Server product (spec) code — used with serverImageProductCode (XEN/RHV, legacy). Optional; omit to use the minimum spec."),
-      serverSpecCode: z.string().optional().describe("Server spec code — used with serverImageNo (KVM/Gen3, e.g. c2-g3, s2-g3). Optional; omit to use the minimum spec."),
+      serverProductCode: z.string().optional().describe("Server product (spec) code — pair with serverImageProductCode (XEN/RHV). One of serverProductCode / serverSpecCode is required (the API rejects a request without a spec)."),
+      serverSpecCode: z.string().optional().describe("Server spec code — pair with serverImageNo or memberServerImageInstanceNo (KVM/Gen3, e.g. c2-g3, s2-g3). One of serverProductCode / serverSpecCode is required (the API rejects a request without a spec)."),
       launchConfigurationName: z.string().max(255, {
         message: maxLenMessage("launchConfigurationName", 255),
       }).optional().describe("Launch configuration name (1-255 chars: lowercase letters, digits, '-'; auto-generated when omitted)"),
@@ -77,6 +79,12 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
           isError: true,
         };
       }
+      if (!params.serverProductCode && !params.serverSpecCode) {
+        return {
+          content: [{ type: "text" as const, text: "A server spec is required: provide serverSpecCode (with serverImageNo / memberServerImageInstanceNo; see ncloud_get_server_specs) or serverProductCode (with serverImageProductCode). The API rejects a launch configuration without a spec (error 900)." }],
+          isError: true,
+        };
+      }
       const imageSource =
         params.serverImageProductCode !== undefined ? `serverImageProductCode=${params.serverImageProductCode}` :
         params.serverImageNo !== undefined ? `serverImageNo=${params.serverImageNo}` :
@@ -91,7 +99,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
           noun: { ko: "런치 설정", en: "launch configuration" },
           notes: {
             imageSource,
-            serverSpec: params.serverSpecCode ?? params.serverProductCode ?? "(minimum spec)",
+            serverSpec: params.serverSpecCode ?? params.serverProductCode,
           },
         });
       }

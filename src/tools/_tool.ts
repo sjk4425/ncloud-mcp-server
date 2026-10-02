@@ -119,13 +119,24 @@ export function deriveAnnotations(name: string): ToolAnnotations {
   return {};
 }
 
-/** 핸들러가 이미 완성된 MCP 응답({ content: [...] })을 반환했는지 판별. */
+/** MCP content block 종류. 이 밖의 `type` 값은 API 응답 데이터(예: DNS 레코드의 `type: "NS"`)로 본다. */
+const MCP_CONTENT_TYPES = new Set(["text", "image", "audio", "resource", "resource_link"]);
+
+/**
+ * 핸들러가 이미 완성된 MCP 응답({ content: [...] })을 반환했는지 판별.
+ * Global DNS 레코드 목록처럼 API 가 Spring Page 형태(`{ content: [{…, type: "NS"}], totalElements }`)로
+ * 응답하면 `content` 배열 + 문자열 `type` 만으로는 구분이 안 돼 클라이언트가 "Invalid tools/call result" 를
+ * 돌려줬다(2026-10-02 라이브 확인) → content block 의 `type` 이 MCP 종류이고 text 블록이면 `text` 가 문자열일 때만 완성 응답으로 본다.
+ */
 function isToolResult(v: any): boolean {
-  return (
-    v !== null &&
-    typeof v === "object" &&
-    Array.isArray(v.content) &&
-    v.content.every((c: any) => c && typeof c === "object" && typeof c.type === "string")
+  if (v === null || typeof v !== "object" || !Array.isArray(v.content)) return false;
+  return v.content.every(
+    (c: any) =>
+      c &&
+      typeof c === "object" &&
+      typeof c.type === "string" &&
+      MCP_CONTENT_TYPES.has(c.type) &&
+      (c.type !== "text" || typeof c.text === "string")
   );
 }
 

@@ -359,19 +359,26 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
     }
   );
 
+  // FieldDto (common-vapidatatype-cifielddto) — 가이드 예시(createcustomschema/updateschema)의 필드명 그대로.
   const schemaField = z.object({
-    fieldName: z.string().describe("Field name"),
-    fieldType: z.enum(["STRING", "INTEGER", "LONG", "FLOAT"]).describe("Field data type"),
-    dimension: z.boolean().optional().describe("Whether this field is a dimension"),
+    name: z.string().describe("Field name"),
+    dataType: z.enum(["STRING", "INTEGER", "LONG", "FLOAT"]).describe("Data type (dimension fields must be STRING)"),
+    metric: z.boolean().optional().describe("true if this field is a metric (default false)"),
+    dimension: z.boolean().optional().describe("true if this field is a dimension (default false)"),
+    idDimension: z.boolean().optional().describe("Dimension used to identify resources in event rules (exactly one dimension must be the idDimension)"),
+    counter: z.boolean().optional().describe("Counter metric (default false)"),
+    metricType: z.enum(["BASIC", "EXTENDED", "CUSTOM"]).optional().describe("Metric type"),
+    aggregations: z.record(z.enum(["Min1", "Min5", "Min30", "Hour2", "Day1"]), z.array(z.enum(["COUNT", "SUM", "MAX", "MIN", "AVG"]))).optional().describe("Metric fields only: aggregation functions per interval, e.g. {\"Min1\": [\"AVG\"], \"Min5\": [\"AVG\",\"MAX\"]}"),
+    desc: z.string().optional().describe("Field description"),
   });
 
   defineTool(
     server,
     "ncloud_create_custom_schema",
-    "Create a user-defined custom schema in Cloud Insight for custom metrics.",
+    "Create a user-defined custom schema in Cloud Insight for custom metrics. prodName must start with \"Custom/\" (e.g. \"Custom/MyProduct\"); include exactly one dimension with idDimension=true.",
     {
-      prodName: z.array(z.string()).describe("Product name(s) for the custom schema"),
-      fields: z.array(schemaField).describe("Schema field definitions"),
+      prodName: z.string().regex(/^Custom\//, "prodName must start with \"Custom/\"").describe("Schema (product) name, must start with \"Custom/\" (e.g. \"Custom/MyProduct\")"),
+      fields: z.array(schemaField).min(1).describe("Schema field definitions (FieldDto[])"),
       useCustomResource: z.boolean().optional().describe("Whether to use custom resource (default false)"),
     },
     async (params) => {
@@ -460,12 +467,12 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_list_maintenances",
-    "Get the list of planned maintenance schedules in Cloud Insight (paged). The API requires a filter: either a time range (from/to/timeType) OR a resource (resourceId+productKey). If none is given, a default ±180-day window by startTime is applied.",
+    "Get the list of planned maintenance schedules in Cloud Insight (paged). The API requires a filter: either a time range (from/to/timeType, at most 31 days) OR a resource (resourceId+productKey). If none is given, a default 30-day window (now-15d..now+15d) by startTime is applied.",
     {
       pageNum: z.number().optional().default(1).describe("Page number (>= 1)"),
       pageSize: z.number().optional().default(100).describe("Page size (>= 1)"),
-      from: z.number().optional().describe("Filter start (epoch ms), used with 'to' and 'timeType'"),
-      to: z.number().optional().describe("Filter end (epoch ms)"),
+      from: z.number().optional().describe("Filter start (epoch ms), used with 'to' and 'timeType'; the range to-from must not exceed 31 days"),
+      to: z.number().optional().describe("Filter end (epoch ms); at most 31 days after 'from'"),
       timeType: z.enum(["startTime", "endTime"]).optional().describe("Which time the from/to filter applies to (default startTime)"),
       resourceId: z.string().optional().describe("Filter by resource ID (use together with productKey instead of a time range)"),
       productKey: z.string().optional().describe("Filter by product key (use together with resourceId)"),
@@ -477,10 +484,20 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
         q.resourceId = params.resourceId;
         q.productKey = params.productKey;
       } else {
-        // 시간범위 필터 모드 — 미지정 시 ±180일 기본창 주입(API가 필터를 요구하므로 무인자 400 방지)
+        // 시간범위 필터 모드 — 미지정 시 30일 기본창(now-15d..now+15d) 주입.
+        // API 는 필터를 요구하고(무인자 400) 범위가 31일을 넘으면 "The range cannot exceed 31 days" 로 거절한다(라이브 확인 2026-10-01).
         const DAY = 86_400_000;
-        q.from = params.from ?? Date.now() - 180 * DAY;
-        q.to = params.to ?? Date.now() + 180 * DAY;
+        const MAX_RANGE = 31 * DAY;
+        const from = params.from ?? (params.to !== undefined ? params.to - 30 * DAY : Date.now() - 15 * DAY);
+        const to = params.to ?? from + 30 * DAY;
+        if (to - from > MAX_RANGE) {
+          return {
+            isError: true,
+            content: [{ type: "text" as const, text: `The planned-maintenance time range (to - from) cannot exceed 31 days; got ${Math.ceil((to - from) / DAY)} days. Narrow from/to or filter by resourceId+productKey instead.` }],
+          };
+        }
+        q.from = from;
+        q.to = to;
         q.timeType = params.timeType ?? "startTime";
       }
       const result = await client.requestRaw("GET", `${CW}/planned-maintenances`, q);
@@ -498,6 +515,9 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
     }
   );
 
+  // PMCreateUpdateDto.dimensions — Map<cw_key, [{dimension: value, ...}]> (common-vapidatatype-cipmcreateupdatedto, createpm 예시).
+  const pmDimensions = z.record(z.string(), z.array(z.record(z.string(), z.string())));
+
   defineTool(
     server,
     "ncloud_create_maintenance",
@@ -506,7 +526,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       title: z.string().describe("Maintenance title"),
       startTime: z.number().describe("Start time in Unix epoch milliseconds"),
       endTime: z.number().describe("End time in Unix epoch milliseconds"),
-      dimensions: z.record(z.unknown()).describe("Target dimensions (resource identifiers)"),
+      dimensions: pmDimensions.describe("Target resources keyed by cw_key: {\"<cw_key>\": [{\"instanceNo\": \"1111\", \"type\": \"svr\"}]} (PMCreateUpdateDto)"),
       desc: z.string().optional().describe("Maintenance description"),
     },
     async (params) => {
@@ -531,7 +551,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
       title: z.string().optional().describe("Maintenance title"),
       startTime: z.number().optional().describe("Start time in Unix epoch milliseconds"),
       endTime: z.number().optional().describe("End time in Unix epoch milliseconds"),
-      dimensions: z.record(z.unknown()).optional().describe("Target dimensions"),
+      dimensions: pmDimensions.optional().describe("Target resources keyed by cw_key: {\"<cw_key>\": [{\"instanceNo\": \"1111\", \"type\": \"svr\"}]}"),
       desc: z.string().optional().describe("Maintenance description"),
     },
     async (params) => {

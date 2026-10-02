@@ -173,7 +173,6 @@ export const SERVICE_ENDPOINTS = {
   vodStation: { pub: apigw("vodstation", "pub"), gov: "https://vod-station.apigw.gov-ntruss.com", fin: "https://vodstation.apigw.fin-ntruss.com" }, // gov 불규칙; fin 은 Private 게이트웨이(vodstation 개요)
   // Live Station 금융존: 호스트는 민간존 게이트웨이 그대로이고 경로 접두만 `/api/fin-v2` (api-fin media-livestation 개요·전 op 원문, 2026-09-30). liveStationPathPrefix() 참고.
   liveStation: { pub: apigw("livestation", "pub"), fin: "https://livestation.apigw.ntruss.com" },
-  imageOptimizer: { pub: apigw("imageoptimizer", "pub") },
   multiDrm: { pub: "https://multi-drm.apigw.ntruss.com", gov: "https://multi-drm.apigw.gov-ntruss.com" }, // 두 존 제공(one-click-multi-drm-api-overview), x-ncp-region_code: KR
   // ── cdn ──
   // Global Edge 만 래핑한다. CDN+ / Global CDN 은 2026-12-31 서비스 종료 예정(신규 생성 불가)이라 두 존 모두 이식하지 않는다(2026-09-30 결정).

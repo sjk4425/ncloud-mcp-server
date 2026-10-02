@@ -38,7 +38,6 @@ export { registerSourcePipelineTools } from "./devtools-sourcepipeline.js";
 export { registerGlobalEdgeTools } from "./cdn-global-edge.js";
 export { registerVodStationTools } from "./media-vodstation.js";
 export { registerLiveStationTools } from "./media-livestation.js";
-export { registerImageOptimizerTools } from "./media-imageoptimizer.js";
 export { registerComputePlacementTools } from "./compute-placement.js";
 export { registerVpcPeeringTools } from "./network-vpc-peering.js";
 export { registerSubAccountTools } from "./governance-sub-account.js";

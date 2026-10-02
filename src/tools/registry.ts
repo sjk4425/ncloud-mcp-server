@@ -73,7 +73,6 @@ import {
   registerGlobalEdgeTools,
   registerVodStationTools,
   registerLiveStationTools,
-  registerImageOptimizerTools,
   registerSubAccountTools,
   registerApiGatewayTools,
   registerSensTools,
@@ -423,18 +422,16 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "media",
-    title: "Media (VOD Station, Live Station, Image Optimizer, Multi DRM)",
+    title: "Media (VOD Station, Live Station, Multi DRM)",
     register: ({ server, client, zone }) => {
       // VOD Station: 공공존 호스트 불규칙(`vod-station.apigw.gov-ntruss.com`), 금융존 `vodstation.apigw.fin-ntruss.com`(vodstation 개요 2026-09-30).
       //   채널 수정(channel-update)은 민간존·금융존 가이드에 있고 공공존에는 없다.
       // Live Station: 민간존·금융존(api-gov media-livestation 404). 금융존은 같은 호스트에 경로 접두 /api/fin-v2 (liveStationPathPrefix).
-      // Image Optimizer: 세 존 API 가이드 인덱스에 모두 없음 — 민간존 기존 동작 유지, 공공존·금융존 미등록.
+      // Image Optimizer: 세 존 API 가이드 어디에도 없고(2026-10-02 재확인) 민간존 라이브에서도 전 경로 404 → 2.0.0 에서 제거.
       // One Click Multi DRM: 민간·공공존 제공(multi-drm.apigw.*), 금융존 인덱스에 없음(2026-09-30) → 미등록. 정책 복제만 민간존 전용.
       registerVodStationTools(server, client(endpoint("vodStation", zone)), { zone });
       const liveStation = endpoint("liveStation", zone);
       if (liveStation) registerLiveStationTools(server, client(liveStation), { zone });
-      const imageOptimizer = endpoint("imageOptimizer", zone);
-      if (imageOptimizer) registerImageOptimizerTools(server, client(imageOptimizer));
       const multiDrm = endpoint("multiDrm", zone);
       if (multiDrm) registerMultiDrmTools(server, client(multiDrm), { zone });
     },

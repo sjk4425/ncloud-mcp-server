@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
+import { requiredError } from "./_messages.js";
 
 /**
  * Data Flow API Tools
@@ -25,20 +26,20 @@ export function registerDataFlowTools(
   // Dashboard APIs
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // Guide (analytics-dataflow-getexecution{count,result,times}): GET /api/v1/stats/executions-interval | /stats/executions | /stats/executions-times,
+  // query startDate/endDate (both Required, ISO 8601). Verified 2026-10-02 against the public guide; same paths in gov/fin.
+  const statsWindow = {
+    startDate: z.string({ required_error: requiredError("startDate") }).describe("Start of the query range (ISO 8601, e.g. 2025-03-19T00:00:00) (required)"),
+    endDate: z.string({ required_error: requiredError("endDate") }).describe("End of the query range (ISO 8601, e.g. 2025-03-20T23:59:59) (required)"),
+  };
+
   defineTool(
     server,
     "ncloud_dataflow_get_execution_interval",
     "Get job execution count statistics for Data Flow dashboard. Returns execution counts grouped by time interval.",
-    {
-      startTime: z.string().optional().describe("Start time for query range (ISO 8601 format, e.g. 2024-01-01T00:00:00Z)"),
-      endTime: z.string().optional().describe("End time for query range (ISO 8601 format)"),
-    },
+    statsWindow,
     async (params) => {
-      const queryParams: Record<string, string> = {};
-      if (params.startTime) queryParams.startTime = params.startTime;
-      if (params.endTime) queryParams.endTime = params.endTime;
-      const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-interval", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return client.requestRaw("GET", "/api/v1/stats/executions-interval", { startDate: params.startDate, endDate: params.endDate });
     }
   );
 
@@ -46,16 +47,9 @@ export function registerDataFlowTools(
     server,
     "ncloud_dataflow_get_execution_result",
     "Get job execution result statistics (execution count, success count, failure count) for Data Flow dashboard.",
-    {
-      startTime: z.string().optional().describe("Start time for query range (ISO 8601 format)"),
-      endTime: z.string().optional().describe("End time for query range (ISO 8601 format)"),
-    },
+    statsWindow,
     async (params) => {
-      const queryParams: Record<string, string> = {};
-      if (params.startTime) queryParams.startTime = params.startTime;
-      if (params.endTime) queryParams.endTime = params.endTime;
-      const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-result", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      return client.requestRaw("GET", "/api/v1/stats/executions", { startDate: params.startDate, endDate: params.endDate });
     }
   );
 
@@ -63,16 +57,11 @@ export function registerDataFlowTools(
     server,
     "ncloud_dataflow_get_execution_times",
     "Get job execution time statistics for Data Flow dashboard.",
-    {
-      startTime: z.string().optional().describe("Start time for query range (ISO 8601 format)"),
-      endTime: z.string().optional().describe("End time for query range (ISO 8601 format)"),
-    },
+    statsWindow,
     async (params) => {
-      const queryParams: Record<string, string> = {};
-      if (params.startTime) queryParams.startTime = params.startTime;
-      if (params.endTime) queryParams.endTime = params.endTime;
-      const result = await client.requestRaw("GET", "/api/v1/dashboard/execution-times", Object.keys(queryParams).length > 0 ? queryParams : undefined);
-      return result;
+      // The guide page (analytics-dataflow-getexecutiontimes) prints `/api/v1/stats/executions-times`, but the live gateway
+      // answers 404 for it and 200 for `/api/v1/stats/execution-times` (probed 2026-10-02 in the public zone) — guide typo.
+      return client.requestRaw("GET", "/api/v1/stats/execution-times", { startDate: params.startDate, endDate: params.endDate });
     }
   );
 
