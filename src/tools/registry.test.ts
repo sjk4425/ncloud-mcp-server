@@ -652,14 +652,19 @@ describe("security 그룹: 존별 등록", () => {
       "ncloud_kms_encrypt", "ncloud_kms_decrypt", "ncloud_kms_create_custom_key", "ncloud_kms_reencrypt", "ncloud_kms_sign", "ncloud_kms_verify",
     ].sort());
   });
-  it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고, pub 에만 KMS 키 리전 이전(migrate-key)이 있으며 나머지는 동일", () => {
+  it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고, pub 에만 KMS 키 리전 이전(migrate-key)·Certificate Manager 2.0(ncloud_cm2_*)이 있으며 나머지는 동일", () => {
     const pub = captureSecurity("pub");
     const gov = captureSecurity("gov");
     expect(pub).not.toContain("ncloud_issue_private_certificate");
     expect(gov).toContain("ncloud_issue_private_certificate");
     expect(pub).toContain("ncloud_kms_migrate_key");
     expect(gov).not.toContain("ncloud_kms_migrate_key");
-    expect(gov.filter((n) => n !== "ncloud_issue_private_certificate").sort()).toEqual(pub.filter((n) => n !== "ncloud_kms_migrate_key").sort());
+    const cm2 = pub.filter((n) => n.startsWith("ncloud_cm2_"));
+    expect(cm2.length).toBe(23);
+    expect(gov.some((n) => n.startsWith("ncloud_cm2_"))).toBe(false);
+    expect(captureSecurity("fin").some((n) => n.startsWith("ncloud_cm2_"))).toBe(false);
+    const pubOnly = (n: string) => n === "ncloud_kms_migrate_key" || n.startsWith("ncloud_cm2_");
+    expect(gov.filter((n) => n !== "ncloud_issue_private_certificate").sort()).toEqual(pub.filter((n) => !pubOnly(n)).sort());
     expect(pub).toContain("ncloud_kms_create_key");
   });
 });

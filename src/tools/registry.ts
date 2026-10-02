@@ -91,6 +91,7 @@ import {
   registerDataForestTools,
   registerCloudAdvisorTools,
   registerWmsTools,
+  registerStsTools,
   registerMultiDrmTools,
   registerDataFlowTools,
   registerDataQueryTools,
@@ -382,6 +383,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerResourceManagerTools(server, client(endpoint("resourceManager", zone)));
       registerSubAccountTools(server, client(endpoint("subAccount", zone)));
       registerWmsTools(server, client(endpoint("wms", zone)));
+      // STS 호출자 식별(세 존, sts.apigw.*) — 메인/서브 계정 구분용 (가이드 슬러그 get-caller-identity).
+      registerStsTools(server, client(endpoint("sts", zone)));
     },
   },
   {
@@ -459,7 +462,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
       //   금융존 미제공(상품 없음) → endpoint() undefined 면 미등록.
       // KMS: 민간·공공존은 2.0(ocapi.*, security-kms2-*). 금융존은 v1 게이트웨이(kms.apigw.fin-ntruss.com) 암·복호화 6종만(security-kms.ts).
       // Security Monitoring: 민간·공공존 규칙형, 금융존 미제공.
-      registerCertificateManagerTools(server, client(endpoint("certificateManager", zone)), { issuePrivate: zone === "gov" });
+      // Certificate Manager 2.0(ncloud_cm2_*, /api/v2)은 민간존 가이드에만 있다(공공·금융은 1.0 op 뿐). 2.0 엔드포인트는 서브 계정 키를
+      //   빈 403 으로 거부한다(Ncloud 티켓 답변 + 2026-10-02 라이브 확인, NCP_ADMINISTRATOR 서브 계정) → 메인 계정 전용 안내에 STS 호출자 식별을 붙인다.
+      registerCertificateManagerTools(server, client(endpoint("certificateManager", zone)), {
+        issuePrivate: zone === "gov",
+        v2: zone === "pub",
+        stsClient: client(endpoint("sts", zone)),
+      });
       const privateCa = endpoint("privateCa", zone);
       if (privateCa) registerPrivateCaTools(server, client(privateCa));
       registerKmsTools(server, client(endpoint("kms", zone)), { zone });

@@ -23,7 +23,7 @@ Ncloud의 **60개 이상 서비스**, **1,000개 이상 API 도구**를 MCP 프�
 | **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** 🅿 |
 | **Storage** | Object Storage (S3 호환), Ncloud Storage (S3 호환) ⓕ, NAS, Archive Storage (Swift 호환) ⓕ |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
-| **Security** | Certificate Manager, Private CA ⓕ, KMS (금융존은 암·복호화 6종만), Security Monitoring ⓕ |
+| **Security** | Certificate Manager (2.0은 민간존 전용·메인 계정 키 필요), Private CA ⓕ, KMS (금융존은 암·복호화 6종만), Security Monitoring ⓕ |
 | **Monitoring** | Cloud Insight, Log Analytics |
 | **Management & Governance** | Activity Tracer, Cloud Advisor 🅿, Resource Manager, Sub Account, Web service Monitoring System (WMS) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
@@ -102,7 +102,7 @@ npm run build
 | 기본 게이트웨이 | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | 리전 (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR`(수도권), `KRS`(남부권) | `FKR` |
 | API 가이드 | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| 도구 수 (전 그룹) | 1,199 | 1,006 | 856 |
+| 도구 수 (전 그룹) | 1,223 | 1,007 | 857 |
 
 > 도구 수는 `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID` 미설정 기준입니다. 설정하면 Archive Storage 도구 10개가 민간존·공공존에 추가됩니다.
 
@@ -292,7 +292,7 @@ npm run build
 | `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query(민간존) |
 | `media` | VOD Station, Live Station(민간존·금융존), One Click Multi DRM |
 | `cdn` | Global Edge (민간존·공공존 — 금융존 미제공) |
-| `security` | Certificate Manager(공공존은 사설 인증서 발급 포함), Private CA, KMS, Security Monitoring |
+| `security` | Certificate Manager(공공존은 사설 인증서 발급 포함, 민간존은 2.0 `ncloud_cm2_*` 포함 — 메인 계정 키 전용), Private CA, KMS, Security Monitoring |
 | `application` | API Gateway, SENS (SMS/알림톡/브랜드메시지/Mail(민간존), 프로젝트), Cloud Outbound Mailer(민간존 레거시 / 공공존 정식) |
 | `billing` | Billing (요금/가격 조회, 비용·사용량, 할인) |
 | `common` *(항상 ON)* | Region / Zone 공통 |

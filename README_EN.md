@@ -23,7 +23,7 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 | **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** 🅿 |
 | **Storage** | Object Storage (S3-compatible), Ncloud Storage (S3-compatible) ⓕ, NAS, Archive Storage (Swift-compatible) ⓕ |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
-| **Security** | Certificate Manager, Private CA ⓕ, KMS (Financial zone: the six crypto operations only), Security Monitoring ⓕ |
+| **Security** | Certificate Manager (2.0 is Public-only and needs a main-account key), Private CA ⓕ, KMS (Financial zone: the six crypto operations only), Security Monitoring ⓕ |
 | **Monitoring** | Cloud Insight, Log Analytics |
 | **Management & Governance** | Activity Tracer, Cloud Advisor 🅿, Resource Manager, Sub Account, Web service Monitoring System (WMS) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
@@ -100,7 +100,7 @@ One package serves the three zones. Changing `NCLOUD_ZONE` switches the API gate
 | Default gateway | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | Regions (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR` (KR-CENTRAL), `KRS` (KR-SOUTH) | `FKR` |
 | API guide | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| Tools (all groups) | 1,199 | 1,006 | 856 |
+| Tools (all groups) | 1,223 | 1,007 | 857 |
 
 > Counts are without `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID`; setting them adds the 10 Archive Storage tools in the Public and Government zones.
 
@@ -290,7 +290,7 @@ Listing group keys *without* `dynamic` turns on **only those groups** and locks 
 | `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query (Public) |
 | `media` | VOD Station, Live Station (Public, Financial), One Click Multi DRM |
 | `cdn` | Global Edge (Public and Government zones — not offered in the Financial zone) |
-| `security` | Certificate Manager (private certificate issuance in the Government zone), Private CA, KMS, Security Monitoring |
+| `security` | Certificate Manager (private certificate issuance in the Government zone; 2.0 `ncloud_cm2_*` in the Public zone — main-account key only), Private CA, KMS, Security Monitoring |
 | `application` | API Gateway, SENS (SMS / Alim Talk / Brand Message / Mail (Public), projects), Cloud Outbound Mailer (Public: legacy / Government: full) |
 | `billing` | Billing (pricing, cost & usage, discounts) |
 | `common` *(always ON)* | Region / Zone shared |

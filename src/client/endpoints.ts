@@ -150,6 +150,8 @@ export const SERVICE_ENDPOINTS = {
   cloudAdvisor: { pub: apigw("cloud-advisor", "pub") }, // 민간존 전용 (api-gov·api-fin 에 management-cloud-advisor-* 없음)
   resourceManager: { pub: apigw("resourcemanager", "pub"), gov: apigw("resourcemanager", "gov"), fin: "https://resourcemanager.apigw.fin-ntruss.com" },
   subAccount: { pub: apigw("subaccount", "pub"), gov: apigw("subaccount", "gov"), fin: "https://subaccount.apigw.fin-ntruss.com" },
+  // STS(임시 자격 증명·호출자 식별): 세 존 규칙형 호스트 (guide slugs management-sts, get-caller-identity, switch-role — 접두 없는 슬러그, 2026-10-02 대조)
+  sts: { pub: apigw("sts", "pub"), gov: apigw("sts", "gov"), fin: "https://sts.apigw.fin-ntruss.com" },
   wms: { pub: apigw("wms", "pub"), gov: apigw("wms", "gov"), fin: "https://wms.apigw.fin-ntruss.com" }, // Web service Monitoring System — 세 존 제공(management-wms, 2026-09-30 확인)
   // ── devtools ──
   sourceCommit: { pub: apigw("sourcecommit", "pub"), gov: apigw("sourcecommit", "gov"), fin: "https://sourcecommit.apigw.fin-ntruss.com" },
