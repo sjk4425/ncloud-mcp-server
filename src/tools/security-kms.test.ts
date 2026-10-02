@@ -4,7 +4,7 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { registerKmsTools } from "./security-kms.js";
 
 /** KMS 암·복호화 경로 — 2.0 `/kms/v1/keys/{keyTag}/{op}`, 금융존 v1 게이트웨이 `/keys/v2/{keyTag}/{op}` (security-kms-*, api-fin 2026-09-30). */
-function cryptoSetup(zone: "pub" | "fin") {
+function cryptoSetup(zone: "pub" | "gov" | "fin") {
   const server = new McpServer({ name: "t", version: "1.0.0" });
   const client = new NcloudClient({ accessKey: "k", secretKey: "s", baseUrl: zone === "fin" ? "https://kms.apigw.fin-ntruss.com" : "https://ocapi.ncloud.com", regionCode: zone === "fin" ? "FKR" : "KR" });
   registerKmsTools(server, client, { zone });
@@ -12,6 +12,19 @@ function cryptoSetup(zone: "pub" | "fin") {
   const entry = (n: string) => (tools instanceof Map ? tools.get(n) : tools[n]);
   return { client, has: (n: string) => !!entry(n), call: (n: string, a: any) => entry(n).handler(entry(n).inputSchema.parse(a), {} as any) };
 }
+
+describe("KMS migrate-key (가이드 슬러그 migrate-key, 민간존 전용)", () => {
+  it("pub: POST /kms/v1/keys/{keyTag}/migrate { targetRegion }", async () => {
+    const t = cryptoSetup("pub");
+    const spy = vi.spyOn(t.client, "requestRaw").mockResolvedValue({});
+    await t.call("ncloud_kms_migrate_key", { keyTag: "tag1", targetRegion: "JPN" });
+    expect(spy).toHaveBeenCalledWith("POST", "/kms/v1/keys/tag1/migrate", undefined, { targetRegion: "JPN" });
+  });
+  it("gov·fin: 미등록 (공공존 인덱스에 페이지 없음, 금융존은 KMS 2.0 없음)", () => {
+    expect(cryptoSetup("gov").has("ncloud_kms_migrate_key")).toBe(false);
+    expect(cryptoSetup("fin").has("ncloud_kms_migrate_key")).toBe(false);
+  });
+});
 
 describe("KMS 암·복호화: 존별 경로와 도구 집합", () => {
   it("fin: 6종만 등록되고 /keys/v2/{keyTag}/… (createCustomKey 는 camelCase)", async () => {

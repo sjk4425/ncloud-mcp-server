@@ -202,6 +202,19 @@ export function registerDataFlowTools(
     }
   );
 
+  // Guide `executeworkflow` (slug without the analytics-dataflow- prefix): POST /api/v1/workflows/{workflowId}/executions, no body.
+  defineTool(
+    server,
+    "ncloud_dataflow_execute_workflow",
+    "Execute a Data Flow workflow. Starts a new execution of every job in the workflow.",
+    {
+      workflowId: z.string({ required_error: requiredError("workflowId") }).describe("Workflow ID to execute (see ncloud_dataflow_list_workflows)"),
+    },
+    async (params) => {
+      return client.requestRaw("POST", `/api/v1/workflows/${params.workflowId}/executions`);
+    }
+  );
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Job APIs
   // ═══════════════════════════════════════════════════════════════════════════

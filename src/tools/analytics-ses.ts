@@ -35,6 +35,7 @@ export const SES_PUBLIC_ONLY_TOOLS = [
   "ncloud_ses_create_cluster_g3",
   "ncloud_ses_get_node_spec_for_change_g3",
   "ncloud_ses_change_disk_size",
+  "ncloud_ses_get_node_storage", // ses-getclusternodestorage — 민간존 인덱스에만(2026-10-02)
 ] as const;
 
 export interface SesToolOptions {
@@ -116,6 +117,21 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       const prefix = getApiPrefix(zone, client.getRegionCode());
       const result = await client.requestRaw("GET", `${prefix}/cluster/getClusterNodeList/${params.serviceGroupInstanceNo}`);
       return result;
+    }
+  );
+
+  // 가이드 ses-getclusternodestorage(민간존만, 2026-10-02): POST {prefix}/cluster/getBlockStorage/{computeInstanceNo}
+  // (KR /api/v2 · SGN /api/sgn-v2 · JPN /api/jpn-v2). 표는 POST, curl 예시는 GET — 표를 따른다. 공공·금융존 미등록(SES_PUBLIC_ONLY_TOOLS).
+  defineTool(
+    s,
+    "ncloud_ses_get_node_storage",
+    "Get the block storage attached to a Search Engine Service cluster node (computeInstanceNo from ncloud_ses_get_node_list). Public zone only.",
+    {
+      computeInstanceNo: z.string().describe("Node server instance number (from ncloud_ses_get_node_list)"),
+    },
+    async (params) => {
+      const prefix = getApiPrefix(zone, client.getRegionCode());
+      return client.requestRaw("POST", `${prefix}/cluster/getBlockStorage/${params.computeInstanceNo}`);
     }
   );
 

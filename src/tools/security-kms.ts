@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
+import { requiredError } from "./_messages.js";
 import type { Zone } from "../client/endpoints.js";
 
 /**
@@ -200,6 +201,23 @@ export function registerKmsTools(rawServer: McpServer, client: NcloudClient, opt
       return client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/rotate`);
     }
   );
+
+  // Guide `migrate-key` (slug without the security-kms2- prefix): POST /kms/v1/keys/{keyTag}/migrate { targetRegion: KR | JPN }.
+  // Public zone only — the page is not in the Government index (gov has a single region) and the Financial zone has no KMS 2.0.
+  if (!gov && !fin) {
+    defineTool(
+      server,
+      "ncloud_kms_migrate_key",
+      "Migrate a KMS key to another region (KR or JPN). The key becomes usable from the target region's KMS endpoint.",
+      {
+        keyTag: z.string({ required_error: requiredError("keyTag") }).describe("Key tag - unique identifier derived from key name"),
+        targetRegion: z.enum(["KR", "JPN"], { required_error: requiredError("targetRegion") }).describe("Target region: KR (Korea) or JPN (Japan)"),
+      },
+      async (params) => {
+        return client.requestRaw("POST", `/kms/v1/keys/${params.keyTag}/migrate`, undefined, { targetRegion: params.targetRegion });
+      }
+    );
+  }
 
   // ncloud_kms_enable_key_version — Enable a specific key version
   defineTool(

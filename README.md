@@ -102,7 +102,7 @@ npm run build
 | 기본 게이트웨이 | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | 리전 (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR`(수도권), `KRS`(남부권) | `FKR` |
 | API 가이드 | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| 도구 수 (전 그룹) | 1,184 | 1,003 | 844 |
+| 도구 수 (전 그룹) | 1,199 | 1,006 | 856 |
 
 > 도구 수는 `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID` 미설정 기준입니다. 설정하면 Archive Storage 도구 10개가 민간존·공공존에 추가됩니다.
 

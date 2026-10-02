@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient, S3CompatibleError } from "../client/s3-compatible-client.js";
-import { defineTool } from "./_tool.js";
+import { defineTool, excludingTools } from "./_tool.js";
 import { L, deletedMessage, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { tag, wrap, xmlDocument, text, block, blocks, texts, intText, boolText } from "./_s3xml.js";
@@ -456,7 +456,27 @@ function parseObjectAttributesXml(xml: string) {
 
 // ═════════════════════════════════════════════════════════════════════════════
 
-export function registerStorageNcloudTools(server: McpServer, client: S3CompatibleClient): void {
+/** Object Lock 6종(버킷 설정 2 + 객체 보존 2 + 법적 보존 2) — 민간존 가이드에만 있는 op(2026-10-02 대조). */
+export const NCS_OBJECT_LOCK_TOOLS = [
+  "ncloud_ncs_get_object_lock_configuration",
+  "ncloud_ncs_put_object_lock_configuration",
+  "ncloud_ncs_get_object_retention",
+  "ncloud_ncs_put_object_retention",
+  "ncloud_ncs_get_object_legal_hold",
+  "ncloud_ncs_put_object_legal_hold",
+] as const;
+
+export interface StorageNcloudToolOptions {
+  /**
+   * Object Lock 도구 등록 여부. 기본 true(민간존). 공공존 가이드에는 Object Lock 페이지가 없으므로
+   * (putobjectlockconfiguration / getobjectlockconfiguration / putobjectretention / getobjectretention /
+   * putobjectlegalhold / getobjectlegalhold 는 민간존 인덱스에만 있다) 공공존은 false 로 등록한다.
+   */
+  objectLock?: boolean;
+}
+
+export function registerStorageNcloudTools(rawServer: McpServer, client: S3CompatibleClient, opts: StorageNcloudToolOptions = {}): void {
+  const server = opts.objectLock === false ? excludingTools(rawServer, NCS_OBJECT_LOCK_TOOLS) : rawServer;
   // ═══ Bucket ═════════════════════════════════════════════════════════════════
 
   defineTool(
@@ -889,10 +909,11 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
 
   // ─── Object Lock (bucket) ──────────────────────────────────────────────────
 
+  // 가이드 getobjectlockconfiguration: GET /?object-lock, 미설정 시 404 ObjectLockConfigurationNotFoundError (2026-10-02 대조).
   defineTool(
     server,
     "ncloud_ncs_get_object_lock_configuration",
-    `${NCS} Get the Object Lock (WORM) configuration of a Ncloud Storage bucket (GET /?object-lock): whether Object Lock is enabled and the default retention (mode + days/years) applied to new objects. Returns configured=false when the bucket has no Object Lock (the live API answers ObjectLockConfigurationNotFoundError). Note: the official per-operation page was unavailable when this tool was written; the request follows the S3 shape, and the read path was confirmed against the live KR endpoint on 2026-09-17.`,
+    `${NCS} Get the Object Lock (WORM) configuration of a Ncloud Storage bucket (GET /?object-lock): whether Object Lock is enabled and the default retention (mode + days/years) applied to new objects. Returns configured=false when the bucket has no Object Lock (the API answers 404 ObjectLockConfigurationNotFoundError).`,
     { bucketName: bucketNameSchema() },
     async (params) => {
       try {
@@ -907,29 +928,46 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     }
   );
 
+  // 가이드 putobjectlockconfiguration: PUT /?object-lock, 바디 ObjectLockConfiguration{ObjectLockEnabled=Enabled(필수), Rule.DefaultRetention{Mode, Days 1~36,500 | Years 1~100}(선택)}.
+  // Content-MD5 는 S3CompatibleClient 가 본문 있는 요청에 자동으로 붙인다(signing 직전). (2026-10-02 대조)
   defineTool(
     server,
     "ncloud_ncs_put_object_lock_configuration",
-    `${NCS} Set the Object Lock default retention of a Ncloud Storage bucket (PUT /?object-lock): every new object gets the given mode for the given period. GOVERNANCE can be overridden by users with bypass permission; COMPLIANCE cannot be shortened or removed by anyone until it expires — it requires confirm=true. The bucket must have been created with objectLockEnabled=true. Give exactly one of days / years. Note: the official per-operation page was unavailable when this tool was written; the request follows the S3 shape (the read side, GET /?object-lock, is live-confirmed; this write side is not yet).`,
+    `${NCS} Set the Object Lock configuration of a Ncloud Storage bucket (PUT /?object-lock). ObjectLockEnabled is always sent as Enabled; the default retention rule is optional — give mode plus exactly one of days (1-36,500) / years (1-100) to apply it to every new object, or omit mode to send no default retention. GOVERNANCE can be overridden by users with bypass permission; COMPLIANCE cannot be shortened or removed by anyone until it expires — it requires confirm=true. The bucket must have been created with objectLockEnabled=true. Use dryRun=true to preview the XML.`,
     {
       bucketName: bucketNameSchema(),
-      mode: z.enum(OBJECT_LOCK_MODES, { required_error: requiredError("mode") }).describe("GOVERNANCE | COMPLIANCE"),
-      days: positiveInt("days").optional().describe("Default retention period in days (exactly one of days / years)"),
-      years: positiveInt("years").optional().describe("Default retention period in years (exactly one of days / years)"),
+      mode: z.enum(OBJECT_LOCK_MODES).optional().describe("Default retention mode GOVERNANCE | COMPLIANCE. Omit to set no default retention rule"),
+      days: positiveInt("days").max(36500, { message: L({ ko: "days 는 36,500 이하여야 합니다.", en: "days must be at most 36,500." }) }).optional().describe("Default retention period in days, 1-36,500 (with mode; exactly one of days / years)"),
+      years: positiveInt("years").max(100, { message: L({ ko: "years 는 100 이하여야 합니다.", en: "years must be at most 100." }) }).optional().describe("Default retention period in years, 1-100 (with mode; exactly one of days / years)"),
       confirm: z.boolean().optional().default(false).describe("Required (true) when mode=COMPLIANCE, because COMPLIANCE retention is irreversible"),
+      dryRun: z.boolean().optional().default(false).describe("If true, returns the XML that would be sent without applying"),
     },
     async (params) => {
-      if ((params.days === undefined) === (params.years === undefined)) {
+      const hasPeriod = params.days !== undefined || params.years !== undefined;
+      if (params.mode === undefined && hasPeriod) {
+        return { content: [{ type: "text" as const, text: `❌ ${L({ ko: "days / years 를 지정하려면 mode 도 지정해야 합니다.", en: "days / years require mode." })}` }], isError: true };
+      }
+      if (params.mode !== undefined && (params.days === undefined) === (params.years === undefined)) {
         return { content: [{ type: "text" as const, text: `❌ ${L({ ko: "days 와 years 중 정확히 하나만 지정해야 합니다.", en: "Give exactly one of days / years." })}` }], isError: true };
+      }
+      const rule = params.mode !== undefined
+        ? wrap("Rule", wrap("DefaultRetention", tag("Mode", params.mode) + tag("Days", params.days) + tag("Years", params.years)))
+        : "";
+      const body = xmlDocument("ObjectLockConfiguration", tag("ObjectLockEnabled", "Enabled") + rule);
+      if (params.dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: Ncloud Storage Object Lock Configuration",
+          endpoint: `https://${params.bucketName}.kr.ncloudstorage.com/?object-lock`,
+          method: "PUT",
+          requestParams: { bucketName: params.bucketName, mode: params.mode, days: params.days, years: params.years, body },
+          noun: { ko: "Object Lock 설정", en: "Object Lock configuration" },
+        });
       }
       if (params.mode === "COMPLIANCE" && !params.confirm) {
         return {
           content: [{ type: "text" as const, text: `⚠️ COMPLIANCE default retention on Ncloud Storage Bucket [${params.bucketName}] cannot be shortened or removed by anyone (including the account owner) until it expires — every new object will be locked for ${params.days ?? params.years} ${params.days !== undefined ? "day(s)" : "year(s)"}. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` }],
         };
       }
-      const body = xmlDocument("ObjectLockConfiguration",
-        tag("ObjectLockEnabled", "Enabled")
-        + wrap("Rule", wrap("DefaultRetention", tag("Mode", params.mode) + tag("Days", params.days) + tag("Years", params.years))));
       await client.request({
         method: "PUT",
         bucket: params.bucketName,
@@ -937,9 +975,13 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
         headers: { "content-type": "application/xml" },
         body,
       });
+      const period = params.mode === undefined
+        ? L({ ko: "기본 보존 없음", en: "no default retention" })
+        : `${params.mode} / ${params.days !== undefined ? L({ ko: `${params.days}일`, en: `${params.days} day(s)` }) : L({ ko: `${params.years}년`, en: `${params.years} year(s)` })}`;
       return {
-        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 Object Lock 기본 보존이 ${params.mode} / ${params.days !== undefined ? `${params.days}일` : `${params.years}년`}로 설정되었습니다.`, en: `✅ Object Lock default retention for bucket '${params.bucketName}' has been set to ${params.mode} / ${params.days !== undefined ? `${params.days} day(s)` : `${params.years} year(s)`}.` }),
+        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 Object Lock 설정이 적용되었습니다 (${period}).`, en: `✅ Object Lock configuration for bucket '${params.bucketName}' has been applied (${period}).` }),
         bucket: params.bucketName,
+        objectLockEnabled: "Enabled",
         mode: params.mode,
         days: params.days,
         years: params.years,
@@ -1339,6 +1381,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
 
   // ─── Object Lock (object) ──────────────────────────────────────────────────
 
+  // 가이드 getobjectretention: GET /{Key}?retention[&versionId], 미설정 시 404 NoSuchObjectLockConfiguration (2026-10-02 대조).
   defineTool(
     server,
     "ncloud_ncs_get_object_retention",
@@ -1370,6 +1413,8 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     }
   );
 
+  // 가이드 putobjectretention: PUT /{Key}?retention[&versionId], 바디 Retention{Mode, RetainUntilDate(ISO 8601, 미래)}, 헤더 x-amz-bypass-governance-retention 선택.
+  // Content-MD5 는 클라이언트가 자동으로 붙인다. (2026-10-02 대조)
   defineTool(
     server,
     "ncloud_ncs_put_object_retention",
@@ -1416,6 +1461,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     { annotations: { destructiveHint: true, idempotentHint: true } }
   );
 
+  // 가이드 getobjectlegalhold: GET /{Key}?legal-hold[&versionId], 미설정 시 404 NoSuchObjectLockConfiguration (2026-10-02 대조).
   defineTool(
     server,
     "ncloud_ncs_get_object_legal_hold",
@@ -1440,6 +1486,7 @@ export function registerStorageNcloudTools(server: McpServer, client: S3Compatib
     }
   );
 
+  // 가이드 putobjectlegalhold: PUT /{Key}?legal-hold[&versionId], 바디 LegalHold{Status ON|OFF}, Content-MD5 필수(클라이언트 자동). (2026-10-02 대조)
   defineTool(
     server,
     "ncloud_ncs_put_object_legal_hold",

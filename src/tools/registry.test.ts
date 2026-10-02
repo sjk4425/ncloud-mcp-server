@@ -549,19 +549,25 @@ describe("analytics 그룹: 존별 등록", () => {
     const pub = captureAnalytics("pub");
     const gov = captureAnalytics("gov");
     expect(gov.some(isDataService)).toBe(false);
-    const sesOnly = ["ncloud_ses_get_cluster_detail", "ncloud_ses_get_server_generations", "ncloud_ses_get_server_specs", "ncloud_ses_get_cluster_server_images", "ncloud_ses_get_subnet_list_g3", "ncloud_ses_create_cluster_g3", "ncloud_ses_get_node_spec_for_change_g3", "ncloud_ses_change_disk_size"];
-    const cdssOnly = ["ncloud_cdss_create_cluster_g3", "ncloud_cdss_get_subnet_list_g3", "ncloud_cdss_get_node_spec_for_change_g3", "ncloud_cdss_get_server_generations", "ncloud_cdss_get_server_spec_list", "ncloud_cdss_get_cluster_server_images"];
+    const sesOnly = ["ncloud_ses_get_cluster_detail", "ncloud_ses_get_server_generations", "ncloud_ses_get_server_specs", "ncloud_ses_get_cluster_server_images", "ncloud_ses_get_subnet_list_g3", "ncloud_ses_create_cluster_g3", "ncloud_ses_get_node_spec_for_change_g3", "ncloud_ses_change_disk_size", "ncloud_ses_get_node_storage"];
+    // cdss-getclusternodestorage 는 민간·금융존 인덱스에만, restartCMAKService 는 공공존 가이드에만 있다(2026-10-02).
+    const cdssOnly = ["ncloud_cdss_create_cluster_g3", "ncloud_cdss_get_subnet_list_g3", "ncloud_cdss_get_node_spec_for_change_g3", "ncloud_cdss_get_server_generations", "ncloud_cdss_get_server_spec_list", "ncloud_cdss_get_cluster_server_images", "ncloud_cdss_get_node_storage"];
+    const cdssGovOnly = ["ncloud_cdss_restart_cmak_service"];
     for (const t of [...sesOnly, ...cdssOnly]) { expect(pub).toContain(t); expect(gov).not.toContain(t); }
-    const expected = pub.filter((n) => !isDataService(n) && !sesOnly.includes(n) && !cdssOnly.includes(n)).sort();
+    for (const t of cdssGovOnly) { expect(pub).not.toContain(t); expect(gov).toContain(t); }
+    const expected = [...pub.filter((n) => !isDataService(n) && !sesOnly.includes(n) && !cdssOnly.includes(n)), ...cdssGovOnly].sort();
     expect(gov.sort()).toEqual(expected);
     expect(gov).toContain("ncloud_ses_list_clusters");
     expect(gov).toContain("ncloud_cdss_list_clusters");
     expect(gov.some((n) => n.startsWith("ncloud_hadoop_") || n.includes("hadoop"))).toBe(true);
   });
-  it("fin: gov 와 동일 집합 (Data* 없음, SES/CDSS KVM·G3 페이지 없음, Cloud Hadoop 28 op 동일)", () => {
+  it("fin: gov 와 같되 CDSS 노드 스토리지(금융존 가이드 있음)만 추가되고 CMAK 재시작(공공존 전용)은 빠진다", () => {
     const gov = captureAnalytics("gov").sort();
     const fin = captureAnalytics("fin").sort();
-    expect(fin).toEqual(gov);
+    expect(fin).toContain("ncloud_cdss_get_node_storage");
+    expect(fin).not.toContain("ncloud_cdss_restart_cmak_service");
+    expect(fin).not.toContain("ncloud_ses_get_node_storage");
+    expect(fin.filter((n) => n !== "ncloud_cdss_get_node_storage")).toEqual(gov.filter((n) => n !== "ncloud_cdss_restart_cmak_service"));
     expect(fin).toContain("ncloud_ses_list_clusters");
     expect(fin).not.toContain("ncloud_ses_create_cluster_g3");
   });
@@ -646,12 +652,14 @@ describe("security 그룹: 존별 등록", () => {
       "ncloud_kms_encrypt", "ncloud_kms_decrypt", "ncloud_kms_create_custom_key", "ncloud_kms_reencrypt", "ncloud_kms_sign", "ncloud_kms_verify",
     ].sort());
   });
-  it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고 나머지는 public 과 동일", () => {
+  it("gov 에만 사설 인증서 발급(issuePrivate)이 추가되고, pub 에만 KMS 키 리전 이전(migrate-key)이 있으며 나머지는 동일", () => {
     const pub = captureSecurity("pub");
     const gov = captureSecurity("gov");
     expect(pub).not.toContain("ncloud_issue_private_certificate");
     expect(gov).toContain("ncloud_issue_private_certificate");
-    expect(gov.filter((n) => n !== "ncloud_issue_private_certificate").sort()).toEqual(pub.sort());
+    expect(pub).toContain("ncloud_kms_migrate_key");
+    expect(gov).not.toContain("ncloud_kms_migrate_key");
+    expect(gov.filter((n) => n !== "ncloud_issue_private_certificate").sort()).toEqual(pub.filter((n) => n !== "ncloud_kms_migrate_key").sort());
     expect(pub).toContain("ncloud_kms_create_key");
   });
 });

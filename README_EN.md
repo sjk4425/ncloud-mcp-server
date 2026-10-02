@@ -100,7 +100,7 @@ One package serves the three zones. Changing `NCLOUD_ZONE` switches the API gate
 | Default gateway | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | Regions (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR` (KR-CENTRAL), `KRS` (KR-SOUTH) | `FKR` |
 | API guide | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| Tools (all groups) | 1,184 | 1,003 | 844 |
+| Tools (all groups) | 1,199 | 1,006 | 856 |
 
 > Counts are without `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID`; setting them adds the 10 Archive Storage tools in the Public and Government zones.
 

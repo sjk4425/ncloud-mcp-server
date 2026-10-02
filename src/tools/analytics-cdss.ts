@@ -27,6 +27,16 @@ export const CDSS_PUBLIC_ONLY_TOOLS = [
   "ncloud_cdss_get_cluster_server_images",
 ] as const;
 
+/**
+ * 공공존 가이드에만 있는 오퍼레이션 — 민간존·금융존에서는 미등록.
+ * restartCMAKService: api-gov `analytics-clouddatastreamingservice-cluster-restartcmakservice` 만 존재(민간·금융 404, 2026-10-02).
+ * 민간존 쪽은 2026-09-17 릴리스 노트의 "CMAK 재시작 API 제공 종료" 로 제거된 op 다.
+ */
+export const CDSS_GOV_ONLY_TOOLS = ["ncloud_cdss_restart_cmak_service"] as const;
+
+/** 민간존·금융존 가이드에만 있는 오퍼레이션(`cdss-getclusternodestorage`) — 공공존 인덱스에 없음(2026-10-02). */
+export const CDSS_PUBLIC_FIN_TOOLS = ["ncloud_cdss_get_node_storage"] as const;
+
 export interface CdssToolOptions {
   /** 존 — 리전별 경로 접두와 미제공 도구 제외. 기본 `public`. */
   zone?: Zone;
@@ -34,7 +44,11 @@ export interface CdssToolOptions {
 
 export function registerCloudDataStreamingTools(server: McpServer, client: NcloudClient, opts: CdssToolOptions = {}): void {
   const zone: Zone = opts.zone ?? "pub";
-  const s = zone !== "pub" ? excludingTools(server, CDSS_PUBLIC_ONLY_TOOLS) : server;
+  const excluded: string[] = [];
+  if (zone !== "pub") excluded.push(...CDSS_PUBLIC_ONLY_TOOLS);
+  if (zone !== "gov") excluded.push(...CDSS_GOV_ONLY_TOOLS);
+  if (zone === "gov") excluded.push(...CDSS_PUBLIC_FIN_TOOLS);
+  const s = excluded.length > 0 ? excludingTools(server, excluded) : server;
   // 경로 접두는 등록 시점의 리전으로 고정된다(기존 동작 유지).
   const regionCode = client.getRegionCode();
   const prefix = cdssPathPrefix(zone, regionCode);
@@ -368,6 +382,22 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     }
   );
 
+  // 가이드 cdss-getclusternodestorage(민간·금융존, 2026-10-02): GET {prefix}/cluster/getBlockStorage/{computeInstanceNo}.
+  // 민간존 페이지는 GET 과 POST 표를 둘 다 싣지만 curl 예시는 GET — GET 을 쓴다. 공공존 인덱스에는 없다(CDSS_PUBLIC_FIN_TOOLS).
+  defineTool(
+    s,
+    "ncloud_cdss_get_node_storage",
+    "Get the block storage attached to a CDSS cluster node (computeInstanceNo from ncloud_cdss_list_nodes). Public and Financial zones only.",
+    {
+      computeInstanceNo: z.string().describe("Node server instance number (from ncloud_cdss_list_nodes)"),
+    },
+    async (params) => {
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/getBlockStorage/${params.computeInstanceNo}`
+        );
+    }
+  );
+
   defineTool(
     s,
     "ncloud_cdss_add_nodes",
@@ -496,6 +526,22 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // `ncloud_cdss_restart_cmak`(op restartCMAKService)는 2026-09-17 릴리스 노트에서 "클러스터 CMAK 재시작 API
   // 제공 종료"로 확정되어 제거했다(1.16.0 Breaking). 대체: ncloud_cdss_restart_all_services.
   // CMAK 자체가 단계적으로 폐기되는 중이다 — 조회 응답의 cmakPort/cmakVersion/cmakStatus는 Deprecated 표기.
+  // 공공존 가이드에는 아직 있다(analytics-clouddatastreamingservice-cluster-restartcmakservice, 수도권 /api/v1 · 남부권
+  // /api/krs-v1) → 공공존에서만 ncloud_cdss_restart_cmak_service 로 등록(CDSS_GOV_ONLY_TOOLS).
+  defineTool(
+    s,
+    "ncloud_cdss_restart_cmak_service",
+    "Restart the CMAK service of a CDSS cluster (Government zone only — the Public zone retired this API on 2026-09-17; CMAK itself is being phased out).",
+    {
+      serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
+    },
+    async (params) => {
+      // 재시작 계열은 전부 GET (가이드 원문 GET /cluster/restartCMAKService/{serviceGroupInstanceNo}).
+      return client.requestRaw(
+          "GET", `${prefix}/cluster/restartCMAKService/${params.serviceGroupInstanceNo}`
+        );
+    }
+  );
 
   defineTool(
     s,
