@@ -301,7 +301,6 @@ Listing group keys *without* `dynamic` turns on **only those groups** and locks 
 | `billing` | Billing (pricing, cost & usage, discounts) |
 | `common` *(always ON)* | Region / Zone shared |
 
-> ℹ️ **Group key changes (v1.2.0):** `integration` was renamed to `application`, and `global` was split into `cdn` (Global Edge) and `network` (Global DNS/Traffic Manager). Old keys are not auto-aliased — switch to the new keys (specifying an old key prints a guidance message on the server and is ignored).
 
 ## Usage Examples
 

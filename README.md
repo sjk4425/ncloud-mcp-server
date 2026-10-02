@@ -303,7 +303,6 @@ npm run build
 | `billing` | Billing (요금/가격 조회, 비용·사용량, 할인) |
 | `common` *(항상 ON)* | Region / Zone 공통 |
 
-> ℹ️ **그룹 key 변경 안내 (v1.2.0):** `integration` → `application`으로 이름이 바뀌었고, `global`은 `cdn`(Global Edge)과 `network`(Global DNS/Traffic Manager)로 나뉘었습니다. 옛 key는 자동 호환되지 않으니 새 key로 변경하세요(옛 key를 지정하면 서버가 안내 메시지를 출력하고 무시합니다).
 
 ## 사용 예시
 
