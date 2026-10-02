@@ -23,7 +23,7 @@ Provides **1,000+ API tools** across **60+ Ncloud services** via MCP protocol.
 | **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** 🅿 |
 | **Storage** | Object Storage (S3-compatible), Ncloud Storage (S3-compatible) ⓕ, NAS, Archive Storage (Swift-compatible) ⓕ |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
-| **Security** | Certificate Manager (2.0 is Public-only and needs a main-account key), Private CA ⓕ, KMS (Financial zone: the six crypto operations only), Security Monitoring ⓕ |
+| **Security** | Certificate Manager (2.0 is Public-only and needs a main-account key), Private CA ⓕ, KMS (Financial zone: the six crypto operations only), Security Monitoring ⓕ, Secret Manager 🅿 |
 | **Monitoring** | Cloud Insight, Log Analytics |
 | **Management & Governance** | Activity Tracer, Cloud Advisor 🅿, Resource Manager, Sub Account, Web service Monitoring System (WMS) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
@@ -100,7 +100,7 @@ One package serves the three zones. Changing `NCLOUD_ZONE` switches the API gate
 | Default gateway | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | Regions (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR` (KR-CENTRAL), `KRS` (KR-SOUTH) | `FKR` |
 | API guide | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| Tools (all groups) | 1,223 | 1,007 | 862 |
+| Tools (all groups) | 1,300 | 1,007 | 862 |
 
 > Counts are without `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID`; setting them adds the 10 Archive Storage tools in the Public and Government zones.
 
@@ -131,7 +131,7 @@ For the Financial zone use `"NCLOUD_ZONE": "fin"` with `"NCLOUD_REGION": "FKR"` 
 
 | | |
 |---|---|
-| Public-only services | Cloud DB Serverless, Cloud Advisor, Live Station (also Financial), Data Stream/Catalog/Forest/Flow/Query, the SENS Mail channel |
+| Public-only services | Cloud DB Serverless, Cloud Advisor, Live Station (also Financial), Data Stream/Catalog/Forest/Flow/Query, Datafence, Cloud Data Box, Secret Manager, Certificate Manager 2.0, the SENS Mail channel |
 | Public-only operations | LB listener certificates (SNI, 3 — also Financial), NKS kubeconfig reset, VOD Station channel update (also Financial), DRM policy copy, the SES/CDSS KVM (G3) creation and spec-catalogue operations, `protectionType` on KMS key creation |
 | Government-only operations | Cloud DB for Cache user (ACL) management (4), Certificate Manager private certificate issuance (`issuePrivate`), Cloud Outbound Mailer sending/lookup (5 — also Financial; the Public zone uses SENS Mail instead) |
 | Not offered in the Financial zone | Global Traffic Manager, Ncloud Storage, Archive Storage, Cloud DB Serverless, Fabric Cluster, NKS Add-on Manager, Cloud Advisor, Data*, One Click Multi DRM, Global Edge (the Financial `cdn` group holds the 5 CDN+ tools instead), Private CA, Security Monitoring, KMS API 2.0 (key management / ACL / tokens) |

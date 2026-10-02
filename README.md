@@ -23,7 +23,7 @@ Ncloud의 **60개 이상 서비스**, **1,000개 이상 API 도구**를 MCP 프�
 | **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** 🅿 |
 | **Storage** | Object Storage (S3 호환), Ncloud Storage (S3 호환) ⓕ, NAS, Archive Storage (Swift 호환) ⓕ |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
-| **Security** | Certificate Manager (2.0은 민간존 전용·메인 계정 키 필요), Private CA ⓕ, KMS (금융존은 암·복호화 6종만), Security Monitoring ⓕ |
+| **Security** | Certificate Manager (2.0은 민간존 전용·메인 계정 키 필요), Private CA ⓕ, KMS (금융존은 암·복호화 6종만), Security Monitoring ⓕ, Secret Manager 🅿 |
 | **Monitoring** | Cloud Insight, Log Analytics |
 | **Management & Governance** | Activity Tracer, Cloud Advisor 🅿, Resource Manager, Sub Account, Web service Monitoring System (WMS) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
@@ -102,7 +102,7 @@ npm run build
 | 기본 게이트웨이 | `ncloud.apigw.ntruss.com` | `ncloud.apigw.gov-ntruss.com` | `fin-ncloud.apigw.fin-ntruss.com` |
 | 리전 (`NCLOUD_REGION`) | `KR`, `JPN`, `SGN`, `USWN`, `DEN` | `KR`(수도권), `KRS`(남부권) | `FKR` |
 | API 가이드 | https://api.ncloud-docs.com/docs/home | https://api-gov.ncloud-docs.com/docs | https://api-fin.ncloud-docs.com/docs/api-overview |
-| 도구 수 (전 그룹) | 1,223 | 1,007 | 862 |
+| 도구 수 (전 그룹) | 1,300 | 1,007 | 862 |
 
 > 도구 수는 `NCLOUD_ARCHIVE_PROJECT_ID`/`NCLOUD_ARCHIVE_DOMAIN_ID` 미설정 기준입니다. 설정하면 Archive Storage 도구 10개가 민간존·공공존에 추가됩니다.
 
@@ -133,7 +133,7 @@ npm run build
 
 | 구분 | 내용 |
 |---|---|
-| 민간존 전용 서비스 | Cloud DB Serverless, Cloud Advisor, Live Station(금융존은 제공), Data Stream/Catalog/Forest/Flow/Query, SENS Mail 채널 |
+| 민간존 전용 서비스 | Cloud DB Serverless, Cloud Advisor, Live Station(금융존은 제공), Data Stream/Catalog/Forest/Flow/Query, Datafence, Cloud Data Box, Secret Manager, Certificate Manager 2.0, SENS Mail 채널 |
 | 민간존 전용 오퍼레이션 | LB 리스너 인증서(SNI) 3종(금융존은 제공), NKS kubeconfig 재발급, VOD Station 채널 수정(금융존은 제공), DRM 정책 복제, SES/CDSS의 KVM(G3) 생성·스펙 조회 계열, KMS 키 생성의 `protectionType` |
 | 공공존 전용 오퍼레이션 | Cloud DB for Cache 사용자(ACL) 관리 4종, Certificate Manager 사설 인증서 발급(`issuePrivate`), Cloud Outbound Mailer 발송·조회 5종(금융존도 제공; 민간존은 SENS Mail로 대체) |
 | 금융존 미제공 서비스 | Global Traffic Manager, Ncloud Storage, Archive Storage, Cloud DB Serverless, Fabric Cluster, NKS Add-on Manager, Cloud Advisor, Data*, One Click Multi DRM, Global Edge(금융존 `cdn` 그룹은 CDN+ 5종), Private CA, Security Monitoring, KMS API 2.0(키 관리·ACL·토큰) |

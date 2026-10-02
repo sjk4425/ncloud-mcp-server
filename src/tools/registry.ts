@@ -93,9 +93,12 @@ import {
   registerCloudAdvisorTools,
   registerWmsTools,
   registerStsTools,
+  registerSecretManagerTools,
   registerMultiDrmTools,
   registerDataFlowTools,
   registerDataQueryTools,
+  registerDatafenceTools,
+  registerDataBoxTools,
   registerPrivateCaTools,
   registerKmsTools,
   registerBillingTools,
@@ -403,7 +406,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "analytics",
-    title: "Analytics (SES, Hadoop, CDSS, Data Stream/Catalog/Forest/Flow/Query)",
+    title: "Analytics (SES, Hadoop, CDSS, Data Stream/Catalog/Forest/Flow/Query, Datafence, Data Box)",
     register: ({ server, client, zone }) => {
       // SES·CDSS: 호스트는 SERVICE_ENDPOINTS(금융존은 fin-vpcsearchengine / fin-clouddatastreamingservice 불규칙형),
       //   경로 접두 존·리전별(sesPathPrefix/cdssPathPrefix — 금융존 FKR 은 /api/v2, /api/v1), 민간존 전용 KVM/G3 오퍼레이션은 gov·fin 미등록.
@@ -423,6 +426,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
       if (dataFlow) registerDataFlowTools(server, client(dataFlow));
       const dataQuery = endpoint("dataQuery", zone);
       if (dataQuery) registerDataQueryTools(server, client(dataQuery));
+      // Datafence / Cloud Data Box: 민간존 전용(datafence-overview, data-box-overview — 가이드 슬러그가 접두 없는 get-datafence 등, 2026-10-02 대조).
+      const datafence = endpoint("datafence", zone);
+      if (datafence) registerDatafenceTools(server, client(datafence));
+      const databox = endpoint("databox", zone);
+      if (databox) registerDataBoxTools(server, client(databox));
     },
   },
   {
@@ -454,8 +462,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "security",
-    title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring)",
-    register: ({ server, client, zone }) => {
+    title: "Security (Certificate Manager, Private CA, KMS, Security Monitoring, Secret Manager)",
+    register: ({ server, client, zone, regionCode }) => {
       // Certificate Manager: 규칙형 호스트(세 존). 공공존 가이드는 v1 4종(목록·외부등록·삭제·**사설 발급 issuePrivate**) — 사설 발급은 gov 에만,
       //   금융존은 3종(목록·외부등록·삭제, security-certificatemanager-* 2026-09-30).
       // Private CA: 공공존 호스트 불규칙(privateca.apigw.gov-ntruss.com), 오퍼레이션 21종 동일 — 개요(security-privateca) 표의
@@ -470,6 +478,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
         v2: zone === "pub",
         stsClient: client(endpoint("sts", zone)),
       });
+      // Secret Manager: 민간존 전용(secretmanager-api-overview). 전역 키 시크릿은 apigw 호스트, 리전 격리 키 시크릿은 ocapi 호스트(+/secretmanager 접두,
+      //   모듈이 붙임). 격리 키 호스트는 등록 시점 리전으로 고른다(KR→ocapi-kr, JPN→ocapi-jp; 런타임 set_region 은 반영되지 않음).
+      const secretManager = endpoint("secretManager", zone);
+      if (secretManager) {
+        const regionalHost = endpoint(regionCode === "JPN" ? "secretManagerRegionalJpn" : "secretManagerRegionalKr", zone) ?? "https://ocapi-kr.ncloud.com";
+        registerSecretManagerTools(server, { global: client(secretManager), regional: client(regionalHost) });
+      }
       const privateCa = endpoint("privateCa", zone);
       if (privateCa) registerPrivateCaTools(server, client(privateCa));
       registerKmsTools(server, client(endpoint("kms", zone)), { zone });

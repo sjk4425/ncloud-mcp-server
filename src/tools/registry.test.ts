@@ -537,7 +537,7 @@ describe("analytics 그룹: 존별 등록", () => {
     );
     return names;
   }
-  const PUBLIC_ONLY_PREFIXES = ["ncloud_datastream_", "ncloud_datacatalog_", "ncloud_dataforest_", "ncloud_dataflow_", "ncloud_dataquery_"];
+  const PUBLIC_ONLY_PREFIXES = ["ncloud_datastream_", "ncloud_datacatalog_", "ncloud_dataforest_", "ncloud_dataflow_", "ncloud_dataquery_", "ncloud_datafence_", "ncloud_databox_"];
   const isDataService = (n: string) => PUBLIC_ONLY_PREFIXES.some((p) => n.startsWith(p));
   it("pub: Data Stream/Catalog/Forest/Flow/Query 와 SES/CDSS G3 도구가 모두 등록된다", () => {
     const names = captureAnalytics("pub");
@@ -670,7 +670,11 @@ describe("security 그룹: 존별 등록", () => {
     expect(cm2.length).toBe(23);
     expect(gov.some((n) => n.startsWith("ncloud_cm2_"))).toBe(false);
     expect(captureSecurity("fin").some((n) => n.startsWith("ncloud_cm2_"))).toBe(false);
-    const pubOnly = (n: string) => n === "ncloud_kms_migrate_key" || n.startsWith("ncloud_cm2_");
+    // Secret Manager 는 민간존 전용(secretmanager-api-overview; 공공·금융 인덱스에 없음)
+    expect(pub.filter((n) => n.startsWith("ncloud_secret_")).length).toBe(32);
+    expect(gov.some((n) => n.startsWith("ncloud_secret_"))).toBe(false);
+    expect(captureSecurity("fin").some((n) => n.startsWith("ncloud_secret_"))).toBe(false);
+    const pubOnly = (n: string) => n === "ncloud_kms_migrate_key" || n.startsWith("ncloud_cm2_") || n.startsWith("ncloud_secret_");
     expect(gov.filter((n) => n !== "ncloud_issue_private_certificate").sort()).toEqual(pub.filter((n) => !pubOnly(n)).sort());
     expect(pub).toContain("ncloud_kms_create_key");
   });
