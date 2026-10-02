@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2026-10-02
+
+### Fixed
+- **MCP registry listing.** The `server.json` description added in 2.0.0 was 145 characters, over the registry's 100-character limit, so 2.0.0 reached npm but not the MCP registry. The description is shortened to 85 characters; no code or tool changes — 2.0.1 is functionally identical to 2.0.0.
+
 ## [2.0.0] - 2026-10-02
 
 > **Zone unification.** One package now serves the Ncloud **Public zone (민간존)**, the **Government zone (공공존)** and the **Financial zone (금융존)**, selected with `NCLOUD_ZONE=pub|gov|fin` (default `pub`), and replaces the separate `ncloud-gov-mcp-server` package. The three zones share the same authentication (HMAC-SHA256 `x-ncp-apigw-*` headers), parameters and response shapes; only the gateway domains (`*.apigw.ntruss.com` → `*.apigw.gov-ntruss.com` / `*.apigw.fin-ntruss.com`, with a number of irregular hosts), the region catalogue and the service catalogue differ — and, for a handful of services, the API version, path prefix or individual fields. Every difference below was taken from the official guides page by page. Sources: [Public API guide](https://api.ncloud-docs.com/docs/common-ncpapi), [Gov API guide](https://api-gov.ncloud-docs.com/docs/common-ncpapi-ncpapi), [Financial API guide](https://api-fin.ncloud-docs.com/docs/api-overview). Tools registered with every group enabled (without the Archive Storage env): Public 1,300 · Government 1,007 · Financial 862.
