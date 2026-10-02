@@ -109,6 +109,7 @@ One package serves the three zones. Changing `NCLOUD_ZONE` switches the API gate
 > 🔑 **Account / key notes (2.0.0)**
 > - **Certificate Manager 2.0** (`ncloud_cm2_*`, Public zone) accepts **main-account Access Keys only** (confirmed by Ncloud support). The 2.0 endpoint rejects Sub Account keys with HTTP 403; the server then returns a notice with the caller identity and points to the 1.0 tools that work with any key (`ncloud_list_certificates`, `ncloud_register_external_certificate`).
 > - **Secret Manager** (`ncloud_secret_*`, Public zone) lives on two hosts depending on the KMS key that encrypts the secret. Every tool takes `keyIsolation` — `global` (default, `secretmanager.apigw.ntruss.com`) or `regional` (KMS region-isolated key, `ocapi-kr.ncloud.com/secretmanager`; the Japan region supports isolated keys only). The isolated-key host is fixed by the region (`NCLOUD_REGION`) at startup.
+> - **Cloud DB Serverless** (`ncloud_serverless_*`, Public zone) also accepts **main-account Access Keys only**. The API rejects Sub Account keys with HTTP 403 `sub account is not supported yet` (re-verified 2026-10-02 with an NCP_ADMINISTRATOR sub account); the server appends a hint to use the main account's key. Other database tools (Cloud DB for MySQL etc.) work with the same key.
 > - Use `ncloud_get_caller_identity` (STS, all zones) to see whether the configured key belongs to the main account or a sub account.
 
 **Government-zone example**

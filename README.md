@@ -111,6 +111,7 @@ npm run build
 > 🔑 **계정·키 관련 주의 (2.0.0)**
 > - **Certificate Manager 2.0** (`ncloud_cm2_*`, 민간존)은 **메인 계정 Access Key로만** 호출됩니다(Ncloud 기술지원 확인). 서브 계정 키는 2.0 엔드포인트가 HTTP 403으로 거부하며, 이때 서버는 호출자 정보와 함께 안내문을 돌려주고 조회·외부 인증서 등록은 어떤 키로든 되는 1.0 도구(`ncloud_list_certificates`, `ncloud_register_external_certificate`)를 안내합니다.
 > - **Secret Manager** (`ncloud_secret_*`, 민간존)은 시크릿을 암호화한 KMS 키 종류에 따라 호스트가 다릅니다. 모든 도구의 `keyIsolation` 파라미터로 고릅니다 — `global`(기본, `secretmanager.apigw.ntruss.com`) / `regional`(KMS 리전 격리 키, `ocapi-kr.ncloud.com/secretmanager`; 일본 리전은 격리 키만). 격리 키 호스트는 서버 시작 시 리전(`NCLOUD_REGION`)으로 정해집니다.
+> - **Cloud DB Serverless** (`ncloud_serverless_*`, 민간존)도 **메인 계정 Access Key로만** 호출됩니다. 서브 계정 키는 API가 HTTP 403 `sub account is not supported yet`로 거부하며(2026-10-02 재확인, NCP_ADMINISTRATOR 서브 계정), 서버는 그 403에 메인 계정 키를 쓰라는 안내를 덧붙입니다. 같은 키로 Cloud DB for MySQL 등 다른 DB 도구는 정상 동작합니다.
 > - 현재 키가 메인 계정인지 서브 계정인지는 `ncloud_get_caller_identity`(STS, 세 존)로 확인할 수 있습니다.
 
 **공공존 설정 예시**
