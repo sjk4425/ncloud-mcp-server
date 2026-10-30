@@ -5,6 +5,7 @@ import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { defineTool } from "./_tool.js";
 import { L, deletedMessage, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
+import { blocks, text, xmlEscape, xmlUnescape } from "./_s3xml.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -38,7 +39,7 @@ function parseListObjectsXml(xml: string): {
   let match: RegExpExecArray | null;
   while ((match = contentsRegex.exec(xml)) !== null) {
     contents.push({
-      key: match[1],
+      key: xmlUnescape(match[1]),
       lastModified: match[2],
       size: match[3],
       storageClass: match[4],
@@ -48,12 +49,13 @@ function parseListObjectsXml(xml: string): {
   const commonPrefixes: string[] = [];
   const prefixRegex = /<CommonPrefixes>\s*<Prefix>(.*?)<\/Prefix>\s*<\/CommonPrefixes>/gs;
   while ((match = prefixRegex.exec(xml)) !== null) {
-    commonPrefixes.push(match[1]);
+    commonPrefixes.push(xmlUnescape(match[1]));
   }
 
+  // Keys come back XML-escaped (fin live: `a&b.txt` listed as `a&amp;b.txt`), so decode them
   return {
     name: nameMatch?.[1] ?? "",
-    prefix: prefixMatch?.[1] ?? "",
+    prefix: xmlUnescape(prefixMatch?.[1] ?? ""),
     isTruncated: truncatedMatch?.[1] === "true",
     contents,
     commonPrefixes,
@@ -104,79 +106,13 @@ function parseInitiateMultipartXml(xml: string): { bucket: string; key: string; 
 }
 
 /**
- * Parse S3 XML versioning configuration response.
+ * x-amz-copy-source must be URL-encoded (S3 spec) — a raw non-ASCII key also
+ * crashes fetch ("Cannot convert argument to a ByteString"). Each path segment
+ * is encoded; a source that already contains %XX escapes is passed through.
  */
-function parseVersioningXml(xml: string): { status: string } {
-  const statusMatch = xml.match(/<Status>(.*?)<\/Status>/);
-  return { status: statusMatch?.[1] ?? "Disabled" };
-}
-
-/**
- * Parse S3 XML list object versions response.
- */
-function parseListObjectVersionsXml(xml: string): {
-  name: string;
-  prefix: string;
-  isTruncated: boolean;
-  keyMarker: string;
-  versionIdMarker: string;
-  nextKeyMarker: string;
-  nextVersionIdMarker: string;
-  versions: Array<{ key: string; versionId: string; isLatest: boolean; lastModified: string; size: string; storageClass: string }>;
-  deleteMarkers: Array<{ key: string; versionId: string; isLatest: boolean; lastModified: string }>;
-  commonPrefixes: string[];
-} {
-  const nameMatch = xml.match(/<Name>(.*?)<\/Name>/);
-  const prefixMatch = xml.match(/<ListVersionsResult[^>]*>.*?<Prefix>(.*?)<\/Prefix>/s);
-  const truncatedMatch = xml.match(/<IsTruncated>(.*?)<\/IsTruncated>/);
-  const keyMarkerMatch = xml.match(/<KeyMarker>(.*?)<\/KeyMarker>/);
-  const versionIdMarkerMatch = xml.match(/<VersionIdMarker>(.*?)<\/VersionIdMarker>/);
-  const nextKeyMarkerMatch = xml.match(/<NextKeyMarker>(.*?)<\/NextKeyMarker>/);
-  const nextVersionIdMarkerMatch = xml.match(/<NextVersionIdMarker>(.*?)<\/NextVersionIdMarker>/);
-
-  const versions: Array<{ key: string; versionId: string; isLatest: boolean; lastModified: string; size: string; storageClass: string }> = [];
-  const versionRegex = /<Version>\s*<Key>(.*?)<\/Key>\s*<VersionId>(.*?)<\/VersionId>\s*<IsLatest>(.*?)<\/IsLatest>\s*<LastModified>(.*?)<\/LastModified>.*?<Size>(.*?)<\/Size>.*?<StorageClass>(.*?)<\/StorageClass>\s*<\/Version>/gs;
-  let match: RegExpExecArray | null;
-  while ((match = versionRegex.exec(xml)) !== null) {
-    versions.push({
-      key: match[1],
-      versionId: match[2],
-      isLatest: match[3] === "true",
-      lastModified: match[4],
-      size: match[5],
-      storageClass: match[6],
-    });
-  }
-
-  const deleteMarkers: Array<{ key: string; versionId: string; isLatest: boolean; lastModified: string }> = [];
-  const deleteMarkerRegex = /<DeleteMarker>\s*<Key>(.*?)<\/Key>\s*<VersionId>(.*?)<\/VersionId>\s*<IsLatest>(.*?)<\/IsLatest>\s*<LastModified>(.*?)<\/LastModified>.*?<\/DeleteMarker>/gs;
-  while ((match = deleteMarkerRegex.exec(xml)) !== null) {
-    deleteMarkers.push({
-      key: match[1],
-      versionId: match[2],
-      isLatest: match[3] === "true",
-      lastModified: match[4],
-    });
-  }
-
-  const commonPrefixes: string[] = [];
-  const prefixRegex = /<CommonPrefixes>\s*<Prefix>(.*?)<\/Prefix>\s*<\/CommonPrefixes>/gs;
-  while ((match = prefixRegex.exec(xml)) !== null) {
-    commonPrefixes.push(match[1]);
-  }
-
-  return {
-    name: nameMatch?.[1] ?? "",
-    prefix: prefixMatch?.[1] ?? "",
-    isTruncated: truncatedMatch?.[1] === "true",
-    keyMarker: keyMarkerMatch?.[1] ?? "",
-    versionIdMarker: versionIdMarkerMatch?.[1] ?? "",
-    nextKeyMarker: nextKeyMarkerMatch?.[1] ?? "",
-    nextVersionIdMarker: nextVersionIdMarkerMatch?.[1] ?? "",
-    versions,
-    deleteMarkers,
-    commonPrefixes,
-  };
+function encodeCopySource(source: string): string {
+  if (/%[0-9A-Fa-f]{2}/.test(source)) return source;
+  return source.split("/").map(encodeURIComponent).join("/");
 }
 
 /**
@@ -427,7 +363,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
           noun: { ko: "오브젝트", en: "object" },
           verb: "upload",
           notes: {
-            bodySize: `${params.body.length} bytes`,
+            bodySize: `${Buffer.byteLength(params.body, "utf8")} bytes`,
             ...(params.contentType ? {} : { note_contentType: "(no content-type header sent — the server applies its default)" }),
           },
         });
@@ -445,7 +381,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         리소스타입: "Object",
         버킷: params.bucketName,
         키: params.key,
-        크기: `${params.body.length} bytes`,
+        크기: `${Buffer.byteLength(params.body, "utf8")} bytes`,
         상태: "uploaded",
       };
       return summary;
@@ -602,7 +538,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         uploadId: params.uploadId,
         partNumber: params.partNumber,
         etag,
-        size: `${params.body.length} bytes`,
+        size: `${Buffer.byteLength(params.body, "utf8")} bytes`,
       };
       return result;
     }
@@ -804,89 +740,8 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     }
   );
 
-  // ─── Versioning Management Tools ───────────────────────────────────────────
-
-  defineTool(
-    server,
-    "ncloud_get_bucket_versioning",
-    "Get the versioning state of an Object Storage bucket",
-    {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket to check versioning status"),
-    },
-    async (params) => {
-      const response = await client.request({
-        method: "GET",
-        bucket: params.bucketName,
-        queryParams: { versioning: "" },
-      });
-      const result = parseVersioningXml(response.body);
-      return result;
-    }
-  );
-
-  defineTool(
-    server,
-    "ncloud_put_bucket_versioning",
-    "Set the versioning state of an Object Storage bucket (Enabled or Suspended)",
-    {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      status: z.enum(["Enabled", "Suspended"], {
-        required_error: requiredError("status"),
-      }).describe("Versioning status to set (Enabled | Suspended)"),
-    },
-    async (params) => {
-      const body = `<VersioningConfiguration><Status>${params.status}</Status></VersioningConfiguration>`;
-      await client.request({
-        method: "PUT",
-        bucket: params.bucketName,
-        queryParams: { versioning: "" },
-        headers: { "content-type": "application/xml" },
-        body,
-      });
-      const result = {
-        message: L({ ko: `✅ 버킷 '${params.bucketName}'의 버전 관리가 '${params.status}'로 설정되었습니다.`, en: `✅ Versioning for bucket '${params.bucketName}' has been set to '${params.status}'.` }),
-        bucket: params.bucketName,
-        versioningStatus: params.status,
-      };
-      return result;
-    }
-  );
-
-  defineTool(
-    server,
-    "ncloud_list_object_versions",
-    "List all versions of objects in a versioning-enabled Object Storage bucket",
-    {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      prefix: z.string().optional().describe("Limits results to keys beginning with this prefix"),
-      delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
-      keyMarker: z.string().optional().describe("Key marker for pagination"),
-      versionIdMarker: z.string().optional().describe("Version ID marker for pagination (used with keyMarker)"),
-      maxKeys: z.number().optional().describe("Maximum number of keys to return (default 1000)"),
-    },
-    async (params) => {
-      const queryParams: Record<string, string> = { versions: "" };
-      if (params.prefix) queryParams["prefix"] = params.prefix;
-      if (params.delimiter) queryParams["delimiter"] = params.delimiter;
-      if (params.keyMarker) queryParams["key-marker"] = params.keyMarker;
-      if (params.versionIdMarker) queryParams["version-id-marker"] = params.versionIdMarker;
-      if (params.maxKeys) queryParams["max-keys"] = String(params.maxKeys);
-
-      const response = await client.request({
-        method: "GET",
-        bucket: params.bucketName,
-        queryParams,
-      });
-      const result = parseListObjectVersionsXml(response.body);
-      return result;
-    }
-  );
+  // Bucket versioning is not an Object Storage API — it is absent from the pub and fin guides and
+  // returns 403 AccessDenied in both zones (2026-10-30). Versioning lives in Ncloud Storage (ncloud_ncs_*).
 
   // ─── Object Restore Tools ──────────────────────────────────────────────────
 
@@ -974,19 +829,16 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         method: "PUT",
         bucket: params.bucketName,
         key: params.objectName,
-        headers: { "x-amz-copy-source": params.copySource },
+        headers: { "x-amz-copy-source": encodeCopySource(params.copySource) },
       });
 
-      // Parse CopyObjectResult XML
-      const lastModifiedMatch = response.body.match(/<LastModified>(.*?)<\/LastModified>/);
-      const etagMatch = response.body.match(/<ETag>(.*?)<\/ETag>/);
-
+      // Parse CopyObjectResult XML (text() decodes the &quot; around the ETag)
       const result = {
         bucket: params.bucketName,
         key: params.objectName,
         copySource: params.copySource,
-        lastModified: lastModifiedMatch?.[1] ?? "",
-        etag: etagMatch?.[1] ?? "",
+        lastModified: text(response.body, "LastModified") ?? "",
+        etag: text(response.body, "ETag") ?? "",
       };
       return result;
     }
@@ -1041,7 +893,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     async (params) => {
 
       const objectsXml = params.objectKeys
-        .map((key) => `<Object><Key>${key}</Key></Object>`)
+        .map((key) => `<Object><Key>${xmlEscape(key)}</Key></Object>`)
         .join("");
       const body = `<Delete><Quiet>false</Quiet>${objectsXml}</Delete>`;
 
@@ -1058,21 +910,18 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
         body,
       });
 
-      // Parse DeleteResult XML
-      const deleted: string[] = [];
-      const errors: Array<{ key: string; code: string; message: string }> = [];
-
-      const deletedMatches = response.body.matchAll(/<Deleted><Key>(.*?)<\/Key><\/Deleted>/g);
-      for (const match of deletedMatches) {
-        deleted.push(match[1]);
-      }
-
-      const errorMatches = response.body.matchAll(
-        /<Error><Key>(.*?)<\/Key><Code>(.*?)<\/Code><Message>(.*?)<\/Message><\/Error>/g
-      );
-      for (const match of errorMatches) {
-        errors.push({ key: match[1], code: match[2], message: match[3] });
-      }
+      // Parse DeleteResult XML block by block. The API (pub and fin, 2026-10-30) answers an empty
+      // `<DeleteResult/>` even with Quiet=false, so when no <Deleted> entries come back every
+      // requested key without an <Error> entry is reported as deleted (S3 semantics: deleting a
+      // missing key also succeeds).
+      const errors = blocks(response.body, "Error").map((b) => ({
+        key: text(b, "Key") ?? "",
+        code: text(b, "Code") ?? "",
+        message: text(b, "Message") ?? "",
+      }));
+      const listed = blocks(response.body, "Deleted").map((b) => text(b, "Key") ?? "");
+      const failedKeys = new Set(errors.map((e) => e.key));
+      const deleted = listed.length > 0 ? listed : params.objectKeys.filter((k) => !failedKeys.has(k));
 
       const result = {
         message: L({ ko: `✅ ${deleted.length}개 오브젝트가 삭제되었습니다.${errors.length > 0 ? ` ${errors.length}개 실패.` : ""}`, en: `✅ ${deleted.length} object(s) have been deleted.${errors.length > 0 ? ` ${errors.length} failed.` : ""}` }),

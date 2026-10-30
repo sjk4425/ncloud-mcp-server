@@ -50,7 +50,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     "ncloud_get_block_storage_volume_types",
     "Get list of block storage volume types available in the region",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vserver/v2/getBlockStorageVolumeTypeList", params);
@@ -65,7 +65,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
     "Create a new block storage instance. Requires zoneCode + blockStorageVolumeTypeCode + blockStorageSize. For XEN: also provide serverInstanceNo to attach at creation. For KVM: cannot attach at creation — use ncloud_attach_block_storage after. Use dryRun=true to preview.",
     {
       blockStorageSize: z.number().describe("Block storage size in GB (XEN: 10~2000, KVM: 10~16380, in 10GB increments)"),
-      zoneCode: z.string().optional().describe("Zone code (e.g. KR-1, KR-2). Required when serverInstanceNo is not provided."),
+      zoneCode: z.string().optional().describe("Zone code (see ncloud_get_zones). Required when serverInstanceNo is not provided."),
       blockStorageVolumeTypeCode: z.string().describe("Volume type code. Valid values: SSD, HDD, CB1, CB2, FB1, FB2. Use ncloud_get_block_storage_volume_types to check available types."),
       serverInstanceNo: z.string().optional().describe("Server instance number (XEN only — creates and attaches to this server. NOT available for KVM)"),
       blockStorageSnapshotInstanceNo: z.string().optional().describe("Snapshot instance number to create block storage from"),
@@ -256,7 +256,7 @@ export function registerComputeStorageTools(server: McpServer, client: NcloudCli
       blockStorageSnapshotName: z.string().optional().describe("Name for the snapshot (3-30 chars: letters, digits, '-', '_'). Auto-generated when omitted"),
       blockStorageSnapshotDescription: z.string().optional().describe("Description for the snapshot (max 1000 bytes)"),
       snapshotTypeCode: z.enum(["FULL", "INCREMENTAL"]).optional().describe("Snapshot type — XEN (Gen2, HDD/SSD volumes) ONLY: FULL (default) or INCREMENTAL. INCREMENTAL requires an existing full snapshot of the same volume and is capped at 7 per full snapshot. KVM (Gen3, CB1/CB2/FB1/FB2 volumes) has no snapshot type: the API accepts this parameter on a KVM volume but SILENTLY IGNORES it and creates a FULL snapshot (verified against the live API), so do not rely on it there — omit it for KVM volumes."),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to the client region"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to the client region"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {

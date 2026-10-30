@@ -98,7 +98,8 @@ describe("Cloud DB for Cache — create_cache_instance (B-1/B-3)", () => {
     const handler = getToolHandler(server, "ncloud_create_cache_instance");
     const result = await handler({ ...VALID_INSTANCE_INPUT, dryRun: true }, {} as any);
 
-    expect(spy).not.toHaveBeenCalled();
+    // 모드 사전 검증 조회만 허용 — 생성 API 는 호출하지 않는다.
+    expect(spy.mock.calls.every((c) => c[0] === "/vcache/v2/getCloudCacheConfigGroupList")).toBe(true);
     const parsed = JSON.parse(result.content[0].text);
     expect(parsed.endpoint).toBe("/vcache/v2/createCloudCacheInstance");
     expect(parsed.requestParams.configGroupNo).toBe("9964");
@@ -393,13 +394,33 @@ describe("Cloud DB for Cache — 모드↔config group 정합성 사전 검증 (
     spy.mockRestore();
   });
 
-  it("dryRun 은 사전 검증 프로브도 호출하지 않는다", async () => {
-    const spy = vi.spyOn(client, "request");
-    await getToolHandler(server, "ncloud_create_cache_instance")(
-      { ...VALID_INSTANCE_INPUT, dryRun: true },
+  it("dryRun 도 사전 검증을 실행해 모드 불일치를 프리뷰 notes 에 싣는다 (금융존 S-06 L1)", async () => {
+    const spy = vi.spyOn(client, "request").mockImplementation(async (action: string, params?: any) => {
+      if (action === "/vcache/v2/getCloudCacheConfigGroupList") {
+        return params?.cloudCacheModeCode
+          ? { cloudCacheConfigGroupList: [] }
+          : { cloudCacheConfigGroupList: [{ configGroupNo: "9964", cloudCacheVersion: "7.2.11-simple" }] };
+      }
+      return { cloudCacheInstanceList: [] };
+    });
+    const result = await getToolHandler(server, "ncloud_create_cache_instance")(
+      { ...VALID_INSTANCE_INPUT, cloudCacheModeCode: "CLUSTER", dryRun: true },
       {} as any
     );
-    expect(spy).not.toHaveBeenCalled();
+    expect(spy.mock.calls.some((c) => c[0] === "/vcache/v2/createCloudCacheInstance")).toBe(false);
+    expect(JSON.parse(result.content[0].text).note_config_group_mode).toContain("7.2.11-simple");
+    spy.mockRestore();
+  });
+
+  it("dryRun 에서 config group 이 아예 없으면 프리뷰에 알린다 (금융존 재테스트 2026-10-30)", async () => {
+    const spy = vi.spyOn(client, "request").mockImplementation(async (action: string) => {
+      if (action === "/vcache/v2/getCloudCacheConfigGroupList") return { cloudCacheConfigGroupList: [] };
+      return { cloudCacheInstanceList: [] };
+    });
+    const result = await getToolHandler(server, "ncloud_create_cache_instance")({ ...VALID_INSTANCE_INPUT, dryRun: true }, {} as any);
+    const data = JSON.parse(result.content[0].text);
+    expect(data.note_config_group_missing).toContain(VALID_INSTANCE_INPUT.configGroupNo);
+    expect(data.note_config_group_mode).toBeUndefined();
     spy.mockRestore();
   });
 });

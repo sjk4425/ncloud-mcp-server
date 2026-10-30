@@ -62,14 +62,19 @@ export interface MessageBundle {
   httpStatus: Record<number, string>;
   /** JSON 파싱 실패. body는 호출부에서 앞 500자로 자른 응답 본문. */
   parseFailure: (status: number, body: string) => string;
-  /** API 게이트웨이/서비스 레벨 에러(코드+메시지 동반). diag가 있으면 추적 정보를 덧붙인다. */
-  apiFailure: (code: string, message: string, diag?: ApiFailureDiag) => string;
+  /**
+   * API 게이트웨이/서비스 레벨 에러(코드+메시지 동반). diag가 있으면 추적 정보를 덧붙인다.
+   * 본문에 코드 필드가 없으면 code 는 undefined — "에러 코드: undefined" 대신 그 줄을 생략한다(E-08).
+   */
+  apiFailure: (code: string | undefined, message: string, diag?: ApiFailureDiag) => string;
   /** 비어 있는 응답 본문 + 실패 상태. diag는 선택적 진단 헤더 문자열. */
   emptyBody: (status: number, diag?: string) => string;
   /** 알 수 없는 상태코드 — 상태와 응답 본문을 그대로 노출. */
-  unknownStatus: (status: number, body: string) => string;
+  unknownStatus: (status: number, body: string, diag?: ApiFailureDiag) => string;
   /** 타임아웃(초 단위 + 대상 URL). */
   timeout: (seconds: number, url: string) => string;
+  /** 연결 단계 실패(DNS·TCP·TLS) — 대상 URL(쿼리 제거) + 원인 코드(ETIMEDOUT/ENOTFOUND 등). */
+  networkFailure: (url: string, cause: string) => string;
 }
 
 const ko: MessageBundle = {
@@ -82,12 +87,14 @@ const ko: MessageBundle = {
     504: "요청 시간 초과: Ncloud API 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.",
   },
   parseFailure: (status, body) => `API 응답 파싱 실패: HTTP ${status}\n\n응답: ${body}`,
-  apiFailure: (code, message, diag) => `API 호출 실패\n\n에러 코드: ${code}\n메시지: ${message}${diagLines(diag, "ko")}`,
+  apiFailure: (code, message, diag) => `API 호출 실패\n\n${code !== undefined ? `에러 코드: ${code}\n` : ""}메시지: ${message}${diagLines(diag, "ko")}`,
   emptyBody: (status, diag) =>
     `API 호출 실패: HTTP ${status} (빈 응답)${diag ? `\n  진단 헤더: ${diag}` : ""}`,
-  unknownStatus: (status, body) => `API 호출 실패: HTTP ${status}\n\n응답: ${body}`,
+  unknownStatus: (status, body, diag) => `API 호출 실패: HTTP ${status}\n\n응답: ${body}${diagLines(diag, "ko")}`,
   timeout: (seconds, url) =>
     `API 호출 시간 초과(${seconds}s): ${url} — 네트워크 또는 Ncloud 게이트웨이 상태를 확인하세요.`,
+  networkFailure: (url, cause) =>
+    `엔드포인트 연결 실패(${cause}): ${url} — 이 호스트로 나가는 네트워크 경로(DNS·방화벽·인터넷 경로)를 확인하세요. 금융존 VPC 안에서는 Private 엔드포인트가 필요할 수 있습니다.`,
 };
 
 const en: MessageBundle = {
@@ -100,12 +107,14 @@ const en: MessageBundle = {
     504: "Gateway timeout: the Ncloud API took too long to respond. Please try again in a moment.",
   },
   parseFailure: (status, body) => `Failed to parse API response: HTTP ${status}\n\nResponse: ${body}`,
-  apiFailure: (code, message, diag) => `API call failed\n\nError code: ${code}\nMessage: ${message}${diagLines(diag, "en")}`,
+  apiFailure: (code, message, diag) => `API call failed\n\n${code !== undefined ? `Error code: ${code}\n` : ""}Message: ${message}${diagLines(diag, "en")}`,
   emptyBody: (status, diag) =>
     `API call failed: HTTP ${status} (empty response)${diag ? `\n  Diagnostic headers: ${diag}` : ""}`,
-  unknownStatus: (status, body) => `API call failed: HTTP ${status}\n\nResponse: ${body}`,
+  unknownStatus: (status, body, diag) => `API call failed: HTTP ${status}\n\nResponse: ${body}${diagLines(diag, "en")}`,
   timeout: (seconds, url) =>
     `API call timed out (${seconds}s): ${url} — check your network or the Ncloud gateway status.`,
+  networkFailure: (url, cause) =>
+    `Cannot connect to the endpoint (${cause}): ${url} — check the network path to this host (DNS, firewall, internet route). Inside a Financial-zone VPC a private endpoint may be required.`,
 };
 
 const BUNDLES: Record<Lang, MessageBundle> = { ko, en };

@@ -5,6 +5,14 @@ import { defineTool } from "./_tool.js";
 import { requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
+/** getCloudMysqlEventHistoryList 의 날짜 형식 `yyyy-MM-dd HH:mm:ss`. */
+const MYSQL_DATETIME_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+/** epoch ms → KST `yyyy-MM-dd HH:mm:ss`. */
+export function kstDateTime(ms: number): string {
+  return new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
+}
+
 export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
@@ -38,9 +46,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_list_mysql_databases",
-    "List databases in a Cloud DB for MySQL instance",
+    "List databases in a Cloud DB for MySQL instance (paged; pageNo starts at 0)",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
+      // 가이드 database-vmysql-getcloudmysqldatabaselist: pageNo·pageSize 는 Required(세 존 동일) — 없으면 900.
+      pageNo: z.number().int().min(0).optional().default(0).describe("Page number, 0-based (default 0)"),
+      pageSize: z.number().int().min(1).optional().default(20).describe("Page size (default 20)"),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlDatabaseList", params);
@@ -50,9 +61,12 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_list_mysql_users",
-    "List users in a Cloud DB for MySQL instance",
+    "List users in a Cloud DB for MySQL instance (paged; pageNo starts at 0)",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
+      // 가이드 database-vmysql-getcloudmysqluserlist: pageNo·pageSize 는 Required(세 존 동일).
+      pageNo: z.number().int().min(0).optional().default(0).describe("Page number, 0-based (default 0)"),
+      pageSize: z.number().int().min(1).optional().default(20).describe("Page size (default 20)"),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlUserList", params);
@@ -76,7 +90,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     "ncloud_get_mysql_image_products",
     "List available Cloud DB for MySQL image product codes (engine versions)",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlImageProductList", params);
@@ -89,7 +103,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     "List available Cloud DB for MySQL server spec product codes for a given image product code",
     {
       cloudMysqlImageProductCode: z.string().describe("MySQL image product code (from ncloud_get_mysql_image_products)"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlProductList", params);
@@ -101,7 +115,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     "ncloud_get_mysql_target_vpcs",
     "List VPCs available for Cloud DB for MySQL instance creation",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlTargetVpcList", params);
@@ -111,10 +125,14 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_get_mysql_target_subnets",
-    "List subnets available for Cloud DB for MySQL instance creation within a specific MySQL instance",
+    "List subnets in a VPC that can host a new Cloud DB for MySQL instance of the given image (use before ncloud_create_mysql_instance)",
     {
-      cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      // 가이드 database-vmysql-getcloudmysqltargetsubnetlist: vpcNo·cloudMysqlImageProductCode Required(세 존 동일).
+      //   이전 스키마는 cloudMysqlInstanceNo 를 받아 항상 900 이었다(금융존 테스트 E-10).
+      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number (see ncloud_get_mysql_target_vpcs)"),
+      cloudMysqlImageProductCode: z.string({ required_error: requiredError("cloudMysqlImageProductCode") }).describe("MySQL image product code (see ncloud_get_mysql_image_products)"),
+      isPublic: z.boolean().optional().describe("true = public subnets only, false = private subnets only"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlTargetSubnetList", params);
@@ -127,7 +145,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     "List detailed backup information (including file names) for a Cloud DB for MySQL instance",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlBackupDetailList", params);
@@ -140,7 +158,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     "Get the available recovery time range (recoveryStartTime ~ recoveryEndTime) for a Cloud DB for MySQL instance",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmysql/v2/getCloudMysqlRecoveryTime", params);
@@ -150,23 +168,38 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_list_mysql_events",
-    "List event history for a Cloud DB for MySQL instance",
+    "List event history for a Cloud DB for MySQL instance. startDate/endDate use 'yyyy-MM-dd HH:mm:ss' (KST); when omitted the last 7 days are queried.",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      // 가이드 database-vmysql-getcloudmysqleventhistorylist: startDate·endDate Required, 형식 yyyy-MM-dd HH:mm:ss
+      //   (금융존 실측: yyyy-MM-dd·ISO 형식은 5000006). 생략 시 최근 7일로 채운다.
+      startDate: z.string().regex(MYSQL_DATETIME_RE, { message: "startDate must be 'yyyy-MM-dd HH:mm:ss'" }).optional().describe("Start, 'yyyy-MM-dd HH:mm:ss' (default: 7 days before endDate)"),
+      endDate: z.string().regex(MYSQL_DATETIME_RE, { message: "endDate must be 'yyyy-MM-dd HH:mm:ss'" }).optional().describe("End, 'yyyy-MM-dd HH:mm:ss' (default: now, KST)"),
+      cloudMysqlServerName: z.string().optional().describe("Filter by MySQL server name"),
+      pageNo: z.number().int().min(0).optional().describe("Page number, 0-based (API default 0)"),
+      pageSize: z.number().int().min(1).optional().describe("Page size (API default 20)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
-      return client.request("/vmysql/v2/getCloudMysqlEventHistoryList", params);
+      const now = Date.now();
+      const apiParams = {
+        ...params,
+        endDate: params.endDate ?? kstDateTime(now),
+        startDate: params.startDate ?? kstDateTime(now - 7 * 24 * 60 * 60 * 1000),
+      };
+      return client.request("/vmysql/v2/getCloudMysqlEventHistoryList", apiParams);
     }
   );
 
   defineTool(
     server,
     "ncloud_list_mysql_logs",
-    "List DB server log files for a Cloud DB for MySQL server instance",
+    "List DB server log files of one log type for a Cloud DB for MySQL server instance (use the file names with ncloud_export_mysql_log)",
     {
-      cloudMysqlServerInstanceNo: z.string().describe("Cloud MySQL server instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      cloudMysqlServerInstanceNo: z.string().describe("Cloud MySQL server instance number (not the instance number)"),
+      // 가이드 database-vmysql-getdbserverloglist: logType Required(세 존 동일).
+      logType: z.enum(["BINARY", "ERROR", "SLOW", "GENERAL", "AUDIT"]).describe("Log type: BINARY (binlog), ERROR (error log), SLOW (slow query log), GENERAL (general log), AUDIT (audit log)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmysql/v2/getDbServerLogList", params);
@@ -206,7 +239,7 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
         required_error: requiredError("subnetNo"),
       }).describe("Subnet number for primary NIC (getCloudMysqlTargetSubnetList)"),
       // ── Optional parameters ──
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to first region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to first region."),
       cloudMysqlImageProductCode: z.string().optional().describe("MySQL image product code (getCloudMysqlImageProductList)"),
       cloudMysqlProductCode: z.string().optional().describe("MySQL server product (spec) code (getCloudMysqlProductList). Defaults to minimum spec."),
       dataStorageTypeCode: z.enum(["SSD", "HDD", "CB2"]).optional().describe("Data storage type. G2 default: SSD, G3 default: CB2. Cannot change after creation."),
@@ -340,7 +373,11 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
       regionCode: z.string().optional().describe("Region code (default: first region)"),
     },
     async (params) => {
-      return client.request("/vmysql/v2/changeCloudMysqlServerSpec", params);
+      // 이 API 만 래퍼 키가 "Response" 접미 없이 `changeCloudMysqlServerSpec` 이라 클라이언트가 벗기지 못한다
+      //   (금융존 테스트 — 다른 도구와 응답 형식을 맞춘다).
+      const result = await client.request("/vmysql/v2/changeCloudMysqlServerSpec", params);
+      const keys = result && typeof result === "object" ? Object.keys(result) : [];
+      return keys.length === 1 && keys[0] === "changeCloudMysqlServerSpec" ? result[keys[0]] : result;
     }
   );
 
@@ -473,15 +510,26 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     "⚠️ Destructive: Delete users from a Cloud DB for MySQL instance. Set confirm=true to execute.",
     {
       cloudMysqlInstanceNo: z.string().describe("Cloud MySQL instance number"),
-      cloudMysqlUserNameList: z.array(z.string()).min(1).describe("List of user names to delete"),
+      // 가이드 database-vmysql-deletecloudmysqluserlist: cloudMysqlUserList.N.name·hostIp 둘 다 Required(세 존 동일) —
+      //   사용자는 name@hostIp 로 특정된다. 이전 스키마(cloudMysqlUserNameList)는 항상 900 이었다(금융존 테스트 E-11).
+      //   '%' 는 URLSearchParams 가 %25 로 인코딩한다.
+      cloudMysqlUserList: z.array(z.object({
+        name: z.string().describe("DB user name"),
+        hostIp: z.string().describe("Host IP of the user exactly as registered (e.g. '%', '10.0.0.%'; see ncloud_list_mysql_users)"),
+      })).min(1).describe("Users to delete, each identified by name + hostIp"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const { confirm, ...apiParams } = params;
-      const result = await client.request("/vmysql/v2/deleteCloudMysqlUserList", apiParams);
+      const { confirm, cloudMysqlInstanceNo, cloudMysqlUserList } = params;
+      const requestParams: any = { cloudMysqlInstanceNo };
+      cloudMysqlUserList.forEach((user, i) => {
+        requestParams[`cloudMysqlUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudMysqlUserList.${i + 1}.hostIp`] = user.hostIp;
+      });
+      const result = await client.request("/vmysql/v2/deleteCloudMysqlUserList", requestParams);
       return result;
     },
-    { destructive: { message: (params) => `⚠️ This will permanently delete users [${params.cloudMysqlUserNameList.join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
+    { destructive: { message: (params) => `⚠️ This will permanently delete users [${params.cloudMysqlUserList.map((u: { name: string; hostIp: string }) => `${u.name}@${u.hostIp}`).join(", ")}] from MySQL instance [${params.cloudMysqlInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Export Tools ──────────────────────────────────────────────────────────

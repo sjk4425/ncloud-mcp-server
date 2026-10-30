@@ -44,17 +44,26 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
   defineTool(
     server,
     "ncloud_dns_create_domain",
-    "Create a new Global DNS domain",
+    "Create a new Global DNS domain. The result includes the new domain ID (looked up by name after creation).",
     {
       name: z.string({ required_error: requiredError("name") }).describe("Domain name (e.g., example.com)"),
-      comment: z.string().optional().describe("Optional comment for the domain"),
+      // 가이드 DomainCreateRequest 의 설명 필드는 `comments`(세 존 동일). 예전 `comment` 는 저장되지 않았다(금융존 테스트).
+      comments: z.string().optional().describe("Optional description for the domain"),
     },
     async (params) => {
       const body: Record<string, unknown> = { name: params.name };
-      if (params.comment !== undefined) {
-        body.comment = params.comment;
+      if (params.comments !== undefined) {
+        body.comments = params.comments;
       }
       const result = await client.requestRaw("POST", "/dns/v1/ncpdns/domain", undefined, body);
+      // 응답이 { success: true } 뿐이라 이름으로 다시 조회해 ID 를 붙인다. 조회 실패는 생성 결과를 막지 않는다.
+      try {
+        const page = await client.requestRaw("GET", "/dns/v1/ncpdns/domain", { page: "0", size: "20", domainName: params.name });
+        const found = (page?.content ?? []).find((d: any) => d?.name === params.name);
+        if (found?.id !== undefined) return { ...(result ?? {}), domainId: found.id, name: params.name };
+      } catch {
+        // 무시
+      }
       return result;
     }
   );
@@ -62,7 +71,8 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
   defineTool(
     server,
     "ncloud_dns_delete_domain",
-    "⚠️ Destructive: Permanently delete a Global DNS domain. All records under this domain will be removed. Set confirm=true to execute.",
+    "⚠️ Destructive: Permanently delete a Global DNS domain. A domain that still has records other than SOA/NS is rejected (X00006): " +
+      "delete the records with ncloud_dns_delete_records, publish with ncloud_dns_apply_domain, then delete the domain. Set confirm=true to execute.",
     {
       domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
@@ -82,7 +92,8 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
       domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to apply"),
     },
     async (params) => {
-      return client.requestRaw("PUT", `/dns/v1/ncpdns/domain/${params.domainId}/apply`);
+      // 경로는 /record/apply/{domainId} — 예전 /domain/{id}/apply 는 게이트웨이 404(금융존 테스트 E-19, 직접 호출로 확인).
+      return client.requestRaw("PUT", `/dns/v1/ncpdns/record/apply/${params.domainId}`);
     }
   );
 
@@ -95,7 +106,8 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const result = await client.requestRaw("PUT", `/dns/v1/ncpdns/domain/${params.domainId}/rollback`);
+      // 가이드 networking-globaldns-record-rollback: PUT /record/rollback/{domainId}(세 존 동일). 예전 /domain/{id}/rollback 은 404.
+      const result = await client.requestRaw("PUT", `/dns/v1/ncpdns/record/rollback/${params.domainId}`);
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will rollback Global DNS Domain [${params.domainId}] to the previously applied state. All pending changes will be discarded.\n\nTo execute, call this tool again with confirm=true.` } }
@@ -178,14 +190,16 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
   defineTool(
     server,
     "ncloud_dns_delete_records",
-    "⚠️ Destructive: Delete DNS records from a Global DNS domain. This permanently removes the specified records. Set confirm=true to execute.",
+    "⚠️ Destructive: Delete DNS records from a Global DNS domain. This permanently removes the specified records. " +
+      "Run ncloud_dns_apply_domain afterwards to publish the deletion. Set confirm=true to execute.",
     {
       domainId: z.number({ required_error: requiredError("domainId") }).describe("Domain ID to delete records from"),
       recordIds: z.array(z.number(), { required_error: requiredError("recordIds") }).describe("Array of record IDs to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, { recordIds: params.recordIds });
+      // 본문은 레코드 ID 배열 그 자체다 — { recordIds } 로 감싸면 400 X00008(금융존 테스트 E-18, 직접 호출로 확인).
+      const result = await client.requestRaw("DELETE", `/dns/v1/ncpdns/record/${params.domainId}`, undefined, params.recordIds);
       return result;
     },
     { destructive: { message: (params) => `⚠️ This will permanently delete ${params.recordIds.length} DNS record(s) from Domain [${params.domainId}].\n\nTo execute, call this tool again with confirm=true.` } }
@@ -194,10 +208,20 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
   defineTool(
     server,
     "ncloud_dns_list_lb_records",
-    "List available Load Balancer records for Global DNS integration",
-    {},
-    async () => {
-      return client.requestRaw("GET", "/dns/v1/ncpdns/record/lb");
+    "List load balancers that can be linked to a Global DNS record (returns sid and name)",
+    {
+      // 가이드 networking-globaldns-record-getlbrecordlist: GET /lb-record/{platformType}/{recordType}.
+      //   예전 /record/lb 는 존재하지 않는 경로라 500 X00001 이었다(금융존 테스트). 금융존 가이드는 VPC/A 만 싣는다.
+      platformType: z.enum(["VPC", "CLASSIC"]).default("VPC").describe("Platform type: VPC (default) | CLASSIC (CLASSIC is not available in every zone)"),
+      recordType: z.enum(["A", "AAAA", "CNAME", "MX", "PTR", "SPF", "TXT", "NS", "SRV", "CAA", "DS"]).default("A").describe("Record type (default A)"),
+      searchContent: z.string().optional().describe("Filter by load balancer name"),
+      lbRegionCode: z.string().optional().describe("Load balancer region (public zone only: KR | SGN, default KR)"),
+    },
+    async (params) => {
+      const query: Record<string, string> = {};
+      if (params.searchContent !== undefined) query.searchContent = params.searchContent;
+      if (params.lbRegionCode !== undefined) query.lbRegionCode = params.lbRegionCode;
+      return client.requestRaw("GET", `/dns/v1/ncpdns/lb-record/${params.platformType}/${params.recordType}`, Object.keys(query).length ? query : undefined);
     }
   );
 
@@ -208,7 +232,8 @@ export function registerGlobalDnsTools(server: McpServer, client: NcloudClient):
     "ncloud_dns_get_query_count",
     "Get DNS query count monitoring data for Global DNS domains",
     {
-      baseTimeUnit: z.enum(["MINUTE_1", "MINUTE_5", "MINUTE_30", "HOUR_3", "DAY_1"], { required_error: requiredError("baseTimeUnit") }).describe("Time unit for aggregation"),
+      // v1 가이드에는 기간 파라미터가 없다(세 존 동일) — 단위가 클수록 많은 포인트가 온다(DAY_1 ≈ 2년치).
+      baseTimeUnit: z.enum(["MINUTE_1", "MINUTE_5", "MINUTE_30", "HOUR_3", "DAY_1"], { required_error: requiredError("baseTimeUnit") }).describe("Time unit for aggregation. There is no time-range filter; DAY_1 returns about two years of points"),
       domainId: z.number().optional().describe("Filter by specific domain ID"),
     },
     async (params) => {

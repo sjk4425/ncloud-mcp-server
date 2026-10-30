@@ -38,10 +38,37 @@ export function stripHtml(text: string): string {
   return out.trim();
 }
 
-/** 일시적 오류로 보이면 true — 상태코드(429/5xx) 또는 "잠시 후 다시 시도" 류 문구. */
-function looksRetryable(status: number, message: string): boolean {
-  if (status === 429 || (status >= 500 && status < 600)) return true;
-  return /try again|temporarily unavailable|잠시 후|일시적/i.test(message);
+/**
+ * 리소스 상태 전이 중(SET/작업 중)이라 400 으로 거절되지만 잠시 뒤 같은 요청이 성공하는 에러 코드
+ * (금융존 테스트 E-06, 세 건 모두 10~20초 뒤 동일 요청 재시도로 성공).
+ *   1009022 Network ACL is not in operational state · 1100031 The server cannot be controlled by the NCLOUD API
+ *   1018005 You must delete all Route information … — 경로 삭제 직후 라우트 테이블이 SET 인 동안에도 나온다
+ *     (경로가 실제로 남아 있으면 재시도해도 같은 에러 — 상태 확인 후 재시도).
+ *   1000034 … or the VPC status is not operational — VPC 생성 직후(INIT) 조회에서 나고 곧바로 재시도해 성공
+ *     (권한 부족과 같은 코드라 재시도해도 계속 나면 권한 문제).
+ *   5001130 Config Group in use exists — 연결된 Cache 인스턴스 삭제가 진행 중일 때, 삭제 완료 후 재시도로 성공.
+ */
+const TRANSIENT_STATE_CODES = new Set(["1009022", "1100031", "1018005", "1000034", "5001130"]);
+
+/**
+ * analytics 봉투(`{ code, message, result }`)의 업무 검증 코드 하한. CDSS·SES 는 업무 거절도 HTTP 500 으로 주는데
+ * (CDSS 10150 동일 스펙·10160 최신 버전, 금융존 테스트) 재시도해도 결과가 같다. 이 대역은 5xx 여도 재시도 가능으로
+ * 보지 않는다. 작은 코드(SES INIT 중 500 code 1 등 범용 내부 오류)는 기존대로 상태코드로 판정한다.
+ */
+const ANALYTICS_BUSINESS_CODE_MIN = 10000;
+
+/**
+ * 5xx 로 와도 재시도로 바뀌지 않는 입력 오류 문구. PostgreSQL 은 없는 상품 코드(5001234 "The product code could not be
+ * found")를 HTTP 500 으로 돌려준다(민간존 2026-10-30, MySQL 은 같은 코드를 400 으로 준다).
+ */
+const PERMANENT_MESSAGE = /could not be found|does not exist|is not valid|is invalid|already exists?/i;
+
+/** 일시적 오류로 보이면 true — 상태코드(429/5xx), 상태 전이 에러 코드, 또는 "잠시 후 다시 시도"·상태 전이 류 문구. */
+function looksRetryable(status: number, message: string, code?: string, businessError = false): boolean {
+  if (status === 429) return true;
+  if (code !== undefined && TRANSIENT_STATE_CODES.has(code)) return true;
+  if (status >= 500 && status < 600 && !businessError && !PERMANENT_MESSAGE.test(message)) return true;
+  return /try again|temporarily unavailable|잠시 후|일시적|not in operational state|status is not operational|cannot be controlled|being (added|deleted|operated|created|changed)/i.test(message);
 }
 
 export interface NcloudClientConfig {
@@ -181,11 +208,11 @@ export class NcloudClient {
    * 실패 메시지용 진단 정보를 모은다 (F-02). 성공 응답에만 있던 추적 정보(requestId)를
    * 실패 경로에도 싣는다 — 문의·사후 분석에 필요한 것은 실패했을 때의 ID다.
    */
-  private buildDiag(status: number, message: string, ctx: RequestContext | undefined, details?: string): ApiFailureDiag {
+  private buildDiag(status: number, message: string, ctx: RequestContext | undefined, details?: string, code?: string, businessError = false): ApiFailureDiag {
     const h = ctx?.headers;
     const diag: ApiFailureDiag = {
       status,
-      retryable: looksRetryable(status, message),
+      retryable: looksRetryable(status, message, code, businessError),
       timestamp: new Date().toISOString(),
     };
     if (ctx?.request) diag.request = ctx.request;
@@ -431,10 +458,12 @@ export class NcloudClient {
   private handleErrorResponse(status: number, body: any, ctx?: RequestContext): never {
     const msg = messages();
     // 모든 분기 공통: HTML 제거(F-04) + 진단 정보 부착(F-02).
-    const raise = (code: unknown, rawMessage: unknown, details?: unknown): never => {
+    const raise = (code: unknown, rawMessage: unknown, details?: unknown, businessError = false): never => {
       const message = stripHtml(String(rawMessage ?? ""));
-      const diag = this.buildDiag(status, message, ctx, typeof details === "string" ? details : undefined);
-      throw new Error(msg.apiFailure(String(code), message, diag));
+      // 코드 필드가 없는 본문(예: Outbound Mailer 403 { error: { message } })은 "undefined" 대신 줄 생략(E-08).
+      const codeText = code === undefined || code === null || code === "" ? undefined : String(code);
+      const diag = this.buildDiag(status, message, ctx, typeof details === "string" ? details : undefined, codeText, businessError);
+      throw new Error(msg.apiFailure(codeText, message, diag));
     };
 
     // Format 1: API Gateway error — { error: { errorCode, message, details? } }
@@ -454,7 +483,7 @@ export class NcloudClient {
     // Format 4보다 먼저 둔다: 아래 분기는 코드가 없으면 HTTP status를 쓰는데, 이 계열은
     // HTTP 200으로 오는 거부가 있어 "에러 코드: 200"이라는 오해를 부른다.
     if (this.isAnalyticsEnvelopeError(body)) {
-      return raise(String(body.code), body.message);
+      return raise(String(body.code), body.message, undefined, body.code >= ANALYTICS_BUSINESS_CODE_MIN);
     }
 
     // Format 4: REST/Spring식 플랫 에러 — { message, (statusCode|status|error) }
@@ -472,6 +501,8 @@ export class NcloudClient {
       throw new Error(knownMessage);
     }
 
-    throw new Error(msg.unknownStatus(status, JSON.stringify(body)));
+    // 문서에 형식이 없는 본문(예: Container Registry 백엔드 오류)에도 trace ID·재시도 여부를 붙인다(금융존 테스트).
+    const raw = JSON.stringify(body);
+    throw new Error(msg.unknownStatus(status, raw, this.buildDiag(status, raw, ctx)));
   }
 }

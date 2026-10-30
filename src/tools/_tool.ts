@@ -130,6 +130,9 @@ const MCP_CONTENT_TYPES = new Set(["text", "image", "audio", "resource", "resour
  */
 function isToolResult(v: any): boolean {
   if (v === null || typeof v !== "object" || !Array.isArray(v.content)) return false;
+  // 빈 배열은 every() 가 항상 true — 0건 Spring Page(`{ content: [], totalElements: 0 }`)가 MCP 결과로
+  // 오인돼 클라이언트에 아무것도 표시되지 않았다(금융존 테스트 E-03). 핸들러가 만드는 완성 응답은 블록이 최소 1개다.
+  if (v.content.length === 0) return false;
   return v.content.every(
     (c: any) =>
       c &&

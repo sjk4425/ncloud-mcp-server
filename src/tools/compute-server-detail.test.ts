@@ -19,7 +19,6 @@ function getToolHandler(server: McpServer, toolName: string): any {
 
 const DETAIL = { totalRows: 1, serverInstanceList: [{ serverInstanceNo: "145353154", serverName: "ksj-source-repo", serverProductCode: "SVR.VSVR.HICPU.C004.M008.G003" }] };
 const BS = { blockStorageInstanceList: [{ blockStorageInstanceNo: "1", blockStorageName: "boot", blockStorageSize: 53687091200, blockStorageType: { code: "SVRBS" }, blockStorageVolumeType: { code: "CB1" }, blockStorageInstanceStatusName: "attached", deviceName: "/dev/xvda", blockStorageProductCode: "SPBSTBSTBS000005" }] };
-const TAGS = { instanceTagList: [{ instanceNo: "145353154", tagKey: "env", tagValue: "dev" }] };
 
 describe("ncloud_get_server_detail — 연결 리소스 요약 (F-05)", () => {
   let server: McpServer;
@@ -31,11 +30,10 @@ describe("ncloud_get_server_detail — 연결 리소스 요약 (F-05)", () => {
     registerComputeServerTools(server, client);
   });
 
-  it("기본: 서버 본체 + 블록스토리지 요약(GB 환산·상품코드) + 태그를 함께 돌려준다", async () => {
+  it("기본: 서버 본체 + 블록스토리지 요약(GB 환산·상품코드)을 돌려주고 태그는 조회하지 않는다", async () => {
     const spy = vi.spyOn(client, "request").mockImplementation(async (path: string) => {
       if (path.endsWith("getServerInstanceDetail")) return DETAIL;
       if (path.endsWith("getBlockStorageInstanceList")) return BS;
-      if (path.endsWith("getInstanceTagList")) return TAGS;
       throw new Error("unexpected " + path);
     });
     const res = await getToolHandler(server, "ncloud_get_server_detail")({ serverInstanceNo: "145353154" }, {} as any);
@@ -45,26 +43,26 @@ describe("ncloud_get_server_detail — 연결 리소스 요약 (F-05)", () => {
       blockStorageInstanceNo: "1", blockStorageName: "boot", sizeGB: 50, type: "SVRBS", volumeType: "CB1",
       status: "attached", deviceName: "/dev/xvda", blockStorageProductCode: "SPBSTBSTBS000005",
     }]);
-    expect(out.tags).toEqual([{ key: "env", value: "dev" }]);
+    expect(out.tags).toBeUndefined();
+    expect(out.relatedErrors).toBeUndefined();
     expect(out.pricingHint).toContain("ncloud_get_product_price_list");
     expect(spy).toHaveBeenCalledWith("/vserver/v2/getBlockStorageInstanceList", { serverInstanceNo: "145353154" });
-    expect(spy).toHaveBeenCalledWith("/vserver/v2/getInstanceTagList", { instanceNoList: ["145353154"] });
+    // VPC Server API 에는 태그 조회가 없다(세 존 가이드, 민간·금융존 실호출 404).
+    expect(spy.mock.calls.map((c) => c[0])).not.toContain("/vserver/v2/getInstanceTagList");
     spy.mockRestore();
   });
 
   it("관련 조회가 실패해도 본체 상세는 돌려주고 relatedErrors 로 알린다", async () => {
     vi.spyOn(client, "request").mockImplementation(async (path: string) => {
       if (path.endsWith("getServerInstanceDetail")) return DETAIL;
-      if (path.endsWith("getBlockStorageInstanceList")) return BS;
-      throw new Error("tag api down");
+      throw new Error("storage api down");
     });
     const res = await getToolHandler(server, "ncloud_get_server_detail")({ serverInstanceNo: "145353154" }, {} as any);
     const out = JSON.parse(res.content[0].text);
     expect(res.isError).toBeUndefined();
     expect(out.serverInstance.serverName).toBe("ksj-source-repo");
-    expect(out.blockStorages).toHaveLength(1);
-    expect(out.tags).toBeUndefined();
-    expect(out.relatedErrors.tags).toContain("tag api down");
+    expect(out.blockStorages).toBeUndefined();
+    expect(out.relatedErrors.blockStorages).toContain("storage api down");
   });
 
   it("includeRelated=false 면 추가 호출 없이 원래 페이로드를 그대로 돌려준다", async () => {

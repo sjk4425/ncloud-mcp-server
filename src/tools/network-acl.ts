@@ -91,7 +91,8 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       if (ipBlock) requestParams["networkAclRuleList.1.ipBlock"] = ipBlock;
       if (denyAllowGroupNo) requestParams["networkAclRuleList.1.denyAllowGroupNo"] = denyAllowGroupNo;
       if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
-      if (ruleDescription) requestParams["networkAclRuleList.1.ruleDescription"] = ruleDescription;
+      // 가이드 networking-vpc-networkacl-add*rule: 필드명은 networkAclRuleDescription(ruleDescription 은 API 가 조용히 무시).
+      if (ruleDescription) requestParams["networkAclRuleList.1.networkAclRuleDescription"] = ruleDescription;
       const result = await client.request("/vpc/v2/addNetworkAclInboundRule", requestParams);
       return result;
     }
@@ -122,7 +123,8 @@ export function registerNetworkAclTools(server: McpServer, client: NcloudClient)
       if (ipBlock) requestParams["networkAclRuleList.1.ipBlock"] = ipBlock;
       if (denyAllowGroupNo) requestParams["networkAclRuleList.1.denyAllowGroupNo"] = denyAllowGroupNo;
       if (portRange) requestParams["networkAclRuleList.1.portRange"] = portRange;
-      if (ruleDescription) requestParams["networkAclRuleList.1.ruleDescription"] = ruleDescription;
+      // 가이드 networking-vpc-networkacl-add*rule: 필드명은 networkAclRuleDescription(ruleDescription 은 API 가 조용히 무시).
+      if (ruleDescription) requestParams["networkAclRuleList.1.networkAclRuleDescription"] = ruleDescription;
       const result = await client.request("/vpc/v2/addNetworkAclOutboundRule", requestParams);
       return result;
     }

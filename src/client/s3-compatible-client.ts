@@ -23,6 +23,17 @@ export interface S3CompatibleClientConfig {
   addressing?: S3Addressing;
   /** 존(민간 `public` 기본 / 공공 `gov`). 호스트·서명 리전 표를 고른다 — `client/endpoints.ts`. */
   zone?: Zone;
+  /**
+   * 서비스 루트 호스트 오버라이드(서명 리전은 표 그대로). 금융존 Private/공개 엔드포인트 전환용 —
+   * env `NCLOUD_OBJECT_STORAGE_ENDPOINT`. `https://` 접두·끝 `/` 는 떼고 호스트만 쓴다.
+   */
+  endpointHost?: string;
+}
+
+/** `https://host/` → `host`. 빈 값이면 undefined. */
+export function normalizeEndpointHost(value: string | undefined): string | undefined {
+  const host = value?.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  return host ? host : undefined;
 }
 
 interface S3RequestOptions {
@@ -114,8 +125,10 @@ export class S3CompatibleClient {
   private readonly storageType: S3StorageType;
   private readonly addressing: S3Addressing;
   private readonly zone: Zone;
+  private readonly endpointHost?: string;
 
   constructor(config: S3CompatibleClientConfig) {
+    this.endpointHost = normalizeEndpointHost(config.endpointHost);
     this.accessKey = config.accessKey;
     this.secretKey = config.secretKey;
     this.regionCode = config.regionCode;
@@ -174,7 +187,7 @@ export class S3CompatibleClient {
 
   /** 버킷을 뺀 서비스 루트 호스트. */
   private getBaseHost(): string {
-    return this.getRegionEndpoint().host;
+    return this.endpointHost ?? this.getRegionEndpoint().host;
   }
 
   /** 요청 Host 헤더 값. virtual-hosted 방식이면 버킷이 서브도메인으로 들어간다. */
@@ -361,7 +374,9 @@ export class S3CompatibleClient {
     // 오브젝트 부재(NoSuchKey) 또는 현재 버전이 delete marker 인 경우이며, 버킷은 존재한다
     // (2026-09-17 라이브 검증에서 delete marker 키의 head_object 가 "버킷 없음" 으로 오안내된 건).
     if (code === "NoSuchBucket" || (status === 404 && !codeMatch && bucket && !key)) {
-      const objectHost = (OBJECT_STORAGE_ENDPOINTS[this.zone][this.regionCode] ?? OBJECT_STORAGE_ENDPOINTS[this.zone]["KR"])?.host ?? "(n/a)";
+      const objectHost = this.storageType === "object"
+        ? this.getBaseHost()
+        : (OBJECT_STORAGE_ENDPOINTS[this.zone][this.regionCode] ?? OBJECT_STORAGE_ENDPOINTS[this.zone]["KR"])?.host ?? "(n/a)";
       const ncloudHost = NCLOUD_STORAGE_ENDPOINTS[this.zone]["KR"]?.host ?? "(n/a)";
       const other = this.storageType === "ncloud"
         ? `Object Storage(레거시, ${objectHost}) — \`ncloud_ncs_\` 접두 없는 \`ncloud_list_buckets\` 등`

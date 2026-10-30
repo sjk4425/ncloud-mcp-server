@@ -9,7 +9,8 @@
  * - 공개 표면(도구 이름·schemaKeys)은 건드리지 않는다 — 런타임 응답 텍스트만 관여.
  */
 
-import { L } from "./_messages.js";
+import { z } from "zod";
+import { L, requiredError } from "./_messages.js";
 import { ZONE_PROFILES, type Zone, type RegionInfo } from "../client/endpoints.js";
 
 // ─── 리전 ──────────────────────────────────────────────────────────────────
@@ -71,4 +72,34 @@ export const RESOURCE_DETAIL_MAP: Record<string, { apiPath: string; paramKey: st
 /** "지원하지 않는 리소스 타입" 검증 메시지(ko/en). */
 export function unsupportedResourceTypeMessage(resourceType: string): string {
   return L({ ko: `지원하지 않는 리소스 타입: ${resourceType}`, en: `Unsupported resource type: ${resourceType}` });
+}
+
+// ─── analytics 계열(SES·CDSS) 생성 입력 규칙 ────────────────────────────────────
+//
+// 세 존 가이드 공통(createSearchEngineCluster / createCDSSCluster, 2026-10-29 대조). G2 생성 도구에 검사가 없어
+// dryRun 이 잘못된 값을 그대로 통과시켰다(금융존 테스트). 스키마에 넣어 dryRun 에서도 걸러지게 한다.
+
+/** 이름·관리자 ID: 3~15자, 영소문자로 시작, 영소문자·숫자·'-', 영소문자·숫자로 끝, '-' 연속 금지. */
+const ANALYTICS_NAME = /^[a-z](?!.*--)[a-z0-9-]{1,13}[a-z0-9]$/;
+
+export function analyticsName(field: string) {
+  return z.string({ required_error: requiredError(field) }).regex(ANALYTICS_NAME, {
+    message: `${field}: 3-15 chars of lowercase letters, numbers and '-' — start with a letter, end with a letter or number, no consecutive '-'`,
+  });
+}
+
+/** 비밀번호: 8~20자, 금지 문자 ' " ` ₩ / & 와 공백. (영문·숫자·특수문자 조합 여부는 서버가 검사) */
+export function analyticsPassword(field: string) {
+  return z
+    .string({ required_error: requiredError(field) })
+    .min(8, { message: `${field}: 8-20 chars` })
+    .max(20, { message: `${field}: 8-20 chars` })
+    .regex(/^[^'"`₩/&\s]+$/, { message: `${field}: must not contain ' " \` ₩ / & or spaces` });
+}
+
+/** 스토리지 크기: 100~2000GB, 10GB 단위. */
+export function storageSize100to2000(field: string) {
+  return z.number({ required_error: requiredError(field) }).int().refine((n) => n >= 100 && n <= 2000 && n % 10 === 0, {
+    message: `${field}: 100-2000 GB in 10 GB steps`,
+  });
 }

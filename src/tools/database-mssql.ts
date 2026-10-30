@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { L, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClient): void {
@@ -63,10 +63,14 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_list_mssql_log_backup_files",
-    "List log backup files for a Cloud DB for MSSQL instance",
+    "List transaction log backup files of one database in one backup set for a Cloud DB for MSSQL instance",
     {
       cloudMssqlInstanceNo: z.string().describe("Cloud MSSQL instance number"),
-      cloudMssqlServerInstanceNo: z.string().describe("Cloud MSSQL server instance number"),
+      // 가이드에는 없지만 기존 호출과의 호환을 위해 선택값으로 남긴다(보내도 200 확인, 금융존 테스트).
+      cloudMssqlServerInstanceNo: z.string().optional().describe("Cloud MSSQL server instance number (optional)"),
+      // databaseName·backupSetId 는 API 필수(금융존 테스트 E-14, 가이드 동일).
+      databaseName: z.string().describe("Database name (from ncloud_list_mssql_backup_details)"),
+      backupSetId: z.string().describe("Backup set ID (backupSetId in ncloud_list_mssql_backup_details)"),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlLogBackupFileList", params);
@@ -76,9 +80,12 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_list_mssql_log_files",
-    "List log files for a Cloud DB for MSSQL server instance",
+    "List log files of one type for a Cloud DB for MSSQL server instance",
     {
+      // 가이드 database-vmssql-getcloudmssqllogfilelist: cloudMssqlInstanceNo·cloudMssqlServerInstanceNo·fileType Required(세 존 동일).
+      cloudMssqlInstanceNo: z.string().describe("Cloud MSSQL instance number"),
       cloudMssqlServerInstanceNo: z.string().describe("Cloud MSSQL server instance number"),
+      fileType: z.enum(["errorLog", "agentLog", "traceLog", "auditLog", "xeBaselineLog"]).describe("Log file type"),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlLogFileList", params);
@@ -90,7 +97,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     "ncloud_get_mssql_image_products",
     "List available Cloud DB for MSSQL image product codes (engine versions)",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlImageProductList", params);
@@ -114,7 +121,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     "ncloud_get_mssql_target_vpcs",
     "List VPCs available for Cloud DB for MSSQL",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlTargetVpcList", params);
@@ -124,10 +131,13 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_get_mssql_target_subnets",
-    "List subnets available for Cloud DB for MSSQL within a specific instance",
+    "List subnets in a VPC that can host a new Cloud DB for MSSQL instance of the given image",
     {
-      cloudMssqlInstanceNo: z.string().describe("Cloud MSSQL instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      // 가이드 database-vmssql-getcloudmssqltargetsubnetlist: vpcNo·cloudMssqlImageProductCode Required(세 존 동일).
+      vpcNo: z.string().describe("VPC number"),
+      cloudMssqlImageProductCode: z.string().describe("MSSQL image product code"),
+      isPublic: z.boolean().optional().describe("true = public subnets only (API default), false = private subnets only"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlTargetSubnetList", params);
@@ -139,7 +149,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     "ncloud_list_mssql_character_sets",
     "List available character sets for Cloud DB for MSSQL",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlCharacterSetList", params);
@@ -151,7 +161,7 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     "ncloud_list_mssql_config_groups",
     "List available Config Groups for Cloud DB for MSSQL",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlConfigGroupList", params);
@@ -163,7 +173,10 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     "ncloud_list_mssql_buckets",
     "List Object Storage buckets available for Cloud DB for MSSQL backup export",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      // cloudMssqlInstanceNo·cloudMssqlServerName 은 API 필수(금융존 테스트 E-14).
+      cloudMssqlInstanceNo: z.string().describe("Cloud MSSQL instance number"),
+      cloudMssqlServerName: z.string().describe("MSSQL server name, e.g. m-<instanceNo>-001 (see ncloud_get_mssql_instance_detail)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vmssql/v2/getCloudMssqlBucketList", params);
@@ -187,11 +200,12 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_create_mssql_instance",
-    "Create a new Cloud DB for MSSQL instance. Use dryRun=true to preview without creating.",
+    "Create a new Cloud DB for MSSQL instance. Server names are assigned automatically (m-<instanceNo>-001); there is no server name prefix option. " +
+      "Use dryRun=true to preview without creating.",
     {
       cloudMssqlServiceName: z.string({
         required_error: requiredError("cloudMssqlServiceName"),
-      }).describe("MSSQL service name (3-20 chars, lowercase letters and numbers)"),
+      }).describe("MSSQL service name (3-15 chars: letters, Korean, numbers, hyphen)"),
       vpcNo: z.string({
         required_error: requiredError("vpcNo"),
       }).describe("VPC number"),
@@ -210,20 +224,33 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       cloudMssqlImageProductCode: z.string().optional().describe("MSSQL image product code"),
       cloudMssqlProductCode: z.string().optional().describe("MSSQL server product (spec) code"),
       mirrorSubnetNo: z.string().optional().describe("Mirror server subnet number. Required when isMultiZone=true."),
-      dataStorageTypeCode: z.string().optional().describe("Data storage type: SSD | HDD | CB2"),
+      dataStorageTypeCode: z.string().optional().describe("Data storage type: SSD | HDD (G2 images, default SSD); CB2 for G3 images (public zone only). Cannot be changed later"),
       isMultiZone: z.boolean().optional().describe("Multi Zone mode (only when isHa=true)"),
       characterSetName: z.string().optional().describe("DB character set (Korean_Wansung_CI_AS | SQL_Latin1_General_CP1_CI_AS)"),
       engineVersionCode: z.string().optional().describe("DB engine version code"),
       configGroupNo: z.string().optional().describe("Config Group number"),
       cloudMssqlPort: z.number().optional().describe("MSSQL port number (default: 1433, range: 10000-20000)"),
-      isBackup: z.boolean().optional().describe("Whether to enable automatic backup"),
-      backupTime: z.string().optional().describe("Backup time (HH:mm format)"),
+      backupTime: z.string().optional().describe("Backup time HH:mm in 15-minute steps. Required when isAutomaticBackup=false"),
       backupFileRetentionPeriod: z.number().optional().describe("Backup retention period in days (1-30)"),
-      isAutomaticBackup: z.boolean().optional().describe("Whether to enable automatic backup scheduling"),
+      // isBackup 은 어느 존 가이드에도 없는 유령 파라미터였다(보내도 무시돼 "백업 끔" 요청이 반영되지 않음, 금융존 테스트 S-05).
+      isAutomaticBackup: z.boolean().optional().describe("Let the server pick the backup time (default true). If false, backupTime is required. Backups cannot be turned off"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
       const { dryRun, ...apiParams } = params;
+      // 가이드(pub·fin): backupTime 은 Conditional — isAutomaticBackup=false 이면 필수. dryRun 도 같이 막는다.
+      if (params.isAutomaticBackup === false && !params.backupTime) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: L({
+              ko: "❌ isAutomaticBackup=false 이면 backupTime(HH:mm, 15분 단위)이 필수입니다.",
+              en: "❌ backupTime (HH:mm, 15-minute steps) is required when isAutomaticBackup=false.",
+            }),
+          }],
+          isError: true,
+        };
+      }
       if (dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: MSSQL Instance Creation",
@@ -315,18 +342,14 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
       cloudMssqlServerInstanceNo: z.string().describe("Cloud MSSQL server instance number"),
       bucketName: z.string().describe("Object Storage bucket name to export to"),
       folderPath: z.string().optional().describe("Folder path within the bucket. If omitted, exports to bucket root."),
-      cloudMssqlExportObjectList: z.array(z.object({
-        fullObjectName: z.string().describe("Full object name of the log file to export"),
-      })).min(1).describe("List of log objects to export"),
+      // 가이드 database-vmssql-exportdbserverlogstoobjectstorage: 목록 키는 cloudMssqlObjectNameList.N(문자열 목록).
+      //   예전에는 백업 내보내기와 같은 cloudMssqlExportObjectList.N.fullObjectName 으로 보냈다(금융존 문서 대조).
+      cloudMssqlObjectNameList: z.array(z.string()).min(1).describe("Log file object names to export (from ncloud_list_mssql_log_files)"),
     },
     async (params) => {
-      const { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName, folderPath, cloudMssqlExportObjectList } = params;
-      const requestParams: any = { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName };
+      const { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName, folderPath, cloudMssqlObjectNameList } = params;
+      const requestParams: any = { cloudMssqlInstanceNo, cloudMssqlServerInstanceNo, bucketName, cloudMssqlObjectNameList };
       if (folderPath) requestParams.folderPath = folderPath;
-
-      for (let i = 0; i < cloudMssqlExportObjectList.length; i++) {
-        requestParams[`cloudMssqlExportObjectList.${i + 1}.fullObjectName`] = cloudMssqlExportObjectList[i].fullObjectName;
-      }
 
       const result = await client.request("/vmssql/v2/exportDbServerLogsToObjectStorage", requestParams);
       return result;

@@ -14,13 +14,20 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     "List all network interfaces in the current region",
     {
       networkInterfaceNoList: z.array(z.string()).optional().describe("Filter by network interface numbers"),
-      subnetNo: z.string().optional().describe("Filter by subnet number"),
-      serverInstanceNo: z.string().optional().describe("Filter by attached server instance number"),
+      // getNetworkInterfaceList 에는 subnetNo·serverInstanceNo 필터가 없다 — 보내면 API 가 조용히 무시하고
+      // 전체 목록을 돌려줘 의존성 확인을 오판하게 만들었다(금융존 테스트 E-17). 실제 필터는 subnetName·instanceNo.
+      subnetName: z.string().optional().describe("Filter by subnet name (API filter)"),
+      instanceNo: z.string().optional().describe("Filter by attached instance (server) number (API filter)"),
+      subnetNo: z.string().optional().describe("Filter by subnet number (applied to the result by this tool; the API has no subnetNo filter)"),
       pageNo: z.number().optional().describe("Page number for pagination"),
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
     async (params) => {
-      return client.request("/vserver/v2/getNetworkInterfaceList", params);
+      const { subnetNo, ...apiParams } = params;
+      const result = await client.request("/vserver/v2/getNetworkInterfaceList", apiParams);
+      if (subnetNo === undefined || !Array.isArray(result?.networkInterfaceList)) return result;
+      const networkInterfaceList = result.networkInterfaceList.filter((nic: any) => String(nic?.subnetNo) === subnetNo);
+      return { ...result, totalRows: networkInterfaceList.length, networkInterfaceList };
     }
   );
 
@@ -39,12 +46,14 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
   defineTool(
     server,
     "ncloud_get_flow_log_config",
-    "Get FlowLog configuration list. Returns all FlowLog configurations or filters by network interface number.",
+    "Get FlowLog configurations of the given network interfaces (networkInterfaceNoList is required by the API; see ncloud_list_network_interfaces).",
     {
-      networkInterfaceNo: z.string().optional().describe("Network interface number to filter FlowLog configurations"),
+      // 가이드 compute-vserver-networkinterface-getflowlogconfigurationlist: networkInterfaceNoList.N Required(세 존 동일).
+      //   이전 스키마(단수 networkInterfaceNo, 선택)는 항상 900 이었다(금융존 테스트 E-02).
+      networkInterfaceNoList: z.array(z.string()).min(1).describe("Network interface numbers to query (required)"),
     },
     async (params) => {
-      return client.request("/vserver/v2/getFlowLogConfigurationList", params);
+      return client.request("/vserver/v2/getFlowLogConfigurationList", { networkInterfaceNoList: params.networkInterfaceNoList });
     }
   );
 

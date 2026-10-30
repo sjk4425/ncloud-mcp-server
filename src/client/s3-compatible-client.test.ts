@@ -90,14 +90,28 @@ describe("S3CompatibleClient: 공공존(gov) 엔드포인트·서명 리전", ()
     expect(c.hostFor("my-bucket")).toBe("my-bucket.kr.gov-ncloudstorage.com");
   });
 
-  it("fin Object Storage FKR: kr.object.fin-ncloudstorage.com / fin-standard; Ncloud Storage 는 표가 없어 명확한 오류", async () => {
+  it("fin Object Storage FKR: 기본은 Private 호스트 kr.object.private.fin-ncloudstorage.com / fin-standard; Ncloud Storage 는 표가 없어 명확한 오류", async () => {
     const spy = stubOkFetch();
     const c = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "FKR", storageType: "object", zone: "fin" });
     await c.request({ method: "GET", bucket: "b" });
-    expect(sentUrlOf(spy)).toBe("https://kr.object.fin-ncloudstorage.com/b");
+    expect(sentUrlOf(spy)).toBe("https://kr.object.private.fin-ncloudstorage.com/b");
     expect(sentHeaders(spy)["authorization"]).toMatch(/\/fin-standard\/s3\/aws4_request/);
     const ncs = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "FKR", storageType: "ncloud", zone: "fin" });
     await expect(ncs.request({ method: "GET" })).rejects.toThrow(/not configured for zone 'fin'/);
+  });
+
+  it("endpointHost 오버라이드(NCLOUD_OBJECT_STORAGE_ENDPOINT): 호스트만 바꾸고 서명 리전은 표 그대로, https:// 와 끝 / 는 뗀다", async () => {
+    const spy = stubOkFetch();
+    const c = new S3CompatibleClient({
+      accessKey: "k", secretKey: "s", regionCode: "FKR", storageType: "object", zone: "fin",
+      endpointHost: "https://kr.object.fin-ncloudstorage.com/",
+    });
+    await c.request({ method: "GET", bucket: "b" });
+    expect(sentUrlOf(spy)).toBe("https://kr.object.fin-ncloudstorage.com/b");
+    expect(sentHeaders(spy)["authorization"]).toMatch(/\/fin-standard\/s3\/aws4_request/);
+    // 빈 값은 무시(표 기본값)
+    const d = new S3CompatibleClient({ accessKey: "k", secretKey: "s", regionCode: "KR", storageType: "object", zone: "pub", endpointHost: "  " });
+    expect(d.hostFor("b")).toBe("kr.object.ncloudstorage.com");
   });
 
   it("NoSuchBucket 힌트는 존의 도메인으로 안내한다", async () => {

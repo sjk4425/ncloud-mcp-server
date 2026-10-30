@@ -96,7 +96,7 @@ export function registerCommonTools(server: McpServer, client: ClientFactory): v
   defineTool(
     server,
     "ncloud_get_current_region",
-    "Get the currently active Ncloud region code and name (and the zone this server is bound to: public or gov)",
+    "Get the currently active Ncloud region code and name (and the zone this server is bound to: pub, gov or fin)",
     {},
     async () => {
       const code = client.getRegionCode();

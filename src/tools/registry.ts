@@ -313,6 +313,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
         regionCode,
         storageType: "object",
         zone,
+        // 금융존 기본은 Private 호스트(VPC 내부 전용) — 금융존 밖에서는 공개 호스트로 덮어쓴다(E-07).
+        endpointHost: env.NCLOUD_OBJECT_STORAGE_ENDPOINT,
       });
       // Ncloud Storage 는 공식 문서대로 virtual-hosted 주소(`{bucket}.kr.ncloudstorage.com`)가
       // 기본. 2026-08 라이브 검증까지 동작했던 path 방식이 필요하면 env 로 되돌릴 수 있다.
@@ -716,7 +718,8 @@ export class GroupManager {
       expandable: this.plan.expandable,
       enabledGroups: [...this.enabledKeys],
       groups,
-      hint: "Call ncloud_enable_tool_group with a group key to load its tools into this session.",
+      hint: "Call ncloud_enable_tool_group with a group key to load its tools into this session. " +
+        "Group titles list services across all zones; services not offered in the current zone have no tools registered.",
     };
   }
 

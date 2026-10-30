@@ -135,6 +135,16 @@ describe("defineTool: destructive 옵션 (confirm 게이트)", () => {
     expect(JSON.parse(textOf(r))).toEqual(page);
   });
 
+  it("0건 목록({ content: [] } / Spring Page)도 텍스트로 감싼다 — 빈 content 를 MCP 결과로 오인하지 않는다 (금융존 E-03)", async () => {
+    for (const empty of [{ content: [] }, { content: [], totalElements: 0, empty: true }, { content: [], total: 0 }]) {
+      const t = capture((server) => defineTool(server, "ncloud_dns_list_domains", "d", {}, async () => empty));
+      const r = await t.handler({});
+      expect(r.content).toHaveLength(1);
+      expect(r.content[0].type).toBe("text");
+      expect(JSON.parse(textOf(r))).toEqual(empty);
+    }
+  });
+
   it("핸들러가 만든 진짜 MCP 응답(text 블록)은 그대로 통과한다", async () => {
     const t = capture((server) =>
       defineTool(server, "ncloud_list_things", "d", {}, async () => ({ content: [{ type: "text", text: "done" }], isError: true }))

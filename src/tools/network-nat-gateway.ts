@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { maxLenMessage, requiredError } from "./_messages.js";
+import { dryRunPreview } from "./_dryrun.js";
 
 export function registerNatGatewayTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
       natGatewayName: z.string().optional().describe("Filter by NAT Gateway name"),
       vpcName: z.string().optional().describe("Filter by VPC name"),
       publicIp: z.string().optional().describe("Filter by public IP address assigned to the NAT Gateway"),
-      zoneCode: z.string().optional().describe("Filter by zone code (e.g., KR-1, KR-2)"),
+      zoneCode: z.string().optional().describe("Filter by zone code (see ncloud_get_zones)"),
       natGatewayInstanceStatusCode: z.enum(["INIT", "RUN", "SET", "TERMTING"]).optional().describe("Filter by NAT Gateway instance status code"),
       natGatewayTypeCode: z.enum(["PRVT", "PBLIP"]).optional().describe("Filter by NAT Gateway type (PRVT: Private, PBLIP: Public)"),
       subnetName: z.string().optional().describe("Filter by subnet name"),
@@ -48,10 +49,10 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
   defineTool(
     server,
     "ncloud_create_nat_gateway",
-    "Create a new NAT Gateway instance in a VPC. Supports both Public (PBLIP) and Private (PRVT) types.",
+    "Create a new NAT Gateway instance in a VPC. Supports both Public (PBLIP) and Private (PRVT) types. Use dryRun=true to preview.",
     {
       vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number to create NAT Gateway in (from getVpcList)"),
-      zoneCode: z.string({ required_error: requiredError("zoneCode") }).describe("Zone code (e.g., KR-1, KR-2)"),
+      zoneCode: z.string({ required_error: requiredError("zoneCode") }).describe("Zone code (see ncloud_get_zones)"),
       subnetNo: z.string().optional().describe("NATGW-type subnet number. If NULL, creates a PUBLIC-type NATGW subnet automatically. If specified, creates NAT Gateway according to the subnet's subnetTypeCode (PUBLIC or PRIVATE)."),
       natGatewayName: z.string().max(30, {
         message: maxLenMessage("natGatewayName", 30),
@@ -59,9 +60,19 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
       natGatewayDescription: z.string().optional().describe("Description for the NAT Gateway (max 1000 bytes)"),
       publicIpInstanceNo: z.string().optional().describe("Public IP instance number. Ignored for PRIVATE subnet type. For PUBLIC subnet: auto-created if NULL, assigned if specified."),
       privateIp: z.string().optional().describe("Private IP address. Ignored for PUBLIC subnet type. For PRIVATE subnet: auto-assigned if NULL, created with specified IP if provided."),
+      dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating (NAT Gateway is billed hourly)"),
     },
     async (params) => {
-      return client.request("/vpc/v2/createNatGatewayInstance", params);
+      const { dryRun, ...apiParams } = params;
+      if (dryRun) {
+        return dryRunPreview({
+          label: "🔍 Dry-Run Preview: NAT Gateway Creation",
+          endpoint: "/vpc/v2/createNatGatewayInstance",
+          requestParams: apiParams,
+          noun: { ko: "NAT Gateway", en: "NAT Gateway" },
+        });
+      }
+      return client.request("/vpc/v2/createNatGatewayInstance", apiParams);
     }
   );
 

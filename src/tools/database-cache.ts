@@ -38,10 +38,10 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       cloudCacheServerInstanceNoList: z.array(z.string()).optional().describe("Filter by Cache server instance numbers"),
       cloudCacheDbmsCode: z.enum(["Redis", "Valkey"]).optional().describe("Filter by DBMS type: Redis | Valkey"),
       generationCode: z.enum(["G2", "G3"]).optional().describe("Filter by server generation: G2 | G3"),
-      zoneCode: z.string().optional().describe("Filter by zone code (e.g. KR-1, KR-2)"),
+      zoneCode: z.string().optional().describe("Filter by zone code (see ncloud_get_zones)"),
       vpcNo: z.string().optional().describe("Filter by VPC number"),
       subnetNo: z.string().optional().describe("Filter by subnet number"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
       pageNo: z.number().min(0).optional().describe("Page number (0-based). Requires pageSize"),
       pageSize: z.number().min(1).optional().describe("Page size (min 1). Required when pageNo is given"),
     },
@@ -69,6 +69,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Get detailed information about a specific Cloud DB for Cache (Redis/Valkey) instance",
     {
       cloudCacheInstanceNo: z.string().describe("Cloud Cache instance number to query"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheInstanceDetail", params);
@@ -83,7 +84,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     {
       // getCloudCacheBackupList의 파라미터는 regionCode 뿐이다. 예전 스키마의
       // cloudCacheInstanceNo는 전송돼도 서버가 무시하는 유령 필수값이었다.
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheBackupList", params);
@@ -106,7 +107,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       cloudCacheImageProductCode: z.string().optional().describe("Filter by Cache image product code"),
       cloudCacheModeCode: z.enum(["SIMPLE", "CLUSTER"]).optional().describe("Filter by mode: SIMPLE | CLUSTER"),
       cloudCacheDbmsCode: z.enum(["Redis", "Valkey"]).optional().describe("Filter by DBMS type: Redis | Valkey"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheConfigGroupList", params);
@@ -131,7 +132,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       configGroupDescription: z.string().max(255, {
         message: maxLenMessage("configGroupDescription", 255),
       }).optional().describe("Config group description (max 255 chars)"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the config group"),
     },
     async (params) => {
@@ -164,7 +165,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       configGroupNo: z.string({
         required_error: requiredError("configGroupNo"),
       }).describe("Config group number to delete (from ncloud_list_cache_config_groups)"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -219,7 +220,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       backupFileRetentionPeriod: z.number().min(1).max(7).optional().describe("Backup retention period in days (1-7, default: 1)"),
       shardCount: z.number().min(3).max(10).optional().describe("Master node count, CLUSTER mode only (3-10, default: 3)"),
       shardCopyCount: z.number().min(0).max(4).optional().describe("Replica count per shard, CLUSTER mode only (0-4, default: 0)"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the instance"),
     },
     async (params) => {
@@ -248,38 +249,39 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       // cloudCacheModeCode로 조회해 0건이고, configGroupNo 단독으로는 1건 이상이면
       // 모드가 어긋난 것이다. 진단이 실패하면 그냥 통과시킨다 —
       // 사전 검증이 정상 생성을 막아서는 안 된다(Resource Manager 진단 프로브와 같은 규칙).
-      if (!dryRun) {
-        try {
-          const matched = await client.request("/vcache/v2/getCloudCacheConfigGroupList", {
+      // dryRun 에서도 같은 검사를 돌려 프리뷰 notes 에 결과를 싣는다(금융존 테스트 S-06 L1 —
+      // 예전에는 dryRun 이 검사를 건너뛰어 프리뷰는 통과하고 실제 생성에서 막혔다).
+      let modeMismatch: string | undefined;
+      let groupMissing = false;
+      try {
+        const matched = await client.request("/vcache/v2/getCloudCacheConfigGroupList", {
+          configGroupNo: params.configGroupNo,
+          cloudCacheModeCode: params.cloudCacheModeCode,
+          regionCode: params.regionCode,
+        });
+        if ((matched?.cloudCacheConfigGroupList?.length ?? 0) === 0) {
+          const anyMode = await client.request("/vcache/v2/getCloudCacheConfigGroupList", {
             configGroupNo: params.configGroupNo,
-            cloudCacheModeCode: params.cloudCacheModeCode,
             regionCode: params.regionCode,
           });
-          if ((matched?.cloudCacheConfigGroupList?.length ?? 0) === 0) {
-            const anyMode = await client.request("/vcache/v2/getCloudCacheConfigGroupList", {
-              configGroupNo: params.configGroupNo,
-              regionCode: params.regionCode,
+          const found = anyMode?.cloudCacheConfigGroupList?.[0];
+          // 그룹 자체가 없으면 dryRun 프리뷰에만 알린다(실제 생성은 서버 판단에 맡긴다 — fin 재테스트 2026-10-30)
+          if (!found) groupMissing = true;
+          if (found) {
+            const actual = found.cloudCacheVersion ?? found.cloudCacheModeCode ?? "unknown";
+            modeMismatch = L({
+              ko: `config group [${params.configGroupNo}]의 모드가 cloudCacheModeCode='${params.cloudCacheModeCode}'와 일치하지 않습니다(그룹 버전: ${actual}). ` +
+                  `버전 접미사 '-simple'은 SIMPLE, '-cluster'는 CLUSTER에 대응합니다. 모드를 맞추거나 해당 모드의 config group을 사용하세요.`,
+              en: `Config group [${params.configGroupNo}] does not match cloudCacheModeCode='${params.cloudCacheModeCode}' (group version: ${actual}). ` +
+                  `The version suffix '-simple' maps to SIMPLE and '-cluster' to CLUSTER. Change the mode, or use a config group of that mode.`,
             });
-            const found = anyMode?.cloudCacheConfigGroupList?.[0];
-            if (found) {
-              const actual = found.cloudCacheVersion ?? found.cloudCacheModeCode ?? "unknown";
-              return {
-                content: [{
-                  type: "text" as const,
-                  text: L({
-                    ko: `config group [${params.configGroupNo}]의 모드가 cloudCacheModeCode='${params.cloudCacheModeCode}'와 일치하지 않습니다(그룹 버전: ${actual}). ` +
-                        `버전 접미사 '-simple'은 SIMPLE, '-cluster'는 CLUSTER에 대응합니다. 모드를 맞추거나 해당 모드의 config group을 사용하세요.`,
-                    en: `Config group [${params.configGroupNo}] does not match cloudCacheModeCode='${params.cloudCacheModeCode}' (group version: ${actual}). ` +
-                        `The version suffix '-simple' maps to SIMPLE and '-cluster' to CLUSTER. Change the mode, or use a config group of that mode.`,
-                  }),
-                }],
-                isError: true,
-              };
-            }
           }
-        } catch {
-          // 진단 실패는 무시하고 원래 호출을 진행한다.
         }
+      } catch {
+        // 진단 실패는 무시하고 원래 호출을 진행한다.
+      }
+      if (modeMismatch && !dryRun) {
+        return { content: [{ type: "text" as const, text: modeMismatch }], isError: true };
       }
 
       if (dryRun) {
@@ -295,6 +297,15 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
               ko: "위에 없는 항목은 전송되지 않으며 서버 기본값이 적용됩니다(포트 6379, isBackup=false, isHa=false 등).",
               en: "Anything not listed above is not sent and the server default applies (port 6379, isBackup=false, isHa=false, etc.).",
             }),
+            ...(modeMismatch ? { note_config_group_mode: `⚠️ ${modeMismatch}` } : {}),
+            ...(groupMissing
+              ? {
+                  note_config_group_missing: L({
+                    ko: `⚠️ config group [${params.configGroupNo}]을(를) 찾을 수 없습니다. ncloud_list_cache_config_groups 로 번호를 확인하거나 ncloud_create_cache_config_group 으로 먼저 만드세요.`,
+                    en: `⚠️ Config group [${params.configGroupNo}] was not found. Check the number with ncloud_list_cache_config_groups, or create one first with ncloud_create_cache_config_group.`,
+                  }),
+                }
+              : {}),
           },
         });
       }
@@ -326,6 +337,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Reboot a Cloud DB for Cache server instance",
     {
       cloudCacheServerInstanceNo: z.string().describe("Cloud Cache server instance number to reboot"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/rebootCloudCacheServerInstance", params);
@@ -342,7 +354,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     {
       // getCloudCacheManualBackupList의 파라미터는 regionCode 뿐이다.
       // cloudCacheInstanceNo/pageNo/pageSize는 전송돼도 무시되는 유령 필터였다.
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheManualBackupList", params);
@@ -360,7 +372,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       cloudCacheInstanceNo: z.string({
         required_error: requiredError("cloudCacheInstanceNo"),
       }).describe("Cloud Cache instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheManualBackupDetailList", params);
@@ -378,7 +390,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       }).describe("Cloud Cache instance number"),
       // createCloudCacheManualBackup은 이름을 받지 않는다 — 예전 스키마의
       // cloudCacheManualBackupName은 사용자에게 무의미한 값을 강제하던 유령 필수값이었다.
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/createCloudCacheManualBackup", params);
@@ -404,7 +416,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
           en: "fileNameList must contain at least one file name.",
         }),
       }).describe("Backup file names to delete (e.g. ['20220315', '20220322']) — from ncloud_list_cache_manual_backup_details"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -462,7 +474,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       bucketName: z.string({
         required_error: requiredError("bucketName"),
       }).describe("Destination Object Storage bucket name"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       const result = await client.request("/vcache/v2/exportBackupToObjectStorage", params);
@@ -480,7 +492,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       }).describe("Cloud Cache instance number"),
       // getCloudCacheBackupDetailList는 서버 인스턴스 번호를 받지 않는다 —
       // 예전 스키마의 cloudCacheServerInstanceNo는 유령 필수값이었다.
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheBackupDetailList", params);
@@ -497,7 +509,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       productCode: z.string().optional().describe("Filter by a specific image product code"),
       exclusionProductCode: z.string().optional().describe("Exclude a specific image product code"),
       generationCode: z.enum(["G2", "G3"]).optional().describe("Filter by server generation: G2 | G3"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheImageProductList", params);
@@ -514,8 +526,8 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       }).describe("Cloud Cache image product code"),
       productCode: z.string().optional().describe("Filter by a specific server spec product code"),
       exclusionProductCode: z.string().optional().describe("Exclude a specific server spec product code"),
-      zoneCode: z.string().optional().describe("Filter by zone code (e.g. KR-1, KR-2)"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      zoneCode: z.string().optional().describe("Filter by zone code (see ncloud_get_zones)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheProductList", params);
@@ -527,7 +539,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "ncloud_get_cache_target_vpcs",
     "List VPCs available for Cloud DB for Cache",
     {
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheTargetVpcList", params);
@@ -548,7 +560,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
         required_error: requiredError("cloudCacheImageProductCode"),
       }).describe("Cache image product code (from ncloud_get_cache_image_products)"),
       isPublic: z.boolean().optional().describe("true: public subnets only, false: private subnets only"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheTargetSubnetList", params);
@@ -562,7 +574,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       "'-cluster' = Cluster — it must match the cloudCacheModeCode used at instance creation.",
     {
       cloudCacheDbmsCode: z.enum(["Redis", "Valkey"]).optional().describe("Filter by DBMS type: Redis | Valkey"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheConfigGroupVersionList", params);
@@ -578,7 +590,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       cloudCacheInstanceNo: z.string({
         required_error: requiredError("cloudCacheInstanceNo"),
       }).describe("Cloud Cache instance number the export will run from"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vcache/v2/getCloudCacheBucketList", params);
@@ -698,6 +710,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "⚠️ Destructive: Permanently delete a Cloud DB for Cache (Redis/Valkey) instance. Set confirm=true to execute.",
     {
       cloudCacheInstanceNo: z.string().describe("Cloud Cache instance number to delete"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

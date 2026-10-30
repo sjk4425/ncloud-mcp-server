@@ -80,7 +80,8 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       }).describe("Destination CIDR block (e.g., 0.0.0.0/0)"),
       targetTypeCode: z.string({ required_error: requiredError("targetTypeCode") }).describe("Target type code (NATGW, VPCPEERING, VGW)"),
       targetNo: z.string({ required_error: requiredError("targetNo") }).describe("Target instance number"),
-      targetName: z.string().optional().describe("Target name"),
+      // 가이드 networking-vpc-routetable-addroute: routeList.N.targetName 은 Required(세 존 동일).
+      targetName: z.string({ required_error: requiredError("targetName") }).describe("Target name (NAT Gateway / VPC Peering / VGW name)"),
     },
     async (params) => {
       const { routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo, targetName } = params;
@@ -91,7 +92,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
         "routeList.1.targetTypeCode": targetTypeCode,
         "routeList.1.targetNo": targetNo,
       };
-      if (targetName) requestParams["routeList.1.targetName"] = targetName;
+      requestParams["routeList.1.targetName"] = targetName;
       const result = await client.request("/vpc/v2/addRoute", requestParams);
       return result;
     }
@@ -202,16 +203,20 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
       }).describe("Destination CIDR block of the route to remove"),
       targetTypeCode: z.string({ required_error: requiredError("targetTypeCode") }).describe("Target type code (NATGW, VPCPEERING, VGW)"),
       targetNo: z.string({ required_error: requiredError("targetNo") }).describe("Target instance number"),
+      // 가이드 networking-vpc-routetable-removeroute: routeList.N.targetName Required(세 존 동일) — 없으면 900
+      //   으로 경로를 지울 수 없었다(금융존 테스트 E-09). ncloud_get_routes 의 targetName 값을 그대로 넘긴다.
+      targetName: z.string({ required_error: requiredError("targetName") }).describe("Target name of the route (see ncloud_get_routes)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const { confirm, routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo } = params;
+      const { confirm, routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo, targetName } = params;
       const requestParams: any = {
         routeTableNo,
         vpcNo,
         "routeList.1.destinationCidrBlock": destinationCidrBlock,
         "routeList.1.targetTypeCode": targetTypeCode,
         "routeList.1.targetNo": targetNo,
+        "routeList.1.targetName": targetName,
       };
       const result = await client.request("/vpc/v2/removeRoute", requestParams);
       return result;

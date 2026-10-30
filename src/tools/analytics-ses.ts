@@ -4,7 +4,39 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { L, maxLenMessage } from "./_messages.js";
+import { analyticsName, analyticsPassword, storageSize100to2000 } from "./_validation.js";
 import { sesPathPrefix, type Zone } from "../client/endpoints.js";
+
+/** 대시보드 포트: 1025~65534, 9090·9200·9300 제외(세 존 가이드 공통). API 타입은 String. */
+const dashboardPort = () =>
+  z.string().refine((v) => {
+    if (!/^\d+$/.test(v)) return false;
+    const n = Number(v);
+    return n >= 1025 && n <= 65534 && ![9090, 9200, 9300].includes(n);
+  }, { message: "searchEngineDashboardPort: 1025-65534, excluding 9090 / 9200 / 9300" });
+
+/** 전용 마스터 노드를 켜면 masterNode* 세 값이 조건부 필수다 — 호출(과 dryRun) 전에 걸러낸다. */
+function checkMasterParams(params: {
+  isMasterOnlyNodeActivated?: boolean;
+  masterNodeSubnetNo?: number;
+  masterNodeCount?: number;
+  masterNodeProductCode?: string;
+}) {
+  if (params.isMasterOnlyNodeActivated !== true) return undefined;
+  const missing = (["masterNodeSubnetNo", "masterNodeCount", "masterNodeProductCode"] as const)
+    .filter((k) => params[k] === undefined);
+  if (missing.length === 0) return undefined;
+  return {
+    content: [{
+      type: "text" as const,
+      text: L({
+        ko: `isMasterOnlyNodeActivated=true 이면 다음 값이 필수입니다: ${missing.join(", ")}`,
+        en: `These values are required when isMasterOnlyNodeActivated=true: ${missing.join(", ")}`,
+      }),
+    }],
+    isError: true,
+  };
+}
 
 /**
  * Search Engine Service (SES) API
@@ -316,28 +348,31 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
     "ncloud_ses_create_cluster",
     "Create a new Search Engine Service cluster (G2). Use dryRun=true to preview.",
     {
-      clusterName: z.string().describe("Cluster name (3-15 chars, lowercase+numbers+'-')"),
+      // 제약은 세 존 가이드 공통(createSearchEngineCluster) — 예전엔 검사가 없어 dryRun 이 잘못된 값을 그대로 통과시켰다(금융존 테스트).
+      clusterName: analyticsName("clusterName").describe("Cluster name (3-15 chars: lowercase letters, numbers, '-'; starts with a letter, ends with a letter or number, no consecutive '-')"),
       searchEngineVersionCode: z.string().describe("Search engine version code (from getSearchEngineVersionList)"),
-      searchEngineDashboardPort: z.string().describe("Dashboard port (1025-65534, not 9090/9200/9300)"),
-      searchEngineUserName: z.string().describe("Admin account ID (3-15 chars)"),
-      searchEngineUserPassword: z.string().describe("Admin password (8-20 chars, letters+numbers+special)"),
+      searchEngineDashboardPort: dashboardPort().describe("Dashboard port (1025-65534; 9090, 9200 and 9300 are unavailable)"),
+      searchEngineUserName: analyticsName("searchEngineUserName").describe("Admin account ID (3-15 chars, same rule as clusterName)"),
+      searchEngineUserPassword: analyticsPassword("searchEngineUserPassword").describe("Admin password: 8-20 chars mixing letters, numbers and special characters; must not contain ' \" ` ₩ / & or spaces"),
       softwareProductCode: z.string().describe("OS type code (from getOsProductList)"),
       vpcNo: z.number().describe("VPC number"),
       managerNodeSubnetNo: z.number().describe("Manager node subnet number"),
       managerNodeProductCode: z.string().describe("Manager node server type code"),
       dataNodeSubnetNo: z.number().describe("Data node subnet number"),
-      dataNodeCount: z.number().describe("Number of data nodes (3-10)"),
+      dataNodeCount: z.number().int().min(3).max(10).describe("Number of data nodes (3-10, default: 3)"),
       dataNodeProductCode: z.string().describe("Data node server type code"),
-      dataNodeStorageSize: z.number().describe("Data node storage size in GB (100-2000, 10GB increment)"),
+      dataNodeStorageSize: storageSize100to2000("dataNodeStorageSize").describe("Data node storage size in GB (100-2000, 10GB increment, SSD)"),
       loginKeyName: z.string().describe("Authentication key name for SSH access"),
       isDualManager: z.boolean().optional().describe("Manager node redundancy (default: true)"),
-      isMasterOnlyNodeActivated: z.boolean().optional().describe("Enable dedicated master nodes"),
-      masterNodeSubnetNo: z.number().optional().describe("Master node subnet (required if master enabled)"),
-      masterNodeCount: z.number().optional().describe("Number of master nodes (3 or 5)"),
-      masterNodeProductCode: z.string().optional().describe("Master node server type code"),
+      isMasterOnlyNodeActivated: z.boolean().optional().describe("Enable dedicated master nodes. If true, the three masterNode* parameters below are required"),
+      masterNodeSubnetNo: z.number().optional().describe("Master node subnet number. Required when isMasterOnlyNodeActivated=true"),
+      masterNodeCount: z.union([z.literal(3), z.literal(5)]).optional().describe("Number of master nodes (3 or 5, default: 3). Required when isMasterOnlyNodeActivated=true"),
+      masterNodeProductCode: z.string().optional().describe("Master node server type code. Required when isMasterOnlyNodeActivated=true"),
       dryRun: z.boolean().optional().default(false).describe("If true, preview only without creating"),
     },
     async (params) => {
+      const masterError = checkMasterParams(params);
+      if (masterError) return masterError;
       const { dryRun, ...apiParams } = params;
       const prefix = getApiPrefix(zone, client.getRegionCode());
       if (dryRun) {
@@ -393,23 +428,8 @@ export function registerSearchEngineServiceTools(server: McpServer, client: Nclo
       dryRun: z.boolean().optional().default(false).describe("If true, preview only without creating"),
     },
     async (params) => {
-      // 전용 마스터 노드를 켜면 세 값이 조건부 필수가 된다 — 호출 전에 걸러낸다.
-      if (params.isMasterOnlyNodeActivated === true) {
-        const missing = (["masterNodeSubnetNo", "masterNodeCount", "masterNodeProductCode"] as const)
-          .filter((k) => params[k] === undefined);
-        if (missing.length > 0) {
-          return {
-            content: [{
-              type: "text" as const,
-              text: L({
-                ko: `isMasterOnlyNodeActivated=true 이면 다음 값이 필수입니다: ${missing.join(", ")}`,
-                en: `These values are required when isMasterOnlyNodeActivated=true: ${missing.join(", ")}`,
-              }),
-            }],
-            isError: true,
-          };
-        }
-      }
+      const masterError = checkMasterParams(params);
+      if (masterError) return masterError;
 
       const { dryRun, ...apiParams } = params;
       const prefix = getApiPrefix(zone, client.getRegionCode());

@@ -252,8 +252,11 @@ export const OBJECT_STORAGE_ENDPOINTS: Record<Zone, Record<string, S3RegionEndpo
     KR: { host: "kr.object.gov-ncloudstorage.com", signingRegion: "gov-standard" },
     KRS: { host: "krs.object.gov-ncloudstorage.com", signingRegion: "gov2-standard" },
   },
-  // 금융존: https://api-fin.ncloud-docs.com/docs/common-objectstorageapi-objectstorageapi — 리전 "금융" fin-standard kr.object.fin-ncloudstorage.com (단일)
-  fin: { FKR: { host: "kr.object.fin-ncloudstorage.com", signingRegion: "fin-standard" } },
+  // 금융존: https://api-fin.ncloud-docs.com/docs/common-objectstorageapi-objectstorageapi — 리전 "금융" fin-standard (단일).
+  //   문서의 공개 호스트 kr.object.fin-ncloudstorage.com 은 공인 IP 로 풀려 인터넷 경로가 없는 금융존 VPC 서버에서
+  //   타임아웃난다(2026-10-27 금융존 테스트 E-07). 내부 주소(169.254.x)로 풀리는 Private 호스트를 기본으로 쓴다
+  //   (금융존 서버 실측: ListBuckets 200). 금융존 밖에서 쓸 때는 env NCLOUD_OBJECT_STORAGE_ENDPOINT 로 덮어쓴다.
+  fin: { FKR: { host: "kr.object.private.fin-ncloudstorage.com", signingRegion: "fin-standard" } },
 };
 
 /** Ncloud Storage — 민간·공공존 KR 단일 리전, 서명 리전은 문서의 리전 코드 `kr`. 금융존 가이드에는 없음(storage-ncloudstorage 404, 2026-09-30) → fin 빈 표. */

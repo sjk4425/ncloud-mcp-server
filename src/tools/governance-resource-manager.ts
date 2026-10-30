@@ -81,7 +81,7 @@ export function registerResourceManagerTools(server: McpServer, client: NcloudCl
     {
       nrn: z.string().optional().describe("Ncloud Resource Name for single resource detail lookup"),
       productName: z.string().optional().describe("Service CODE of the resource, matched exactly — not the display name shown in the console. Service codes carry no spaces or parentheses: use 'DataQuery', not 'Data Query'. To discover the valid codes for this account, call this tool without a productName filter and read each item's productName (its productDisplayName is the console name). When a productName filter returns nothing, this tool retries once without it and reports the codes that do exist as productNameFilterHint"),
-      regionCode: z.string().optional().describe("Region code filter, exact match (e.g., 'KR', 'JPN')"),
+      regionCode: z.string().optional().describe("Region code filter, exact match (see ncloud_get_regions)"),
       resourceType: z.string().optional().describe("Resource type filter, exact match (e.g., 'DataSource', 'Project'). See a returned item's resourceType for valid values"),
       resourceId: z.string().optional().describe("Resource ID filter, exact match"),
       resourceName: z.string().optional().describe("Resource name filter, exact match"),

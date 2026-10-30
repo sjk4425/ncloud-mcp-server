@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { NcloudClient } from "../client/ncloud-client.js";
+import { NcloudClient, type NcloudApiParams } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { L, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabaseMongodbTools(server: McpServer, client: NcloudClient): void {
@@ -52,14 +52,15 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
   defineTool(
     server,
     "ncloud_create_mongodb_instance",
-    "Create a new Cloud DB for MongoDB instance. Use dryRun=true to preview without creating.",
+    "Create a new Cloud DB for MongoDB instance. Backups are always on (only the retention period and time can be set). " +
+      "Use dryRun=true to preview without creating.",
     {
       cloudMongoDbServiceName: z.string({
         required_error: requiredError("cloudMongoDbServiceName"),
-      }).describe("MongoDB service name (3-20 chars, lowercase letters and numbers)"),
+      }).describe("MongoDB service name (3-15 chars: lowercase letters, numbers, hyphen). Unique; becomes the replica set name"),
       cloudMongoDbServerNamePrefix: z.string({
         required_error: requiredError("cloudMongoDbServerNamePrefix"),
-      }).describe("Server name prefix"),
+      }).describe("Server name prefix (3-15 chars: lowercase letters, numbers, hyphen; starts with a letter). A random suffix is appended"),
       clusterTypeCode: z.string({
         required_error: requiredError("clusterTypeCode"),
       }).describe("Cluster type code (STAND_ALONE | SINGLE_REPLICA_SET | SHARDED_CLUSTER)"),
@@ -80,14 +81,15 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       arbiterProductCode: z.string().optional().describe("Arbiter server product code"),
       mongosProductCode: z.string().optional().describe("Mongos server product code"),
       configProductCode: z.string().optional().describe("Config server product code"),
-      dataStorageTypeCode: z.string().optional().describe("Data storage type (SSD | HDD | CB2)"),
+      dataStorageTypeCode: z.string().optional().describe("Data storage type: SSD | HDD (G2 images, default SSD); CB2 for G3 images (public zone only). Available types depend on the zone — check ncloud_get_mongodb_products"),
       memberPort: z.number().optional().describe("Member port (default 17017, range 10000-65535)"),
       mongosPort: z.number().optional().describe("Mongos port (default 17017)"),
       configPort: z.number().optional().describe("Config port (default 17017)"),
       compressCode: z.string().optional().describe("Compression algorithm (SNPP | ZLIB | ZSTD | NONE)"),
-      engineVersionCode: z.string().optional().describe("MongoDB engine version code"),
-      shardCount: z.number().optional().describe("Number of shards (2-3, for SHARDED_CLUSTER)"),
-      backupFileRetentionPeriod: z.number().optional().describe("Backup retention period in days (1-30)"),
+      engineVersionCode: z.string().optional().describe("MongoDB engine version code. Several versions share one image product code, so set this to pick a version (latest if omitted)"),
+      shardCount: z.number().optional().describe("Number of shards (2-3, default 2; SHARDED_CLUSTER only)"),
+      backupFileRetentionPeriod: z.number().optional().describe("Backup retention period in days (1-30, default 1)"),
+      backupTime: z.string().optional().describe("Backup start time HH:mm in 15-minute steps (default 02:00)"),
       memberServerCount: z.number().optional().describe("Number of member servers in the replica set"),
       arbiterServerCount: z.number().optional().describe("Number of arbiter servers"),
       mongosServerCount: z.number().optional().describe("Number of mongos servers (for sharded cluster)"),
@@ -136,11 +138,35 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
   );
 
   // ─── Cluster Scaling Tools ─────────────────────────────────────────────────
+  // 서버 수를 늘리면 곧바로 과금 서버가 추가된다 — 다른 생성 도구처럼 dryRun 으로 요청을 미리 본다(금융존 테스트 S-04).
+
+  const SCALE_DRY_RUN = z.boolean().optional().default(false)
+    .describe("If true, returns a preview without changing anything. Adding servers adds billed servers immediately.");
+
+  const scale = async (endpoint: string, params: { dryRun?: boolean } & NcloudApiParams) => {
+    const { dryRun, ...apiParams } = params;
+    if (dryRun) {
+      return dryRunPreview({
+        label: "🔍 Dry-Run Preview: MongoDB Server Count Change",
+        endpoint,
+        requestParams: apiParams,
+        noun: { ko: "MongoDB 서버 수 변경", en: "MongoDB server count change" },
+        verb: "apply",
+        notes: {
+          note_current: L({
+            ko: "현재 서버 수는 ncloud_get_mongodb_instance_detail 로 확인하세요. 늘어난 서버는 바로 과금됩니다.",
+            en: "Check the current server counts with ncloud_get_mongodb_instance_detail. Added servers are billed immediately.",
+          }),
+        },
+      });
+    }
+    return client.request(endpoint, apiParams);
+  };
 
   defineTool(
     server,
     "ncloud_change_mongodb_secondary_count",
-    "Change the number of Secondary (Member/Arbiter) servers in a MongoDB instance",
+    "Change the number of Secondary (Member/Arbiter) servers in a MongoDB replica set (members + arbiter = 3-7). Use dryRun=true to preview",
     {
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
@@ -152,16 +178,15 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
         required_error: requiredError("arbiterServerCount"),
       }).describe("Number of arbiter servers (0-1)"),
       arbiterProductCode: z.string().optional().describe("Arbiter server product code"),
+      dryRun: SCALE_DRY_RUN,
     },
-    async (params) => {
-      return client.request("/vmongodb/v2/changeCloudMongoDbSecondaryCount", params);
-    }
+    async (params) => scale("/vmongodb/v2/changeCloudMongoDbSecondaryCount", params)
   );
 
   defineTool(
     server,
     "ncloud_change_mongodb_mongos_count",
-    "Change the number of Mongos servers in a MongoDB Sharded Cluster instance",
+    "Change the number of Mongos servers in a MongoDB instance (SHARDED_CLUSTER only). Use dryRun=true to preview",
     {
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
@@ -169,44 +194,41 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       mongosServerCount: z.number({
         required_error: requiredError("mongosServerCount"),
       }).describe("Number of mongos servers (2-5)"),
+      dryRun: SCALE_DRY_RUN,
     },
-    async (params) => {
-      return client.request("/vmongodb/v2/changeCloudMongoDbMongosCount", params);
-    }
+    async (params) => scale("/vmongodb/v2/changeCloudMongoDbMongosCount", params)
   );
 
   defineTool(
     server,
     "ncloud_change_mongodb_config_count",
-    "Change the number of Config servers in a MongoDB Sharded Cluster instance",
+    "Change the number of Config servers in a MongoDB instance (SHARDED_CLUSTER only). Use dryRun=true to preview",
     {
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       configServerCount: z.number({
         required_error: requiredError("configServerCount"),
-      }).describe("Number of config servers"),
+      }).describe("Number of config servers (3-7)"),
+      dryRun: SCALE_DRY_RUN,
     },
-    async (params) => {
-      return client.request("/vmongodb/v2/changeCloudMongoDbConfigCount", params);
-    }
+    async (params) => scale("/vmongodb/v2/changeCloudMongoDbConfigCount", params)
   );
 
   defineTool(
     server,
     "ncloud_change_mongodb_shard_count",
-    "Change the number of shards in a MongoDB Sharded Cluster instance",
+    "Add shards to a MongoDB instance (SHARDED_CLUSTER only). Use dryRun=true to preview",
     {
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
       shardCount: z.number({
         required_error: requiredError("shardCount"),
-      }).describe("Number of shards"),
+      }).describe("Number of shards (3-5). Shards can only be added, not removed"),
+      dryRun: SCALE_DRY_RUN,
     },
-    async (params) => {
-      return client.request("/vmongodb/v2/changeCloudMongoDbShardCount", params);
-    }
+    async (params) => scale("/vmongodb/v2/changeCloudMongoDbShardCount", params)
   );
 
   // ─── User Management Tools ─────────────────────────────────────────────────
@@ -233,12 +255,13 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
+      // 사용자 이름 키는 userName(금융존 테스트 E-16 — `.name` 으로 보내 900 location: cloudMongoDbUserList.N.userName).
       cloudMongoDbUserList: z.array(z.object({
-        name: z.string().describe("User name"),
+        userName: z.string().describe("User name"),
         password: z.string().describe("User password"),
         databaseName: z.string().describe("Database name the user belongs to"),
-        authority: z.string().describe("User authority (e.g., READ, READ_WRITE, DB_ADMIN)"),
-      })).describe("List of users to add"),
+        authority: z.enum(["READ", "READ_WRITE"]).describe("User authority: READ | READ_WRITE"),
+      })).min(1).max(10).describe("List of users to add (1-10)"),
     },
     async (params) => {
       const { cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
@@ -246,7 +269,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
 
       for (let i = 0; i < cloudMongoDbUserList.length; i++) {
         const user = cloudMongoDbUserList[i];
-        requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudMongoDbUserList.${i + 1}.userName`] = user.userName;
         requestParams[`cloudMongoDbUserList.${i + 1}.password`] = user.password;
         requestParams[`cloudMongoDbUserList.${i + 1}.databaseName`] = user.databaseName;
         requestParams[`cloudMongoDbUserList.${i + 1}.authority`] = user.authority;
@@ -260,15 +283,18 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
   defineTool(
     server,
     "ncloud_change_mongodb_users",
-    "Change user information (password) in a Cloud DB for MongoDB instance",
+    "Change users (password and authority) in a Cloud DB for MongoDB instance",
     {
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
+      // add 와 같은 구조(금융존 테스트 E-16 — userName·databaseName·authority 를 보내야 하고, authority 도 바꿀 수 있다).
       cloudMongoDbUserList: z.array(z.object({
-        name: z.string().describe("User name"),
-        password: z.string().describe("New password"),
-      })).describe("List of users to change"),
+        userName: z.string().describe("User name"),
+        password: z.string().optional().describe("New password (omit to keep)"),
+        databaseName: z.string().describe("Database name the user belongs to"),
+        authority: z.enum(["READ", "READ_WRITE"]).optional().describe("New authority: READ | READ_WRITE (omit to keep)"),
+      })).min(1).max(10).describe("List of users to change (1-10)"),
     },
     async (params) => {
       const { cloudMongoDbInstanceNo, cloudMongoDbUserList } = params;
@@ -276,8 +302,10 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
 
       for (let i = 0; i < cloudMongoDbUserList.length; i++) {
         const user = cloudMongoDbUserList[i];
-        requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
-        requestParams[`cloudMongoDbUserList.${i + 1}.password`] = user.password;
+        requestParams[`cloudMongoDbUserList.${i + 1}.userName`] = user.userName;
+        requestParams[`cloudMongoDbUserList.${i + 1}.databaseName`] = user.databaseName;
+        if (user.password !== undefined) requestParams[`cloudMongoDbUserList.${i + 1}.password`] = user.password;
+        if (user.authority !== undefined) requestParams[`cloudMongoDbUserList.${i + 1}.authority`] = user.authority;
       }
 
       const result = await client.request("/vmongodb/v2/changeCloudMongoDbUserList", requestParams);
@@ -293,9 +321,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
+      // 가이드 database-vmongodb-deletecloudmongodbuserlist: cloudMongoDbUserList.N.userName·databaseName Required(세 존 동일),
+      //   최대 10명. 이전에는 `.name` 만 보내 항상 실패했다.
       cloudMongoDbUserList: z.array(z.object({
-        name: z.string().describe("User name to delete"),
-      })).describe("List of users to delete"),
+        userName: z.string().describe("User name to delete"),
+        databaseName: z.string().describe("Authentication database of the user (see ncloud_list_mongodb_users)"),
+      })).min(1).max(10).describe("Users to delete (1-10), each identified by userName + databaseName"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -304,7 +335,8 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
 
       for (let i = 0; i < cloudMongoDbUserList.length; i++) {
         const user = cloudMongoDbUserList[i];
-        requestParams[`cloudMongoDbUserList.${i + 1}.name`] = user.name;
+        requestParams[`cloudMongoDbUserList.${i + 1}.userName`] = user.userName;
+        requestParams[`cloudMongoDbUserList.${i + 1}.databaseName`] = user.databaseName;
       }
 
       const result = await client.request("/vmongodb/v2/deleteCloudMongoDbUserList", requestParams);
@@ -313,7 +345,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     {
       destructive: {
         message: (params) => {
-          const userNames = params.cloudMongoDbUserList.map((u: any) => u.name).join(", ");
+          const userNames = params.cloudMongoDbUserList.map((u: any) => `${u.userName}@${u.databaseName}`).join(", ");
           return `⚠️ This will permanently delete MongoDB users [${userNames}] from instance [${params.cloudMongoDbInstanceNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.`;
         },
       },
@@ -344,75 +376,60 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
       cloudMongoDbServerInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbServerInstanceNo"),
       }).describe("Cloud MongoDB server instance number"),
+      // 가이드 database-vmongodb-getdbserverloglist: logType Required(세 존 동일).
+      logType: z.enum(["log", "audit"]).default("log").describe("Log type: log (server log, default) or audit"),
+      pageNo: z.number().int().min(0).optional().describe("Page number (pageSize is required when set)"),
+      pageSize: z.number().int().min(1).max(1000).optional().describe("Page size, 1-1000"),
     },
     async (params) => {
       return client.request("/vmongodb/v2/getDbServerLogList", params);
     }
   );
 
+  // 가이드 database-vmongodb-exportbackuptoobjectstorage / exportdbserverlogtoobjectstorage:
+  //   백업은 cloudMongoDbInstanceNo + objectName + bucketName, 로그는 cloudMongoDbServerInstanceNo + logType + fileName
+  //   + bucketName 이다. folderPath·목록형(cloudMongoDbExportObjectList) 파라미터는 없다 — 예전 스키마는 MSSQL 형식을
+  //   그대로 옮겨 와 필수값이 빠져 있었다(금융존 문서 대조).
   defineTool(
     server,
     "ncloud_export_mongodb_backup",
-    "Export MongoDB backup files to Object Storage",
+    "Export a Cloud DB for MongoDB backup file to Object Storage. Get objectName from ncloud_list_mongodb_backup_details " +
+      "and bucketName from ncloud_list_mongodb_buckets.",
     {
       cloudMongoDbInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbInstanceNo"),
       }).describe("Cloud MongoDB instance number"),
-      cloudMongoDbServerInstanceNo: z.string({
-        required_error: requiredError("cloudMongoDbServerInstanceNo"),
-      }).describe("Cloud MongoDB server instance number"),
+      objectName: z.string({
+        required_error: requiredError("objectName"),
+      }).describe("Backup file object name (from ncloud_list_mongodb_backup_details)"),
       bucketName: z.string({
         required_error: requiredError("bucketName"),
-      }).describe("Object Storage bucket name"),
-      folderPath: z.string().optional().describe("Folder path in the bucket"),
-      cloudMongoDbExportObjectList: z.array(z.object({
-        fullObjectName: z.string().describe("Full object name of the backup file to export"),
-      })).describe("List of backup objects to export"),
+      }).describe("Object Storage bucket name (from ncloud_list_mongodb_buckets)"),
     },
     async (params) => {
-      const { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName, folderPath, cloudMongoDbExportObjectList } = params;
-      const requestParams: any = { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName };
-      if (folderPath) requestParams.folderPath = folderPath;
-
-      for (let i = 0; i < cloudMongoDbExportObjectList.length; i++) {
-        requestParams[`cloudMongoDbExportObjectList.${i + 1}.fullObjectName`] = cloudMongoDbExportObjectList[i].fullObjectName;
-      }
-
-      const result = await client.request("/vmongodb/v2/exportBackupToObjectStorage", requestParams);
-      return result;
+      return client.request("/vmongodb/v2/exportBackupToObjectStorage", params);
     }
   );
 
   defineTool(
     server,
     "ncloud_export_mongodb_log",
-    "Export MongoDB server logs to Object Storage",
+    "Export a Cloud DB for MongoDB server log file to Object Storage. Get fileName from ncloud_list_mongodb_logs " +
+      "(same logType) and bucketName from ncloud_list_mongodb_buckets.",
     {
-      cloudMongoDbInstanceNo: z.string({
-        required_error: requiredError("cloudMongoDbInstanceNo"),
-      }).describe("Cloud MongoDB instance number"),
       cloudMongoDbServerInstanceNo: z.string({
         required_error: requiredError("cloudMongoDbServerInstanceNo"),
       }).describe("Cloud MongoDB server instance number"),
+      logType: z.enum(["log", "audit"]).default("log").describe("Log type: log (server log, default) or audit"),
+      fileName: z.string({
+        required_error: requiredError("fileName"),
+      }).describe("Log file name (from ncloud_list_mongodb_logs)"),
       bucketName: z.string({
         required_error: requiredError("bucketName"),
-      }).describe("Object Storage bucket name"),
-      folderPath: z.string().optional().describe("Folder path in the bucket"),
-      cloudMongoDbExportObjectList: z.array(z.object({
-        fullObjectName: z.string().describe("Full object name of the log file to export"),
-      })).describe("List of log objects to export"),
+      }).describe("Object Storage bucket name (from ncloud_list_mongodb_buckets)"),
     },
     async (params) => {
-      const { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName, folderPath, cloudMongoDbExportObjectList } = params;
-      const requestParams: any = { cloudMongoDbInstanceNo, cloudMongoDbServerInstanceNo, bucketName };
-      if (folderPath) requestParams.folderPath = folderPath;
-
-      for (let i = 0; i < cloudMongoDbExportObjectList.length; i++) {
-        requestParams[`cloudMongoDbExportObjectList.${i + 1}.fullObjectName`] = cloudMongoDbExportObjectList[i].fullObjectName;
-      }
-
-      const result = await client.request("/vmongodb/v2/exportDbServerLogToObjectStorage", requestParams);
-      return result;
+      return client.request("/vmongodb/v2/exportDbServerLogToObjectStorage", params);
     }
   );
 
@@ -423,7 +440,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "ncloud_get_mongodb_image_products",
     "List available MongoDB image product codes",
     {
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vmongodb/v2/getCloudMongoDbImageProductList", params);
@@ -450,7 +467,7 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "ncloud_get_mongodb_target_vpcs",
     "List VPCs available for Cloud DB for MongoDB",
     {
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vmongodb/v2/getCloudMongoDbTargetVpcList", params);
@@ -460,12 +477,13 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
   defineTool(
     server,
     "ncloud_get_mongodb_target_subnets",
-    "List subnets available for Cloud DB for MongoDB",
+    "List subnets in a VPC that can host a new Cloud DB for MongoDB instance of the given image",
     {
-      cloudMongoDbInstanceNo: z.string({
-        required_error: requiredError("cloudMongoDbInstanceNo"),
-      }).describe("Cloud MongoDB instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      // 가이드 database-vmongodb-getcloudmongodbtargetsubnetlist: vpcNo·cloudMongoDbImageProductCode Required(세 존 동일).
+      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number"),
+      cloudMongoDbImageProductCode: z.string({ required_error: requiredError("cloudMongoDbImageProductCode") }).describe("MongoDB image product code"),
+      isPublic: z.boolean().optional().describe("true = public subnets only (API default), false = private subnets only"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vmongodb/v2/getCloudMongoDbTargetSubnetList", params);
@@ -477,7 +495,12 @@ export function registerDatabaseMongodbTools(server: McpServer, client: NcloudCl
     "ncloud_list_mongodb_buckets",
     "List Object Storage buckets available for Cloud DB for MongoDB backup export",
     {
-      regionCode: z.string().optional().describe("Region code (e.g., KR, JPN, SGN)"),
+      // 세 존 가이드(database-vmongodb-getcloudmongodbbucketlist)는 Optional 이지만, 실제 API 는 이 값 없이
+      // 400 / 900 "Required field is not specified" 로 거절한다 — 금융존(E-15)·민간존(2026-10-30) 실호출 확인. 공공존은 미확인.
+      cloudMongoDbInstanceNo: z.string({
+        required_error: requiredError("cloudMongoDbInstanceNo"),
+      }).describe("Cloud MongoDB instance number the export will run from (required by the API, although the guide marks it optional)"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
       return client.request("/vmongodb/v2/getCloudMongoDbBucketList", params);

@@ -538,7 +538,7 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
       ["ncloud_cdss_disable_public_domain", NO],
       ["ncloud_cdss_disable_public_endpoint", NO],
       ["ncloud_cdss_reset_cmak_password", { ...NO, kafkaManagerUserPassword: "pw" }],
-      ["ncloud_cdss_upgrade_version", { ...NO, upgradeKafkaVersionCode: 1, upgradeConfigGroupNo: 2 }],
+      ["ncloud_cdss_upgrade_version", { ...NO, upgradeKafkaVersionCode: 1, upgradeConfigGroupNo: 2, confirm: true }],
       ["ncloud_cdss_upgrade_precheck", { ...NO, upgradeKafkaVersionCode: 1, upgradeConfigGroupNo: 2 }],
       ["ncloud_cdss_get_monitoring", { ...NO, timeStart: "a", timeEnd: "b", metric: "m", computeInstanceNo: "c" }],
       ["ncloud_cdss_get_os_monitoring", { ...NO, timeStart: "a", timeEnd: "b", metric: "m", computeInstanceNo: "c" }],
@@ -806,7 +806,8 @@ describe("CDSS — 조회 엔드포인트 경로·전송 방식 (B-6)", () => {
     const parsed = JSON.parse(result.content[0].text);
     // 서버는 SUCCESS를 주고 값을 버린다 — 응답에 그 사실이 남아야 한다.
     expect(parsed.warning_authorizerClassName).toContain("modifyYn");
-    expect(parsed.warning_additionalSettings).toBeDefined();
+    // additionalSettings 는 금융존 실호출에서 값 반영이 확인돼(2026-10-29) "미검증" 경고를 걷어냈다.
+    expect(parsed.warning_additionalSettings).toBeUndefined();
 
     // additionalSettings 항목의 값 필드명은 configValue다(읽기 응답 셰이프와 일치).
     const [, body] = spy.mock.calls[0];

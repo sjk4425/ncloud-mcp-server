@@ -65,12 +65,12 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_ncr_get_registry",
-    "Get detailed information about a specific container registry (GET /{registry}/info — not listed in the official guide; kept pending live verification)",
+    "Get detailed information about a specific container registry (GET /{registry}/info — not in the official guide, but works in practice)",
     {
       registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry to query"),
     },
     async (params) => {
-      // 공식 가이드에는 없는 경로. (검증 시나리오 D로 실응답 확인 후 확정 — /info가 아니면 경로 되돌릴 것)
+      // 세 존 어느 가이드에도 없는 경로지만 금융존에서 200 확인(2026-10-28). 가이드상 대안은 목록 조회 후 name 필터.
       return client.request(`${base()}/${enc(params.registryName)}/info`);
     }
   );
@@ -80,10 +80,16 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_ncr_create_registry",
-    "Create a new container registry. 'storageType' selects the storage backend: 'objectStorage' (default) reuses an existing Object Storage bucket (then 'bucket' is required); 'ncloudStorage' auto-provisions dedicated NCR storage (then 'bucket' is ignored). Use dryRun=true to preview without creating.",
+    zone === "fin"
+      ? "Create a new container registry backed by an existing Object Storage bucket ('bucket' is required). Use dryRun=true to preview without creating."
+      : "Create a new container registry. 'storageType' selects the storage backend: 'objectStorage' (default) reuses an existing Object Storage bucket (then 'bucket' is required); 'ncloudStorage' auto-provisions dedicated NCR storage (then 'bucket' is ignored). Use dryRun=true to preview without creating.",
     {
       registryName: z.string({ required_error: requiredError("registryName") }).describe("Name for the new registry"),
-      storageType: z.enum(["objectStorage", "ncloudStorage"]).optional().describe("Storage backend. 'objectStorage' (default) reuses an existing Object Storage bucket — 'bucket' is then required. 'ncloudStorage' auto-provisions dedicated NCR storage (bucket 'registry-{privateId}') — 'bucket' is ignored."),
+      // 가이드는 세 존 모두 objectStorage/ncloudStorage 를 싣지만, 금융존은 Ncloud Storage 가 없어
+      //   ncloudStorage 가 400 `ncloudStorage is not supported in this environment`(금융존 테스트 2026-10-28).
+      storageType: zone === "fin"
+        ? z.enum(["objectStorage"]).optional().describe("Storage backend: only 'objectStorage' in this zone (Ncloud Storage is not offered) — 'bucket' is required.")
+        : z.enum(["objectStorage", "ncloudStorage"]).optional().describe("Storage backend. 'objectStorage' (default) reuses an existing Object Storage bucket — 'bucket' is then required. 'ncloudStorage' auto-provisions dedicated NCR storage (bucket 'registry-{privateId}') — 'bucket' is ignored."),
       bucket: z.string().optional().describe("Object Storage bucket name. Required when storageType='objectStorage' (the default); ignored when storageType='ncloudStorage'. Cannot be reused across registries."),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the registry"),
     },

@@ -99,24 +99,26 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
 
 **Server-side validations added 2026-09-17 (request fails with 400 if violated):**
 - Regional cluster (isRegional=true): every nodePool.zoneCode must match the zone of the subnets assigned to that node pool (subnetNoList). Check each subnet's zone with the VPC subnet tools before creating.
-- log.audit=true requires an active Cloud Log Analytics (CLA) subscription on the account — subscribe first or leave audit off and enable later with ncloud_nks_set_audit_log.
-- Istio is now available as an add-on (1.36+ clusters): install after creation with ncloud_nks_install_addons.
+- log.audit=true requires an active Cloud Log Analytics (CLA) subscription on the account — subscribe first or leave audit off and enable later with ncloud_nks_set_audit_log.${opts.addons === false ? "" : `
+- Istio is now available as an add-on (1.36+ clusters): install after creation with ncloud_nks_install_addons.`}
 
 **G2(XEN) vs G3(KVM) differences:**
-- G2: clusterType contains G002, k8sVersion suffix nks.1, hypervisorCode optional
-- G3: clusterType contains G003, k8sVersion suffix nks.2, hypervisorCode='KVM' required`,
+- G2: clusterType contains G002, k8sVersion suffix nks.1, hypervisorCode optional. nodePool spec goes in productCode (from ncloud_nks_get_server_specs), softwareCode has no '|' part
+- G3: clusterType contains G003, k8sVersion suffix nks.2, hypervisorCode='KVM' required${zone === "fin" ? `
+
+**Financial zone:** XEN only — there are no KVM/G3 images, so the G3 rules above do not apply (the guide lists hypervisorCode XEN | RHV). lbPublicSubnetNo is required. There is no cluster-type lookup API: the guide's example SVR.VNKS.STAND.C002.M008.NET.SSD.B050.G002 was rejected live with "Invalid clusterType", while SVR.VNKS.STAND.C002.M008.NET.HDD.B050.G001 (up to 10 nodes, from the price list) was accepted (2026-10-29).` : ""}`,
     {
       name: z.string({ required_error: requiredError("name") }).describe("Cluster name (3-30 chars, lowercase+numbers+'-')"),
       clusterType: z.string({ required_error: requiredError("clusterType") }).describe("Cluster type (e.g., SVR.VNKS.STAND.C004.M016.G003 for G3, SVR.VNKS.STAND.C004.M016.G002 for G2)"),
       loginKeyName: z.string({ required_error: requiredError("loginKeyName") }).describe("Login key name for node access"),
-      regionCode: z.string({ required_error: requiredError("regionCode") }).describe("Region code (e.g., KR, SGN, JPN)"),
+      regionCode: z.string({ required_error: requiredError("regionCode") }).describe("Region code (see ncloud_get_regions)"),
       vpcNo: z.number({ required_error: requiredError("vpcNo") }).describe("VPC number"),
       subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).describe("Subnet number list for the cluster"),
-      lbPublicSubnetNo: z.number().optional().describe("Load balancer public subnet number. Required unless lbPublicSubnetNoList is given (Public zone) — the Government-zone guide lists it as required"),
+      lbPublicSubnetNo: z.number().optional().describe("Load balancer public subnet number. Required in the Government and Financial zones; in the Public zone required unless lbPublicSubnetNoList is given"),
       lbPublicSubnetNoList: z.array(z.number()).max(2).optional().describe("Public zone only: up to 2 public LB subnet numbers in different zones (multi-zone). Alternative to lbPublicSubnetNo"),
       k8sVersion: z.string().optional().describe("Kubernetes version (from ncloud_nks_get_versions). G3/KVM uses nks.2 suffix, G2/XEN uses nks.1 suffix"),
-      hypervisorCode: z.string().optional().describe("Hypervisor code: XEN (default) or KVM. Required as 'KVM' for G3 clusters"),
-      zoneCode: z.string().optional().describe("Zone code (e.g., KR-2). Required when isRegional is false (default). API returns 400 without details if missing for single-zone clusters"),
+      hypervisorCode: z.string().optional().describe("Hypervisor code: XEN (default) or KVM (Public/Government zones; required as 'KVM' for G3 clusters). The Financial-zone guide lists XEN | RHV and has no KVM"),
+      zoneCode: z.string().optional().describe("Zone code (see ncloud_get_zones). Required when isRegional is false (default). API returns 400 without details if missing for single-zone clusters"),
       zoneNo: z.number().optional().describe("Zone number — documented alternative to zoneCode"),
       subnetLbNo: z.number().optional().describe("Load balancer subnet number (legacy single LB-subnet field; conditional per the guide)"),
       lbPrivateSubnetNo: z.number().optional().describe("Load balancer private subnet number. Required for G3/KVM clusters (API returns 400 without details if missing)"),
@@ -132,8 +134,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
         nodeCount: z.number().optional().describe("Number of nodes"),
         subnetNo: z.number().optional().describe("Subnet number for the node pool (single subnet)"),
         subnetNoList: z.array(z.number()).optional().describe("Subnet numbers for the node pool (multiple subnets)"),
-        softwareCode: z.string().optional().describe("Server image code — MUST use the FULL value from ncloud_nks_get_server_images including pipe and image number (e.g., SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604). Do NOT strip the pipe portion."),
-        productCode: z.string().optional().describe("Product code (XEN/G2 only, not available for G3/KVM)"),
+        softwareCode: z.string().optional().describe("Server image code — use the value from ncloud_nks_get_server_images exactly as returned. KVM/G3 values include a pipe and image number (e.g., SW.VSVR.OS.LNX64.UBNTU.SVR22.WRKND.G003|23215604) — do NOT strip it; XEN values have no pipe (e.g., SW.VSVR.OS.LNX64.UBNTU.SVR2004.WRKND.B050)"),
+        productCode: z.string().optional().describe("Server product code — XEN/G2 only (value from ncloud_nks_get_server_specs, e.g., SVR.VSVR.STAND.C002.M004.NET.SSD.B050.G002); not used for G3/KVM"),
         serverSpecCode: z.string().optional().describe("Server spec code (KVM/G3 only, e.g., c2-g3. from ncloud_nks_get_server_specs)"),
         storageSize: z.number().optional().describe("Storage size in GB (KVM/G3 only, 100-2000, required for G3)"),
         labels: z.array(z.object({ key: z.string(), value: z.string() })).optional().describe("Node labels"),
@@ -143,13 +145,18 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
           poolName: z.string().optional().describe("Fabric cluster pool name"),
           poolNo: z.number().optional().describe("Fabric cluster pool number"),
         }).optional().describe("Fabric cluster to place the node pool in (poolName or poolNo)"),
-        zoneCode: z.string().optional().describe("Zone code (e.g., KR-1). Required for Regional clusters and, since 2026-09-17, must match the zone of the subnets assigned to this node pool — a mismatch is rejected with 400"),
+        zoneCode: z.string().optional().describe("Public zone only (Regional clusters): zone code (see ncloud_get_zones). Required for Regional clusters and, since 2026-09-17, must match the zone of the subnets assigned to this node pool — a mismatch is rejected with 400"),
       })).optional().describe("Initial node pool configurations"),
-      addons: z.array(z.object({
-        addonName: z.string().describe("Add-on name (from ncloud_nks_list_available_addons)"),
-        version: z.string().optional().describe("Add-on version (from ncloud_nks_get_available_addon)"),
-        configurationValues: z.record(z.unknown()).optional().describe("Add-on configuration values (schema from ncloud_nks_get_available_addon_version)"),
-      })).optional().describe("Add-ons to install together with the cluster"),
+      // 금융존 가이드 createcluster 에는 addons 필드가 없고 Add-on 도구도 미등록이다(금융존 테스트).
+      ...(opts.addons === false
+        ? {}
+        : {
+            addons: z.array(z.object({
+              addonName: z.string().describe("Add-on name (from ncloud_nks_list_available_addons)"),
+              version: z.string().optional().describe("Add-on version (from ncloud_nks_get_available_addon)"),
+              configurationValues: z.record(z.unknown()).optional().describe("Add-on configuration values (schema from ncloud_nks_get_available_addon_version)"),
+            })).optional().describe("Add-ons to install together with the cluster"),
+          }),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
@@ -171,15 +178,16 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
       if (!params.isRegional && !params.zoneCode) {
         return {
           content: [{ type: "text" as const, text: L({
-            ko: "❌ 단일 존 클러스터(isRegional=false, 기본값) 생성 시 zoneCode는 필수입니다.\n\n클러스터 레벨에 zoneCode를 지정해주세요 (예: KR-2).\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다.",
-            en: "❌ zoneCode is required when creating a single-zone cluster (isRegional=false, the default).\n\nSpecify zoneCode at the cluster level (e.g. KR-2).\nWithout it, the NKS API returns a bare 400 Bad Request with no details.",
+            ko: "❌ 단일 존 클러스터(isRegional=false, 기본값) 생성 시 zoneCode는 필수입니다.\n\n클러스터 레벨에 zoneCode를 지정해주세요 (ncloud_get_zones 참고).\n미전달 시 NKS API가 상세 에러 없이 400 Bad Request만 반환합니다.",
+            en: "❌ zoneCode is required when creating a single-zone cluster (isRegional=false, the default).\n\nSpecify zoneCode at the cluster level (see ncloud_get_zones).\nWithout it, the NKS API returns a bare 400 Bad Request with no details.",
           }) }],
           isError: true,
         };
       }
 
-      // softwareCode 형식 검증 (파이프 포함 여부)
-      if (params.nodePool && params.nodePool.length > 0) {
+      // softwareCode 형식 검증 (파이프 포함 여부) — `코드|이미지번호`는 KVM(G3) 이미지 값이다.
+      // XEN 이미지 값에는 파이프가 없어(세 존 viewserverimage 예시) XEN 에 강제하면 정상 값이 거부됐다(금융존 테스트).
+      if (isG3 && params.nodePool && params.nodePool.length > 0) {
         for (const pool of params.nodePool) {
           if (pool.softwareCode && !pool.softwareCode.includes("|")) {
             return {
@@ -191,6 +199,18 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
             };
           }
         }
+      }
+
+      // XEN 상품 코드를 serverSpecCode(KVM 전용)에 넣으면 상세 없는 400 — productCode 로 안내한다(create_node_pool 과 동일).
+      const misplaced = (params.nodePool ?? []).find((pool) => pool.serverSpecCode && /^SVR\./i.test(pool.serverSpecCode));
+      if (misplaced) {
+        return {
+          content: [{ type: "text" as const, text: L({
+            ko: `❌ nodePool "${misplaced.name || "(unnamed)"}"의 serverSpecCode 에 XEN 상품 코드(${misplaced.serverSpecCode})가 들어왔습니다.\n\nserverSpecCode 는 KVM(G3) 스펙 코드(예: c2-g3)용입니다. XEN(G2) 노드풀은 productCode 에 이 값을 넣으세요.`,
+            en: `❌ nodePool "${misplaced.name || "(unnamed)"}" serverSpecCode received a XEN product code (${misplaced.serverSpecCode}).\n\nserverSpecCode is for KVM (G3) spec codes (e.g. c2-g3). For a XEN (G2) node pool, pass this value as productCode.`,
+          }) }],
+          isError: true,
+        };
       }
 
       if (isG3) {
@@ -543,14 +563,21 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
   defineTool(
     server,
     "ncloud_nks_create_node_pool",
-    "Create a new node pool in an NKS cluster. Use dryRun=true to preview. On a Regional cluster, zoneCode is required and must match the zone of the subnets the pool uses (400 on mismatch since 2026-09-17).",
+    "Create a new node pool in an NKS cluster. Use dryRun=true to preview. " +
+      "Node spec: XEN (G2) clusters take productCode, KVM (G3) clusters take serverSpecCode + storageSize — both come from ncloud_nks_get_server_specs. " +
+      "On a Regional cluster (Public zone), zoneCode is required and must match the zone of the subnets the pool uses (400 on mismatch since 2026-09-17).",
     {
       clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
       name: z.string({ required_error: requiredError("name") }).describe("Node pool name"),
       nodeCount: z.number().optional().describe("Number of nodes (required if autoscale not set)"),
-      softwareCode: z.string().optional().describe("Server image code"),
-      serverSpecCode: z.string().optional().describe("Server spec code (KVM)"),
-      storageSize: z.number().optional().describe("Storage size in GB (KVM, 100-2000)"),
+      softwareCode: z.string().optional().describe("Server image code — value from ncloud_nks_get_server_images exactly as returned (XEN values have no '|' part, KVM values do)"),
+      // 노드풀 생성 가이드(세 존)에는 productCode·subnetNoList 가 없지만, createcluster 의 nodePool 항목과
+      // getcluster 응답 모델에는 있다. XEN 노드 스펙은 productCode 로 정해진다(createcluster: "hypervisorCode 가 XEN 일 때만 사용").
+      // 금융존(XEN 전용)에서 serverSpecCode 에 XEN 상품 코드를 넣어 400 이 났다(금융존 테스트) — 라이브 재검증 대상.
+      productCode: z.string().optional().describe("XEN/G2 only: server product code (value from ncloud_nks_get_server_specs, e.g., SVR.VSVR.STAND.C002.M004.NET.SSD.B050.G002). Not listed on the node-pool guide page but used by the create-cluster nodePool item"),
+      subnetNoList: z.array(z.number()).optional().describe("Subnet numbers for the pool (must be among the cluster's subnets). Not listed on the node-pool guide page; without it the cluster subnets are used. Can be changed later with ncloud_nks_update_node_pool_subnet"),
+      serverSpecCode: z.string().optional().describe("KVM/G3 only: server spec code (e.g., c2-g3, from ncloud_nks_get_server_specs). For XEN pools use productCode instead"),
+      storageSize: z.number().optional().describe("KVM/G3 only: storage size in GB (100-2000)"),
       autoscale: z.object({
         enabled: z.boolean().optional(),
         min: z.number().optional(),
@@ -559,10 +586,21 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
       labels: z.array(z.object({ key: z.string(), value: z.string() })).optional().describe("Node labels"),
       taints: z.array(z.object({ key: z.string(), value: z.string().optional(), effect: z.string() })).optional().describe("Node taints"),
       serverRoleId: z.string().optional().describe("IAM server role ID"),
-      zoneCode: z.string().optional().describe("Zone code (e.g., KR-1). Required for Regional clusters and, since 2026-09-17, must match the zone of the subnets assigned to this node pool — a mismatch is rejected with 400"),
+      zoneCode: z.string().optional().describe("Public zone only (Regional clusters): zone code (see ncloud_get_zones). Required for Regional clusters and, since 2026-09-17, must match the zone of the subnets assigned to this node pool — a mismatch is rejected with 400"),
       dryRun: z.boolean().optional().default(false).describe("If true, preview only"),
     },
     async (params) => {
+      // XEN 상품 코드(SVR.VSVR.…)는 serverSpecCode(KVM 전용, 예: c2-g3)가 아니라 productCode 로 보내야 한다.
+      // 그대로 보내면 API 가 상세 없이 400 만 준다(금융존 테스트).
+      if (params.serverSpecCode && /^SVR\./i.test(params.serverSpecCode)) {
+        return {
+          content: [{ type: "text" as const, text: L({
+            ko: `❌ serverSpecCode 에 XEN 상품 코드(${params.serverSpecCode})가 들어왔습니다.\n\nserverSpecCode 는 KVM(G3) 스펙 코드(예: c2-g3)용입니다. XEN(G2) 노드풀은 productCode 에 이 값을 넣으세요.`,
+            en: `❌ serverSpecCode received a XEN product code (${params.serverSpecCode}).\n\nserverSpecCode is for KVM (G3) spec codes (e.g. c2-g3). For a XEN (G2) node pool, pass this value as productCode.`,
+          }) }],
+          isError: true,
+        };
+      }
       const { clusterUuid, dryRun, ...body } = params;
       if (dryRun) {
         // clusterUuid는 경로 세그먼트라 본문에 들어가지 않는다 — 프리뷰도 본문만 보여준다.
@@ -788,8 +826,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_versions",
     "List available Kubernetes versions for NKS cluster creation",
     {
-      hypervisorCode: z.string().optional().describe("Hypervisor code filter: XEN (default) or KVM"),
-      isRegionalSupport: z.boolean().optional().describe("Filter only Regional (multi-zone) cluster supported versions"),
+      hypervisorCode: z.string().optional().describe("Hypervisor code filter: XEN (default) or KVM (Public/Government zones; the Financial-zone guide lists no filter)"),
+      isRegionalSupport: z.boolean().optional().describe("Public zone only: filter only Regional (multi-zone) cluster supported versions"),
     },
     async (params) => {
       const queryParams: Record<string, string> = {};
@@ -805,7 +843,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_server_images",
     "List available server image types for NKS cluster/node pool creation",
     {
-      hypervisorCode: z.string().optional().describe("Hypervisor type code filter: XEN (default) or KVM"),
+      hypervisorCode: z.string().optional().describe("Hypervisor type code filter: XEN (default) or KVM (Public/Government zones; the Financial-zone guide lists no filter)"),
     },
     async (params) => {
       const queryParams: Record<string, string> = {};
@@ -821,7 +859,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "List available server specifications for NKS cluster/node pool creation. Requires softwareCode (from ncloud_nks_get_server_images) and zoneCode or zoneNo.",
     {
       softwareCode: z.string({ required_error: requiredError("softwareCode") }).describe("Server image code (value from ncloud_nks_get_server_images)"),
-      zoneCode: z.string().optional().describe("Zone code (e.g., KR-1). Required if zoneNo not provided."),
+      zoneCode: z.string().optional().describe("Zone code (see ncloud_get_zones). Required if zoneNo not provided."),
       zoneNo: z.string().optional().describe("Zone number. Required if zoneCode not provided."),
     },
     async (params) => {

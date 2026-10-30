@@ -143,7 +143,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       }).describe("Subnet CIDR block (e.g., 10.0.1.0/24)"),
       zoneCode: z.string({
         required_error: requiredError("zoneCode"),
-      }).describe("Zone code (e.g., KR-1, KR-2)"),
+      }).describe("Zone code (see ncloud_get_zones)"),
       networkAclNo: z.string({
         required_error: requiredError("networkAclNo"),
       }).describe("Network ACL number to associate"),

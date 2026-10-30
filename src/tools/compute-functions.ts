@@ -306,7 +306,25 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
           },
         });
       }
-      const result = await client.requestRaw("PUT", endpoint, queryParams, body);
+      let result: any;
+      try {
+        result = await client.requestRaw("PUT", endpoint, queryParams, body);
+      } catch (err: any) {
+        // 금융존 테스트 E-01: 본문 형식이 문서와 일치해도(타입 검증 통과) 80307 "subnet … does not exist" 가 난다 —
+        // 형식 변형(B/C/D) 실측 모두 실패. AI 가 형식을 바꿔가며 반복 시도하지 않도록 안내를 덧붙인다.
+        const m = String(err?.message ?? "");
+        if (/80307/.test(m) && /subnet/i.test(m) && body.vpc !== undefined) {
+          throw new Error(
+            `${m}\n\n` +
+              L({
+                ko: "참고: vpc 본문 형식([{vpcNo:int, subnetNo:int}])은 API 문서와 일치합니다. 형식을 바꿔 재시도하지 말고, VPC/Subnet 번호(ncloud_list_subnets)·콘솔에서 같은 VPC/Subnet 으로 액션 생성 가능 여부·Cloud Functions VPC 연동 이용 신청 여부를 확인하세요. 계속되면 위 트레이스 ID 로 Ncloud 고객지원에 문의하세요.",
+                en: "Note: the vpc body shape ([{vpcNo:int, subnetNo:int}]) matches the API documentation. Do not retry with a different shape — verify the VPC/Subnet numbers (ncloud_list_subnets), whether the console can create an action on the same VPC/Subnet, and whether the Cloud Functions VPC integration is enabled for the account. If it persists, contact Ncloud support with the trace ID above.",
+              }),
+            { cause: err }
+          );
+        }
+        throw err;
+      }
       // 응답이 코드를 다시 실어 준다 — 호출자가 방금 보낸 것이므로 시크릿은 가린 채 돌려준다.
       return annotateActionSecrets(result, false);
     }

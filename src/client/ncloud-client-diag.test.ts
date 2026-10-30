@@ -112,10 +112,20 @@ describe("NcloudClient 실패 메시지 진단 정보 (F-02)", () => {
     expect(msg).toContain("요청: GET /ncf/api/v2/packages/x");
   });
 
-  it("5xx 는 메시지 내용과 무관하게 재시도 가능으로 표시한다", async () => {
+  it("5xx 는 기본적으로 재시도 가능으로 표시한다", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { errorCode: "81311", message: "ACTION_NAT_EXCEPTION" } }, 500)));
     const msg = String(await client.requestRaw("PUT", "/ncf/api/v2/x", undefined, {}).catch((e: Error) => e));
     expect(msg).toMatch(/재시도 가능: 예/);
+  });
+
+  it("5xx 라도 '없음' 류 입력 오류(PostgreSQL 5001234 상품 코드 없음)는 재시도 불가로 표시한다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(
+      { responseError: { returnCode: "5001234", returnMessage: "SVR.VPGSL.DBSVR.STAND.C002.M004.NET.SSD.B050.G001 The product code could not be found." } },
+      500,
+    )));
+    const msg = String(await client.request("/vpostgresql/v2/createCloudPostgresqlInstance", {}).catch((e: Error) => e));
+    expect(msg).toContain("에러 코드: 5001234");
+    expect(msg).toMatch(/재시도 가능: 아니오/);
   });
 
   it("error.details 가 message 와 다르면 '상세' 줄로 싣는다", async () => {
@@ -145,5 +155,57 @@ describe("NcloudClient 실패 메시지 진단 정보 (F-02)", () => {
     const msg = String(await client.request("/x", {}).catch((e: Error) => e));
     expect(msg).toContain("에러 코드: 1");
     expect(msg).toContain("HTTP 상태: 400");
+  });
+
+  it("본문에 에러 코드가 없으면 '에러 코드: undefined' 대신 그 줄을 생략한다 (금융존 E-08)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ error: { message: "No permission" } }, 403, { "x-ncp-trace-id": "t-403" })));
+    const msg = String(await client.requestRaw("GET", "/api/v1/mails/requests").catch((e: Error) => e));
+    expect(msg).not.toContain("undefined");
+    expect(msg).not.toContain("에러 코드");
+    expect(msg).toContain("메시지: No permission");
+    expect(msg).toContain("HTTP 상태: 403");
+  });
+
+  it.each([
+    ["1009022", "Network ACL is not in operational state."],
+    ["1100031", "The server cannot be controlled by the NCLOD API."],
+    ["1018005", "You must delete all Route information of the NAT Gateway."],
+    ["1000034", "You do not have permission to VPC or the VPC status is not operational."],
+    ["5001130", "Config Group in use exists."],
+  ])("리소스 상태 전이 에러 %s 는 재시도 가능으로 표시한다 (금융존 E-06)", async (code, message) => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ responseError: { returnCode: code, returnMessage: message } }, 400)));
+    const msg = String(await client.request("/vpc/v2/x", {}).catch((e: Error) => e));
+    expect(msg).toMatch(/재시도 가능: 예/);
+  });
+
+  it.each([
+    [10160, "현재 클러스터는 최신 버전이며, 업그레이드 가능한 버전이 없습니다."],
+    [10150, "동일한 스펙으로는 변경할 수 없습니다."],
+  ])("analytics 봉투의 업무 코드 %s 는 HTTP 500 이어도 재시도 불가로 표시한다 (금융존 CDSS)", async (code, message) => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ code, message, result: null }, 500)));
+    const msg = String(await client.requestRaw("GET", "/api/v2/cluster/x").catch((e: Error) => e));
+    expect(msg).toContain(`에러 코드: ${code}`);
+    expect(msg).toMatch(/재시도 가능: 아니오/);
+  });
+
+  it("analytics 봉투의 범용 코드(500 code 1)는 기존대로 재시도 가능이다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ code: 1, message: "Internal error", result: null }, 500)));
+    const msg = String(await client.requestRaw("GET", "/api/v2/cluster/x").catch((e: Error) => e));
+    expect(msg).toMatch(/재시도 가능: 예/);
+  });
+
+  it("값 오류(900 필수 파라미터 누락)는 여전히 재시도 불가다", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ responseError: { returnCode: "900", returnMessage: "Required field is not specified. location : routeList.N.targetName." } }, 400)));
+    const msg = String(await client.request("/vpc/v2/removeRoute", {}).catch((e: Error) => e));
+    expect(msg).toMatch(/재시도 가능: 아니오/);
+  });
+
+  it("연결 실패(fetch failed)는 대상 호스트와 원인 코드를 싣는다 — 쿼리는 가린다 (금융존 E-07)", async () => {
+    const cause = Object.assign(new Error("connect ETIMEDOUT 1.254.228.8:443"), { code: "ETIMEDOUT" });
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed", { cause }); }));
+    const msg = String(await client.request("/vserver/v2/getServerInstanceList", { secret: "zzz" }).catch((e: Error) => e));
+    expect(msg).toContain("ETIMEDOUT");
+    expect(msg).toContain("https://cloudfunctions.apigw.ntruss.com/vserver/v2/getServerInstanceList");
+    expect(msg).not.toContain("zzz");
   });
 });

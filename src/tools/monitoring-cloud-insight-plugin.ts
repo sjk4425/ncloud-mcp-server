@@ -593,7 +593,7 @@ const meMetrics = z.array(z.string()).optional().describe("Metric names to expor
 const meDestination = z
   .object({
     type: z.string().describe("Destination service code — currently only 'OBS' (Object Storage)"),
-    regionCode: z.string().describe("Region code of the destination resource, e.g. FKR"),
+    regionCode: z.string().describe("Region code of the destination resource (see ncloud_get_regions)"),
     resourceId: z.string().describe("Destination resource ID — the bucket name for Object Storage"),
   })
   .describe("Where the exported result is stored (Object Storage only)");

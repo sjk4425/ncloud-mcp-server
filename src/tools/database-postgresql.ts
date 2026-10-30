@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { L, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabasePostgresqlTools(server: McpServer, client: NcloudClient): void {
@@ -170,8 +170,10 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "Add databases to a Cloud DB for PostgreSQL instance",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
+      // owner 는 API 필수(금융존 테스트 E-13 — 없으면 900 location: cloudPostgresqlDatabaseList.N.owner).
       cloudPostgresqlDatabaseList: z.array(z.object({
         name: z.string().describe("Database name to add"),
+        owner: z.string().describe("Owner — an existing DB user name (see ncloud_list_postgresql_users)"),
       })).min(1).describe("List of databases to add"),
     },
     async (params) => {
@@ -181,6 +183,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       for (let i = 0; i < cloudPostgresqlDatabaseList.length; i++) {
         const db = cloudPostgresqlDatabaseList[i];
         requestParams[`cloudPostgresqlDatabaseList.${i + 1}.name`] = db.name;
+        requestParams[`cloudPostgresqlDatabaseList.${i + 1}.owner`] = db.owner;
       }
 
       const result = await client.request("/vpostgresql/v2/addCloudPostgresqlDatabaseList", requestParams);
@@ -205,12 +208,15 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_add_postgresql_users",
-    "Add users to a Cloud DB for PostgreSQL instance",
+    "Add users to a Cloud DB for PostgreSQL instance. clientCidr limits where the user can connect from — avoid 0.0.0.0/0.",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
+      // clientCidr·isReplicationRole 은 API 필수(금융존 테스트 E-13 — 900 이 하나씩 차례로 났다).
       cloudPostgresqlUserList: z.array(z.object({
         name: z.string().describe("User name to add"),
         password: z.string().describe("User password"),
+        clientCidr: z.string().describe("Client CIDR allowed to connect (e.g. 10.0.0.0/16)"),
+        isReplicationRole: z.boolean().default(false).describe("Grant the replication role (default false)"),
       })).min(1).describe("List of users to add"),
     },
     async (params) => {
@@ -221,22 +227,38 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
         const user = cloudPostgresqlUserList[i];
         requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
         requestParams[`cloudPostgresqlUserList.${i + 1}.password`] = user.password;
+        requestParams[`cloudPostgresqlUserList.${i + 1}.clientCidr`] = user.clientCidr;
+        requestParams[`cloudPostgresqlUserList.${i + 1}.isReplicationRole`] = user.isReplicationRole;
       }
 
       const result = await client.request("/vpostgresql/v2/addCloudPostgresqlUserList", requestParams);
-      return result;
+      const open = cloudPostgresqlUserList.filter((u) => u.clientCidr.trim() === "0.0.0.0/0").map((u) => u.name);
+      if (open.length === 0) return result;
+      return {
+        ...result,
+        warning: L({
+          ko: `⚠️ 사용자 [${open.join(", ")}]의 clientCidr 가 0.0.0.0/0 이라 모든 주소에서 접속할 수 있습니다. 필요한 대역으로 좁히는 것을 권장합니다.`,
+          en: `⚠️ User(s) [${open.join(", ")}] have clientCidr 0.0.0.0/0 and can connect from any address. Narrow it to the ranges you need.`,
+        }),
+      };
     }
   );
 
   defineTool(
     server,
     "ncloud_change_postgresql_users",
-    "Change user information (password) for a Cloud DB for PostgreSQL instance",
+    "Change users (password, client CIDR, replication role) for a Cloud DB for PostgreSQL instance",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
+      // 가이드 database-vpostgresql-changecloudpostgresqluserlist: password·clientCidr·isReplicationRole 은
+      //   Conditional(셋 중 하나 이상). 예전 스키마는 password 만 받아 CIDR·복제 권한을 바꿀 수 없었다.
       cloudPostgresqlUserList: z.array(z.object({
         name: z.string().describe("User name to modify"),
-        password: z.string().describe("New password for the user"),
+        password: z.string().optional().describe("New password"),
+        clientCidr: z.string().optional().describe("New client CIDR allowed to connect"),
+        isReplicationRole: z.boolean().optional().describe("Grant (true) or revoke (false) the replication role"),
+      }).refine((u) => u.password !== undefined || u.clientCidr !== undefined || u.isReplicationRole !== undefined, {
+        message: "Set at least one of password, clientCidr, isReplicationRole",
       })).min(1).describe("List of users to modify"),
     },
     async (params) => {
@@ -246,7 +268,9 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
       for (let i = 0; i < cloudPostgresqlUserList.length; i++) {
         const user = cloudPostgresqlUserList[i];
         requestParams[`cloudPostgresqlUserList.${i + 1}.name`] = user.name;
-        requestParams[`cloudPostgresqlUserList.${i + 1}.password`] = user.password;
+        if (user.password !== undefined) requestParams[`cloudPostgresqlUserList.${i + 1}.password`] = user.password;
+        if (user.clientCidr !== undefined) requestParams[`cloudPostgresqlUserList.${i + 1}.clientCidr`] = user.clientCidr;
+        if (user.isReplicationRole !== undefined) requestParams[`cloudPostgresqlUserList.${i + 1}.isReplicationRole`] = user.isReplicationRole;
       }
 
       const result = await client.request("/vpostgresql/v2/changeCloudPostgresqlUserList", requestParams);
@@ -361,7 +385,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "ncloud_get_postgresql_image_products",
     "List available Cloud DB for PostgreSQL image product codes (engine versions)",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vpostgresql/v2/getCloudPostgresqlImageProductList", params);
@@ -374,7 +398,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "List available Cloud DB for PostgreSQL server spec product codes for a given image product code",
     {
       cloudPostgresqlImageProductCode: z.string().describe("PostgreSQL image product code (from ncloud_get_postgresql_image_products)"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vpostgresql/v2/getCloudPostgresqlProductList", params);
@@ -386,7 +410,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "ncloud_get_postgresql_target_vpcs",
     "List VPCs available for Cloud DB for PostgreSQL instance creation",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vpostgresql/v2/getCloudPostgresqlTargetVpcList", params);
@@ -396,10 +420,13 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_get_postgresql_target_subnets",
-    "List subnets available for Cloud DB for PostgreSQL instance creation within a specific PostgreSQL instance",
+    "List subnets in a VPC that can host a new Cloud DB for PostgreSQL instance of the given image",
     {
-      cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      // 가이드 database-vpostgresql-getcloudpostgresqltargetsubnetlist: vpcNo·cloudPostgresqlImageProductCode Required(세 존 동일).
+      vpcNo: z.string().describe("VPC number"),
+      cloudPostgresqlImageProductCode: z.string().describe("PostgreSQL image product code"),
+      isPublic: z.boolean().optional().describe("true = public subnets only, false = private subnets only"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vpostgresql/v2/getCloudPostgresqlTargetSubnetList", params);
@@ -412,7 +439,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "List detailed backup information (including file names) for a Cloud DB for PostgreSQL instance",
     {
       cloudPostgresqlInstanceNo: z.string().describe("Cloud PostgreSQL instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vpostgresql/v2/getCloudPostgresqlBackupDetailList", params);
@@ -424,7 +451,7 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "ncloud_list_postgresql_buckets",
     "List Object Storage buckets available for Cloud DB for PostgreSQL (for backup export)",
     {
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
       return client.request("/vpostgresql/v2/getCloudPostgresqlBucketList", params);
@@ -437,10 +464,13 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "List DB server log files for a Cloud DB for PostgreSQL server instance",
     {
       cloudPostgresqlServerInstanceNo: z.string().describe("Cloud PostgreSQL server instance number"),
-      regionCode: z.string().optional().describe("Region code (e.g. KR, SGN, JPN). Defaults to current region."),
+      // 가이드 database-vpostgresql-getdbserverloglist: logType Required(POSTGRESQL_LOG 만, 세 존 동일) — 고정값으로 보낸다.
+      pageNo: z.number().int().min(0).optional().describe("Page number (pageSize is required when set)"),
+      pageSize: z.number().int().min(1).max(1000).optional().describe("Page size, 1-1000"),
+      regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
     async (params) => {
-      return client.request("/vpostgresql/v2/getDbServerLogList", params);
+      return client.request("/vpostgresql/v2/getDbServerLogList", { ...params, logType: "POSTGRESQL_LOG" });
     }
   );
 
@@ -466,7 +496,8 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "Export a Cloud DB for PostgreSQL server log file to Object Storage. Use ncloud_list_postgresql_logs to get available log files.",
     {
       cloudPostgresqlServerInstanceNo: z.string().describe("Cloud PostgreSQL server instance number"),
-      logType: z.string().describe("Log type to export (e.g. ERROR, SLOW, etc.)"),
+      // PostgreSQL 의 logType 허용 값은 POSTGRESQL_LOG 하나(금융존 테스트 E-12, 5000026 응답으로 확인).
+      logType: z.enum(["POSTGRESQL_LOG"]).default("POSTGRESQL_LOG").describe("Log type (only POSTGRESQL_LOG is supported)"),
       fileName: z.string().describe("Log file name to export (from ncloud_list_postgresql_logs)"),
       bucketName: z.string().describe("Object Storage bucket name to export to"),
       folderPath: z.string().optional().describe("Folder path within the bucket (e.g. 'postgresql-logs/error'). If omitted, exports to bucket root."),

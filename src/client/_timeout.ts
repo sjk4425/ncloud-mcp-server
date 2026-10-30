@@ -44,6 +44,12 @@ export async function fetchWithTimeout(url: string, options: RequestInit): Promi
     if (err?.name === "TimeoutError" || err?.name === "AbortError") {
       throw new Error(messages().timeout(Math.round(timeoutMs / 1000), redactUrl(url)));
     }
+    // undici 는 연결 실패를 `TypeError: fetch failed` 하나로 던지고 원인은 err.cause 에 둔다 — 그대로 올리면
+    // 어느 호스트가 왜(ETIMEDOUT/ENOTFOUND/ECONNREFUSED…) 실패했는지 알 수 없다(금융존 테스트 E-07).
+    if (err instanceof TypeError && err.message === "fetch failed") {
+      const cause = err.cause as { code?: string; message?: string } | undefined;
+      throw new Error(messages().networkFailure(redactUrl(url), cause?.code ?? cause?.message ?? "unknown"), { cause: err });
+    }
     throw err;
   }
 }

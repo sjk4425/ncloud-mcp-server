@@ -2,6 +2,13 @@ import { describe, it, expect } from "vitest";
 import { redactSecrets, redactAtPath } from "./_secrets.js";
 
 describe("_secrets: redactSecrets (F-03)", () => {
+  it("값 패턴(ncp_iam_)으로 이미 가린 따옴표 대입은 다시 가리지 않는다 — 길이·건수가 원본 기준", () => {
+    const value = "ncp_iam_FAKEFAKEFAKEFAKE1234"; // 28자
+    const { text, count } = redactSecrets(`export NCLOUD_ACCESS_KEY="${value}"`);
+    expect(count).toBe(1);
+    expect(text).toBe('export NCLOUD_ACCESS_KEY="<REDACTED:28 chars>"');
+  });
+
   it("현장 패턴 — Python 소스에 하드코딩된 access/secret key 대입을 가린다", () => {
     const code = [
       "def main(args):",

@@ -282,7 +282,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
           noun: { ko: "오브젝트", en: "object" },
           verb: "upload",
           notes: {
-            bodySize: `${params.body.length} bytes`,
+            bodySize: `${Buffer.byteLength(params.body, "utf8")} bytes`,
             ...(params.contentType ? {} : { note_contentType: "(no Content-Type header sent — the server applies its default)" }),
           },
         });
@@ -300,7 +300,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
         리소스타입: "Archive Object",
         컨테이너: params.containerName,
         오브젝트: params.objectName,
-        크기: `${params.body.length} bytes`,
+        크기: `${Buffer.byteLength(params.body, "utf8")} bytes`,
         etag: response.headers.get("etag") ?? "",
         상태: "uploaded",
       };

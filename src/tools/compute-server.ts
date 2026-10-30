@@ -5,6 +5,8 @@ import { defineTool } from "./_tool.js";
 import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
+// 인스턴스 태그는 조회하지 않는다. 세 존 가이드의 getInstanceTagList 는 Classic Server API(compute-server) 문서뿐이고
+// VPC(/vserver/v2) 경로는 민간존·금융존 모두 404(에러 코드 300 URL not found)였다(금융존 테스트 E-05, 2026-10-30 민간존 실호출).
 export function registerComputeServerTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
@@ -26,20 +28,19 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_get_server_detail",
-    "Get one server instance plus what is attached to it: block storages (boot + additional, with size/type/product code) and tags. The Server API's detail payload is field-for-field identical to the list entry, so the extra context is what makes this tool worth calling over ncloud_list_servers. Billing type / contract are NOT in the Server API — price a server with ncloud_get_product_price_list (billing group) using serverProductCode or serverSpecCode.",
+    "Get one server instance plus what is attached to it: block storages (boot + additional, with size/type/product code). Instance tags are not included — the VPC Server API has no tag lookup. The Server API's detail payload is field-for-field identical to the list entry, so the extra context is what makes this tool worth calling over ncloud_list_servers. Billing type / contract are NOT in the Server API — price a server with ncloud_get_product_price_list (billing group) using serverProductCode or serverSpecCode.",
     {
       serverInstanceNo: z.string().describe("Server instance number to query"),
-      includeRelated: z.boolean().optional().default(true).describe("Also fetch attached block storages and tags (two extra read calls). false = bare getServerInstanceDetail payload."),
+      includeRelated: z.boolean().optional().default(true).describe("Also fetch attached block storages (one extra read call). false = bare getServerInstanceDetail payload."),
     },
     async (params) => {
       const detail = await client.request("/vserver/v2/getServerInstanceDetail", { serverInstanceNo: params.serverInstanceNo });
       const instance = detail?.serverInstanceList?.[0];
       if (!params.includeRelated || !instance) return detail;
 
-      // 관련 리소스 조회는 진단 성격이다 — 하나가 실패해도 본체 상세는 돌려준다.
-      const [bs, tags] = await Promise.allSettled([
+      // 관련 리소스 조회는 진단 성격이다 — 실패해도 본체 상세는 돌려준다.
+      const [bs] = await Promise.allSettled([
         client.request("/vserver/v2/getBlockStorageInstanceList", { serverInstanceNo: params.serverInstanceNo }),
-        client.request("/vserver/v2/getInstanceTagList", { instanceNoList: [params.serverInstanceNo] }),
       ]);
       const relatedErrors: Record<string, string> = {};
       let blockStorages: unknown[] | undefined;
@@ -58,17 +59,9 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
       } else {
         relatedErrors.blockStorages = String(bs.reason?.message ?? bs.reason);
       }
-      let tagList: unknown[] | undefined;
-      if (tags.status === "fulfilled") {
-        tagList = (tags.value?.instanceTagList ?? []).map((t: any) => ({ key: t.tagKey, value: t.tagValue }));
-      } else {
-        relatedErrors.tags = String(tags.reason?.message ?? tags.reason);
-      }
-
       return {
         serverInstance: instance,
         ...(blockStorages !== undefined ? { blockStorages } : {}),
-        ...(tagList !== undefined ? { tags: tagList } : {}),
         ...(Object.keys(relatedErrors).length > 0 ? { relatedErrors } : {}),
         pricingHint: L({
           ko: "과금 유형·약정 정보는 Server API에 없습니다. 단가는 billing 그룹의 ncloud_get_product_price_list에 serverProductCode(또는 serverSpecCode)·blockStorageProductCode를 넘겨 조회하세요.",

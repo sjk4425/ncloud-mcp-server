@@ -4,6 +4,7 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { L, maxLenMessage } from "./_messages.js";
+import { analyticsName, analyticsPassword, storageSize100to2000 } from "./_validation.js";
 import { cdssPathPrefix, type Zone } from "../client/endpoints.js";
 
 /**
@@ -52,6 +53,31 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   // 경로 접두는 등록 시점의 리전으로 고정된다(기존 동작 유지).
   const regionCode = client.getRegionCode();
   const prefix = cdssPathPrefix(zone, regionCode);
+
+  /**
+   * 과금 증가·되돌릴 수 없는 변경(브로커 추가·스펙 변경·버전 업그레이드) 공통 게이트(금융존 테스트).
+   * dryRun 이면 전송 본문 프리뷰, confirm 이 없으면 경고만 돌려주고 API 를 호출하지 않는다. 통과하면 undefined.
+   */
+  const costlyGate = (
+    p: { dryRun?: boolean; confirm?: boolean },
+    preview: Parameters<typeof dryRunPreview>[0],
+    warning: { ko: string; en: string }
+  ) => {
+    if (p.dryRun) {
+      return dryRunPreview({
+        ...preview,
+        notes: {
+          ...preview.notes,
+          note_confirm: L({
+            ko: "실행하려면 dryRun=false, confirm=true 로 다시 호출하세요.",
+            en: "To execute, call again with dryRun=false and confirm=true.",
+          }),
+        },
+      });
+    }
+    if (!p.confirm) return { content: [{ type: "text" as const, text: L(warning) }] };
+    return undefined;
+  };
 
   // ─── Cluster Query Tools ─────────────────────────────────────────────
 
@@ -257,19 +283,20 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       "serviceGroupInstanceNo back — the default operation returns only success/failure, so you would " +
       "otherwise have to find the cluster with ncloud_cdss_list_clusters. Use dryRun=true to preview.",
     {
-      clusterName: z.string().describe("Cluster name (3-15 chars, lowercase+numbers+'-')"),
+      // 제약은 세 존 가이드 공통(createCDSSCluster) — 예전엔 검사가 없어 dryRun 이 잘못된 값을 그대로 통과시켰다(금융존 테스트).
+      clusterName: analyticsName("clusterName").describe("Cluster name (3-15 chars: lowercase letters, numbers, '-'; starts with a letter, ends with a letter or number, no consecutive '-')"),
       kafkaVersionCode: z.number().describe("Kafka version code (from get_kafka_versions)"),
-      configGroupNo: z.number().describe("Config group number"),
-      kafkaManagerUserName: z.string().describe("CMAK access account ID (still required by the API; CMAK itself is being phased out by Ncloud)"),
-      kafkaManagerUserPassword: z.string().describe("CMAK access account password (still required by the API; CMAK itself is being phased out by Ncloud)"),
+      configGroupNo: z.number().describe("Config group number for the same Kafka version (from ncloud_cdss_list_config_groups). Required — if the account has no group for this version yet, create one first with ncloud_cdss_create_config_group"),
+      kafkaManagerUserName: analyticsName("kafkaManagerUserName").describe("CMAK access account ID (3-15 chars, same rule as clusterName; still required by the API — CMAK itself is being phased out by Ncloud)"),
+      kafkaManagerUserPassword: analyticsPassword("kafkaManagerUserPassword").describe("CMAK access account password: 8-20 chars mixing letters, numbers and special characters; must not contain ' \" ` ₩ / & or spaces"),
       softwareProductCode: z.string().describe("OS type code (from get_os_products)"),
       vpcNo: z.number().describe("VPC number"),
       managerNodeSubnetNo: z.number().describe("Manager node subnet number"),
       managerNodeProductCode: z.string().describe("Manager node server type code"),
       brokerNodeSubnetNo: z.number().describe("Broker node subnet number"),
-      brokerNodeCount: z.number().describe("Number of broker nodes (3-10)"),
+      brokerNodeCount: z.number().int().min(3).max(10).describe("Number of broker nodes (3-10)"),
       brokerNodeProductCode: z.string().describe("Broker node server type code"),
-      brokerNodeStorageSize: z.number().describe("Broker storage in GB (100-2000, 10GB increment)"),
+      brokerNodeStorageSize: storageSize100to2000("brokerNodeStorageSize").describe("Broker storage in GB (100-2000, 10GB increment, SSD)"),
       // 같은 파라미터를 받는 별도 op가 있다 — 응답에 serviceGroupInstanceNo 를 담아 준다.
       // 스키마 15개를 복제하지 않고 플래그로 고른다.
       returnClusterId: z.boolean().optional().default(false).describe("If true, calls the variant that returns the new cluster's serviceGroupInstanceNo"),
@@ -406,20 +433,45 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
       "given newBrokerNodeCount=4 ends up with 7. The SES counterpart (ncloud_ses_add_node) behaves the " +
       "same way. " +
       "⚠️ Broker count cannot be reduced afterwards: CDSS has no scale-down operation, so the only way " +
-      "back from adding too many is deleting the cluster.",
+      "back from adding too many is deleting the cluster. " +
+      "Use dryRun=true to preview; executing requires confirm=true.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       // 실제로 오입력 사고가 났다(2026-09-05: 브로커 3대에 4를 넣어 7대가 됨).
       // 축소 op가 없어 되돌리려면 클러스터를 지워야 한다.
       // 한때 "SES는 목표 총계라 의미가 반대"라고 적었으나 그것이 거짓이었다 — SES도 증분이다.
       newBrokerNodeCount: z.number().min(1).max(10).describe("How many broker nodes to ADD (1-10). This is a delta, not the resulting total"),
+      dryRun: z.boolean().optional().default(false).describe("Preview the request without sending it"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to execute — adds billable broker nodes and cannot be undone"),
     },
     async (params) => {
-      return client.postRequest(
-          `${prefix}/cluster/changeCountOfBrokerNode/${params.serviceGroupInstanceNo}`,
-          { newBrokerNodeCount: params.newBrokerNodeCount }
-        );
-    }
+      const endpoint = `${prefix}/cluster/changeCountOfBrokerNode/${params.serviceGroupInstanceNo}`;
+      const body = { newBrokerNodeCount: params.newBrokerNodeCount };
+      const gate = costlyGate(
+        params,
+        {
+          label: "🔍 Dry-Run Preview: CDSS Broker Node Addition",
+          endpoint,
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "브로커 노드", en: "broker nodes" },
+          notes: {
+            note_delta: L({
+              ko: `현재 브로커 수에 ${params.newBrokerNodeCount}대가 더해집니다(목표 총계가 아님). 줄이는 API는 없습니다. 현재 수는 ncloud_cdss_list_nodes 로 확인하세요.`,
+              en: `${params.newBrokerNodeCount} broker node(s) will be ADDED to the current count (not a target total). There is no scale-down API. Check the current count with ncloud_cdss_list_nodes.`,
+            }),
+          },
+        },
+        {
+          ko: `⚠️ CDSS 클러스터 [${params.serviceGroupInstanceNo}]에 브로커 노드 ${params.newBrokerNodeCount}대를 추가합니다(과금 증가). 줄이는 API가 없어 되돌릴 수 없습니다.\n\n실행하려면 confirm=true 로 다시 호출하세요.`,
+          en: `⚠️ This adds ${params.newBrokerNodeCount} billable broker node(s) to CDSS cluster [${params.serviceGroupInstanceNo}]. There is no scale-down API, so it cannot be undone.\n\nTo execute, call again with confirm=true.`,
+        }
+      );
+      if (gate) return gate;
+      return client.postRequest(endpoint, body);
+    },
+    // 되돌릴 수 없는 변경 — confirm 게이트를 가진 도구는 destructiveHint 를 단다(registry 불변식).
+    { annotations: { destructiveHint: true } }
   );
 
   defineTool(
@@ -475,21 +527,51 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
     "Change server spec for nodes in a CDSS cluster. " +
       "⚠️ Downgrades are refused by the service — check `isChangeSpec` in " +
       "ncloud_cdss_get_node_spec_for_change_g3 (G3) or ncloud_cdss_get_node_product_for_change (G2) first; " +
-      "a spec smaller than the current one comes back with isChangeSpec=false.",
+      "a spec smaller than the current one comes back with isChangeSpec=false. " +
+      "Give at least one of brokerNodeProductCode / managerNodeProductCode. The change restarts the nodes and " +
+      "raises billing — use dryRun=true to preview; executing requires confirm=true.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       brokerNodeProductCode: z.string().optional().describe("New broker node product code"),
       managerNodeProductCode: z.string().optional().describe("New manager node product code"),
+      dryRun: z.boolean().optional().default(false).describe("Preview the request without sending it"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to execute — nodes restart and billing changes"),
     },
     async (params) => {
+      // 둘 다 빠지면 빈 본문이 그대로 나가 서버가 10150(동일 스펙)으로 거절했다(금융존 테스트).
+      if (!params.brokerNodeProductCode && !params.managerNodeProductCode) {
+        return {
+          content: [{ type: "text" as const, text: L({
+            ko: "❌ brokerNodeProductCode 또는 managerNodeProductCode 중 하나 이상을 지정하세요.",
+            en: "❌ Specify at least one of brokerNodeProductCode or managerNodeProductCode.",
+          }) }],
+          isError: true,
+        };
+      }
+      const endpoint = `${prefix}/cluster/changeSpecNode/${params.serviceGroupInstanceNo}`;
       const body: Record<string, unknown> = {};
       if (params.brokerNodeProductCode) body.brokerNodeProductCode = params.brokerNodeProductCode;
       if (params.managerNodeProductCode) body.managerNodeProductCode = params.managerNodeProductCode;
-      const result = await client.postRequest(
-        `${prefix}/cluster/changeSpecNode/${params.serviceGroupInstanceNo}`, body
+      const gate = costlyGate(
+        params,
+        {
+          label: "🔍 Dry-Run Preview: CDSS Node Spec Change",
+          endpoint,
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "노드 스펙 변경", en: "node spec change" },
+          verb: "apply",
+        },
+        {
+          ko: `⚠️ CDSS 클러스터 [${params.serviceGroupInstanceNo}]의 노드 스펙을 변경합니다(노드 재시작, 과금 변경). 낮은 스펙으로 되돌리는 변경은 서비스가 거절합니다.\n\n실행하려면 confirm=true 로 다시 호출하세요.`,
+          en: `⚠️ This changes the node spec of CDSS cluster [${params.serviceGroupInstanceNo}] (nodes restart, billing changes). Changing back to a smaller spec is refused by the service.\n\nTo execute, call again with confirm=true.`,
+        }
       );
-      return result;
-    }
+      if (gate) return gate;
+      return client.postRequest(endpoint, body);
+    },
+    // 되돌릴 수 없는 변경 — confirm 게이트를 가진 도구는 destructiveHint 를 단다(registry 불변식).
+    { annotations: { destructiveHint: true } }
   );
 
   // ─── Cluster Service Restart Tools ───────────────────────────────────
@@ -907,9 +989,10 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         // 읽기 응답의 additionalKafkaConfigGroupDetailList 항목은 값 필드가 configValue다
         // (명시 설정 15개의 customValue와 이름이 다르다). 공식 문서에는 이 배열의
         // 항목 서브 필드 표가 없어 처음엔 customValue로 보냈고, 서버가 항목만 만들고
-        // 값을 버렸다(5차 T-7). 읽기 셰이프에 맞춰 configValue로 보낸다 — 라이브 재검증 대상.
+        // 값을 버렸다(5차 T-7). 읽기 셰이프에 맞춰 configValue로 보낸다 — 금융존 실호출에서
+        // compression.type=lz4 가 실제 반영됨을 확인(2026-10-29).
         configValue: z.string().describe("Value to set, as a string"),
-      })).optional().describe("Settings without a named parameter above — sent as additionalKafkaConfigGroupDetailList. ⚠️ Value application is unverified: an earlier attempt registered the entry with an empty value"),
+      })).optional().describe("Settings without a named parameter above — sent as additionalKafkaConfigGroupDetailList"),
     },
     async (params) => {
       // 실제 오퍼레이션은 POST setKafkaConfigGroupDetail 이다.
@@ -932,12 +1015,6 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
         warnings.warning_authorizerClassName = L({
           ko: "authorizer.class.name은 modifyYn=false 설정이라 서버가 SUCCESS를 반환하고 값을 버립니다. 반영 여부를 ncloud_cdss_get_kafka_config로 확인하세요.",
           en: "authorizer.class.name has modifyYn=false — the server answers SUCCESS and discards the value. Verify with ncloud_cdss_get_kafka_config.",
-        });
-      }
-      if (additionalSettings !== undefined) {
-        warnings.warning_additionalSettings = L({
-          ko: "additionalSettings의 값 반영은 아직 검증되지 않았습니다(항목만 등록되고 값이 비는 사례 관측). ncloud_cdss_get_kafka_config로 확인하세요.",
-          en: "additionalSettings value application is unverified — an entry was once registered with an empty value. Verify with ncloud_cdss_get_kafka_config.",
         });
       }
       // 이 호출은 생략한 설정을 기본값으로 되돌린다 — 성공 응답에 그 사실을 남긴다.
@@ -1035,21 +1112,43 @@ export function registerCloudDataStreamingTools(server: McpServer, client: Nclou
   defineTool(
     s,
     "ncloud_cdss_upgrade_version",
-    "Upgrade the Kafka version of a CDSS cluster. Run ncloud_cdss_upgrade_precheck first.",
+    "Upgrade the Kafka version of a CDSS cluster (rolling restart; cannot be downgraded). " +
+      "Run ncloud_cdss_upgrade_precheck first. Use dryRun=true to preview; executing requires confirm=true.",
     {
       serviceGroupInstanceNo: z.string().describe("Cluster instance number"),
       // 실제 필드명은 upgrade* 접두사가 붙고 둘 다 필수다. 경로 세그먼트도 쓰지 않는다.
       upgradeKafkaVersionCode: z.number().describe("Target Kafka version code (from ncloud_cdss_get_kafka_versions)"),
       upgradeConfigGroupNo: z.number().describe("Config group number for the target version (from ncloud_cdss_list_config_groups)"),
+      dryRun: z.boolean().optional().default(false).describe("Preview the request without sending it"),
+      confirm: z.boolean().optional().default(false).describe("Must be true to execute — the upgrade cannot be rolled back"),
     },
     async (params) => {
-      const result = await client.postRequest(`${prefix}/cluster/rollingUpgrade`, {
+      const endpoint = `${prefix}/cluster/rollingUpgrade`;
+      const body = {
         serviceGroupInstanceNo: params.serviceGroupInstanceNo,
         upgradeKafkaVersionCode: params.upgradeKafkaVersionCode,
         upgradeConfigGroupNo: params.upgradeConfigGroupNo,
-      });
-      return result;
-    }
+      };
+      const gate = costlyGate(
+        params,
+        {
+          label: "🔍 Dry-Run Preview: CDSS Kafka Version Upgrade",
+          endpoint,
+          method: "POST",
+          requestParams: body,
+          noun: { ko: "버전 업그레이드", en: "version upgrade" },
+          verb: "apply",
+        },
+        {
+          ko: `⚠️ CDSS 클러스터 [${params.serviceGroupInstanceNo}]의 Kafka 버전을 업그레이드합니다(롤링 재시작, 되돌릴 수 없음). ncloud_cdss_upgrade_precheck 를 먼저 실행하세요.\n\n실행하려면 confirm=true 로 다시 호출하세요.`,
+          en: `⚠️ This upgrades the Kafka version of CDSS cluster [${params.serviceGroupInstanceNo}] (rolling restart, cannot be rolled back). Run ncloud_cdss_upgrade_precheck first.\n\nTo execute, call again with confirm=true.`,
+        }
+      );
+      if (gate) return gate;
+      return client.postRequest(endpoint, body);
+    },
+    // 되돌릴 수 없는 변경 — confirm 게이트를 가진 도구는 destructiveHint 를 단다(registry 불변식).
+    { annotations: { destructiveHint: true } }
   );
 
   defineTool(

@@ -66,9 +66,33 @@ export function redactSecrets(input: string): RedactResult {
       return mask(m);
     });
   }
-  text = text.replace(ASSIGNMENT_PATTERN, (_m, name: string, sep: string, quote: string, value: string) => {
+  text = text.replace(ASSIGNMENT_PATTERN, (m, name: string, sep: string, quote: string, value: string) => {
+    // Already masked by a VALUE_PATTERN (e.g. `ACCESS_KEY="ncp_iam_…"`) — masking the placeholder again
+    // reported the placeholder's length and counted the secret twice (fin S-01 re-test, 2026-10-30).
+    if (value.startsWith("<REDACTED:")) return m;
     count++;
     return `${name}${sep}${quote}${mask(value)}${quote}`;
+  });
+  return { text, count };
+}
+
+/**
+ * 셸 스크립트의 따옴표 없는 대입(`export NCLOUD_SECRET_KEY=abc…`, `--password=abc…`).
+ * Init Script 는 셸이라 ASSIGNMENT_PATTERN(따옴표 필수)으로는 잡히지 않는다(금융존 테스트 S-01).
+ * 값은 공백·따옴표·`$`(변수 참조) 로 시작하지 않는 8자 이상만 본다.
+ */
+const SHELL_ASSIGNMENT_PATTERN =
+  /\b([A-Za-z0-9_\-]*(?:access[_\-]?key|secret|password|passwd|pwd|token)[A-Za-z0-9_\-]*)(\s*=\s*)([^\s"'$;&|]{8,})/gi;
+
+/** 셸 스크립트용 — redactSecrets 에 따옴표 없는 `NAME=value` 대입 마스킹을 더한다. */
+export function redactShellSecrets(input: string): RedactResult {
+  const first = redactSecrets(input);
+  if (typeof first.text !== "string" || first.text.length === 0) return first;
+  let count = first.count;
+  const text = first.text.replace(SHELL_ASSIGNMENT_PATTERN, (m, name: string, sep: string, value: string) => {
+    if (value.startsWith("<REDACTED:")) return m;
+    count++;
+    return `${name}${sep}${mask(value)}`;
   });
   return { text, count };
 }

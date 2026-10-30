@@ -439,6 +439,14 @@ describe("NcloudClient 단위 테스트: HTTP 에러 코드별 메시지", () =>
       client.request("/vserver/v2/getServerInstanceList", {})
     ).rejects.toThrow("API 호출 실패: HTTP 500");
   });
+
+  it("알 수 없는 본문 형식도 진단 정보(재시도 여부)를 붙인다", async () => {
+    vi.stubGlobal("fetch", createMockFetch({ someField: "value" }, 400));
+
+    await expect(
+      client.request("/vserver/v2/getServerInstanceList", {})
+    ).rejects.toThrow(/HTTP 400[\s\S]*재시도/);
+  });
 });
 
 describe("NcloudClient 단위 테스트: 응답 래퍼 해제", () => {

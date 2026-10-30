@@ -47,8 +47,8 @@ const VERB: Record<"create" | "upload" | "apply", { ko: string; en: string }> = 
 export function dryRunMessage(noun: Noun, verb: "create" | "upload" | "apply" = "create"): string {
   const v = VERB[verb];
   return getLang() === "en"
-    ? `Preview only — the ${noun.en} will not be ${v.en}. This shows the request shape only and performs NO server-side validation, so a successful preview does not guarantee the real call will succeed. Call again with dryRun=false to execute.`
-    : `이 요청은 실제 ${noun.ko}를 ${v.ko}하지 않습니다. 입력 형식만 확인하며 서버측 유효성은 검증하지 않으므로, 미리보기 성공이 실제 실행 성공을 보장하지 않습니다. dryRun=false로 호출하면 실행됩니다.`;
+    ? `Preview only — the ${noun.en} will not be ${v.en}. This shows the request that would be sent; only the checks built into this tool's schema were applied (value rules such as name patterns or password policy may not be checked), and NO server-side validation was performed, so a successful preview does not guarantee the real call will succeed. Call again with dryRun=false to execute.`
+    : `이 요청은 실제 ${noun.ko}를 ${v.ko}하지 않습니다. 전송될 요청 내용을 보여줄 뿐이며, 이 도구의 스키마에 정의된 검사만 거쳤습니다(이름 규칙·비밀번호 정책 같은 값 규칙은 검사하지 않을 수 있음). 서버측 유효성은 검증하지 않으므로 미리보기 성공이 실제 실행 성공을 보장하지 않습니다. dryRun=false로 호출하면 실행됩니다.`;
 }
 
 /**

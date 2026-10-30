@@ -377,7 +377,7 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
       name: importedBackupNameSchema.describe("Imported backup name (3-30 chars, unique)"),
       bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Source Object Storage bucket"),
       objectPath: z.string().regex(/^[a-zA-Z0-9._/\-]+$/, "objectPath may contain letters, digits, '.', '_', '/' and '-'").describe("Backup file path inside the bucket (e.g. exports/backup.tar.gz)"),
-      zoneCode: z.string().optional().describe("Zone to store it in (default: first available zone, e.g. KR-2)"),
+      zoneCode: z.string().optional().describe("Zone to store it in (default: first available zone; see ncloud_get_zones)"),
       engineVersion: z.string({ required_error: requiredError("engineVersion") }).describe("Engine version the backup was created with"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without importing"),
     },
