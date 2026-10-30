@@ -2,6 +2,108 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-10-30
+
+> **Financial zone live test follow-up (2026-10-27 – 2026-10-30).** The first live run against a Financial zone account surfaced request-format bugs, mostly in Cloud DB, Global DNS, Kubernetes Service and Cloud Hadoop. Every fix was re-checked against the Financial API guide and then against the Public and Government guides: the parameters, Required flags and paths were identical in all three zones. **Unless marked _Financial zone only_, these were latent bugs in every zone**; the Public zone only missed them because those calls had not been exercised there. Fixes follow the guides and, where the test included one, a direct API call with the corrected request. Where a live API demanded a parameter its guide marks optional, the requirement was confirmed in the Public zone too before it was applied to every zone (`ncloud_list_mongodb_buckets`, 2026-10-30).
+>
+> **Breaking schema changes.** Several tools changed parameter names or gained required parameters (see *Changed*). Calls using the old names now fail schema validation instead of failing at the API. `ncloud_cdss_add_nodes`, `ncloud_cdss_change_node_spec` and `ncloud_cdss_upgrade_version` now also need `confirm=true` (see *Added*): calls without it return a warning and no longer run. Three Object Storage versioning tools were removed (see *Removed*).
+
+### Added
+- **`NCLOUD_OBJECT_STORAGE_ENDPOINT`** — overrides the Object Storage host in every zone (e.g. to reach the Financial zone's public endpoint from outside its VPC). When set, the host stays fixed even after `ncloud_set_region`. Documented in the README environment-variable tables.
+- **`dryRun`** on `ncloud_create_nat_gateway` and on the four MongoDB server-count tools (`ncloud_change_mongodb_secondary_count` / `_mongos_count` / `_config_count` / `_shard_count`), which add billed servers immediately.
+- **`includeSecrets`** option on `ncloud_list_init_scripts` / `ncloud_get_init_script_detail` (see *Security*).
+- `ncloud_dns_create_domain` now returns the new `domainId` (the API answers only `{success:true}`, so the tool looks the domain up by name afterwards).
+- `regionCode` on `ncloud_get_cache_instance_detail`, `ncloud_reboot_cache_server` and `ncloud_delete_cache_instance`, matching the rest of the Cache tools.
+- **`dryRun` + `confirm` gate** on `ncloud_cdss_add_nodes` (adds billed brokers; there is no scale-down API), `ncloud_cdss_change_node_spec` (restarts nodes, changes billing) and `ncloud_cdss_upgrade_version` (cannot be rolled back). Without `confirm=true` they return a warning and do not call the API.
+- **`dryRun`** on `ncloud_hadoop_create_notebook` (creates a billed server).
+- `ncloud_nks_create_node_pool` accepts `productCode` (XEN node spec) and `subnetNoList`, as in the `create_cluster` node-pool item.
+- Cloud Hadoop lookup filters from the guide: `ncloud_hadoop_list_products` / `_list_notebook_products` take `infraResourceDetailTypeCode` (`MSTDT` master/worker, `EDGND` edge; products only), `zoneCode`, `productCode`, `exclusionProductCode`; `ncloud_hadoop_list_image_products` / `_list_notebook_images` take `productCode`, `exclusionProductCode`, `generationCode`; `ncloud_hadoop_list_cluster_types` / `_list_addons` take `engineVersionCode`.
+
+### Changed
+- **Cloud DB for MySQL**
+  - `ncloud_delete_mysql_users` takes `cloudMysqlUserList: [{ name, hostIp }]` (sent as `cloudMysqlUserList.N.name` / `.hostIp`).
+  - `ncloud_list_mysql_logs` requires `logType` (`BINARY` | `ERROR` | `SLOW` | `GENERAL` | `AUDIT`).
+  - `ncloud_list_mysql_events` takes `startDate` / `endDate` (`yyyy-MM-dd HH:mm:ss`, default: the last 7 days in KST) plus `cloudMysqlServerName`, `pageNo`, `pageSize`.
+  - `ncloud_list_mysql_databases` / `_users` send `pageNo=0`, `pageSize=20` by default (both are required by the API).
+  - `ncloud_hadoop_list_mysql_instances` requires `cloudHadoopInstanceNo`.
+- **`ncloud_get_{mysql,postgresql,mssql,mongodb}_target_subnets`** take `vpcNo` + the image product code (+ optional `isPublic`), like the Cache tool. The old `cloud*InstanceNo` parameter does not exist in the API — this lookup runs before an instance is created.
+- **Cloud DB for PostgreSQL**
+  - `ncloud_add_postgresql_databases` requires `owner` per database.
+  - `ncloud_add_postgresql_users` requires `clientCidr` and sends `isReplicationRole` (default `false`); it warns when `clientCidr` is `0.0.0.0/0`.
+  - `ncloud_change_postgresql_users` can change `password`, `clientCidr` and `isReplicationRole` (at least one is required).
+  - `ncloud_list_postgresql_logs` always sends `logType=POSTGRESQL_LOG` and accepts `pageNo` / `pageSize`; `ncloud_export_postgresql_log` accepts only `POSTGRESQL_LOG`.
+- **Cloud DB for MSSQL**
+  - `ncloud_list_mssql_buckets` requires `cloudMssqlInstanceNo` and `cloudMssqlServerName`.
+  - `ncloud_list_mssql_log_files` requires `cloudMssqlInstanceNo` and `fileType` (`errorLog` | `agentLog` | `traceLog` | `auditLog` | `xeBaselineLog`).
+  - `ncloud_list_mssql_log_backup_files` requires `databaseName` and `backupSetId` (from `ncloud_list_mssql_backup_details`); `cloudMssqlServerInstanceNo` is now optional.
+  - `ncloud_export_mssql_log` takes `cloudMssqlObjectNameList` (string list) instead of `cloudMssqlExportObjectList[].fullObjectName`.
+  - `ncloud_create_mssql_instance` no longer takes `isBackup` — the parameter is not in any zone's guide and was silently ignored, so "backup off" requests had no effect. Backups cannot be turned off; `isAutomaticBackup` / `backupTime` / `backupFileRetentionPeriod` remain.
+- **Cloud DB for MongoDB**
+  - `ncloud_add_mongodb_users` / `_change_` / `_delete_` use `userName` (was `name`, rejected by the API); `authority` is `READ` | `READ_WRITE`. Change also takes `databaseName` and can update `authority`; `password` and `authority` are optional there. Delete takes `userName` + `databaseName`. All three accept 1–10 users.
+  - `ncloud_list_mongodb_buckets` requires `cloudMongoDbInstanceNo`. All three guides mark it optional, but the Financial and Public zone APIs both rejected calls without it (`900`, checked 2026-10-27 and 2026-10-30). `ncloud_list_mongodb_logs` requires `logType` (`log` | `audit`, default `log`).
+  - `ncloud_export_mongodb_backup` takes `cloudMongoDbInstanceNo` + `objectName` + `bucketName`; `ncloud_export_mongodb_log` takes `cloudMongoDbServerInstanceNo` + `logType` + `fileName` + `bucketName`. Both previously sent the MSSQL request shape.
+  - `ncloud_create_mongodb_instance` gains `backupTime`; descriptions corrected (service name 3–15 chars incl. hyphen, storage types, `engineVersionCode` selects the version when several share an image code, backups cannot be turned off).
+- **Network**
+  - `ncloud_get_flow_log_config` requires `networkInterfaceNoList`.
+  - `ncloud_add_route` / `ncloud_remove_route` require `targetName` (sent as `routeList.1.targetName`).
+  - `ncloud_list_network_interfaces` uses the API's real filters `subnetName` and `instanceNo`. `subnetNo` is applied to the result by the tool, and `serverInstanceNo` is removed — the API silently ignored both and returned every NIC, which could mislead dependency checks before a delete.
+- **Global DNS**
+  - `ncloud_dns_create_domain` takes `comments` (was `comment`, which was not saved).
+  - `ncloud_dns_list_lb_records` takes `platformType` (default `VPC`), `recordType` (default `A`), `searchContent` and `lbRegionCode` (Public zone only).
+- **Cloud Hadoop**
+  - `ncloud_hadoop_list_cluster_types` requires `cloudHadoopImageProductCode`; `ncloud_hadoop_list_addons` requires it plus `cloudHadoopClusterTypeCode` (the tool could not be called before).
+  - `ncloud_hadoop_list_notebook_components` takes `cloudHadoopNotebookImageProductCode` (was `cloudHadoopImageProductCode`, so the tool could not be called); `ncloud_hadoop_list_notebook_products` requires it; `ncloud_hadoop_list_products` requires `cloudHadoopImageProductCode`.
+  - `ncloud_hadoop_list_mysql_users` keeps the guide's parameters (`cloudMysqlInstanceNo`, `regionCode`) in every zone. The 2026-10-29 `5001017` rejection did not reproduce: with a MySQL 8.0 instance the call succeeded without `cloudHadoopInstanceNo` in both the Financial and Public zones (2026-10-30). The description now notes that Hive metastore integration supports MySQL 8.0.x only (8.4 is rejected with `5001426`).
+  - `ncloud_hadoop_list_objects` requires `bucketName` and filters with `prefix` / `delimiter` / `maxKeys` / `marker`; `cloudHadoopInstanceNo` and `directoryName` were not API parameters and were ignored (the whole bucket came back).
+  - `ncloud_hadoop_create_cluster` / `_create_notebook` check names (3–15 chars, lowercase/digits/`-`), admin password length (8–20), worker count (2–8) and storage size (100–2000 GB in 10 GB steps, or 4000 / 6000) in the schema, so `dryRun` catches them. Descriptions note that HA is fixed (2 masters, 1 edge), that the image code should be passed explicitly, the per-call node-add limit (Public +10, Government / Financial +8), and zone-only options (`useDataCatalog` and CB2 storage: Public zone; `engineVersionCode`: not in the Financial guide).
+- **Kubernetes Service**
+  - `ncloud_nks_create_cluster` / `_create_node_pool` reject a XEN product code (`SVR.…`) passed as `serverSpecCode` (KVM only) and point to `productCode`; the API answered such requests with a bare 400.
+  - `ncloud_nks_create_cluster` has no `addons` parameter where the Add-on tools are not registered (Financial zone). Descriptions cover XEN vs KVM node specs, `lbPublicSubnetNo` being required in the Government and Financial zones, the Public-zone-only `isRegional` / node-pool `zoneCode` / version filters, and — _Financial zone only_ — XEN-only clusters and the `clusterType` value that was accepted live (the guide's example is rejected).
+- **Search Engine Service / Cloud Data Streaming Service** — `ncloud_ses_create_cluster` and `ncloud_cdss_create_cluster` (G2) check the guide's rules in the schema: name and admin ID (3–15 chars, lowercase/digits/`-`, no `--`), password (8–20, none of `' " \` ₩ / &` or spaces), node count (3–10), storage (100–2000 GB in 10 GB steps) and, for SES, dashboard port (1025–65534, not 9090/9200/9300) and `masterNodeCount` 3 or 5 with the master values required when dedicated masters are on. These inputs used to pass `dryRun`.
+- `ncloud_cdss_change_node_spec` requires at least one of `brokerNodeProductCode` / `managerNodeProductCode` (an empty body was sent and rejected with `10150`).
+- **Container Registry** — _Financial zone only:_ `ncloud_ncr_create_registry` accepts only `storageType=objectStorage` (Ncloud Storage is not offered; the API rejects `ncloudStorage`).
+- **Zone-neutral descriptions.** Region / zone examples such as `e.g. KR, SGN, JPN` and `e.g. KR-1, KR-2` now point to `ncloud_get_regions` / `ncloud_get_zones`, so Financial / Government sessions are not steered toward Public-zone codes. `ncloud_get_current_region` documents `pub`, `gov` or `fin`; `ncloud_list_tool_groups` notes that group titles list services across all zones.
+
+### Removed
+- **Object Storage versioning tools** `ncloud_get_bucket_versioning`, `ncloud_put_bucket_versioning` and `ncloud_list_object_versions` (all zones). Bucket versioning is not in the Object Storage API guide of any zone, and the calls returned 403 AccessDenied in both the Public and Financial zones (2026-10-30). Versioning is a Ncloud Storage feature: use `ncloud_ncs_get_bucket_versioning` / `_put_bucket_versioning` / `_list_object_versions` (Public and Government zones).
+
+### Fixed
+- **Object Storage:** `ncloud_delete_multiple_objects` reported "0 objects deleted" after deleting every requested object. The API answers an empty `<DeleteResult/>` even with `Quiet=false` (confirmed in the Public and Financial zones, 2026-10-30), so when no `<Deleted>` entries come back the tool now reports every requested key without an `<Error>` entry as deleted. `<Deleted>` / `<Error>` blocks are parsed one by one with entities decoded, and keys in the request body are XML-escaped, so keys with `&` or `<` no longer make the request malformed. `ncloud_list_objects` decodes entities in keys and prefixes (`a&b.txt` was listed as `a&amp;b.txt`), and `ncloud_copy_object` returns its ETag without the `&quot;` entities.
+- **Object Storage — _Financial zone only:_** the default host is now the private endpoint `kr.object.private.fin-ncloudstorage.com` (signing region `fin-standard`); the public host was unreachable from inside a Financial zone VPC, so every Object Storage tool timed out.
+- **Server detail:** `ncloud_get_server_detail` no longer calls `/vserver/v2/getInstanceTagList` and no longer returns `tags`. The call returned 404 (`URL not found`) in both the Public and Financial zones. The `getInstanceTagList` page in the guides belongs to the Classic Server API, and no zone documents a VPC equivalent. Before this change the tool showed the 404 under `relatedErrors.tags` on every call.
+- **Global DNS**
+  - `ncloud_dns_delete_records` sends the record-ID array as the body itself (`{recordIds}` was rejected), so domains with records can be cleaned up again.
+  - `ncloud_dns_apply_domain` → `PUT /record/apply/{domainId}` and `ncloud_dns_rollback_domain` → `PUT /record/rollback/{domainId}` (both returned 404 before).
+  - `ncloud_dns_list_lb_records` → `GET /lb-record/{platformType}/{recordType}` (the old path does not exist and returned 500).
+  - `ncloud_dns_delete_domain` documents the required order: delete records → apply → delete domain.
+- **Network ACL rule description** is sent as `networkAclRuleList.N.networkAclRuleDescription` and is now saved.
+- **`ncloud_change_mysql_spec`** unwraps the `changeCloudMysqlServerSpec` envelope like other tools.
+- **Empty list results** (e.g. `ncloud_dns_list_domains` with 0 domains) are printed instead of returning no output — a `{ content: [] }` API body was mistaken for an MCP tool result.
+- **Error messages**
+  - No more `Error code: undefined` line when the response has no code.
+  - Network failures show the host and cause (e.g. `ETIMEDOUT`) instead of a bare `fetch failed`.
+  - Responses with an unknown body shape (e.g. Container Registry) now carry the trace ID and retry hint as well.
+  - Transient state errors are classified as retryable: codes `1009022`, `1100031`, `1018005`, `1000034`, `5001130` and messages such as "not in operational state", "status is not operational", "cannot be controlled", "being added/deleted/…".
+  - `ncloud_functions_create_action` adds a hint on error `80307` (subnet) that the request format matches the guide, so the cause is the account / service setup rather than the request.
+  - Business errors that analytics services (CDSS, SES) return as HTTP 500 with a service code ≥ 10000 (e.g. CDSS `10150` same spec, `10160` already latest) are no longer marked retryable — repeating the request gives the same result.
+  - A 5xx whose message says an input value does not exist or is invalid (e.g. PostgreSQL returns `5001234 The product code could not be found` as HTTP 500, where MySQL returns it as 400) is no longer marked retryable.
+- **Cache:** `ncloud_create_cache_instance` runs its config-group mode check in `dryRun` too and shows a mismatch in the preview (it used to pass the preview and fail on create). The preview also warns when the config group does not exist.
+- **Cloud DB for MSSQL:** `ncloud_create_mssql_instance` rejects `isAutomaticBackup=false` without `backupTime` before calling the API, `dryRun` included — the guides mark `backupTime` as required in that case.
+- **Secret masking:** a quoted assignment whose value a value pattern had already masked (e.g. `ACCESS_KEY="ncp_iam_…"`) was masked a second time, so the placeholder showed its own length (`<REDACTED:19 chars>`) and the secret was counted twice.
+- **Kubernetes Service:** `ncloud_nks_create_cluster` no longer requires the `code|imageNo` form of `nodePool[].softwareCode` for XEN clusters — XEN image codes have no `|` part, so valid values were rejected before the request was sent. The check now applies to KVM (G3) only.
+- **CDSS:** `ncloud_cdss_change_kafka_config` no longer warns that `additionalSettings` values are unverified — they were confirmed to apply.
+- **Object Storage:** `ncloud_copy_object` URL-encodes `copySource` path segments before sending `x-amz-copy-source` — a source key with non-ASCII characters (e.g. Korean) failed in the client with "Cannot convert argument to a ByteString". A source that already contains `%XX` escapes is sent unchanged.
+- **Object Storage / Archive Storage:** upload sizes in `ncloud_put_object`, `ncloud_upload_part` and `ncloud_upload_archive_object` results and previews are now UTF-8 byte counts, not character counts.
+- **dryRun message** now says the preview applied only the tool's schema checks (value rules may not be checked) instead of implying the input format was validated.
+
+### Security
+- **Init Script secrets are masked.** `ncloud_list_init_scripts`, `ncloud_get_init_script_detail` and `ncloud_create_init_script` mask access keys, passwords and similar values in the script body, including unquoted shell assignments (`NAME=value`). List and detail return the original with `includeSecrets=true`.
+- **`@modelcontextprotocol/sdk` raised to `^1.32.2`** (was `^1.12.1`), so installs no longer resolve SDK versions with published advisories for the OAuth client and HTTP transports. This server uses stdio only and was not exposed to them, but the minimum is now a patched release. Lockfile also picks up patched `fast-uri`, `body-parser` and `@hono/node-server`.
+
+### Tests
+- Regression tests for every item above, including the Global DNS paths, zone-specific branches (Financial NCR storage type, NKS add-on schema), the Hadoop MySQL-user parameters, the removed server tag lookup, the transient and business error codes (including a 5xx "could not be found" staying non-retryable), and the CDSS confirm gates.
+- New `src/tools/storage-object.test.ts`: `x-amz-copy-source` encoding (non-ASCII, already-encoded, ASCII), ETag entity decoding, `delete_multiple_objects` against the live empty `<DeleteResult/>` and with `<Deleted>` / `<Error>` blocks, request-key XML escaping, `list_objects` key and prefix entity decoding, UTF-8 byte sizes in results and previews, and the absence of the three versioning tools. Also covered: the secret masker not re-masking an already masked value, the Cache preview warning for a missing config group, and the MSSQL `backupTime` conditional (dry run included).
+
 ## [2.0.1] - 2026-10-02
 
 ### Fixed
