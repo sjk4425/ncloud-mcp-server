@@ -86,6 +86,9 @@ import {
   registerCloudFunctionsTools,
   registerResourceManagerTools,
   registerGlobalDnsTools,
+  registerGlobalDnsV2Tools,
+  registerSsoTools,
+  registerSubAccountV2Tools,
   registerGlobalTrafficManagerTools,
   registerStorageArchiveTools,
   registerDataCatalogTools,
@@ -229,7 +232,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       //   `setblockstoragereturnprotection` 으로 불규칙) → 세 존 모두 등록.
       const fin = zone === "fin";
       const c = client();
-      registerComputeServerTools(server, c);
+      registerComputeServerTools(server, c, { zone });
       registerComputeStorageTools(server, c);
       registerComputePublicIpTools(server, c);
       registerComputeLoginKeyTools(server, c);
@@ -268,7 +271,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerTargetGroupTools(server, c);
       // Global DNS / GTM: 전용 호스트, 두 존 규칙형 서브도메인, 오퍼레이션 목록 동일
       //   (networking-globaldns-* / globaltrafficmanager-* 페이지 대조, 2026-09-30).
-      registerGlobalDnsTools(server, client(endpoint("globaldns", zone)));
+      //   공공존은 2026-10-22 Global DNS API v2(/dns/v2) 로 교체 — 같은 도구 이름을 재사용하므로 v1 과 함께 등록하지 않는다.
+      if (zone === "gov") registerGlobalDnsV2Tools(server, client(endpoint("globaldns", zone)));
+      else registerGlobalDnsTools(server, client(endpoint("globaldns", zone)));
       const gtm = endpoint("globaltrafficmanager", zone);
       if (gtm) registerGlobalTrafficManagerTools(server, client(gtm));
     },
@@ -377,7 +382,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     key: "governance",
-    title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account, WMS)",
+    title: "Management & Governance (Activity Tracer, Cloud Advisor, Resource Manager, Sub Account, SSO, WMS)",
     register: ({ server, client, zone }) => {
       // Activity Tracer·Resource Manager·Sub Account·WMS: 세 존 모두 <svc>.apigw.* 호스트, 경로 동일
       //   (management-cloudactivitytracer / -resourcemanager / -subaccount / -wms 개요, 2026-09-30 대조).
@@ -387,8 +392,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
       const advisor = endpoint("cloudAdvisor", zone);
       if (advisor) registerCloudAdvisorTools(server, client(advisor));
       registerResourceManagerTools(server, client(endpoint("resourceManager", zone)));
-      registerSubAccountTools(server, client(endpoint("subAccount", zone)));
+      // 공공존은 2026-10-22 Sub Account API v2(/api/v2) 로 교체 — v1 도구 이름 28개를 재사용하므로 v1 과 함께 등록하지 않는다.
+      if (zone === "gov") registerSubAccountV2Tools(server, client(endpoint("subAccount", zone)));
+      else registerSubAccountTools(server, client(endpoint("subAccount", zone)));
       registerWmsTools(server, client(endpoint("wms", zone)));
+      // Ncloud Single Sign-On v2: 공공존 전용(2026-10-22 신규) → endpoint() undefined 면 미등록.
+      const sso = endpoint("sso", zone);
+      if (sso) registerSsoTools(server, client(sso));
       // STS 호출자 식별(세 존, sts.apigw.*) — 메인/서브 계정 구분용 (가이드 슬러그 get-caller-identity).
       registerStsTools(server, client(endpoint("sts", zone)));
     },

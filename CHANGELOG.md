@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2026-11-10
+
+> **Government zone API update (release note of 2026-10-22).** Every change in this release applies to the **Government zone (`NCLOUD_ZONE=gov`) only**. The Public and Financial zone APIs have not changed, and their tool sets are unchanged: tool names, descriptions and input schemas are byte-for-byte the same as in 2.1.0. The one exception is the shared error parser (see *Fixed*), which only adds detail when a response uses the new standard error fields.
+>
+> **Breaking schema changes (Government zone).** Global DNS and Sub Account now use the new v2 APIs in the Government zone. The existing tool names are kept, but several parameters were renamed to match v2 (see *Changed*). Calls that use the old v1 parameter names now fail schema validation.
+
+### Added
+- **Ncloud Single Sign-On** (Government zone only, new service): 46 tools with the `ncloud_sso_` prefix, in the governance group.
+  - **Tenant:** `get_tenant`, `get_login_setting`.
+  - **Users:** list/get/create/update/delete, `update_user_access_rule`, `list_user_groups`, `list_user_assignments`, `add_groups_to_user` / `remove_groups_from_user`, `enable_users` / `disable_users` (batch).
+  - **Groups:** list/get/create/update/delete, `list_group_users`, `add_users_to_group` / `remove_users_from_group`.
+  - **Permission sets:** list/get/create/update/delete, `list_managed_policies`.
+  - **Assignments:** list/get/create/update/delete, `list_assignment_targets`, `add_targets_to_assignment` / `remove_targets_from_assignment`, `change_assignment_status`, `list_organization_accounts`, `list_assignment_ip_acls`, `add_ip_acls_to_assignment` / `remove_ip_acls_from_assignment`.
+  - **IP ACLs:** list/get/create/update/delete.
+  - **Not included:** applications, tags and SAML IdP/SP certificate management.
+- **Global DNS v2 — new tools** (Government zone): `ncloud_dns_update_domain`, `ncloud_dns_get_record`, `ncloud_dns_create_record`, `ncloud_dns_update_record`, `ncloud_dns_delete_record`, plus `ncloud_dns_get_domain_operation`, `ncloud_dns_list_domain_operations`, `ncloud_dns_get_record_operation` and `ncloud_dns_list_record_operations`. All 22 v2 operations are covered.
+- **Sub Account v2 — new tools** (Government zone):
+  - **Sub accounts:** `ncloud_update_sub_account`, `ncloud_reset_sub_account_password`, `ncloud_get_/update_sub_account_api_access_rule`, `ncloud_get_/update_sub_account_console_access_rule`, `ncloud_attach_/detach_groups_to/from_sub_account`.
+  - **Groups:** `ncloud_get_group_detail`, `ncloud_update_group`, `ncloud_attach_/detach_sub_accounts_to/from_group`.
+  - **Roles:** `ncloud_get_role_detail`, `ncloud_update_role`, `ncloud_set_role_status`, `ncloud_attach_/detach_policy_to/from_role`, `ncloud_attach_/detach_role_entities`, `ncloud_attach_/detach_role_account`.
+
+### Changed
+- **Global DNS → API v2 (`/dns/v2`)** in the Government zone. All 13 v1 tool names are kept.
+  - **Renamed parameters:** `domainId` → `domainNo`, `recordIds` → `recordNos`, record `id` → `recordNo`, `aliasId` / `lbId` / `lbRegionCode` → `aliasNo` / `loadBalancerNo` / `loadBalancerRegionCode`, domain `comments` → `description`, record filter `recordType` → `type`.
+  - **Lists** take `pageNo` / `pageSize` / `sort`.
+  - **Async calls:** domain create/update/delete and `ncloud_dns_apply_domain` return an operation (`202`). Poll it with the operation tools until `done=true`. `ncloud_dns_create_domain` returns the operation instead of looking up the new domain ID.
+  - **Batch tools:** `ncloud_dns_create_records` / `_update_records` / `_delete_records` use the v2 batch API (1–500 records, all-or-nothing).
+  - **`ncloud_dns_list_lb_records`** also accepts `platformType=BOTH`.
+  - **`ncloud_dns_get_query_count`** returns account-wide statistics when `domainNo` is omitted and accepts a `filter`.
+- **Sub Account → API v2 (`/api/v2`)** in the Government zone. All 28 v1 tool names are kept.
+  - **Lists** take `pageNo` (0-based) / `pageSize` / `sort`. The v1 `searchColumn` / `searchWord` filters do not exist in v2.
+  - **`ncloud_create_sub_account`** uses `apiGatewayAccessible`, `consoleAccessible`, `passwordGenerationRequired`, `apiAllowSourceEnabled`, `consolePermitIpEnabled` and `consolePermitIpAddresses`. `needPasswordReset` and `isMfaMandatory` are gone, because the Government zone always requires a password reset.
+  - **`ncloud_delete_sub_account`** accepts `cascading` (also deletes remaining access keys).
+  - **Roles** are identified by `roleId` (UUID). `descCont` → `description`, `sessionExpirationSec` → `sessionExpirationSeconds` (600 or 1800).
+  - **Policies:** `effect` also accepts `Deny`. `ncloud_get_policy_resources` is paged. `ncloud_update_policy` is a full replace, so an omitted `description` is cleared.
+- **Key Management Service** (Government zone):
+  - **Key version range:** the 1–100 limit on `keyVersion` in `ncloud_kms_get_public_key` was removed, as in the guide.
+  - **Public-key encryption:** `ncloud_kms_decrypt` explains how to decrypt RSA ciphertext made locally with the public key by prepending `ncpkms:v{keyVersion}:`.
+  - **Encryption scheme:** `ncloud_kms_encrypt` / `ncloud_kms_get_public_key` note that OAEP-SHA1 is not supported.
+- **`ncloud_interrupt_server`** (Government zone): the description lists the wider set of supported targets — Linux and Windows on KVM, and Windows on XEN.
+- **`ncloud_ncr_list_registries`** (Government zone): the description mentions the new `storage_type` response field.
+
+### Fixed
+- **Error messages for standard-style (v2) APIs** in every zone.
+  - The client now includes `error.detail` and `error.fieldErrors` in failure messages.
+  - It also reads batch `failures` maps (per-item `errorCode` / `message` / `detail`). Before, these failures were reduced to a generic HTTP status message.
+  - Responses that use the existing `details` field are handled exactly as before.
+
 ## [2.1.0] - 2026-10-30
 
 > **Financial zone live test follow-up (2026-10-27 – 2026-10-30).** The first live run against a Financial zone account surfaced request-format bugs, mostly in Cloud DB, Global DNS, Kubernetes Service and Cloud Hadoop. Every fix was re-checked against the Financial API guide and then against the Public and Government guides: the parameters, Required flags and paths were identical in all three zones. **Unless marked _Financial zone only_, these were latent bugs in every zone**; the Public zone only missed them because those calls had not been exercised there. Fixes follow the guides and, where the test included one, a direct API call with the corrected request. Where a live API demanded a parameter its guide marks optional, the requirement was confirmed in the Public zone too before it was applied to every zone (`ncloud_list_mongodb_buckets`, 2026-10-30).

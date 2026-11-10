@@ -560,6 +560,40 @@ describe("NcloudClient 단위 테스트: 두 가지 에러 형식 파싱", () =>
     ).rejects.toThrow("메시지: Permission Denied");
   });
 
+  it("형식 1 (표준 v2): error.detail·fieldErrors 를 진단 정보로 싣는다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createMockFetch(
+        {
+          error: {
+            errorCode: "InvalidParameter",
+            message: "Invalid request",
+            detail: "domainNo=123",
+            fieldErrors: [{ field: "records[0].ttl", message: "must be >= 0" }],
+          },
+        },
+        400
+      )
+    );
+    const err = await client.requestRaw("POST", "/dns/v2/domains/123/records", undefined, {}).catch((e) => e as Error);
+    expect(err.message).toContain("InvalidParameter");
+    expect(err.message).toContain("domainNo=123");
+    expect(err.message).toContain("records[0].ttl: must be >= 0");
+  });
+
+  it("형식 1b (표준 v2 배치): failures 맵의 항목별 사유를 싣는다", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createMockFetch(
+        { failures: { "0": { errorCode: "NotFound", message: "Policy not found", detail: "abc" } } },
+        404
+      )
+    );
+    const err = await client.requestRaw("POST", "/api/v2/sub-accounts/x/attach-policies", undefined, {}).catch((e) => e as Error);
+    expect(err.message).toContain("NotFound");
+    expect(err.message).toContain("[0] NotFound Policy not found (abc)");
+  });
+
   it("형식 2 (서비스): responseError.returnCode와 returnMessage 추출", async () => {
     vi.stubGlobal(
       "fetch",

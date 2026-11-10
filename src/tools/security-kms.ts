@@ -135,10 +135,16 @@ export function registerKmsTools(rawServer: McpServer, client: NcloudClient, opt
   defineTool(
     server,
     "ncloud_kms_get_public_key",
-    "Get the public key for an asymmetric key (RSA2048 or ECDSA only). Returns the latest enabled version unless keyVersion is given.",
+    gov
+      ? "Get the public key for an asymmetric key (RSA2048 or ECDSA only). Returns the latest enabled version unless keyVersion is given. Data can be encrypted locally with the returned RSA public key (RSA-OAEP; OAEP-SHA1 is not supported) and later decrypted with ncloud_kms_decrypt by prefixing the ciphertext with 'ncpkms:v{keyVersion}:'."
+      : "Get the public key for an asymmetric key (RSA2048 or ECDSA only). Returns the latest enabled version unless keyVersion is given.",
     {
       keyTag: z.string().describe("Key tag - unique identifier derived from key name"),
-      keyVersion: z.number().int().min(1).max(100).optional().describe("Key version to query (1-100). Omit for the latest version; disabled versions cannot be queried"),
+      // 공공존 2026-10-22 릴리스 노트: Enable/Disable Key Version 의 version, Get Public Key 의 keyVersion 에서 범위(1~100) 표기 삭제.
+      //   민간·금융존 가이드는 변경 전이므로 1~100 유지.
+      keyVersion: gov
+        ? z.number().int().min(1).optional().describe("Key version to query (positive integer). Omit for the latest version; disabled versions cannot be queried")
+        : z.number().int().min(1).max(100).optional().describe("Key version to query (1-100). Omit for the latest version; disabled versions cannot be queried"),
     },
     async (params) => {
       const body: Record<string, unknown> = {};
@@ -374,7 +380,9 @@ export function registerKmsTools(rawServer: McpServer, client: NcloudClient, opt
   defineTool(
     server,
     "ncloud_kms_encrypt",
-    "Encrypt data (up to 32KB) using the current version of a KMS key. Only AES256 or RSA2048 key types supported.",
+    gov
+      ? "Encrypt data (up to 32KB) using the current version of a KMS key. Only AES256 or RSA2048 key types supported. Uses a single fixed encryption scheme — OAEP-SHA1 is not supported."
+      : "Encrypt data (up to 32KB) using the current version of a KMS key. Only AES256 or RSA2048 key types supported.",
     {
       keyTag: z.string().describe("Key tag - unique identifier derived from key name"),
       plaintext: z.union([z.string(), z.array(z.string())]).describe("Base64-encoded plaintext data (string or array of strings, max 32KB each)"),
@@ -393,7 +401,9 @@ export function registerKmsTools(rawServer: McpServer, client: NcloudClient, opt
   defineTool(
     server,
     "ncloud_kms_decrypt",
-    "Decrypt ciphertext using a KMS key. Only AES256 or RSA2048 key types supported. Ciphertext must include KMS prefix (ncpkms:version:ciphertext).",
+    gov
+      ? "Decrypt ciphertext using a KMS key. Only AES256 or RSA2048 key types supported. Ciphertext must include KMS prefix (ncpkms:version:ciphertext). RSA ciphertext produced locally with the key's public key (see ncloud_kms_get_public_key) can also be decrypted: prepend 'ncpkms:v{keyVersion}:' (the version of the public key used) to the Base64 ciphertext."
+      : "Decrypt ciphertext using a KMS key. Only AES256 or RSA2048 key types supported. Ciphertext must include KMS prefix (ncpkms:version:ciphertext).",
     {
       keyTag: z.string().describe("Key tag - unique identifier derived from key name"),
       ciphertext: z.union([z.string(), z.array(z.string())]).describe("Ciphertext data including KMS prefix (string or array of strings)"),

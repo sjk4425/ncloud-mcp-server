@@ -372,11 +372,18 @@ describe("network 그룹: 존별 등록", () => {
     const names = captureNetwork("pub");
     for (const t of LISTENER_CERT_TOOLS) expect(names).toContain(t);
   });
-  it("gov: 리스너 인증서 도구 3종만 빠지고 나머지는 public 과 동일하다 (공공존 LB 가이드에 해당 오퍼레이션 없음)", () => {
+  it("gov: 리스너 인증서 도구 3종만 빠지고, Global DNS 는 v2(추가 도구 포함) — 나머지는 public 과 동일", () => {
     const pub = captureNetwork("pub");
     const gov = captureNetwork("gov");
+    const isDns = (n: string) => n.startsWith("ncloud_dns_");
     for (const t of LISTENER_CERT_TOOLS) expect(gov).not.toContain(t);
-    expect(gov.sort()).toEqual(pub.filter((n) => !LISTENER_CERT_TOOLS.includes(n)).sort());
+    expect(gov.filter((n) => !isDns(n)).sort()).toEqual(pub.filter((n) => !LISTENER_CERT_TOOLS.includes(n) && !isDns(n)).sort());
+    // 공공존 Global DNS v2(2026-10-22): v1 도구 이름은 모두 재사용, v2 전용 도구가 추가된다.
+    const pubDns = pub.filter(isDns);
+    const govDns = gov.filter(isDns);
+    for (const t of pubDns) expect(govDns).toContain(t);
+    expect(govDns).toContain("ncloud_dns_get_domain_operation");
+    expect(govDns).toContain("ncloud_dns_get_record_operation");
   });
   it("fin: Global Traffic Manager 만 빠지고(금융존 미제공) 리스너 인증서 포함 나머지는 public 과 동일", () => {
     const pub = captureNetwork("pub");
@@ -490,16 +497,26 @@ describe("governance 그룹: 존별 등록", () => {
     expect(names.some((n) => n.startsWith("ncloud_advisor_"))).toBe(true);
     expect(names).toContain("ncloud_wms_list_monitors");
   });
-  it("gov: Cloud Advisor 만 빠지고(공공존 미제공) 나머지는 public 과 동일", () => {
+  it("gov: Cloud Advisor 만 빠지고, Sub Account 는 v2(v1 이름 전부 재사용 + 추가)·SSO 신규 — 나머지 집합은 public 이 전부 포함", () => {
     const pub = captureGovernance("pub");
     const gov = captureGovernance("gov");
     expect(gov.some((n) => n.startsWith("ncloud_advisor_"))).toBe(false);
-    expect(gov.sort()).toEqual(pub.filter((n) => !n.startsWith("ncloud_advisor_")).sort());
+    // 공공존 2026-10-22: Sub Account v2 는 v1 도구 이름을 모두 재사용하므로, Cloud Advisor 를 뺀 pub 집합은 gov 에 전부 있다.
+    for (const t of pub.filter((n) => !n.startsWith("ncloud_advisor_"))) expect(gov).toContain(t);
+    // v2·SSO 로 늘어난 도구는 pub 에 없다.
+    const added = gov.filter((n) => !pub.includes(n));
+    expect(added).toContain("ncloud_update_sub_account");
+    expect(added).toContain("ncloud_sso_list_users");
+    expect(new Set(gov).size).toBe(gov.length); // v1/v2 중복 등록 없음
   });
-  it("fin: gov 와 동일 집합 (Cloud Advisor 없음, 구현된 Sub Account/Activity Tracer/Resource Manager/WMS op 는 금융존 가이드에 모두 있음)", () => {
-    const gov = captureGovernance("gov").sort();
+  it("pub·fin: SSO 미등록(공공존 전용)", () => {
+    expect(captureGovernance("pub").some((n) => n.startsWith("ncloud_sso_"))).toBe(false);
+    expect(captureGovernance("fin").some((n) => n.startsWith("ncloud_sso_"))).toBe(false);
+  });
+  it("fin: pub 에서 Cloud Advisor 만 뺀 집합 (Sub Account v1 유지, 구현된 Activity Tracer/Resource Manager/WMS op 는 금융존 가이드에 모두 있음)", () => {
+    const pub = captureGovernance("pub");
     const fin = captureGovernance("fin").sort();
-    expect(fin).toEqual(gov);
+    expect(fin).toEqual(pub.filter((n) => !n.startsWith("ncloud_advisor_")).sort());
     expect(fin).toContain("ncloud_list_sub_accounts");
     expect(fin).toContain("ncloud_wms_list_monitors");
   });

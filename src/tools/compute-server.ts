@@ -4,10 +4,17 @@ import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
+import type { Zone } from "../client/endpoints.js";
 
 // 인스턴스 태그는 조회하지 않는다. 세 존 가이드의 getInstanceTagList 는 Classic Server API(compute-server) 문서뿐이고
 // VPC(/vserver/v2) 경로는 민간존·금융존 모두 404(에러 코드 300 URL not found)였다(금융존 테스트 E-05, 2026-10-30 민간존 실호출).
-export function registerComputeServerTools(server: McpServer, client: NcloudClient): void {
+export interface ComputeServerToolOptions {
+  /** 서버 프로세스의 존. 공공존 전용 설명 문구(2026-10-22 릴리스 노트) 분기에만 쓴다. */
+  zone?: Zone;
+}
+
+export function registerComputeServerTools(server: McpServer, client: NcloudClient, opts: ComputeServerToolOptions = {}): void {
+  const gov = opts.zone === "gov";
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
   defineTool(
@@ -474,7 +481,10 @@ export function registerComputeServerTools(server: McpServer, client: NcloudClie
   defineTool(
     server,
     "ncloud_interrupt_server",
-    "Interrupt a server instance for diagnostics of abnormal behavior",
+    // 공공존 2026-10-22: 대상이 XEN Windows → KVM Linux/Windows + XEN Windows 로 확대(compute-vserver-server-interruptserverinstance).
+    gov
+      ? "Interrupt a server instance for diagnostics of abnormal behavior. Supported targets: Linux and Windows servers on the KVM hypervisor, and Windows servers on the XEN hypervisor."
+      : "Interrupt a server instance for diagnostics of abnormal behavior",
     {
       serverInstanceNo: z.string().describe("Server instance number to interrupt"),
     },

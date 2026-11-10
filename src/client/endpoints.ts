@@ -135,6 +135,7 @@ export const SERVICE_ENDPOINTS = {
   cloudfunctionsSgn: { pub: "https://sg-cloudfunctions.apigw.ntruss.com" },
   cloudfunctionsJpn: { pub: "https://jp-cloudfunctions.apigw.ntruss.com" },
   // ── network ──
+  // gov 는 2026-10-22 Global DNS API v2(/dns/v2, gov-global-dns-v2-overview) 출시 → registry 가 gov 에서만 v2 모듈을 등록.
   globaldns: { pub: apigw("globaldns", "pub"), gov: apigw("globaldns", "gov"), fin: "https://globaldns.apigw.fin-ntruss.com" }, // fin: networking-globaldns-* 14 op 동일
   globaltrafficmanager: { pub: apigw("globaltrafficmanager", "pub"), gov: apigw("globaltrafficmanager", "gov") }, // 금융존 미제공(2026-09-30, api-fin 404)
   // ── database ──
@@ -149,7 +150,10 @@ export const SERVICE_ENDPOINTS = {
   activityTracer: { pub: apigw("cloudactivitytracer", "pub"), gov: apigw("cloudactivitytracer", "gov"), fin: "https://cloudactivitytracer.apigw.fin-ntruss.com" },
   cloudAdvisor: { pub: apigw("cloud-advisor", "pub") }, // 민간존 전용 (api-gov·api-fin 에 management-cloud-advisor-* 없음)
   resourceManager: { pub: apigw("resourcemanager", "pub"), gov: apigw("resourcemanager", "gov"), fin: "https://resourcemanager.apigw.fin-ntruss.com" },
+  // 공공존은 2026-10-22 Sub Account API v2(같은 호스트, 경로 /api/v2 — gov-iam-v2-overview) 출시 → registry 가 gov 에서만 v2 모듈을 등록.
   subAccount: { pub: apigw("subaccount", "pub"), gov: apigw("subaccount", "gov"), fin: "https://subaccount.apigw.fin-ntruss.com" },
+  // Ncloud Single Sign-On API v2: 공공존 전용 신규(2026-10-22, gov-single-sign-on-v2-overview, 경로 /api/v2).
+  sso: { gov: apigw("sso", "gov") },
   // STS(임시 자격 증명·호출자 식별): 세 존 규칙형 호스트 (guide slugs management-sts, get-caller-identity, switch-role — 접두 없는 슬러그, 2026-10-02 대조)
   sts: { pub: apigw("sts", "pub"), gov: apigw("sts", "gov"), fin: "https://sts.apigw.fin-ntruss.com" },
   // Secret Manager: 민간존 전용(secretmanager-api-overview, 2026-10-02). KMS 전역 키 연동 시크릿은 apigw 호스트, 리전 격리 키 연동 시크릿은

@@ -470,7 +470,26 @@ export class NcloudClient {
     // (body.error가 문자열인 REST/Spring식 응답과 구분: 객체일 때만 이 분기)
     if (body.error && typeof body.error === "object") {
       const { errorCode, message, details } = body.error;
-      return raise(errorCode, message, details);
+      // Ncloud 표준 표현(v2) 에러는 `detail`(단수)·`fieldErrors[{field,message}]` 를 쓴다(api-call-std-errorhandling,
+      //   공공존 2026-10-22 Global DNS/Sub Account/SSO v2). 기존 `details` 가 없을 때만 보충 — 기존 본문은 그대로.
+      const extra: string[] = [];
+      if (typeof body.error.detail === "string" && body.error.detail) extra.push(body.error.detail);
+      if (Array.isArray(body.error.fieldErrors) && body.error.fieldErrors.length) {
+        extra.push(body.error.fieldErrors.map((f: any) => `${f?.field ?? "?"}: ${f?.message ?? ""}`).join("; "));
+      }
+      return raise(errorCode, message, details ?? (extra.length ? extra.join(" | ") : undefined));
+    }
+
+    // Format 1b: Ncloud 표준 표현(v2) 배치 실패 — { failures: { "<요청 index>": { errorCode, message, detail? } } } (error 키 없음).
+    if (body.failures && typeof body.failures === "object" && !Array.isArray(body.failures)) {
+      const entries = Object.entries(body.failures as Record<string, any>);
+      if (entries.length) {
+        const summary = entries
+          .map(([i, f]) => `[${i}] ${f?.errorCode ?? ""} ${f?.message ?? ""}${f?.detail ? ` (${f.detail})` : ""}`.trim())
+          .join("; ");
+        const first = entries[0][1];
+        return raise(first?.errorCode, `Batch request failed for ${entries.length} item(s): ${summary}`);
+      }
     }
 
     // Format 2: Service-level error — { responseError: { returnCode, returnMessage } }

@@ -52,7 +52,10 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_ncr_list_registries",
-    "List all container registries in the current region",
+    // 공공존 2026-10-22: 레지스트리 목록 응답에 storage_type(연결된 스토리지 유형) 필드 추가 — 응답은 그대로 전달.
+    zone === "gov"
+      ? "List all container registries in the current region. Each item includes 'storage_type', the storage backend linked to the registry."
+      : "List all container registries in the current region",
     {
       pageNo: z.number().int().min(1).optional().describe("Page number (sent as 'page', > 0)"),
       pageSize: z.number().int().min(1).optional().describe("Page size (sent as 'pagesize', > 0)"),
