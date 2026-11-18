@@ -477,6 +477,12 @@ export class NcloudClient {
       if (Array.isArray(body.error.fieldErrors) && body.error.fieldErrors.length) {
         extra.push(body.error.fieldErrors.map((f: any) => `${f?.field ?? "?"}: ${f?.message ?? ""}`).join("; "));
       }
+      // GTM 등: 05X000 "Invalid value" 의 실제 사유는 error.moreInfo.validationInfo[{fieldPath, msg}] 에만 있다
+      //   (2026-11-18 민간존 실측 — 예: resourceGroups: need all detail id). 없으면 메시지가 "Invalid value." 뿐이다.
+      const vinfo = body.error.moreInfo?.validationInfo;
+      if (Array.isArray(vinfo) && vinfo.length) {
+        extra.push(vinfo.map((v: any) => `${v?.fieldPath ?? "?"}: ${v?.msg ?? ""}`).join("; "));
+      }
       return raise(errorCode, message, details ?? (extra.length ? extra.join(" | ") : undefined));
     }
 

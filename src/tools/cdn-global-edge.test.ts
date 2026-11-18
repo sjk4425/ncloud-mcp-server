@@ -95,7 +95,9 @@ describe("Global Edge — 엣지", () => {
     await getTool(server, "ncloud_edge_list_edges").call({ profileId: 1599 });
     expect(spy).toHaveBeenCalledWith("GET", "/api/v1/profiles/1599/cdn-edges");
     await getTool(server, "ncloud_edge_get_edge").call({ edgeId: 123 });
-    expect(spy).toHaveBeenCalledWith("GET", "/api/v1/cdn-edge/123");
+    // 단건 조회는 복수형(가이드 표의 단수형 /cdn-edge/{id} 는 실 API 에서 404 — 2026-11-18 민간존 리포트). 단수형은 생성(POST)만.
+    expect(spy).toHaveBeenCalledWith("GET", "/api/v1/cdn-edges/123");
+    expect(spy).not.toHaveBeenCalledWith("GET", "/api/v1/cdn-edge/123");
     await getTool(server, "ncloud_edge_get_edge_status").call({ edgeId: 5707 });
     expect(spy).toHaveBeenCalledWith("GET", "/api/v1/cdn-edges/5707/status");
     await getTool(server, "ncloud_edge_get_edge_stats").call({ profileId: 4210, edgeId: 11207, dateFrom: "2025-07-17T07:00:00Z", dateTo: "2025-07-17T08:00:00Z" });

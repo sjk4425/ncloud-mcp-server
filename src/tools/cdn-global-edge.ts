@@ -12,7 +12,9 @@ import { dryRunPreview } from "./_dryrun.js";
  *   profiles      GET  /api/v1/profiles · GET /api/v1/profiles/validation?name= · POST /api/v1/profile {name}
  *                 PUT  /api/v1/profiles/{profileId} {name} · DELETE /api/v1/profiles/{profileId}
  *                 (no single-profile GET exists — ncloud_edge_get_profile filters the list)
- *   edges         GET  /api/v1/profiles/{profileId}/cdn-edges · GET /api/v1/cdn-edge/{edgeId}
+ *   edges         GET  /api/v1/profiles/{profileId}/cdn-edges · GET /api/v1/cdn-edges/{edgeId}
+ *                 (edge-information 의 표는 단수 /cdn-edge/{edgeId} 지만 같은 페이지 curl 예시·실측(2026-11-18 민간존 200)은 복수형.
+ *                  단수형은 404 "URL not found". 공공존 가이드도 같은 불일치 → 두 존 모두 복수형)
  *                 POST /api/v1/cdn-edge · PUT /api/v1/cdn-edges/{edgeId} · DELETE /api/v1/cdn-edges {edges}
  *                 POST /api/v1/cdn-edges/activate|stop {edges} · GET /api/v1/cdn-edges/{edgeId}/status
  *                 GET  /api/v1/statistics/{profileId}/{edgeId}?dateFrom&dateTo
@@ -122,12 +124,12 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
   defineTool(
     server,
     "ncloud_edge_get_edge",
-    "Get detailed configuration of a specific Global Edge CDN edge including origin, caching, and access control settings",
+    "Get detailed configuration of a specific Global Edge CDN edge including origin, caching, and access control settings. For a CUSTOM_DOMAIN edge, the CNAME target to point the service domain at has been observed in distributionConfig.serviceDomain.cname (not documented in the guide); ncloud_edge_list_edges returns the user's own domain for such edges, not the CNAME target.",
     {
       edgeId: z.number({ required_error: requiredError("edgeId") }).describe("Edge ID to query"),
     },
     async (params) => {
-      return client.requestRaw("GET", `/api/v1/cdn-edge/${params.edgeId}`);
+      return client.requestRaw("GET", `/api/v1/cdn-edges/${params.edgeId}`);
     }
   );
 
@@ -139,7 +141,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
   defineTool(
     server,
     "ncloud_edge_create_edge",
-    "Create a new Global Edge CDN edge with origin, caching, and distribution settings. Sub-objects not exposed as parameters use sensible defaults (no edge logging, no edge auth, no caching rules, no header policies, WHITELIST access control with empty lists). For full control use ncloud_edge_edit_edge after creation. Use dryRun=true to preview without creating.",
+    "Create a new Global Edge CDN edge with origin, caching, and distribution settings. Sub-objects not exposed as parameters use sensible defaults (no edge logging, no edge auth, no caching rules, no header policies, WHITELIST access control with empty lists, which means no access restriction). For full control use ncloud_edge_edit_edge after creation. Use dryRun=true to preview without creating.",
     {
       profileId: z.number({ required_error: requiredError("profileId") }).describe("Profile ID to create the edge under"),
       edgeName: z.string({ required_error: requiredError("edgeName") }).describe("Edge name (3-35 chars: letters, digits, '-', '_')"),
@@ -175,7 +177,9 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
       hsts: z.boolean().optional().default(false).describe("Enable HSTS"),
       httpCompression: z.boolean().optional().default(true).describe("Enable Gzip/Brotli compression"),
       largeFileOptimization: z.boolean().optional().default(true).describe("Enable large file optimization"),
-      accessControlType: z.enum(["WHITELIST", "BLACKLIST"]).optional().default("WHITELIST").describe("Access control policy type"),
+      // edge-create: accessControl 은 ipPolicies/geoPolicies/refererPolicies 중 하나 이상 필수. 세 목록이 모두 비면 접근 제한이 없고,
+      //   API 는 지정한 type 과 무관하게 WHITELIST 로 저장한다(2026-11-18 민간존 실측: BLACKLIST 로 생성 → 조회 시 WHITELIST).
+      accessControlType: z.enum(["WHITELIST", "BLACKLIST"]).optional().default("WHITELIST").describe("Access control policy type: WHITELIST allows only the listed clients, BLACKLIST blocks them. It only takes effect when at least one of the IP/geo/referer lists is non-empty; with all three lists empty the edge has no access restriction and the API stores the type as WHITELIST regardless of this value"),
       accessControlIpPolicies: z.array(z.string()).optional().describe("Client IPs or CIDR blocks for access control"),
       accessControlGeoPolicies: z.array(z.string()).optional().describe("ISO 3166-1 alpha-2 country codes for access control"),
       accessControlRefererPolicies: z.array(z.string()).optional().describe("Referer domains for access control"),

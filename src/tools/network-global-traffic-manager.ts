@@ -6,6 +6,41 @@ import { defineTool } from "./_tool.js";
 // Paths verified against the pub/gov guides on 2026-10-02 (globaltrafficmanager-profile-*, policy-*, geocidr-*, geolocation-*,
 // domain-query-countview): health check = .../monitors, lookups = /policies/resources/{types,regions}, /policies/lb-types,
 // /maps/mapType; map delete = DELETE /gtm/v1/maps with body { list: [mapId] }.
+/**
+ * Traffic Policy 요청(PolicyRequest)의 lbType 값 — 가이드 policy-request / policy-load-balancer-typeview
+ * (GET /gtm/v1/policies/lb-types 응답 예시)와 일치. 민간·공공존 동일(2026-11-18 대조).
+ * ≤2.2.0 스키마의 GEO·WEIGHTED_RR 는 API 가 거부(05X002 "cannot be converted to LoadBalancerType")하므로
+ * 하위호환 별칭으로만 받아 API 값으로 바꾼다. FAILOVER 는 API 에 없는 값이라 제거.
+ */
+export const GTM_LB_TYPES = ["ROUND_ROBIN", "WEIGHTED_ROUND_ROBIN", "GEOLOCATION", "CIDR"] as const;
+const GTM_LB_TYPE_ALIASES: Record<string, (typeof GTM_LB_TYPES)[number]> = {
+  GEO: "GEOLOCATION",
+  WEIGHTED_RR: "WEIGHTED_ROUND_ROBIN",
+};
+const LB_TYPE_DESC =
+  "Load balancing type: ROUND_ROBIN | WEIGHTED_ROUND_ROBIN | GEOLOCATION | CIDR (same values as ncloud_gtm_get_lb_types). The legacy aliases GEO and WEIGHTED_RR are converted to GEOLOCATION and WEIGHTED_ROUND_ROBIN.";
+const lbTypeSchema = (requiredMessage?: string) =>
+  z.preprocess(
+    (v) => (typeof v === "string" && GTM_LB_TYPE_ALIASES[v] ? GTM_LB_TYPE_ALIASES[v] : v),
+    requiredMessage ? z.enum(GTM_LB_TYPES, { required_error: requiredMessage }) : z.enum(GTM_LB_TYPES)
+  );
+
+/** Resource.type — 가이드 policy-request 의 Enum 및 policy-resource-typeview 응답(PUBLIC_IP, EXTERNAL_DOMAIN). CNAME 은 API 값이 아니다. */
+const GTM_RESOURCE_SCHEMA = z.object({
+  content: z.string().describe("Resource value: an IP address for PUBLIC_IP, a domain name for EXTERNAL_DOMAIN"),
+  healthCheckRegionId: z.number().describe("Health check region ID (see ncloud_gtm_get_health_check_regions)"),
+  type: z.enum(["PUBLIC_IP", "EXTERNAL_DOMAIN"]).describe("Resource type: PUBLIC_IP | EXTERNAL_DOMAIN (same values as ncloud_gtm_get_resource_types)"),
+});
+const WEIGHTED_DESC = "Weight (only when lbType is WEIGHTED_ROUND_ROBIN)";
+const GEO_MAP_DETAIL_DESC =
+  "Geo/CIDR map detail ID this group serves (only when lbType is GEOLOCATION or CIDR). IDs come from ncloud_gtm_get_geo_cidr_map_detail (detailedMapList[].id); the catch-all ETC detail is -1";
+/**
+ * 2026-11-18 민간존 실측(가이드 미기재): GEOLOCATION 정책은 맵의 **모든** detail(ETC = -1 포함)마다 리소스 그룹이 있어야 한다 —
+ *   하나라도 빠지면 05X000 "need all detail id". PUBLIC_IP 는 공인 IP 여야 한다(문서용 203.0.113.x 도 "is not public ip").
+ */
+const RESOURCE_GROUPS_RULE =
+  "For GEOLOCATION, include one group for EVERY detail of the map, including ETC (geoMapDetailId -1) — otherwise the API rejects the request with 'need all detail id'. PUBLIC_IP resources must be public IP addresses.";
+
 export function registerGlobalTrafficManagerTools(server: McpServer, client: NcloudClient): void {
   // ─── Traffic Profile (Domain) Tools ─────────────────────────────────────────
 
@@ -142,8 +177,8 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "Create a new Global Traffic Manager policy with load balancing, monitor, and resource groups",
     {
       name: z.string({ required_error: "Required parameter 'name' is missing." }).describe("Policy name"),
-      lbType: z.enum(["ROUND_ROBIN", "WEIGHTED_RR", "FAILOVER", "GEO", "CIDR"], { required_error: "Required parameter 'lbType' is missing." }).describe("Load balancing type"),
-      geoMapId: z.number().optional().describe("Geo/CIDR Map ID (required when lbType is GEO or CIDR)"),
+      lbType: lbTypeSchema("Required parameter 'lbType' is missing.").describe(LB_TYPE_DESC),
+      geoMapId: z.number().optional().describe("Geo/CIDR Map ID (required when lbType is GEOLOCATION or CIDR)"),
       monitor: z.object({
         protocol: z.enum(["HTTP", "HTTPS", "TCP"]).describe("Health check protocol"),
         port: z.number().describe("Health check port"),
@@ -155,19 +190,11 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       }).optional().describe("Health check monitor configuration"),
       resourceGroups: z.array(z.object({
         sid: z.number().nullable().optional().describe("Resource group ID (null for new)"),
-        weighted: z.number().nullable().optional().describe("Weight (WEIGHTED_RR only)"),
-        geoMapDetailId: z.number().nullable().optional().describe("Geo map detail ID (GEO/CIDR only)"),
-        active: z.array(z.object({
-          content: z.string().describe("Resource address (IP or domain)"),
-          healthCheckRegionId: z.number().describe("Health check region ID"),
-          type: z.string().describe("Resource type (PUBLIC_IP or CNAME)"),
-        })).describe("Active resources"),
-        standby: z.array(z.object({
-          content: z.string().describe("Resource address"),
-          healthCheckRegionId: z.number().describe("Health check region ID"),
-          type: z.string().describe("Resource type (PUBLIC_IP or CNAME)"),
-        })).optional().describe("Standby resources"),
-      })).optional().describe("Resource groups with active/standby resources"),
+        weighted: z.number().nullable().optional().describe(WEIGHTED_DESC),
+        geoMapDetailId: z.number().nullable().optional().describe(GEO_MAP_DETAIL_DESC),
+        active: z.array(GTM_RESOURCE_SCHEMA).describe("Active resources"),
+        standby: z.array(GTM_RESOURCE_SCHEMA).optional().describe("Standby resources"),
+      })).optional().describe(`Resource groups with active/standby resources. ${RESOURCE_GROUPS_RULE}`),
     },
     async (params) => {
       const body: Record<string, unknown> = { name: params.name, lbType: params.lbType };
@@ -187,8 +214,8 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     {
       policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID to update"),
       name: z.string().optional().describe("Policy name"),
-      lbType: z.enum(["ROUND_ROBIN", "WEIGHTED_RR", "FAILOVER", "GEO", "CIDR"]).optional().describe("Load balancing type"),
-      geoMapId: z.number().optional().describe("Geo/CIDR Map ID"),
+      lbType: lbTypeSchema().optional().describe(LB_TYPE_DESC),
+      geoMapId: z.number().optional().describe("Geo/CIDR Map ID (required when lbType is GEOLOCATION or CIDR)"),
       monitor: z.object({
         protocol: z.enum(["HTTP", "HTTPS", "TCP"]).describe("Health check protocol"),
         port: z.number().describe("Health check port"),
@@ -200,19 +227,11 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       }).optional().describe("Health check monitor configuration"),
       resourceGroups: z.array(z.object({
         sid: z.number().nullable().optional().describe("Resource group ID"),
-        weighted: z.number().nullable().optional().describe("Weight (WEIGHTED_RR only)"),
-        geoMapDetailId: z.number().nullable().optional().describe("Geo map detail ID"),
-        active: z.array(z.object({
-          content: z.string().describe("Resource address"),
-          healthCheckRegionId: z.number().describe("Health check region ID"),
-          type: z.string().describe("Resource type (PUBLIC_IP or CNAME)"),
-        })).describe("Active resources"),
-        standby: z.array(z.object({
-          content: z.string().describe("Resource address"),
-          healthCheckRegionId: z.number().describe("Health check region ID"),
-          type: z.string().describe("Resource type (PUBLIC_IP or CNAME)"),
-        })).optional().describe("Standby resources"),
-      })).optional().describe("Resource groups"),
+        weighted: z.number().nullable().optional().describe(WEIGHTED_DESC),
+        geoMapDetailId: z.number().nullable().optional().describe(GEO_MAP_DETAIL_DESC),
+        active: z.array(GTM_RESOURCE_SCHEMA).describe("Active resources"),
+        standby: z.array(GTM_RESOURCE_SCHEMA).optional().describe("Standby resources"),
+      })).optional().describe(`Resource groups. ${RESOURCE_GROUPS_RULE}`),
     },
     async (params) => {
       const { policyId, ...bodyFields } = params;
@@ -264,11 +283,11 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
       policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID"),
       resourceGroups: z.array(z.object({
         sid: z.number().nullable().optional().describe("Resource group ID"),
-        weighted: z.number().nullable().optional().describe("Weight"),
-        geoMapDetailId: z.number().nullable().optional().describe("Geo map detail ID"),
-        active: z.array(z.object({ content: z.string(), healthCheckRegionId: z.number(), type: z.string() })).describe("Active resources"),
-        standby: z.array(z.object({ content: z.string(), healthCheckRegionId: z.number(), type: z.string() })).optional().describe("Standby resources"),
-      }), { required_error: "Required parameter 'resourceGroups' is missing." }).describe("Resource groups to set"),
+        weighted: z.number().nullable().optional().describe(WEIGHTED_DESC),
+        geoMapDetailId: z.number().nullable().optional().describe(GEO_MAP_DETAIL_DESC),
+        active: z.array(GTM_RESOURCE_SCHEMA).describe("Active resources"),
+        standby: z.array(GTM_RESOURCE_SCHEMA).optional().describe("Standby resources"),
+      }), { required_error: "Required parameter 'resourceGroups' is missing." }).describe(`Resource groups to set (replaces all existing groups). ${RESOURCE_GROUPS_RULE}`),
     },
     async (params) => {
       return client.requestRaw("PUT", `/gtm/v1/policies/${params.policyId}/resources`, undefined, params.resourceGroups);
@@ -282,10 +301,10 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     {
       policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID"),
       resourceGroupSid: z.number({ required_error: "Required parameter 'resourceGroupSid' is missing." }).describe("Resource group SID"),
-      weighted: z.number().nullable().optional().describe("Weight (WEIGHTED_RR only)"),
-      geoMapDetailId: z.number().nullable().optional().describe("Geo map detail ID"),
-      active: z.array(z.object({ content: z.string(), healthCheckRegionId: z.number(), type: z.string() })).optional().describe("Active resources"),
-      standby: z.array(z.object({ content: z.string(), healthCheckRegionId: z.number(), type: z.string() })).optional().describe("Standby resources"),
+      weighted: z.number().nullable().optional().describe(WEIGHTED_DESC),
+      geoMapDetailId: z.number().nullable().optional().describe(GEO_MAP_DETAIL_DESC),
+      active: z.array(GTM_RESOURCE_SCHEMA).optional().describe("Active resources"),
+      standby: z.array(GTM_RESOURCE_SCHEMA).optional().describe("Standby resources"),
     },
     async (params) => {
       const { policyId, resourceGroupSid, ...bodyFields } = params;

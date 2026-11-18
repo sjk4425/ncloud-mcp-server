@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.1] - 2026-11-18
+
+> **Bug fixes from Public zone use.** All fixes were checked against the current Public and Government guides, which match for these operations. They were then confirmed live in the Public zone on 2026-11-18: GEOLOCATION and WEIGHTED_ROUND_ROBIN policies created, inspected, updated and deleted, and a single edge looked up. Global Traffic Manager and Global Edge are not offered in the Financial zone, so that zone is unaffected.
+
+### Fixed
+- **Global Traffic Manager — `lbType`** (`ncloud_gtm_create_policy`, `ncloud_gtm_update_policy`):
+  - **Accepted values:** the schema now takes `ROUND_ROBIN` | `WEIGHTED_ROUND_ROBIN` | `GEOLOCATION` | `CIDR`, matching the guide and `ncloud_gtm_get_lb_types`. Before, it allowed `WEIGHTED_RR`, `GEO` and `FAILOVER`, which the API rejects (`05X002`), and it rejected `GEOLOCATION` and `WEIGHTED_ROUND_ROBIN`, so GEOLOCATION and weighted policies could not be created or updated.
+  - **Old values:** `GEO` and `WEIGHTED_RR` are still accepted and are sent as `GEOLOCATION` and `WEIGHTED_ROUND_ROBIN`.
+  - **Removed:** `FAILOVER`, which is not an API value.
+- **Global Traffic Manager — resource `type`:** the four policy tools that take resources (create, update, update resources, update one resource group) accept `PUBLIC_IP` | `EXTERNAL_DOMAIN`, matching the guide and `ncloud_gtm_get_resource_types`. The old description suggested `CNAME`, which is not an API value.
+- **`ncloud_edge_get_edge`** called `GET /api/v1/cdn-edge/{edgeId}`, which returns 404 for every edge. It now calls `/api/v1/cdn-edges/{edgeId}`. The guide's method table shows the singular form, but its own example and the live API use the plural; only create uses the singular `/cdn-edge`.
+- **API error messages** now include the per-field reasons in `error.moreInfo.validationInfo`. Global Traffic Manager returns these with `05X000 Invalid value`, which on its own does not say what was wrong (e.g. `resourceGroups: need all detail id`).
+
+### Changed
+- **Global Traffic Manager descriptions:** two API rules that are missing from the guide are now in the tool descriptions.
+  - A GEOLOCATION policy needs one resource group for every detail of its map, including the catch-all ETC detail (`geoMapDetailId: -1`). Map detail IDs come from `ncloud_gtm_get_geo_cidr_map_detail`.
+  - `PUBLIC_IP` resources must be public addresses.
+- **Global Edge descriptions:**
+  - **`ncloud_edge_get_edge`** notes where the CNAME target of a `CUSTOM_DOMAIN` edge was found (`distributionConfig.serviceDomain.cname`; not in the guide).
+  - **`ncloud_edge_create_edge`** explains that the access-control type only takes effect when at least one IP, geo or referer list is non-empty. With all lists empty, the edge has no access restriction and the API stores the type as `WHITELIST`.
+
 ## [2.2.0] - 2026-11-10
 
 > **Government zone API update (release note of 2026-10-22).** Every change in this release applies to the **Government zone (`NCLOUD_ZONE=gov`) only**. The Public and Financial zone APIs have not changed, and their tool sets are unchanged: tool names, descriptions and input schemas are byte-for-byte the same as in 2.1.0. The one exception is the shared error parser (see *Fixed*), which only adds detail when a response uses the new standard error fields.

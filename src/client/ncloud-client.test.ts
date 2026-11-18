@@ -581,6 +581,34 @@ describe("NcloudClient 단위 테스트: 두 가지 에러 형식 파싱", () =>
     expect(err.message).toContain("records[0].ttl: must be >= 0");
   });
 
+  it("형식 1 (GTM 05X000): error.moreInfo.validationInfo 의 필드별 사유를 싣는다", async () => {
+    // 2026-11-18 민간존 GTM 실측 응답(값만 축약)
+    vi.stubGlobal(
+      "fetch",
+      createMockFetch(
+        {
+          result: "FAIL",
+          error: {
+            errorCode: "05X000",
+            message: "Invalid value.<br>Hover your mouse over the displayed area to see the details in a tooltip",
+            devMessage: "유효하지 않은 값입니다.",
+            moreInfo: {
+              validationInfo: [
+                { fieldPath: "resourceGroups", msg: "need all detail id" },
+                { fieldPath: "resourceGroups[0].active[0].content", msg: "203.0.113.10 is not public ip." },
+              ],
+            },
+          },
+        },
+        400
+      )
+    );
+    const err = await client.requestRaw("POST", "/gtm/v1/policies", undefined, {}).catch((e) => e as Error);
+    expect(err.message).toContain("05X000");
+    expect(err.message).toContain("resourceGroups: need all detail id");
+    expect(err.message).toContain("resourceGroups[0].active[0].content: 203.0.113.10 is not public ip.");
+  });
+
   it("형식 1b (표준 v2 배치): failures 맵의 항목별 사유를 싣는다", async () => {
     vi.stubGlobal(
       "fetch",
