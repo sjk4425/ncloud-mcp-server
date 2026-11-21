@@ -2,9 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [2.3.0] - 2026-11-21
 
 > **Auto Scaling request formats.** A VPC Auto Scaling Group could not be created: `ncloud_create_asg` had no `vpcNo` and the API answered `900 Required field is not specified. location : vpcNo.` All 22 Auto Scaling tools were then checked against the Public, Government and Financial guides, which match except where noted. Six more tools sent parameter names the API does not use, so the value was ignored or the call failed.
+>
+> Confirmed live in the Public zone on 2026-11-21: a group was created without `vpcNo` (looked up from the subnet), then updated, filtered by name, given a scaling policy that was updated and executed by `policyNo`, and given repeating and one-off scheduled actions. Every value read back as sent (`defaultCoolDown`, `coolDown`, `recurrence`, `timeZone`), and everything was deleted by number. The load-balancer health check path (`LOADB` with `targetGroupNoList`) was not exercised.
 
 > **Breaking schema changes.** The renamed parameters below now fail schema validation under their old names. The old names were not API parameters, so calls using them did not work before either.
 
