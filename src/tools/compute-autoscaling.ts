@@ -1,11 +1,72 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
+import type { Zone } from "../client/endpoints.js";
 import { defineTool } from "./_tool.js";
-import { maxLenMessage, requiredError } from "./_messages.js";
+import { L, maxLenMessage, requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
-export function registerAutoScalingTools(server: McpServer, client: NcloudClient): void {
+// 파라미터 규칙은 세 존 가이드(compute-vautoscaling-*) 공통 — 2026-11-21 22개 오퍼레이션 전량 대조.
+// 존 차이는 putScheduledUpdateGroupAction 의 desiredCapacity(공공·금융존 Required) 하나뿐이다.
+
+/** Auto Scaling 이름(ASG·정책·일정): 1~255자, 영소문자로 시작, 영소문자·숫자·'-', 영소문자·숫자로 끝. */
+const ASG_NAME = /^[a-z](?:[a-z0-9-]{0,253}[a-z0-9])?$/;
+/** 서버 이름 Prefix: 3~7자, 규칙은 ASG_NAME 과 같다. */
+const SERVER_NAME_PREFIX = /^[a-z][a-z0-9-]{1,5}[a-z0-9]$/;
+/** 일정 시각: yyyy-MM-ddTHH:mm:ssZ (예: 2026-12-01T09:00:00+0900). */
+const SCHEDULE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})$/;
+
+function asgName(field: string) {
+  return z.string().regex(ASG_NAME, {
+    message: `${field}: 1-255 chars of lowercase letters, numbers and '-' — start with a letter, end with a letter or number`,
+  });
+}
+
+/** 용량(min/max/desired): 0~30. */
+function capacity(field: string, required = false) {
+  const base = required ? z.number({ required_error: requiredError(field) }) : z.number();
+  return base.int().min(0, { message: `${field}: 0-30` }).max(30, { message: `${field}: 0-30` });
+}
+
+function validationError(pair: { ko: string; en: string }) {
+  return { content: [{ type: "text" as const, text: L(pair) }], isError: true };
+}
+
+/** minSize ≤ desiredCapacity ≤ maxSize (가이드 공통). 위반이면 오류 응답, 아니면 undefined. */
+function checkCapacityOrder(p: { minSize?: number; maxSize?: number; desiredCapacity?: number }) {
+  if (p.minSize !== undefined && p.maxSize !== undefined && p.minSize > p.maxSize) {
+    return validationError({ ko: "❌ minSize 는 maxSize 이하여야 합니다.", en: "❌ minSize must be less than or equal to maxSize." });
+  }
+  if (p.desiredCapacity !== undefined) {
+    if ((p.minSize !== undefined && p.desiredCapacity < p.minSize) || (p.maxSize !== undefined && p.desiredCapacity > p.maxSize)) {
+      return validationError({
+        ko: "❌ desiredCapacity 는 minSize 이상, maxSize 이하여야 합니다.",
+        en: "❌ desiredCapacity must be between minSize and maxSize.",
+      });
+    }
+  }
+  return undefined;
+}
+
+/** healthCheckTypeCode=LOADB 이면 healthCheckGracePeriod 필수 (가이드 Conditional). */
+function checkHealthCheck(p: { healthCheckTypeCode?: string; healthCheckGracePeriod?: number }) {
+  if (p.healthCheckTypeCode === "LOADB" && p.healthCheckGracePeriod === undefined) {
+    return validationError({
+      ko: "❌ healthCheckTypeCode=LOADB 이면 healthCheckGracePeriod(초)가 필수입니다.",
+      en: "❌ healthCheckGracePeriod (seconds) is required when healthCheckTypeCode=LOADB.",
+    });
+  }
+  return undefined;
+}
+
+export interface AutoScalingToolsOpts {
+  /** 공공·금융존은 putScheduledUpdateGroupAction 의 desiredCapacity 가 Required. 기본 pub. */
+  zone?: Zone;
+}
+
+export function registerAutoScalingTools(server: McpServer, client: NcloudClient, opts: AutoScalingToolsOpts = {}): void {
+  const scheduleDesiredRequired = (opts.zone ?? "pub") !== "pub";
+
   // ─── Launch Configuration Query Tools ──────────────────────────────────────
 
   defineTool(
@@ -136,7 +197,8 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "List all Auto Scaling Groups in the current region",
     {
       autoScalingGroupNoList: z.array(z.string()).optional().describe("Filter by Auto Scaling Group numbers"),
-      autoScalingGroupName: z.string().optional().describe("Filter by Auto Scaling Group name"),
+      // 가이드 파라미터는 autoScalingGroupNameList.N — 예전 단수형 autoScalingGroupName 은 API 가 무시해 전체 목록이 나왔다.
+      autoScalingGroupNameList: z.array(z.string()).optional().describe("Filter by Auto Scaling Group names"),
       pageNo: z.number().optional().describe("Page number for pagination"),
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
@@ -164,40 +226,69 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_create_asg",
-    "Create a new Auto Scaling Group. Use dryRun=true to preview without creating.",
+    // 가이드(세 존 공통): vpcNo·subnetNo(단일 값)·accessControlGroupNoList(1~3) 필수, 쿨다운 키는 defaultCoolDown.
+    // 예전 스키마는 vpcNo 가 없고 subnetNoList·defaultCooldown 을 보내 `900 Required field … vpcNo` 로 생성 자체가 불가했다.
+    "Create a new Auto Scaling Group (VPC). Requires a launch configuration, one subnet (subnetNo) and 1-3 ACGs. vpcNo is looked up from the subnet when omitted. For load-balancer health checks set healthCheckTypeCode=LOADB with healthCheckGracePeriod and targetGroupNoList. Use dryRun=true to preview without creating.",
     {
       launchConfigurationNo: z.string({
         required_error: requiredError("launchConfigurationNo"),
-      }).describe("Launch configuration number to use"),
-      autoScalingGroupName: z.string().max(255, {
+      }).describe("Launch configuration number to use (from ncloud_list_launch_configs)"),
+      autoScalingGroupName: asgName("autoScalingGroupName").max(255, {
         message: maxLenMessage("autoScalingGroupName", 255),
-      }).optional().describe("Auto Scaling Group name"),
-      subnetNoList: z.array(z.string(), {
-        required_error: requiredError("subnetNoList"),
-      }).min(1).describe("List of subnet numbers for the ASG"),
-      minSize: z.number({
-        required_error: requiredError("minSize"),
-      }).min(0).describe("Minimum number of instances"),
-      maxSize: z.number({
-        required_error: requiredError("maxSize"),
-      }).min(0).describe("Maximum number of instances"),
-      desiredCapacity: z.number().optional().describe("Desired number of instances"),
-      defaultCooldown: z.number().optional().describe("Default cooldown period in seconds"),
-      healthCheckGracePeriod: z.number().optional().describe("Health check grace period in seconds"),
-      healthCheckTypeCode: z.string().optional().describe("Health check type (SVR or LOADB)"),
-      targetGroupNoList: z.array(z.string()).optional().describe("List of target group numbers to attach"),
-      accessControlGroupNoList: z.array(z.string()).optional().describe("List of ACG numbers"),
-      serverNamePrefix: z.string().optional().describe("Prefix for server instance names"),
+      }).optional().describe("Auto Scaling Group name (1-255 chars: lowercase letters, digits, '-'; start with a letter, end with a letter or digit; auto-generated when omitted)"),
+      vpcNo: z.string().optional().describe("VPC number. Optional: when omitted, the tool reads it from subnetNo (ncloud_get_subnet_detail)."),
+      subnetNo: z.string({
+        required_error: requiredError("subnetNo"),
+      }).describe("Subnet number for the servers (a single subnet — the API takes one value)"),
+      accessControlGroupNoList: z.array(z.string(), {
+        required_error: requiredError("accessControlGroupNoList"),
+      }).min(1, { message: "accessControlGroupNoList: 1-3 ACG numbers" })
+        .max(3, { message: "accessControlGroupNoList: 1-3 ACG numbers" })
+        .describe("ACG numbers applied to servers created by scale-out (1-3)"),
+      minSize: capacity("minSize", true).describe("Minimum number of servers (0-30, ≤ maxSize; 0 keeps no servers)"),
+      maxSize: capacity("maxSize", true).describe("Maximum number of servers (0-30, ≥ minSize)"),
+      desiredCapacity: capacity("desiredCapacity").optional().describe("Desired number of servers (between minSize and maxSize; defaults to minSize)"),
+      defaultCoolDown: z.number().int().min(0).optional().describe("Default cooldown in seconds (default 300)"),
+      healthCheckTypeCode: z.enum(["SVR", "LOADB"]).optional().describe("Health check type: SVR (server, default) or LOADB (load balancer — requires healthCheckGracePeriod)"),
+      healthCheckGracePeriod: z.number().int().min(0).optional().describe("Health check grace period in seconds (default 300). Required when healthCheckTypeCode=LOADB."),
+      targetGroupNoList: z.array(z.string()).optional().describe("Target group numbers to attach. Only valid with healthCheckTypeCode=LOADB."),
+      serverNamePrefix: z.string().regex(SERVER_NAME_PREFIX, {
+        message: "serverNamePrefix: 3-7 chars of lowercase letters, numbers and '-' — start with a letter, end with a letter or number",
+      }).optional().describe("Server name prefix (3-7 chars: lowercase letters, digits, '-'). Servers are named {prefix}-{random}."),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
+      const invalid = checkCapacityOrder(params) ?? checkHealthCheck(params);
+      if (invalid) return invalid;
+      // 가이드: targetGroupNoList 는 LOADB 일 때만 유효 — SVR 이면 조용히 무시돼 LB 에 붙지 않는다.
+      if (params.targetGroupNoList?.length && params.healthCheckTypeCode !== "LOADB") {
+        return validationError({
+          ko: "❌ targetGroupNoList 는 healthCheckTypeCode=LOADB 일 때만 적용됩니다. LOADB 와 healthCheckGracePeriod 를 함께 지정하세요.",
+          en: "❌ targetGroupNoList only applies with healthCheckTypeCode=LOADB. Set LOADB together with healthCheckGracePeriod.",
+        });
+      }
+
       const { dryRun, ...apiParams } = params;
+      let vpcNoSource: string | undefined;
+      if (!apiParams.vpcNo) {
+        // 서브넷 조회는 읽기 전용이라 dryRun 에서도 수행 — 프리뷰가 실제 요청과 같아진다.
+        const subnet = (await client.request("/vpc/v2/getSubnetDetail", { subnetNo: apiParams.subnetNo }))?.subnetList?.[0];
+        if (!subnet?.vpcNo) {
+          return validationError({
+            ko: `❌ 서브넷 [${apiParams.subnetNo}]을(를) 찾을 수 없어 vpcNo 를 정할 수 없습니다. subnetNo 를 확인하거나 vpcNo 를 직접 지정하세요.`,
+            en: `❌ Subnet [${apiParams.subnetNo}] was not found, so vpcNo could not be determined. Check subnetNo or pass vpcNo.`,
+          });
+        }
+        apiParams.vpcNo = String(subnet.vpcNo);
+        vpcNoSource = `subnet ${apiParams.subnetNo}`;
+      }
       if (dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: Auto Scaling Group Creation",
           endpoint: "/vautoscaling/v2/createAutoScalingGroup",
           requestParams: apiParams,
           noun: { ko: "Auto Scaling Group", en: "Auto Scaling Group" },
+          ...(vpcNoSource ? { notes: { vpcNoFrom: vpcNoSource } } : {}),
         });
       }
       const result = await client.request("/vautoscaling/v2/createAutoScalingGroup", apiParams);
@@ -249,24 +340,30 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_put_scaling_policy",
-    "Create or update a scaling policy for an Auto Scaling Group",
+    // 가이드: 정책 생성은 새 policyName, 수정은 policyNo 또는 기존 policyName. 쿨다운 키는 coolDown(예전 cooldown 은 무시됐다).
+    "Create or update a scaling policy for an Auto Scaling Group. A new policyName creates a policy; to update, pass policyNo or the existing policyName.",
     {
       autoScalingGroupNo: z.string({
         required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
-      policyName: z.string({
-        required_error: requiredError("policyName"),
-      }).describe("Scaling policy name"),
-      adjustmentTypeCode: z.string({
+      policyNo: z.string().optional().describe("Policy number to update (from ncloud_list_scaling_policies). Omit when creating."),
+      policyName: asgName("policyName").optional().describe("Policy name (1-255 chars: lowercase letters, digits, '-'). A new name creates a policy; an existing name updates it. One of policyNo / policyName is required."),
+      adjustmentTypeCode: z.enum(["CHANG", "PRCNT", "EXACT"], {
         required_error: requiredError("adjustmentTypeCode"),
-      }).describe("Adjustment type (CHANG — exact change, PRCNT — percentage, EXACT — set to exact number)"),
+      }).describe("Adjustment type: CHANG (add/remove N servers), PRCNT (change by N percent), EXACT (set capacity to N). See ncloud_get_adjustment_types."),
       scalingAdjustment: z.number({
         required_error: requiredError("scalingAdjustment"),
-      }).describe("Scaling adjustment value"),
-      cooldown: z.number().optional().describe("Cooldown period in seconds after scaling"),
-      minAdjustmentStep: z.number().optional().describe("Minimum adjustment step for percentage-based scaling"),
+      }).int().describe("Adjustment value: CHANG ≥ -2147483648, PRCNT ≥ -100, EXACT ≥ 0; negative values scale in for CHANG/PRCNT"),
+      minAdjustmentStep: z.number().int().min(1).optional().describe("Minimum adjustment step (servers). Only valid with adjustmentTypeCode=PRCNT."),
+      coolDown: z.number().int().min(0).optional().describe("Cooldown in seconds after scaling (default 300)"),
     },
     async (params) => {
+      if (!params.policyNo && !params.policyName) {
+        return validationError({
+          ko: "❌ policyNo 또는 policyName 중 하나가 필요합니다(생성은 새 policyName, 수정은 policyNo 또는 기존 policyName).",
+          en: "❌ One of policyNo or policyName is required (a new policyName creates; policyNo or an existing policyName updates).",
+        });
+      }
       return client.request("/vautoscaling/v2/putScalingPolicy", params);
     }
   );
@@ -274,13 +371,13 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_list_scaling_policies",
-    "List all scaling policies for an Auto Scaling Group",
+    "List all scaling policies for an Auto Scaling Group (includes each policy's policyNo)",
     {
       autoScalingGroupNo: z.string({
         required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
-      pageNo: z.number().optional().describe("Page number for pagination"),
-      pageSize: z.number().optional().describe("Page size for pagination"),
+      // 가이드에 페이지 파라미터는 없다 — 필터는 policyNoList.N 뿐.
+      policyNoList: z.array(z.string()).optional().describe("Filter by policy numbers"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/getAutoScalingPolicyList", params);
@@ -295,9 +392,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       autoScalingGroupNo: z.string({
         required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
-      policyName: z.string({
-        required_error: requiredError("policyName"),
-      }).describe("Scaling policy name to delete"),
+      // 가이드: 식별자는 policyNo(Required). 예전 policyName 은 API 파라미터가 아니었다.
+      policyNo: z.string({
+        required_error: requiredError("policyNo"),
+      }).describe("Scaling policy number to delete (from ncloud_list_scaling_policies)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -305,7 +403,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       const result = await client.request("/vautoscaling/v2/deleteScalingPolicy", apiParams);
       return result;
     },
-    { destructive: { message: (params) => `⚠️ This will permanently delete ScalingPolicy [${params.policyName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
+    { destructive: { message: (params) => `⚠️ This will permanently delete ScalingPolicy [${params.policyNo}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Auto Scaling Group Update Tool ────────────────────────────────────────
@@ -313,19 +411,26 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_update_asg",
-    "Update an existing Auto Scaling Group configuration (e.g. min/max size, desired capacity, cooldown)",
+    // 가이드: minSize·maxSize 는 수정 때도 Required(나머지는 생략 시 기존 값 유지). Scaling 진행 중이면 실패한다.
+    "Update an existing Auto Scaling Group. minSize and maxSize are always required (pass the current values to keep them — see ncloud_get_asg_detail); other omitted fields keep their current values. Fails while the group is scaling. A new launch configuration applies only to servers created afterwards.",
     {
       autoScalingGroupNo: z.string({
         required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number to update"),
-      launchConfigurationNo: z.string().optional().describe("New launch configuration number"),
-      minSize: z.number().optional().describe("New minimum number of instances"),
-      maxSize: z.number().optional().describe("New maximum number of instances"),
-      desiredCapacity: z.number().optional().describe("New desired number of instances"),
-      defaultCoolDown: z.number().optional().describe("Default cooldown period in seconds"),
-      healthCheckGracePeriod: z.number().optional().describe("Health check grace period in seconds"),
+      launchConfigurationNo: z.string().optional().describe("New launch configuration number (applies to servers created after the update)"),
+      serverNamePrefix: z.string().regex(SERVER_NAME_PREFIX, {
+        message: "serverNamePrefix: 3-7 chars of lowercase letters, numbers and '-' — start with a letter, end with a letter or number",
+      }).optional().describe("New server name prefix (3-7 chars: lowercase letters, digits, '-')"),
+      minSize: capacity("minSize", true).describe("Minimum number of servers (0-30, ≤ maxSize). Required by the API even when unchanged."),
+      maxSize: capacity("maxSize", true).describe("Maximum number of servers (0-30, ≥ minSize). Required by the API even when unchanged."),
+      desiredCapacity: capacity("desiredCapacity").optional().describe("Desired number of servers (between minSize and maxSize)"),
+      defaultCoolDown: z.number().int().min(0).optional().describe("Default cooldown in seconds"),
+      healthCheckTypeCode: z.enum(["SVR", "LOADB"]).optional().describe("Health check type: SVR (server) or LOADB (load balancer — requires healthCheckGracePeriod)"),
+      healthCheckGracePeriod: z.number().int().min(0).optional().describe("Health check grace period in seconds. Required when healthCheckTypeCode=LOADB."),
     },
     async (params) => {
+      const invalid = checkCapacityOrder(params) ?? checkHealthCheck(params);
+      if (invalid) return invalid;
       return client.request("/vautoscaling/v2/updateAutoScalingGroup", params);
     }
   );
@@ -340,9 +445,10 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       autoScalingGroupNo: z.string({
         required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
-      policyName: z.string({
-        required_error: requiredError("policyName"),
-      }).describe("Scaling policy name to execute"),
+      // 가이드: 식별자는 policyNo(Required). 예전 policyName 은 API 파라미터가 아니었다.
+      policyNo: z.string({
+        required_error: requiredError("policyNo"),
+      }).describe("Scaling policy number to execute (from ncloud_list_scaling_policies)"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/executePolicy", params);
@@ -408,22 +514,42 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_put_scheduled_action",
-    "Create or update a scheduled action for an Auto Scaling Group",
+    // 가이드: minSize·maxSize Required(공공·금융존은 desiredCapacity 도), 반복은 recurrence + timeZone(KST|UTC).
+    // 예전 recurrenceInKST 는 API 파라미터가 아니어서 반복 일정이 만들어지지 않았다.
+    "Create or update a scheduled action for an Auto Scaling Group. A new scheduledActionName creates one; to update, pass scheduledActionNo or the existing name. Set startTime for a one-off run, recurrence (cron) for a repeating one, or both.",
     {
       autoScalingGroupNo: z.string({
         required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
-      scheduledActionName: z.string({
-        required_error: requiredError("scheduledActionName"),
-      }).describe("Scheduled action name"),
-      desiredCapacity: z.number().optional().describe("Desired capacity at scheduled time"),
-      minSize: z.number().optional().describe("Minimum size at scheduled time"),
-      maxSize: z.number().optional().describe("Maximum size at scheduled time"),
-      startTime: z.string().optional().describe("Start time in ISO 8601 format (e.g. 2024-01-01T00:00:00+0900)"),
-      endTime: z.string().optional().describe("End time in ISO 8601 format (e.g. 2024-12-31T23:59:59+0900)"),
-      recurrenceInKST: z.string().optional().describe("Cron expression in KST (e.g. '0 9 * * 1-5' for weekdays at 9am KST)"),
+      scheduledActionNo: z.string().optional().describe("Scheduled action number to update (from ncloud_list_scheduled_actions). Omit when creating."),
+      scheduledActionName: asgName("scheduledActionName").optional().describe("Scheduled action name (1-255 chars: lowercase letters, digits, '-'). A new name creates an action; an existing name updates it. One of scheduledActionNo / scheduledActionName is required."),
+      minSize: capacity("minSize", true).describe("Minimum number of servers at the scheduled time (0-30)"),
+      maxSize: capacity("maxSize", true).describe("Maximum number of servers at the scheduled time (0-30)"),
+      desiredCapacity: scheduleDesiredRequired
+        ? capacity("desiredCapacity", true).describe("Desired number of servers at the scheduled time (between minSize and maxSize)")
+        : capacity("desiredCapacity").optional().describe("Desired number of servers at the scheduled time (between minSize and maxSize; defaults to minSize)"),
+      startTime: z.string().regex(SCHEDULE_TIME, { message: "startTime: yyyy-MM-ddTHH:mm:ssZ (e.g. 2026-12-01T09:00:00+0900)" })
+        .optional().describe("Start time, yyyy-MM-ddTHH:mm:ssZ (e.g. 2026-12-01T09:00:00+0900). Must be in the future. Required when recurrence is not set."),
+      endTime: z.string().regex(SCHEDULE_TIME, { message: "endTime: yyyy-MM-ddTHH:mm:ssZ (e.g. 2026-12-31T18:00:00+0900)" })
+        .optional().describe("End time, yyyy-MM-ddTHH:mm:ssZ — after startTime; with recurrence, repeats stop after it"),
+      recurrence: z.string().optional().describe("Repeat schedule in crontab format 'min hour day month weekday' (e.g. '0 9 * * 1-5' = weekdays 09:00). Required when startTime is not set."),
+      timeZone: z.enum(["KST", "UTC"]).optional().describe("Time zone for recurrence: KST (default) or UTC"),
     },
     async (params) => {
+      if (!params.scheduledActionNo && !params.scheduledActionName) {
+        return validationError({
+          ko: "❌ scheduledActionNo 또는 scheduledActionName 중 하나가 필요합니다(생성은 새 이름, 수정은 번호 또는 기존 이름).",
+          en: "❌ One of scheduledActionNo or scheduledActionName is required (a new name creates; the number or an existing name updates).",
+        });
+      }
+      if (!params.startTime && !params.recurrence) {
+        return validationError({
+          ko: "❌ startTime(1회 실행) 또는 recurrence(반복) 중 하나 이상이 필요합니다.",
+          en: "❌ Set startTime (one-off), recurrence (repeating), or both.",
+        });
+      }
+      const invalid = checkCapacityOrder(params);
+      if (invalid) return invalid;
       return client.request("/vautoscaling/v2/putScheduledUpdateGroupAction", params);
     }
   );
@@ -445,14 +571,15 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_delete_scheduled_action",
-    "[⚠️ DESTRUCTIVE] Delete a scheduled action from an Auto Scaling Group. Set confirm=true to execute.",
+    "⚠️ Destructive: Delete a scheduled action from an Auto Scaling Group. Set confirm=true to execute.",
     {
       autoScalingGroupNo: z.string({
         required_error: requiredError("autoScalingGroupNo"),
       }).describe("Auto Scaling Group number"),
-      scheduledActionName: z.string({
-        required_error: requiredError("scheduledActionName"),
-      }).describe("Scheduled action name to delete"),
+      // 가이드: 식별자는 scheduledActionNo(Required). 예전 scheduledActionName 은 API 파라미터가 아니었다.
+      scheduledActionNo: z.string({
+        required_error: requiredError("scheduledActionNo"),
+      }).describe("Scheduled action number to delete (from ncloud_list_scheduled_actions)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -460,7 +587,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
       const result = await client.request("/vautoscaling/v2/deleteScheduledAction", apiParams);
       return result;
     },
-    { destructive: { message: (params) => `⚠️ This will permanently delete ScheduledAction [${params.scheduledActionName}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
+    { destructive: { message: (params) => `⚠️ This will permanently delete ScheduledAction [${params.scheduledActionNo}] from AutoScalingGroup [${params.autoScalingGroupNo}]. Do you want to proceed? (yes/no)\n\nTo execute, call this tool again with confirm=true.` } }
   );
 
   // ─── Reference Query Tools ─────────────────────────────────────────────────

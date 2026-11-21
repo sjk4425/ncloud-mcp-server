@@ -238,7 +238,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerComputeLoginKeyTools(server, c);
       registerComputeInitScriptTools(server, c);
       registerComputePlacementTools(server, c, { fabricCluster: !fin });
-      registerAutoScalingTools(server, c);
+      registerAutoScalingTools(server, c, { zone });
 
       // Cloud Functions: 민간존 리전별 호스트 + API v2.1 / 공공존 단일 호스트 + API v2.0(Classic 전용) /
       //   금융존 단일 호스트 + API v2.1(VPC 전용, platform 쿼리 없음).

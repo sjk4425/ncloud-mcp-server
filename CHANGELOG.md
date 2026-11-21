@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+> **Auto Scaling request formats.** A VPC Auto Scaling Group could not be created: `ncloud_create_asg` had no `vpcNo` and the API answered `900 Required field is not specified. location : vpcNo.` All 22 Auto Scaling tools were then checked against the Public, Government and Financial guides, which match except where noted. Six more tools sent parameter names the API does not use, so the value was ignored or the call failed.
+
+> **Breaking schema changes.** The renamed parameters below now fail schema validation under their old names. The old names were not API parameters, so calls using them did not work before either.
+
+### Fixed
+- **`ncloud_create_asg`**
+  - Sends `vpcNo`. When it is omitted, the tool reads it from the subnet (`getSubnetDetail`), in `dryRun` too.
+  - Takes a single `subnetNo` (was `subnetNoList`). The API takes one subnet.
+  - Requires `accessControlGroupNoList` (1–3 ACGs), as the guide does.
+  - Sends the cooldown as `defaultCoolDown` (was `defaultCooldown`, which was ignored).
+  - Checks the guide's rules before calling the API, `dryRun` included: name pattern, `serverNamePrefix` 3–7 chars, sizes 0–30 with `minSize ≤ desiredCapacity ≤ maxSize`, `healthCheckGracePeriod` required with `healthCheckTypeCode=LOADB`. `targetGroupNoList` without `LOADB` is rejected, because the API ignores it and the group would not be attached to the load balancer.
+- **`ncloud_update_asg`** requires `minSize` and `maxSize`, as the guide does even for an update, and accepts `serverNamePrefix` and `healthCheckTypeCode`.
+- **`ncloud_list_asgs`** filters by `autoScalingGroupNameList` (was `autoScalingGroupName`, which was ignored and returned every group).
+- **Scaling policies**
+  - `ncloud_execute_policy` and `ncloud_delete_scaling_policy` identify the policy by `policyNo` (was `policyName`).
+  - `ncloud_put_scaling_policy` sends the cooldown as `coolDown` (was `cooldown`, which was ignored), accepts `policyNo` to update an existing policy and requires one of `policyNo` / `policyName`. `adjustmentTypeCode` is limited to `CHANG` | `PRCNT` | `EXACT`.
+  - `ncloud_list_scaling_policies` filters by `policyNoList`. The `pageNo` / `pageSize` parameters, which the API does not have, are removed.
+- **Scheduled actions**
+  - `ncloud_put_scheduled_action` sends the repeat schedule as `recurrence` with an optional `timeZone` (`KST` | `UTC`). It was `recurrenceInKST`, which the API ignored, so repeating actions were not created. `minSize` and `maxSize` are required, plus `desiredCapacity` in the Government and Financial zones. One of `scheduledActionNo` / `scheduledActionName` and one of `startTime` / `recurrence` are required, and times must be `yyyy-MM-ddTHH:mm:ssZ`.
+  - `ncloud_delete_scheduled_action` identifies the action by `scheduledActionNo` (was `scheduledActionName`).
+
+### Changed
+- `ncloud_delete_scheduled_action` description uses the standard `⚠️ Destructive:` prefix.
+
 ## [2.2.1] - 2026-11-18
 
 > **Bug fixes from Public zone use.** All fixes were checked against the current Public and Government guides, which match for these operations. They were then confirmed live in the Public zone on 2026-11-18: GEOLOCATION and WEIGHTED_ROUND_ROBIN policies created, inspected, updated and deleted, and a single edge looked up. Global Traffic Manager and Global Edge are not offered in the Financial zone, so that zone is unaffected.
