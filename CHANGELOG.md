@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2026-11-22
+
+> **Node.js 22.12 or later is required.** Node.js 20 reached end of life on 2026-04-30. Install on Node 20 now prints an `EBADENGINE` warning, and Node 20 is no longer tested. **2.4.0 is the last release for Node 20** and already has the zod security fix — pin `ncloud-mcp-server@2.4.0` if you cannot upgrade Node yet.
+>
+> Nothing else changes for users: the tools, their input schemas and the built `dist/` output are identical to 2.4.0.
+
+### Changed
+- **Breaking:** `engines.node` `>=20.0.0` → `>=22.12.0`. CI runs on Node 22.x and 24.x.
+- Development dependencies: TypeScript 5.9 → 6.0, vitest 4.1 → 5.1 (vite 8). `tsconfig.json` lists `"types": ["node"]`, which TypeScript 6 no longer infers.
+
 ## [2.4.0] - 2026-11-22
 
 > **zod 4.** The schema library moves from zod 3.25 to zod 4.6.7, which clears the last `npm audit` warning ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), high: memory exhaustion when validating large size-limited collections; there is no zod 3 fix). The server only receives input from the local MCP client over stdio, so the practical risk was low, but security scanners flagged it.
