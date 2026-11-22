@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { nksPathPrefix, type Zone } from "../client/endpoints.js";
 
@@ -72,7 +73,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_cluster",
     "Get detailed information about a specific NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster to query"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster to query"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}`);
@@ -108,12 +109,12 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
 
 **Financial zone:** XEN only — there are no KVM/G3 images, so the G3 rules above do not apply (the guide lists hypervisorCode XEN | RHV). lbPublicSubnetNo is required. There is no cluster-type lookup API: the guide's example SVR.VNKS.STAND.C002.M008.NET.SSD.B050.G002 was rejected live with "Invalid clusterType", while SVR.VNKS.STAND.C002.M008.NET.HDD.B050.G001 (up to 10 nodes, from the price list) was accepted (2026-10-29).` : ""}`,
     {
-      name: z.string({ required_error: requiredError("name") }).describe("Cluster name (3-30 chars, lowercase+numbers+'-')"),
-      clusterType: z.string({ required_error: requiredError("clusterType") }).describe("Cluster type (e.g., SVR.VNKS.STAND.C004.M016.G003 for G3, SVR.VNKS.STAND.C004.M016.G002 for G2)"),
-      loginKeyName: z.string({ required_error: requiredError("loginKeyName") }).describe("Login key name for node access"),
-      regionCode: z.string({ required_error: requiredError("regionCode") }).describe("Region code (see ncloud_get_regions)"),
-      vpcNo: z.number({ required_error: requiredError("vpcNo") }).describe("VPC number"),
-      subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).describe("Subnet number list for the cluster"),
+      name: z.string(reqField("name")).describe("Cluster name (3-30 chars, lowercase+numbers+'-')"),
+      clusterType: z.string(reqField("clusterType")).describe("Cluster type (e.g., SVR.VNKS.STAND.C004.M016.G003 for G3, SVR.VNKS.STAND.C004.M016.G002 for G2)"),
+      loginKeyName: z.string(reqField("loginKeyName")).describe("Login key name for node access"),
+      regionCode: z.string(reqField("regionCode")).describe("Region code (see ncloud_get_regions)"),
+      vpcNo: z.number(reqField("vpcNo")).describe("VPC number"),
+      subnetNoList: z.array(z.number(), reqField("subnetNoList")).describe("Subnet number list for the cluster"),
       lbPublicSubnetNo: z.number().optional().describe("Load balancer public subnet number. Required in the Government and Financial zones; in the Public zone required unless lbPublicSubnetNoList is given"),
       lbPublicSubnetNoList: z.array(z.number()).max(2).optional().describe("Public zone only: up to 2 public LB subnet numbers in different zones (multi-zone). Alternative to lbPublicSubnetNo"),
       k8sVersion: z.string().optional().describe("Kubernetes version (from ncloud_nks_get_versions). G3/KVM uses nks.2 suffix, G2/XEN uses nks.1 suffix"),
@@ -290,7 +291,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_delete_cluster",
     "⚠️ Destructive: Permanently delete an NKS Kubernetes cluster. Set confirm=true to execute.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster to delete"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -307,8 +308,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_upgrade_cluster",
     "Upgrade the Kubernetes version of an NKS cluster. Uses PATCH with query parameters.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster to upgrade"),
-      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Target Kubernetes version (e.g., 1.27.9-nks.1)"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster to upgrade"),
+      k8sVersion: z.string(reqField("k8sVersion")).describe("Target Kubernetes version (e.g., 1.27.9-nks.1)"),
       maxSurge: z.number().optional().describe("Max nodes that can be added during upgrade (default: 1)"),
       maxUnavailable: z.number().optional().describe("Max nodes that can be unavailable during upgrade (default: 0)"),
     },
@@ -329,8 +330,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_set_audit_log",
     "Configure audit log collection via Cloud Log Analytics (CLA) for an NKS cluster. Since 2026-09-17 enabling it (audit=true) is rejected with 400 unless the account has an active CLA subscription — subscribe to Cloud Log Analytics first.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      audit: z.boolean({ required_error: requiredError("audit") }).describe("Whether to enable audit log collection (true/false)"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      audit: z.boolean(reqField("audit")).describe("Whether to enable audit log collection (true/false)"),
     },
     async (params) => {
       return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/log`, undefined, { audit: params.audit });
@@ -342,8 +343,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_add_subnet",
     "Add subnets to an NKS cluster (PATCH /clusters/{uuid}/add-subnet; a cluster can have at most 5 subnets)",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).min(1).describe("List of subnet numbers to add (sent as subnets[].number)"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      subnetNoList: z.array(z.number(), reqField("subnetNoList")).min(1).describe("List of subnet numbers to add (sent as subnets[].number)"),
     },
     async (params) => {
       // 스펙(두 존 공통): PATCH .../add-subnet, body { subnets: [{ number }] } — 이전의 `/subnet` + subnetNoList 는 어느 존 문서에도 없다.
@@ -357,10 +358,10 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_set_oidc",
     "Configure OIDC (OpenID Connect) authentication for an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      status: z.boolean({ required_error: requiredError("status") }).describe("OIDC activation status (true=enable, false=disable)"),
-      clientId: z.string({ required_error: requiredError("clientId") }).describe("OIDC provider Client ID"),
-      issuerURL: z.string({ required_error: requiredError("issuerURL") }).describe("OIDC provider URL"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      status: z.boolean(reqField("status")).describe("OIDC activation status (true=enable, false=disable)"),
+      clientId: z.string(reqField("clientId")).describe("OIDC provider Client ID"),
+      issuerURL: z.string(reqField("issuerURL")).describe("OIDC provider URL"),
       usernameClaim: z.string().optional().describe("JWT claim for username"),
       usernamePrefix: z.string().optional().describe("Prefix for username claim"),
       groupsClaim: z.string().optional().describe("JWT claim for groups"),
@@ -379,7 +380,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_oidc",
     "Get OIDC (OpenID Connect) provider configuration for an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/oidc`);
@@ -391,7 +392,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_ip_acl",
     "Get IP ACL configuration for an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/ip-acl`);
@@ -403,8 +404,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_set_ip_acl",
     "Configure IP ACL for an NKS cluster to restrict API server access. defaultAction (allow|deny) is required and applies to addresses not matched by entries.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      defaultAction: z.enum(["allow", "deny"], { required_error: requiredError("defaultAction") }).describe("Default action for addresses not matched by any entry"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      defaultAction: z.enum(["allow", "deny"], reqField("defaultAction")).describe("Default action for addresses not matched by any entry"),
       entries: z.array(z.object({
         action: z.enum(["allow", "deny"]).describe("ACL action for this entry"),
         address: z.string().describe("IP address or CIDR block"),
@@ -424,8 +425,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_set_return_protection",
     "Configure return (deletion) protection for an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      returnProtection: z.boolean({ required_error: requiredError("returnProtection") }).describe("Enable/disable deletion protection"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      returnProtection: z.boolean(reqField("returnProtection")).describe("Enable/disable deletion protection"),
     },
     async (params) => {
       return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/return-protection`, undefined, { returnProtection: params.returnProtection });
@@ -437,7 +438,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_lb_subnet",
     "Update the load balancer subnet of an NKS cluster. Parameters are sent as query string (no JSON body): lbSubnetNo (or, Public zone only, lbSubnetNoList with up to 2 subnets in different zones) plus igwYn (Y = public subnet, N = private, default).",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
       lbSubnetNo: z.number().optional().describe("Load balancer subnet instance number (required unless lbSubnetNoList is given)"),
       lbSubnetNoList: z.array(z.number()).max(2).optional().describe("Public zone only: up to 2 LB subnet instance numbers in different zones (multi-zone). Alternative to lbSubnetNo"),
       igwYn: z.enum(["Y", "N"]).optional().describe("Subnet type: Y = public LB subnet, N = private (default)"),
@@ -461,7 +462,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_secret_encryption",
     "Configure secret encryption for an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
       kmsKeyTag: z.string().optional().describe("KMS key tag for secret encryption"),
     },
     async (params) => {
@@ -476,8 +477,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_auth_type",
     "Update authentication mode for an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      authType: z.string({ required_error: requiredError("authType") }).describe("Auth type: API or CONFIG_MAP"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      authType: z.string(reqField("authType")).describe("Auth type: API or CONFIG_MAP"),
     },
     async (params) => {
       return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/auth-type`, undefined, { authType: params.authType });
@@ -492,7 +493,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_kubeconfig",
     "Retrieve the kubeconfig for a specified NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/kubeconfig`);
@@ -506,7 +507,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
       "ncloud_nks_reset_kubeconfig",
       "Reset the kubeconfig credentials for a specified NKS cluster",
       {
-        clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+        clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
       },
       async (params) => {
         return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/kubeconfig`);
@@ -521,7 +522,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_list_worker_nodes",
     "List worker nodes in an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/nodes`);
@@ -534,8 +535,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_delete_worker_node",
     "⚠️ Destructive: Delete a specific worker node from an NKS cluster. Set confirm=true to execute.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Instance number of the worker node to delete"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      instanceNo: z.number(reqField("instanceNo")).describe("Instance number of the worker node to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
@@ -552,7 +553,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_list_node_pools",
     "List all node pools in a specified NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
       hypervisorCode: z.enum(["XEN", "KVM"]).optional().describe("Hypervisor filter: XEN (default) or KVM"),
     },
     async (params) => {
@@ -567,8 +568,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
       "Node spec: XEN (G2) clusters take productCode, KVM (G3) clusters take serverSpecCode + storageSize — both come from ncloud_nks_get_server_specs. " +
       "On a Regional cluster (Public zone), zoneCode is required and must match the zone of the subnets the pool uses (400 on mismatch since 2026-09-17).",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      name: z.string({ required_error: requiredError("name") }).describe("Node pool name"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      name: z.string(reqField("name")).describe("Node pool name"),
       nodeCount: z.number().optional().describe("Number of nodes (required if autoscale not set)"),
       softwareCode: z.string().optional().describe("Server image code — value from ncloud_nks_get_server_images exactly as returned (XEN values have no '|' part, KVM values do)"),
       // 노드풀 생성 가이드(세 존)에는 productCode·subnetNoList 가 없지만, createcluster 의 nodePool 항목과
@@ -622,8 +623,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_node_pool",
     "Update node pool settings (node count or autoscale) in an NKS cluster",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Node pool instance number"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      instanceNo: z.number(reqField("instanceNo")).describe("Node pool instance number"),
       nodeCount: z.number().optional().describe("Desired node count (required if autoscale disabled)"),
       autoscale: z.object({
         enabled: z.boolean().optional(),
@@ -646,8 +647,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_delete_node_pool",
     "⚠️ Destructive: Permanently delete a node pool from an NKS cluster. Set confirm=true to execute.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Node pool instance number to delete"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      instanceNo: z.number(reqField("instanceNo")).describe("Node pool instance number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
@@ -665,12 +666,12 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_node_pool_label",
     "Update labels on a node pool in an NKS cluster (PUT replaces all labels)",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Node pool instance number"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      instanceNo: z.number(reqField("instanceNo")).describe("Node pool instance number"),
       labels: z.array(z.object({
-        key: z.string({ required_error: requiredError("labels[].key") }),
-        value: z.string({ required_error: requiredError("labels[].value") }),
-      }), { required_error: requiredError("labels") }).describe("Label key/value pairs"),
+        key: z.string(reqField("labels[].key")),
+        value: z.string(reqField("labels[].value")),
+      }), reqField("labels")).describe("Label key/value pairs"),
     },
     async (params) => {
       return client.requestRaw("PUT", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/labels`, undefined, { labels: params.labels });
@@ -682,13 +683,13 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_node_pool_taint",
     "Update taints on a node pool in an NKS cluster (PUT replaces all taints)",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Node pool instance number"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      instanceNo: z.number(reqField("instanceNo")).describe("Node pool instance number"),
       taints: z.array(z.object({
-        key: z.string({ required_error: requiredError("taints[].key") }),
+        key: z.string(reqField("taints[].key")),
         value: z.string().optional().describe("Taint value"),
-        effect: z.string({ required_error: requiredError("taints[].effect") }).describe("NoSchedule | PreferNoSchedule | NoExecute"),
-      }), { required_error: requiredError("taints") }).describe("Taint key/value/effect objects"),
+        effect: z.string(reqField("taints[].effect")).describe("NoSchedule | PreferNoSchedule | NoExecute"),
+      }), reqField("taints")).describe("Taint key/value/effect objects"),
     },
     async (params) => {
       return client.requestRaw("PUT", `${base()}/clusters/${params.clusterUuid}/node-pool/${params.instanceNo}/taints`, undefined, { taints: params.taints });
@@ -700,9 +701,9 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_upgrade_node_pool",
     "Upgrade the Kubernetes version of a node pool. Uses PATCH with query parameters.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Node pool instance number"),
-      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Target Kubernetes version"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      instanceNo: z.number(reqField("instanceNo")).describe("Node pool instance number"),
+      k8sVersion: z.string(reqField("k8sVersion")).describe("Target Kubernetes version"),
       maxSurge: z.number().optional().describe("Max nodes added during upgrade (default: 1)"),
       maxUnavailable: z.number().optional().describe("Max unavailable nodes during upgrade (default: 0)"),
     },
@@ -720,9 +721,9 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_node_pool_subnet",
     "Update the subnets of a node pool that has manually assigned subnets (PATCH .../node-pool/{instanceNo}/subnets). Not usable when subnets are auto-assigned.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      instanceNo: z.number({ required_error: requiredError("instanceNo") }).describe("Node pool instance number"),
-      subnetNoList: z.array(z.number(), { required_error: requiredError("subnetNoList") }).min(1).describe("New subnet number list (sent as subnets[])"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      instanceNo: z.number(reqField("instanceNo")).describe("Node pool instance number"),
+      subnetNoList: z.array(z.number(), reqField("subnetNoList")).min(1).describe("New subnet number list (sent as subnets[])"),
     },
     async (params) => {
       // 스펙(두 존 공통, nks-updatenodepoolsubnet): `/subnets` + body { subnets: [number] } — 이전의 `/subnet` + subnetNoList 는 문서에 없다.
@@ -745,7 +746,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_list_access_entries",
     "List IAM access entries of an NKS cluster (requires authType=API on the cluster)",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/access-entries`);
@@ -757,8 +758,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_access_entry",
     "Get one IAM access entry of an NKS cluster by its UUID",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      entryUuid: z.string({ required_error: requiredError("entryUuid") }).describe("IAM access entry UUID (from ncloud_nks_list_access_entries)"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      entryUuid: z.string(reqField("entryUuid")).describe("IAM access entry UUID (from ncloud_nks_list_access_entries)"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/access-entries/${params.entryUuid}`);
@@ -770,9 +771,9 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_create_access_entry",
     "Create an IAM access entry for an NKS cluster: maps an IAM USER or ROLE (NRN) to Kubernetes groups and/or NKS access policies. Requires authType=API.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      type: z.enum(["USER", "ROLE"], { required_error: requiredError("type") }).describe("IAM principal type"),
-      entry: z.string({ required_error: requiredError("entry") }).describe("NRN of the IAM USER or ROLE"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      type: z.enum(["USER", "ROLE"], reqField("type")).describe("IAM principal type"),
+      entry: z.string(reqField("entry")).describe("NRN of the IAM USER or ROLE"),
       groups: z.array(z.string()).optional().describe("Kubernetes group names to bind the principal to"),
       policies: accessPolicySchema.optional().describe("NKS access policies to attach (type + scope, namespaces when scope is 'namespace')"),
     },
@@ -790,8 +791,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_access_entry",
     "Update the Kubernetes groups and/or NKS access policies of an IAM access entry (PUT — the supplied lists replace the existing ones)",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      entryUuid: z.string({ required_error: requiredError("entryUuid") }).describe("IAM access entry UUID"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      entryUuid: z.string(reqField("entryUuid")).describe("IAM access entry UUID"),
       groups: z.array(z.string()).optional().describe("Kubernetes group names (replaces the existing list)"),
       policies: accessPolicySchema.optional().describe("NKS access policies (replaces the existing list)"),
     },
@@ -808,8 +809,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_delete_access_entry",
     "⚠️ Destructive: Delete an IAM access entry from an NKS cluster. Set confirm=true to execute.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      entryUuid: z.string({ required_error: requiredError("entryUuid") }).describe("IAM access entry UUID to delete"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      entryUuid: z.string(reqField("entryUuid")).describe("IAM access entry UUID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
@@ -858,7 +859,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_server_specs",
     "List available server specifications for NKS cluster/node pool creation. Requires softwareCode (from ncloud_nks_get_server_images) and zoneCode or zoneNo.",
     {
-      softwareCode: z.string({ required_error: requiredError("softwareCode") }).describe("Server image code (value from ncloud_nks_get_server_images)"),
+      softwareCode: z.string(reqField("softwareCode")).describe("Server image code (value from ncloud_nks_get_server_images)"),
       zoneCode: z.string().optional().describe("Zone code (see ncloud_get_zones). Required if zoneNo not provided."),
       zoneNo: z.string().optional().describe("Zone number. Required if zoneCode not provided."),
     },
@@ -880,7 +881,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_list_available_addons",
     "List add-ons installable on an NKS cluster for a given Kubernetes version (Add-on Manager catalog; Add-on Manager is only available on Kubernetes 1.36+ clusters). Requires k8sVersion. The catalog includes components delivered as add-ons such as the NAVER Cloud Global DNS (ExternalDNS) webhook provider and, since 2026-09-17, Istio (service mesh); the available add-ons vary by Kubernetes version and region.",
     {
-      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0). Use the version from ncloud_nks_get_versions without the -nks.N suffix"),
+      k8sVersion: z.string(reqField("k8sVersion")).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0). Use the version from ncloud_nks_get_versions without the -nks.N suffix"),
       page: z.number().optional().describe("Page number for pagination"),
       size: z.number().optional().describe("Page size for pagination"),
     },
@@ -897,8 +898,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_available_addon",
     "Get details of an installable add-on (Add-on Manager catalog; requires Kubernetes 1.36+), including its installable versions for the given Kubernetes version.",
     {
-      addonName: z.string({ required_error: requiredError("addonName") }).describe("Add-on name (from ncloud_nks_list_available_addons)"),
-      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
+      addonName: z.string(reqField("addonName")).describe("Add-on name (from ncloud_nks_list_available_addons)"),
+      k8sVersion: z.string(reqField("k8sVersion")).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/addon-configs/${params.addonName}`, { k8sVersion: params.k8sVersion });
@@ -910,9 +911,9 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_available_addon_version",
     "Get details of a specific add-on version (Add-on Manager catalog; requires Kubernetes 1.36+), including its configuration schema for configurationValues.",
     {
-      addonName: z.string({ required_error: requiredError("addonName") }).describe("Add-on name"),
-      version: z.string({ required_error: requiredError("version") }).describe("Add-on version (from ncloud_nks_get_available_addon)"),
-      k8sVersion: z.string({ required_error: requiredError("k8sVersion") }).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
+      addonName: z.string(reqField("addonName")).describe("Add-on name"),
+      version: z.string(reqField("version")).describe("Add-on version (from ncloud_nks_get_available_addon)"),
+      k8sVersion: z.string(reqField("k8sVersion")).describe("Kubernetes version in major.minor.patch (e.g., 1.36.0)"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/addon-configs/${params.addonName}/versions/${params.version}`, { k8sVersion: params.k8sVersion });
@@ -924,7 +925,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_list_cluster_addons",
     "List add-ons currently installed on an NKS cluster, with their versions and status.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
       status: z.string().optional().describe("Filter by add-on status"),
       page: z.number().optional().describe("Page number for pagination"),
       size: z.number().optional().describe("Page size for pagination"),
@@ -943,8 +944,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_get_cluster_addon",
     "Get a single add-on installed on an NKS cluster, including status, configuration, and version.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      addonRef: z.string({ required_error: requiredError("addonRef") }).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      addonRef: z.string(reqField("addonRef")).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/clusters/${params.clusterUuid}/addons/${params.addonRef}`);
@@ -956,13 +957,13 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_install_addons",
     "Install one or more add-ons on an NKS cluster (Add-on Manager, k8s 1.36+). Use dryRun=true to preview without installing.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
       addons: z.array(z.object({
-        addonName: z.string({ required_error: requiredError("addons[].addonName") }).describe("Add-on name (from ncloud_nks_list_available_addons)"),
-        version: z.string({ required_error: requiredError("addons[].version") }).describe("Add-on version to install (e.g., 1.0.0)"),
+        addonName: z.string(reqField("addons[].addonName")).describe("Add-on name (from ncloud_nks_list_available_addons)"),
+        version: z.string(reqField("addons[].version")).describe("Add-on version to install (e.g., 1.0.0)"),
         configurationValues: z.string().optional().describe("Helm values override as a JSON-object STRING (already stringified), e.g. '{\"policy\":\"sync\"}'. Defaults to {} when omitted"),
         resolveConflicts: z.enum(["Overwrite", "Preserve"]).optional().describe("Conflict resolution when the add-on touches existing resources: Overwrite (default) | Preserve"),
-      }), { required_error: requiredError("addons") }).min(1).describe("One or more add-ons to install"),
+      }), reqField("addons")).min(1).describe("One or more add-ons to install"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually installing"),
     },
     async (params) => {
@@ -987,8 +988,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_update_addon",
     "Update an add-on installed on an NKS cluster — change its version and/or configurationValues. At least one of version/configurationValues/resolveConflicts must be provided.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      addonRef: z.string({ required_error: requiredError("addonRef") }).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      addonRef: z.string(reqField("addonRef")).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
       version: z.string().optional().describe("Target version. Omit to keep the current version"),
       configurationValues: z.string().optional().describe("Helm values override as a JSON-object STRING. An empty string resets to {}"),
       resolveConflicts: z.enum(["Overwrite", "Preserve"]).optional().describe("Conflict resolution: Overwrite (default) | Preserve"),
@@ -1018,8 +1019,8 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
     "ncloud_nks_delete_addon",
     "⚠️ Destructive: Uninstall an add-on from an NKS cluster. Set confirm=true to execute.",
     {
-      clusterUuid: z.string({ required_error: requiredError("clusterUuid") }).describe("UUID of the cluster"),
-      addonRef: z.string({ required_error: requiredError("addonRef") }).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
+      clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
+      addonRef: z.string(reqField("addonRef")).describe("Installed add-on reference: the add-on name OR the installed add-on's UUID"),
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {

@@ -10,7 +10,8 @@
  */
 
 import { z } from "zod";
-import { L, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
+import { L } from "./_messages.js";
 import { ZONE_PROFILES, type Zone, type RegionInfo } from "../client/endpoints.js";
 
 // ─── 리전 ──────────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ export function unsupportedResourceTypeMessage(resourceType: string): string {
 const ANALYTICS_NAME = /^[a-z](?!.*--)[a-z0-9-]{1,13}[a-z0-9]$/;
 
 export function analyticsName(field: string) {
-  return z.string({ required_error: requiredError(field) }).regex(ANALYTICS_NAME, {
+  return z.string(reqField(field)).regex(ANALYTICS_NAME, {
     message: `${field}: 3-15 chars of lowercase letters, numbers and '-' — start with a letter, end with a letter or number, no consecutive '-'`,
   });
 }
@@ -91,7 +92,7 @@ export function analyticsName(field: string) {
 /** 비밀번호: 8~20자, 금지 문자 ' " ` ₩ / & 와 공백. (영문·숫자·특수문자 조합 여부는 서버가 검사) */
 export function analyticsPassword(field: string) {
   return z
-    .string({ required_error: requiredError(field) })
+    .string(reqField(field))
     .min(8, { message: `${field}: 8-20 chars` })
     .max(20, { message: `${field}: 8-20 chars` })
     .regex(/^[^'"`₩/&\s]+$/, { message: `${field}: must not contain ' " \` ₩ / & or spaces` });
@@ -99,7 +100,7 @@ export function analyticsPassword(field: string) {
 
 /** 스토리지 크기: 100~2000GB, 10GB 단위. */
 export function storageSize100to2000(field: string) {
-  return z.number({ required_error: requiredError(field) }).int().refine((n) => n >= 100 && n <= 2000 && n % 10 === 0, {
+  return z.number(reqField(field)).int().refine((n) => n >= 100 && n <= 2000 && n % 10 === 0, {
     message: `${field}: 100-2000 GB in 10 GB steps`,
   });
 }

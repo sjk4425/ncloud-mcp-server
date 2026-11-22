@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 export function registerSourceDeployTools(server: McpServer, client: NcloudClient): void {
   // ─── Project Tools ─────────────────────────────────────────────────────────
@@ -493,7 +493,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
     "ncloud_sourcedeploy_get_target_groups",
     "Get the list of load balancer target groups connected to an Auto Scaling group",
     {
-      autoScalingName: z.string({ required_error: requiredError("autoScalingName") }).describe("Auto Scaling group name (see ncloud_sourcedeploy_get_autoscaling_groups)"),
+      autoScalingName: z.string(reqField("autoScalingName")).describe("Auto Scaling group name (see ncloud_sourcedeploy_get_autoscaling_groups)"),
     },
     async (params) => {
       return client.requestRaw("GET", `/api/v1/autoscaling/${encodeURIComponent(params.autoScalingName)}`);

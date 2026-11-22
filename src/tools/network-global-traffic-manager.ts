@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
+import { reqMsg } from "./_zod.js";
 
 // Paths verified against the pub/gov guides on 2026-10-02 (globaltrafficmanager-profile-*, policy-*, geocidr-*, geolocation-*,
 // domain-query-countview): health check = .../monitors, lookups = /policies/resources/{types,regions}, /policies/lb-types,
@@ -22,7 +23,7 @@ const LB_TYPE_DESC =
 const lbTypeSchema = (requiredMessage?: string) =>
   z.preprocess(
     (v) => (typeof v === "string" && GTM_LB_TYPE_ALIASES[v] ? GTM_LB_TYPE_ALIASES[v] : v),
-    requiredMessage ? z.enum(GTM_LB_TYPES, { required_error: requiredMessage }) : z.enum(GTM_LB_TYPES)
+    requiredMessage ? z.enum(GTM_LB_TYPES, reqMsg(requiredMessage)) : z.enum(GTM_LB_TYPES)
   );
 
 /** Resource.type — 가이드 policy-request 의 Enum 및 policy-resource-typeview 응답(PUBLIC_IP, EXTERNAL_DOMAIN). CNAME 은 API 값이 아니다. */
@@ -69,7 +70,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_get_profile_detail",
     "Get detailed information about a specific Global Traffic Manager profile (domain)",
     {
-      domainId: z.number({ required_error: "Required parameter 'domainId' is missing." }).describe("Domain(Profile) ID to query"),
+      domainId: z.number(reqMsg("Required parameter 'domainId' is missing.")).describe("Domain(Profile) ID to query"),
     },
     async (params) => {
       return client.requestRaw("GET", `/gtm/v1/domains/${params.domainId}`);
@@ -81,8 +82,8 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_create_profile",
     "Create a new Global Traffic Manager profile (domain)",
     {
-      name: z.string({ required_error: "Required parameter 'name' is missing." }).describe("Domain name (e.g., profile.ncloudgtm.com)"),
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID to associate"),
+      name: z.string(reqMsg("Required parameter 'name' is missing.")).describe("Domain name (e.g., profile.ncloudgtm.com)"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID to associate"),
       ttl: z.number().optional().describe("TTL value in seconds"),
       claRegion: z.string().optional().describe("CLA region code (e.g., KR)"),
     },
@@ -101,7 +102,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_update_profile",
     "Update an existing Global Traffic Manager profile (domain)",
     {
-      domainId: z.number({ required_error: "Required parameter 'domainId' is missing." }).describe("Domain(Profile) ID to update"),
+      domainId: z.number(reqMsg("Required parameter 'domainId' is missing.")).describe("Domain(Profile) ID to update"),
       policyId: z.number().optional().describe("Policy ID to associate"),
       ttl: z.number().optional().describe("TTL value in seconds"),
       claRegion: z.string().optional().describe("CLA region code (e.g., KR)"),
@@ -122,7 +123,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_delete_profile",
     "⚠️ Destructive: Permanently delete a Global Traffic Manager profile (domain). Set confirm=true to execute.",
     {
-      domainId: z.number({ required_error: "Required parameter 'domainId' is missing." }).describe("Domain(Profile) ID to delete"),
+      domainId: z.number(reqMsg("Required parameter 'domainId' is missing.")).describe("Domain(Profile) ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -164,7 +165,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_get_policy_detail",
     "Get detailed information about a specific Global Traffic Manager policy",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID to query"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID to query"),
     },
     async (params) => {
       return client.requestRaw("GET", `/gtm/v1/policies/${params.policyId}`);
@@ -176,7 +177,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_create_policy",
     "Create a new Global Traffic Manager policy with load balancing, monitor, and resource groups",
     {
-      name: z.string({ required_error: "Required parameter 'name' is missing." }).describe("Policy name"),
+      name: z.string(reqMsg("Required parameter 'name' is missing.")).describe("Policy name"),
       lbType: lbTypeSchema("Required parameter 'lbType' is missing.").describe(LB_TYPE_DESC),
       geoMapId: z.number().optional().describe("Geo/CIDR Map ID (required when lbType is GEOLOCATION or CIDR)"),
       monitor: z.object({
@@ -212,7 +213,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_update_policy",
     "Update an existing Global Traffic Manager policy",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID to update"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID to update"),
       name: z.string().optional().describe("Policy name"),
       lbType: lbTypeSchema().optional().describe(LB_TYPE_DESC),
       geoMapId: z.number().optional().describe("Geo/CIDR Map ID (required when lbType is GEOLOCATION or CIDR)"),
@@ -252,7 +253,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_delete_policy",
     "⚠️ Destructive: Permanently delete a Global Traffic Manager policy. Set confirm=true to execute.",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID to delete"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -268,7 +269,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_get_policy_resources",
     "Get resource details for a specific Global Traffic Manager policy",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID"),
     },
     async (params) => {
       return client.requestRaw("GET", `/gtm/v1/policies/${params.policyId}/resources`);
@@ -280,14 +281,14 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_update_policy_resources",
     "Update all resources for a specific Global Traffic Manager policy",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID"),
       resourceGroups: z.array(z.object({
         sid: z.number().nullable().optional().describe("Resource group ID"),
         weighted: z.number().nullable().optional().describe(WEIGHTED_DESC),
         geoMapDetailId: z.number().nullable().optional().describe(GEO_MAP_DETAIL_DESC),
         active: z.array(GTM_RESOURCE_SCHEMA).describe("Active resources"),
         standby: z.array(GTM_RESOURCE_SCHEMA).optional().describe("Standby resources"),
-      }), { required_error: "Required parameter 'resourceGroups' is missing." }).describe(`Resource groups to set (replaces all existing groups). ${RESOURCE_GROUPS_RULE}`),
+      }), reqMsg("Required parameter 'resourceGroups' is missing.")).describe(`Resource groups to set (replaces all existing groups). ${RESOURCE_GROUPS_RULE}`),
     },
     async (params) => {
       return client.requestRaw("PUT", `/gtm/v1/policies/${params.policyId}/resources`, undefined, params.resourceGroups);
@@ -299,8 +300,8 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_update_policy_resource",
     "Update a specific resource group within a Global Traffic Manager policy",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID"),
-      resourceGroupSid: z.number({ required_error: "Required parameter 'resourceGroupSid' is missing." }).describe("Resource group SID"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID"),
+      resourceGroupSid: z.number(reqMsg("Required parameter 'resourceGroupSid' is missing.")).describe("Resource group SID"),
       weighted: z.number().nullable().optional().describe(WEIGHTED_DESC),
       geoMapDetailId: z.number().nullable().optional().describe(GEO_MAP_DETAIL_DESC),
       active: z.array(GTM_RESOURCE_SCHEMA).optional().describe("Active resources"),
@@ -324,7 +325,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_update_policy_health_check",
     "Update health check configuration for a Global Traffic Manager policy",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID"),
       protocol: z.enum(["HTTP", "HTTPS", "TCP"]).optional().describe("Health check protocol"),
       port: z.number().optional().describe("Health check port"),
       path: z.string().optional().describe("Health check path (HTTP/HTTPS only)"),
@@ -354,7 +355,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_delete_policy_health_check",
     "⚠️ Destructive: Delete health check configuration for a GTM policy. Set confirm=true to execute.",
     {
-      policyId: z.number({ required_error: "Required parameter 'policyId' is missing." }).describe("Policy ID"),
+      policyId: z.number(reqMsg("Required parameter 'policyId' is missing.")).describe("Policy ID"),
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
@@ -420,7 +421,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_get_geo_cidr_map_detail",
     "Get detailed information about a specific Geo or CIDR map",
     {
-      mapId: z.number({ required_error: "Required parameter 'mapId' is missing." }).describe("Map ID to query"),
+      mapId: z.number(reqMsg("Required parameter 'mapId' is missing.")).describe("Map ID to query"),
     },
     async (params) => {
       return client.requestRaw("GET", `/gtm/v1/maps/${params.mapId}`);
@@ -432,8 +433,8 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_create_geo_cidr_map",
     "Create a new Geo or CIDR map for Global Traffic Manager",
     {
-      name: z.string({ required_error: "Required parameter 'name' is missing." }).describe("Map name"),
-      mapType: z.enum(["GEO", "CIDR"], { required_error: "Required parameter 'mapType' is missing." }).describe("Map type"),
+      name: z.string(reqMsg("Required parameter 'name' is missing.")).describe("Map name"),
+      mapType: z.enum(["GEO", "CIDR"], reqMsg("Required parameter 'mapType' is missing.")).describe("Map type"),
       detailedMapList: z.array(z.object({
         name: z.string().describe("Zone/detail name"),
         content: z.string().optional().describe("CIDR subnet (e.g., 10.10.10.0/24)"),
@@ -441,7 +442,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
           geoName: z.string().describe("Geolocation name (country/continent)"),
           geoType: z.string().describe("Geolocation type (NATION, CONTINENT)"),
         })).optional().describe("Geolocation mappings (for GEO type)"),
-      }), { required_error: "Required parameter 'detailedMapList' is missing." }).describe("Detailed map entries"),
+      }), reqMsg("Required parameter 'detailedMapList' is missing.")).describe("Detailed map entries"),
     },
     async (params) => {
       const body = { name: params.name, mapType: params.mapType, detailedMapList: params.detailedMapList };
@@ -456,7 +457,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_update_geo_cidr_map",
     "Update an existing Geo or CIDR map",
     {
-      mapId: z.number({ required_error: "Required parameter 'mapId' is missing." }).describe("Map ID to update"),
+      mapId: z.number(reqMsg("Required parameter 'mapId' is missing.")).describe("Map ID to update"),
       name: z.string().optional().describe("Map name"),
       mapType: z.enum(["GEO", "CIDR"]).optional().describe("Map type"),
       detailedMapList: z.array(z.object({
@@ -485,7 +486,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_delete_geo_cidr_map",
     "⚠️ Destructive: Permanently delete a Geo or CIDR map. Set confirm=true to execute.",
     {
-      mapId: z.number({ required_error: "Required parameter 'mapId' is missing." }).describe("Map ID to delete"),
+      mapId: z.number(reqMsg("Required parameter 'mapId' is missing.")).describe("Map ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to execute"),
     },
     async (params) => {
@@ -523,7 +524,7 @@ export function registerGlobalTrafficManagerTools(server: McpServer, client: Ncl
     "ncloud_gtm_get_query_count",
     "Get GTM domain (profile) query count time-series monitoring data",
     {
-      baseTimeUnit: z.enum(["MINUTE_1", "MINUTE_5", "MINUTE_30", "HOUR_3", "DAY_1"], { required_error: "Required parameter 'baseTimeUnit' is missing." }).describe("Time unit for aggregation"),
+      baseTimeUnit: z.enum(["MINUTE_1", "MINUTE_5", "MINUTE_30", "HOUR_3", "DAY_1"], reqMsg("Required parameter 'baseTimeUnit' is missing.")).describe("Time unit for aggregation"),
       domainId: z.number().optional().describe("Filter by specific domain (profile) ID"),
     },
     async (params) => {

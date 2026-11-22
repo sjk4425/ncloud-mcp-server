@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { tag, wrap, xmlDocument, text, blocks, intText, boolText } from "./_s3xml.js";
 
 /**
@@ -25,16 +26,16 @@ const SSE_ALGORITHMS = ["AES256", "aws:kms"] as const;
 const NCS = "[Ncloud Storage]";
 
 function bucketNameSchema() {
-  return z.string({ required_error: requiredError("bucketName") }).describe("Name of the Ncloud Storage bucket");
+  return z.string(reqField("bucketName")).describe("Name of the Ncloud Storage bucket");
 }
 function keySchema(desc = "Object key (path) of the multipart upload target") {
-  return z.string({ required_error: requiredError("key") }).describe(desc);
+  return z.string(reqField("key")).describe(desc);
 }
 function uploadIdSchema() {
-  return z.string({ required_error: requiredError("uploadId") }).describe("Upload ID returned by ncloud_ncs_create_multipart_upload");
+  return z.string(reqField("uploadId")).describe("Upload ID returned by ncloud_ncs_create_multipart_upload");
 }
 function partNumberSchema() {
-  return z.number({ required_error: requiredError("partNumber") }).int().min(1).max(10000).describe("Part number (1–10,000)");
+  return z.number(reqField("partNumber")).int().min(1).max(10000).describe("Part number (1–10,000)");
 }
 
 /** 소스 표기 정규화: 문서 형식은 `{bucket}/{object}`. 앞 슬래시가 붙어 와도 받아준다. */
@@ -143,7 +144,7 @@ export function registerStorageNcloudMultipartTools(server: McpServer, client: S
       key: keySchema(),
       uploadId: uploadIdSchema(),
       partNumber: partNumberSchema(),
-      body: z.string({ required_error: requiredError("body") }).describe("Content of this part"),
+      body: z.string(reqField("body")).describe("Content of this part"),
     },
     async (params) => {
       const response = await client.request({
@@ -174,7 +175,7 @@ export function registerStorageNcloudMultipartTools(server: McpServer, client: S
       key: keySchema(),
       uploadId: uploadIdSchema(),
       partNumber: partNumberSchema(),
-      copySource: z.string({ required_error: requiredError("copySource") }).describe("Source object as {sourceBucket}/{sourceKey} (a leading slash is tolerated)"),
+      copySource: z.string(reqField("copySource")).describe("Source object as {sourceBucket}/{sourceKey} (a leading slash is tolerated)"),
       copySourceVersionId: z.string().optional().describe("Version ID of the source object (versioning-enabled buckets)"),
       copySourceRange: z.string().optional().describe("Byte range to copy from the source, e.g. 'bytes=0-5242879'. Omit to copy the whole source object as this part"),
     },

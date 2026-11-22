@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -72,7 +72,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
   // MonitorGrpDto (createDirectly 의 monitorGroup / create·update monitor group 바디)
   const monitorGrpShape = {
-    prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) for the target service"),
+    prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) for the target service"),
     groupName: z.string().optional().describe("Name of the monitor group"),
     groupDesc: z.string().optional().describe("Description of the monitor group"),
     monitorGroupItemList: z.array(monitorGroupItem).describe("Monitoring targets ([{resourceId, nrn?}])"),
@@ -83,8 +83,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
 
   // CreateOrUpdateMetricsGrpDto
   const metricsGrpShape = {
-    prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) for the target service"),
-    groupName: z.string({ required_error: requiredError("groupName") }).describe("Name of the metrics group (1-100 chars)"),
+    prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) for the target service"),
+    groupName: z.string(reqField("groupName")).describe("Name of the metrics group (1-100 chars)"),
     groupDesc: z.string().optional().describe("Description (<= 300 chars)"),
     metricsGroupItems: z.array(metricsGroupItem).min(1).describe("Metric items (at least one)"),
     temporaryGroup: z.boolean().optional().default(false).describe("true: create the Event Rule without creating a metrics group (default false)"),
@@ -113,9 +113,9 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_list_rule_groups",
     "Get the list of Cloud Insight event rule groups for monitoring alerts.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) to filter rule groups (required)"),
-      pageSize: z.number({ required_error: requiredError("pageSize") }).describe("Number of results per page (required)"),
-      pageNum: z.number({ required_error: requiredError("pageNum") }).describe("Page number (required, starts from 1)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) to filter rule groups (required)"),
+      pageSize: z.number(reqField("pageSize")).describe("Number of results per page (required)"),
+      pageNum: z.number(reqField("pageNum")).describe("Page number (required, starts from 1)"),
       search: z.string().optional().describe("Search keyword to filter rule groups"),
     },
     async (params) => {
@@ -131,8 +131,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_get_rule_group",
     "Get detailed information about a specific Cloud Insight event rule group.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) the rule group belongs to"),
-      ruleGroupId: z.string({ required_error: requiredError("ruleGroupId") }).describe("Rule group (Event Rule) ID to retrieve"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) the rule group belongs to"),
+      ruleGroupId: z.string(reqField("ruleGroupId")).describe("Rule group (Event Rule) ID to retrieve"),
     },
     async (params) => {
       return client.requestRaw("GET", `${CW}/rule/group/ruleGrp/query/${encodeURIComponent(params.prodKey)}/${encodeURIComponent(params.ruleGroupId)}`);
@@ -140,8 +140,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
   );
 
   const ruleGroupBodyShape = {
-    prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) for the target service"),
-    groupName: z.string({ required_error: requiredError("groupName") }).describe("Name of the rule group (1-1000 chars)"),
+    prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) for the target service"),
+    groupName: z.string(reqField("groupName")).describe("Name of the rule group (1-1000 chars)"),
     metricsGroupKey: z.array(z.string()).min(1).describe("Metrics group (rule template) IDs to apply (at least one)"),
     monitorGroupKey: z.array(z.string()).min(1).describe("Monitor group (target group) IDs to monitor (at least one)"),
     groupDesc: z.string().optional().describe("Description (<= 300 chars)"),
@@ -182,7 +182,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_update_rule_group",
     "Update an existing Cloud Insight event rule group. groupName cannot be changed — pass the current name.",
     {
-      ruleGroupId: z.string({ required_error: requiredError("ruleGroupId") }).describe("Rule group (Event Rule) ID to update"),
+      ruleGroupId: z.string(reqField("ruleGroupId")).describe("Rule group (Event Rule) ID to update"),
       ...ruleGroupBodyShape,
     },
     async (params) => {
@@ -197,7 +197,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_delete_rule_group",
     "⚠️ Destructive: Delete one or more Cloud Insight event rule groups. This permanently removes the rule groups and stops their monitoring alerts.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) the rule groups belong to"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) the rule groups belong to"),
       ruleGroupIds: z.array(z.string()).min(1).describe("Rule group (Event Rule) IDs to delete"),
       confirm: z.boolean().optional().describe("Must be true to execute deletion. If false or omitted, returns a confirmation prompt."),
     },
@@ -214,8 +214,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_delete_rule_group_by_id",
     "⚠️ Destructive: Delete a Cloud Insight event rule by product key and rule group ID.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
-      ruleGroupId: z.string({ required_error: requiredError("ruleGroupId") }).describe("Rule group ID to delete"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
+      ruleGroupId: z.string(reqField("ruleGroupId")).describe("Rule group ID to delete"),
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
     async (params) => {
@@ -230,7 +230,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_copy_rule_group",
     "Copy an existing Cloud Insight event rule group to create a new one.",
     {
-      ruleGroupId: z.string({ required_error: requiredError("ruleGroupId") }).describe("Source rule group ID to copy from"),
+      ruleGroupId: z.string(reqField("ruleGroupId")).describe("Source rule group ID to copy from"),
     },
     async (params) => {
       return client.requestRaw("PUT", `${CW}/rule/group/ruleGrp/copy/${encodeURIComponent(params.ruleGroupId)}`, undefined, undefined, { regionHeader: true });
@@ -243,8 +243,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_create_rule_directly",
     "Create a Cloud Insight event rule by directly specifying the monitor group (targets) and metrics group (rule template) inline, without pre-created groups.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
-      groupName: z.string({ required_error: requiredError("groupName") }).describe("Name of the rule group (1-100 chars)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
+      groupName: z.string(reqField("groupName")).describe("Name of the rule group (1-100 chars)"),
       groupDesc: z.string().optional().describe("Description (<= 300 chars)"),
       monitorGroup: z.object(monitorGrpShape).describe("Monitor group definition (MonitorGrpDto)"),
       metricsGroup: z.object(metricsGrpShape).describe("Metrics group definition (CreateOrUpdateMetricsGrpDto)"),
@@ -270,7 +270,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_list_monitor_groups",
     "Get the list of Cloud Insight monitoring target groups for a specific product.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) to get monitor groups for (required, use ncloud_get_schema_keys to find available keys)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) to get monitor groups for (required, use ncloud_get_schema_keys to find available keys)"),
     },
     async (params) => {
       return client.requestRaw("GET", `${CW}/rule/group/monitor/${encodeURIComponent(params.prodKey)}`);
@@ -283,8 +283,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_get_monitor_group",
     "Get detailed information about a specific Cloud Insight monitoring target group.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) the monitor group belongs to"),
-      monitorGroupId: z.string({ required_error: requiredError("monitorGroupId") }).describe("Monitor group ID to retrieve details for"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) the monitor group belongs to"),
+      monitorGroupId: z.string(reqField("monitorGroupId")).describe("Monitor group ID to retrieve details for"),
     },
     async (params) => {
       return client.requestRaw("GET", `${CW}/rule/group/monitor/${encodeURIComponent(params.prodKey)}/${encodeURIComponent(params.monitorGroupId)}`);
@@ -310,7 +310,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_update_monitor_group",
     "Update an existing Cloud Insight monitoring target group.",
     {
-      monitorGroupId: z.string({ required_error: requiredError("monitorGroupId") }).describe("Monitor group ID to update"),
+      monitorGroupId: z.string(reqField("monitorGroupId")).describe("Monitor group ID to update"),
       ...monitorGrpShape,
     },
     async (params) => {
@@ -324,7 +324,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_delete_monitor_group",
     "⚠️ Destructive: Delete one or more Cloud Insight monitoring target groups. This will permanently remove the groups.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) the monitor groups belong to"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) the monitor groups belong to"),
       monitorGroupIds: z.array(z.string()).min(1).describe("Monitor group IDs to delete"),
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
@@ -340,7 +340,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_delete_monitor_group_force",
     "⚠️ Destructive: Force delete monitoring target groups together with ALL event rules related to them. Pass the groups as returned by ncloud_get_rules_by_monitor_group. This is irreversible.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
       groups: relatedRuleGroups.describe("Monitor groups and their related event rules ([{id, ruleGroupItemDtoList}], from ncloud_get_rules_by_monitor_group)"),
       confirm: z.boolean().optional().describe("Must be true to execute force deletion."),
     },
@@ -360,7 +360,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_list_metrics_groups",
     "Get the list of Cloud Insight rule templates (monitoring item groups / metrics groups) for a product.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) to list metrics groups for (required)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) to list metrics groups for (required)"),
     },
     async (params) => {
       return client.requestRaw("GET", `${CW}/rule/group/metrics/query/${encodeURIComponent(params.prodKey)}`);
@@ -373,8 +373,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_get_metrics_group",
     "Get detailed information about a specific Cloud Insight rule template (metrics group).",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) the metrics group belongs to"),
-      metricsGroupId: z.string({ required_error: requiredError("metricsGroupId") }).describe("Metrics group ID to retrieve details for"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) the metrics group belongs to"),
+      metricsGroupId: z.string(reqField("metricsGroupId")).describe("Metrics group ID to retrieve details for"),
     },
     async (params) => {
       return client.requestRaw("GET", `${CW}/rule/group/metrics/query/${encodeURIComponent(params.prodKey)}/${encodeURIComponent(params.metricsGroupId)}`);
@@ -400,7 +400,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_update_metrics_group",
     "Update an existing Cloud Insight rule template (metrics group).",
     {
-      metricsGroupId: z.string({ required_error: requiredError("metricsGroupId") }).describe("Metrics group ID to update"),
+      metricsGroupId: z.string(reqField("metricsGroupId")).describe("Metrics group ID to update"),
       ...metricsGrpShape,
     },
     async (params) => {
@@ -414,7 +414,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_delete_metrics_group",
     "⚠️ Destructive: Delete one or more Cloud Insight rule templates (metrics groups).",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) the metrics groups belong to"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) the metrics groups belong to"),
       metricsGroupIds: z.array(z.string()).min(1).describe("Metrics group IDs to delete"),
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
@@ -430,8 +430,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_delete_metrics_group_by_id",
     "⚠️ Destructive: Delete a Cloud Insight rule template by product key and metrics group ID.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
-      metricsGroupId: z.string({ required_error: requiredError("metricsGroupId") }).describe("Metrics group ID to delete"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
+      metricsGroupId: z.string(reqField("metricsGroupId")).describe("Metrics group ID to delete"),
       confirm: z.boolean().optional().describe("Must be true to execute deletion."),
     },
     async (params) => {
@@ -446,7 +446,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_delete_metrics_group_force",
     "⚠️ Destructive: Force delete rule templates (metrics groups) together with ALL event rules related to them. Pass the groups as returned by ncloud_get_rules_by_metrics_group. This is irreversible.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
       groups: relatedRuleGroups.describe("Metrics groups and their related event rules ([{id, ruleGroupItemDtoList}], from ncloud_get_rules_by_metrics_group)"),
       confirm: z.boolean().optional().describe("Must be true to execute force deletion."),
     },
@@ -477,7 +477,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_get_rules_by_metrics_group",
     "Get Cloud Insight event rules associated with specific rule template (metrics group) IDs.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
       metricsGroupIds: z.array(z.string()).min(1).describe("Metrics group IDs to query"),
     },
     async (params) => {
@@ -491,7 +491,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_get_rules_by_monitor_group",
     "Get Cloud Insight event rules associated with specific monitoring target group IDs.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
       monitorGroupIds: z.array(z.string()).min(1).describe("Monitor group IDs to query"),
     },
     async (params) => {
@@ -505,7 +505,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_search_metric_list",
     "Search available monitoring metrics for a specific product in Cloud Insight.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key) to search metrics for"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key) to search metrics for"),
       query: z.string().optional().describe("Keyword to search metric names"),
       idDimensions: z.array(z.string()).optional().describe("idDimension names to query"),
       dimValues: z.array(z.object({ name: z.string(), value: z.string() })).optional().describe("Dimension filters ([{name, value}])"),
@@ -522,8 +522,8 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
     "ncloud_remove_resource_from_rules",
     "⚠️ Destructive: Remove a specific monitoring target from the given Cloud Insight event rules.",
     {
-      prodKey: z.string({ required_error: requiredError("prodKey") }).describe("Product key (cw_key)"),
-      resourceId: z.string({ required_error: requiredError("resourceId") }).describe("Resource ID (monitoring target) to remove from rules"),
+      prodKey: z.string(reqField("prodKey")).describe("Product key (cw_key)"),
+      resourceId: z.string(reqField("resourceId")).describe("Resource ID (monitoring target) to remove from rules"),
       ruleGroupIds: z.array(z.string()).min(1).describe("Event Rule (rule group) IDs to remove the resource from"),
       confirm: z.boolean().optional().describe("Must be true to execute removal."),
     },

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 export function registerComputePublicIpTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -64,8 +64,8 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     "ncloud_associate_public_ip",
     "Associate a public IP with a server instance",
     {
-      publicIpInstanceNo: z.string({ required_error: requiredError("publicIpInstanceNo") }).describe("Public IP instance number"),
-      serverInstanceNo: z.string({ required_error: requiredError("serverInstanceNo") }).describe("Server instance number to associate with"),
+      publicIpInstanceNo: z.string(reqField("publicIpInstanceNo")).describe("Public IP instance number"),
+      serverInstanceNo: z.string(reqField("serverInstanceNo")).describe("Server instance number to associate with"),
     },
     async (params) => {
       return client.request("/vserver/v2/associatePublicIpWithServerInstance", params);
@@ -77,7 +77,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     "ncloud_disassociate_public_ip",
     "Disassociate a public IP from its currently associated server instance",
     {
-      publicIpInstanceNo: z.string({ required_error: requiredError("publicIpInstanceNo") }).describe("Public IP instance number to disassociate"),
+      publicIpInstanceNo: z.string(reqField("publicIpInstanceNo")).describe("Public IP instance number to disassociate"),
     },
     async (params) => {
       return client.request("/vserver/v2/disassociatePublicIpFromServerInstance", params);
@@ -95,7 +95,7 @@ export function registerComputePublicIpTools(server: McpServer, client: NcloudCl
     "ncloud_delete_public_ip",
     "⚠️ Destructive: Delete a public IP instance. Set confirm=true to execute.",
     {
-      publicIpInstanceNo: z.string({ required_error: requiredError("publicIpInstanceNo") }).describe("Public IP instance number to delete"),
+      publicIpInstanceNo: z.string(reqField("publicIpInstanceNo")).describe("Public IP instance number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

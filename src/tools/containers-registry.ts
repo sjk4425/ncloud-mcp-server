@@ -2,9 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError, L } from "./_messages.js";
+import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { ncrPathPrefix, type Zone } from "../client/endpoints.js";
+import { reqField } from "./_zod.js";
 
 /**
  * Container Registry(NCR) 도구.
@@ -70,7 +71,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_get_registry",
     "Get detailed information about a specific container registry (GET /{registry}/info — not in the official guide, but works in practice)",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry to query"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry to query"),
     },
     async (params) => {
       // 세 존 어느 가이드에도 없는 경로지만 금융존에서 200 확인(2026-10-28). 가이드상 대안은 목록 조회 후 name 필터.
@@ -87,7 +88,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
       ? "Create a new container registry backed by an existing Object Storage bucket ('bucket' is required). Use dryRun=true to preview without creating."
       : "Create a new container registry. 'storageType' selects the storage backend: 'objectStorage' (default) reuses an existing Object Storage bucket (then 'bucket' is required); 'ncloudStorage' auto-provisions dedicated NCR storage (then 'bucket' is ignored). Use dryRun=true to preview without creating.",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name for the new registry"),
+      registryName: z.string(reqField("registryName")).describe("Name for the new registry"),
       // 가이드는 세 존 모두 objectStorage/ncloudStorage 를 싣지만, 금융존은 Ncloud Storage 가 없어
       //   ncloudStorage 가 400 `ncloudStorage is not supported in this environment`(금융존 테스트 2026-10-28).
       storageType: zone === "fin"
@@ -143,7 +144,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_delete_registry",
     "⚠️ Destructive: Permanently delete a container registry (DELETE /repositories/{registry}, 204 on success). Set confirm=true to execute.",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry to delete"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -160,7 +161,7 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_list_images",
     "List all container images in a specified registry (GET /repositories/{registry})",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry"),
       pageNo: z.number().int().min(1).optional().describe("Page number (sent as 'page', > 0)"),
       pageSize: z.number().int().min(1).optional().describe("Page size (sent as 'pagesize', > 0)"),
     },
@@ -174,8 +175,8 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_get_image",
     "Get detailed information about a specific container image (GET /repositories/{registry}/{imageName})",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry"),
-      imageName: z.string({ required_error: requiredError("imageName") }).describe("Name of the image to query (e.g. 'hello/world' — URI-encoded automatically)"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry"),
+      imageName: z.string(reqField("imageName")).describe("Name of the image to query (e.g. 'hello/world' — URI-encoded automatically)"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/${enc(params.registryName)}/${enc(params.imageName)}`);
@@ -189,8 +190,8 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_update_image",
     "Update the description of a container image in a registry (PATCH /repositories/{registry}/{imageName}). Provide description (short, ≤100 chars) and/or full_description (Markdown).",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry"),
-      imageName: z.string({ required_error: requiredError("imageName") }).describe("Name of the image to update (URI-encoded automatically)"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry"),
+      imageName: z.string(reqField("imageName")).describe("Name of the image to update (URI-encoded automatically)"),
       description: z.string().max(100).optional().describe("Short description (max 100 characters)"),
       full_description: z.string().optional().describe("Detailed description (Markdown supported)"),
     },
@@ -213,8 +214,8 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_delete_image",
     "⚠️ Destructive: Permanently delete a container image from a registry (DELETE /repositories/{registry}/{imageName}). Set confirm=true to execute.",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry"),
-      imageName: z.string({ required_error: requiredError("imageName") }).describe("Name of the image to delete (URI-encoded automatically)"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry"),
+      imageName: z.string(reqField("imageName")).describe("Name of the image to delete (URI-encoded automatically)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -231,8 +232,8 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_list_tags",
     "List all tags for a specific container image in a registry (GET /repositories/{registry}/{imageName}/tags)",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry"),
-      imageName: z.string({ required_error: requiredError("imageName") }).describe("Name of the image (URI-encoded automatically)"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry"),
+      imageName: z.string(reqField("imageName")).describe("Name of the image (URI-encoded automatically)"),
       pageNo: z.number().int().min(1).optional().describe("Page number (sent as 'page', > 0)"),
       pageSize: z.number().int().min(1).optional().describe("Page size (sent as 'pagesize', > 0)"),
     },
@@ -246,9 +247,9 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_get_tag_detail",
     "Get detailed information about a specific tag of a container image (GET .../tags/{reference})",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry"),
-      imageName: z.string({ required_error: requiredError("imageName") }).describe("Name of the image (URI-encoded automatically)"),
-      tagName: z.string({ required_error: requiredError("tagName") }).describe("Tag name to query"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry"),
+      imageName: z.string(reqField("imageName")).describe("Name of the image (URI-encoded automatically)"),
+      tagName: z.string(reqField("tagName")).describe("Tag name to query"),
     },
     async (params) => {
       return client.requestRaw("GET", `${base()}/${enc(params.registryName)}/${enc(params.imageName)}/tags/${enc(params.tagName)}`);
@@ -262,9 +263,9 @@ export function registerContainersRegistryTools(server: McpServer, client: Nclou
     "ncloud_ncr_delete_tag",
     "⚠️ Destructive: Permanently delete a tag from a container image (DELETE .../tags/{reference}). Set confirm=true to execute.",
     {
-      registryName: z.string({ required_error: requiredError("registryName") }).describe("Name of the registry"),
-      imageName: z.string({ required_error: requiredError("imageName") }).describe("Name of the image (URI-encoded automatically)"),
-      tag: z.string({ required_error: requiredError("tag") }).describe("Tag name to delete"),
+      registryName: z.string(reqField("registryName")).describe("Name of the registry"),
+      imageName: z.string(reqField("imageName")).describe("Name of the image (URI-encoded automatically)"),
+      tag: z.string(reqField("tag")).describe("Tag name to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

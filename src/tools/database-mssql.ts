@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClient): void {
@@ -203,24 +204,12 @@ export function registerDatabaseMssqlTools(server: McpServer, client: NcloudClie
     "Create a new Cloud DB for MSSQL instance. Server names are assigned automatically (m-<instanceNo>-001); there is no server name prefix option. " +
       "Use dryRun=true to preview without creating.",
     {
-      cloudMssqlServiceName: z.string({
-        required_error: requiredError("cloudMssqlServiceName"),
-      }).describe("MSSQL service name (3-15 chars: letters, Korean, numbers, hyphen)"),
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number"),
-      subnetNo: z.string({
-        required_error: requiredError("subnetNo"),
-      }).describe("Subnet number"),
-      cloudMssqlUserName: z.string({
-        required_error: requiredError("cloudMssqlUserName"),
-      }).describe("Initial admin user name"),
-      cloudMssqlUserPassword: z.string({
-        required_error: requiredError("cloudMssqlUserPassword"),
-      }).describe("Initial admin user password"),
-      isHa: z.boolean({
-        required_error: requiredError("isHa"),
-      }).describe("High availability mode (true creates Mirror server, 2 servers total)"),
+      cloudMssqlServiceName: z.string(reqField("cloudMssqlServiceName")).describe("MSSQL service name (3-15 chars: letters, Korean, numbers, hyphen)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number"),
+      cloudMssqlUserName: z.string(reqField("cloudMssqlUserName")).describe("Initial admin user name"),
+      cloudMssqlUserPassword: z.string(reqField("cloudMssqlUserPassword")).describe("Initial admin user password"),
+      isHa: z.boolean(reqField("isHa")).describe("High availability mode (true creates Mirror server, 2 servers total)"),
       cloudMssqlImageProductCode: z.string().optional().describe("MSSQL image product code"),
       cloudMssqlProductCode: z.string().optional().describe("MSSQL server product (spec) code"),
       mirrorSubnetNo: z.string().optional().describe("Mirror server subnet number. Required when isMultiZone=true."),

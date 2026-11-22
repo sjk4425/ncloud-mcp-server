@@ -3,9 +3,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient } from "../client/s3-compatible-client.js";
 import { defineTool } from "./_tool.js";
-import { L, deletedMessage, requiredError } from "./_messages.js";
+import { L, deletedMessage } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { blocks, text, xmlEscape, xmlUnescape } from "./_s3xml.js";
+import { reqField } from "./_zod.js";
 
 /**
  * Parse S3 XML list buckets response into a structured object.
@@ -220,9 +221,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_create_bucket",
     "Create a new Object Storage bucket. Use dryRun=true to preview.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket to create"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket to create"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
@@ -254,9 +253,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_delete_bucket",
     "⚠️ Destructive: Permanently delete an Object Storage bucket. The bucket must be empty. Set confirm=true to execute.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket to delete"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -274,9 +271,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_list_objects",
     "List objects in an Object Storage bucket",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
       prefix: z.string().optional().describe("Limits results to keys beginning with this prefix"),
       delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
       maxKeys: z.number().optional().describe("Maximum number of keys to return (default 1000)"),
@@ -304,12 +299,8 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_get_object",
     "Get (download) an object from an Object Storage bucket. Returns the object content as text.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      key: z.string({
-        required_error: requiredError("key"),
-      }).describe("Object key (path) to retrieve"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      key: z.string(reqField("key")).describe("Object key (path) to retrieve"),
     },
     async (params) => {
       const response = await client.request({
@@ -336,15 +327,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_put_object",
     "Upload (put) an object to an Object Storage bucket. Use dryRun=true to preview.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      key: z.string({
-        required_error: requiredError("key"),
-      }).describe("Object key (path) to upload to"),
-      body: z.string({
-        required_error: requiredError("body"),
-      }).describe("Content to upload as the object body"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      key: z.string(reqField("key")).describe("Object key (path) to upload to"),
+      body: z.string(reqField("body")).describe("Content to upload as the object body"),
       contentType: z.string().optional().describe("Content-Type header for the object (e.g., 'text/plain', 'application/json')"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually uploading"),
     },
@@ -395,12 +380,8 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_delete_object",
     "⚠️ Destructive: Permanently delete an object from an Object Storage bucket. Set confirm=true to execute.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      key: z.string({
-        required_error: requiredError("key"),
-      }).describe("Object key (path) to delete"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      key: z.string(reqField("key")).describe("Object key (path) to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -422,12 +403,8 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_initiate_multipart_upload",
     "Initiate a multipart upload for a large object in Object Storage",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      key: z.string({
-        required_error: requiredError("key"),
-      }).describe("Object key (path) for the multipart upload"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      key: z.string(reqField("key")).describe("Object key (path) for the multipart upload"),
       contentType: z.string().optional().describe("Content-Type for the object"),
     },
     async (params) => {
@@ -453,15 +430,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_complete_multipart_upload",
     "Complete a multipart upload by assembling previously uploaded parts",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      key: z.string({
-        required_error: requiredError("key"),
-      }).describe("Object key (path) for the multipart upload"),
-      uploadId: z.string({
-        required_error: requiredError("uploadId"),
-      }).describe("Upload ID returned from initiate multipart upload"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      key: z.string(reqField("key")).describe("Object key (path) for the multipart upload"),
+      uploadId: z.string(reqField("uploadId")).describe("Upload ID returned from initiate multipart upload"),
       parts: z.array(z.object({
         partNumber: z.number().describe("Part number (1-based)"),
         etag: z.string().describe("ETag returned when the part was uploaded"),
@@ -503,21 +474,11 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_upload_part",
     "Upload a part in a multipart upload. Use InitiateMultipartUpload first to get an uploadId, then upload parts, then CompleteMultipartUpload.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object key (path) for the multipart upload"),
-      uploadId: z.string({
-        required_error: requiredError("uploadId"),
-      }).describe("Upload ID returned from initiate multipart upload"),
-      partNumber: z.number({
-        required_error: requiredError("partNumber"),
-      }).min(1).max(10000).describe("Part number (1 to 10000)"),
-      body: z.string({
-        required_error: requiredError("body"),
-      }).describe("Content of this part to upload"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      objectName: z.string(reqField("objectName")).describe("Object key (path) for the multipart upload"),
+      uploadId: z.string(reqField("uploadId")).describe("Upload ID returned from initiate multipart upload"),
+      partNumber: z.number(reqField("partNumber")).min(1).max(10000).describe("Part number (1 to 10000)"),
+      body: z.string(reqField("body")).describe("Content of this part to upload"),
     },
     async (params) => {
       const response = await client.request({
@@ -549,15 +510,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_list_parts",
     "List uploaded parts for a multipart upload in progress",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object key (path) for the multipart upload"),
-      uploadId: z.string({
-        required_error: requiredError("uploadId"),
-      }).describe("Upload ID returned from initiate multipart upload"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      objectName: z.string(reqField("objectName")).describe("Object key (path) for the multipart upload"),
+      uploadId: z.string(reqField("uploadId")).describe("Upload ID returned from initiate multipart upload"),
     },
     async (params) => {
       const response = await client.request({
@@ -576,15 +531,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_abort_multipart_upload",
     "⚠️ Destructive: Abort a multipart upload and delete all uploaded parts. Set confirm=true to execute.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object key (path) for the multipart upload"),
-      uploadId: z.string({
-        required_error: requiredError("uploadId"),
-      }).describe("Upload ID of the multipart upload to abort"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      objectName: z.string(reqField("objectName")).describe("Object key (path) for the multipart upload"),
+      uploadId: z.string(reqField("uploadId")).describe("Upload ID of the multipart upload to abort"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -610,9 +559,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_list_multipart_uploads",
     "List in-progress multipart uploads for a bucket",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
       prefix: z.string().optional().describe("Limits results to uploads for keys beginning with this prefix"),
       delimiter: z.string().optional().describe("Delimiter for grouping keys (commonly '/')"),
     },
@@ -638,9 +585,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_get_bucket_acl",
     "Get the access control list (ACL) of an Object Storage bucket",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
     },
     async (params) => {
       const response = await client.request({
@@ -658,12 +603,8 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_put_bucket_acl",
     "Set the access control list (ACL) of an Object Storage bucket using a canned ACL",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      acl: z.enum(["private", "public-read", "public-read-write", "authenticated-read"], {
-        required_error: requiredError("acl"),
-      }).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      acl: z.enum(["private", "public-read", "public-read-write", "authenticated-read"], reqField("acl")).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
     },
     async (params) => {
       await client.request({
@@ -688,12 +629,8 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_get_object_acl",
     "Get the access control list (ACL) of an object in Object Storage",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket containing the object"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object key (path) to get ACL for"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket containing the object"),
+      objectName: z.string(reqField("objectName")).describe("Object key (path) to get ACL for"),
     },
     async (params) => {
       const response = await client.request({
@@ -712,15 +649,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_put_object_acl",
     "Set the access control list (ACL) of an object in Object Storage using a canned ACL",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket containing the object"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object key (path) to set ACL for"),
-      acl: z.enum(["private", "public-read", "public-read-write", "authenticated-read"], {
-        required_error: requiredError("acl"),
-      }).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket containing the object"),
+      objectName: z.string(reqField("objectName")).describe("Object key (path) to set ACL for"),
+      acl: z.enum(["private", "public-read", "public-read-write", "authenticated-read"], reqField("acl")).describe("Canned ACL to apply (private, public-read, public-read-write, authenticated-read)"),
     },
     async (params) => {
       await client.request({
@@ -750,15 +681,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_restore_object",
     "Restore an object stored in Archive class to make it accessible. The restored copy is available for the specified number of days.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket containing the archived object"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Key (path) of the archived object to restore"),
-      days: z.number({
-        required_error: requiredError("days"),
-      }).min(1, { message: L({ ko: "잘못된 파라미터: 'days'는 1 이상이어야 합니다.", en: "Invalid parameter: 'days' must be 1 or greater." }) })
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket containing the archived object"),
+      objectName: z.string(reqField("objectName")).describe("Key (path) of the archived object to restore"),
+      days: z.number(reqField("days")).min(1, { message: L({ ko: "잘못된 파라미터: 'days'는 1 이상이어야 합니다.", en: "Invalid parameter: 'days' must be 1 or greater." }) })
         .describe("Number of days to keep the restored copy accessible"),
     },
     async (params) => {
@@ -788,9 +713,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_get_bucket_location",
     "Get the region (location constraint) of an Object Storage bucket",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket to get location for"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket to get location for"),
     },
     async (params) => {
       const response = await client.request({
@@ -814,15 +737,9 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_copy_object",
     "Copy an object within the same bucket or between different buckets in Object Storage",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Destination bucket name"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Destination object key (path)"),
-      copySource: z.string({
-        required_error: requiredError("copySource"),
-      }).describe("Source object in the format /{sourceBucket}/{sourceKey}"),
+      bucketName: z.string(reqField("bucketName")).describe("Destination bucket name"),
+      objectName: z.string(reqField("objectName")).describe("Destination object key (path)"),
+      copySource: z.string(reqField("copySource")).describe("Source object in the format /{sourceBucket}/{sourceKey}"),
     },
     async (params) => {
       const response = await client.request({
@@ -849,12 +766,8 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_head_object",
     "Retrieve metadata of an object without returning the object body (HEAD request)",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object key (path) to get metadata for"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
+      objectName: z.string(reqField("objectName")).describe("Object key (path) to get metadata for"),
     },
     async (params) => {
       const response = await client.request({
@@ -882,9 +795,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_delete_multiple_objects",
     "⚠️ Destructive: Delete multiple objects from an Object Storage bucket in a single request. Set confirm=true to execute.",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket"),
       objectKeys: z.array(z.string()).min(1, {
         message: L({ ko: "잘못된 파라미터: 'objectKeys'는 최소 1개 이상의 키를 포함해야 합니다.", en: "Invalid parameter: 'objectKeys' must contain at least one key." }),
       }).describe("Array of object keys to delete"),
@@ -939,9 +850,7 @@ export function registerStorageObjectTools(server: McpServer, client: S3Compatib
     "ncloud_head_bucket",
     "Check if an Object Storage bucket exists and you have permission to access it (HEAD request, returns headers only). Caution: the legacy endpoint has been observed to answer 200 for names that exist only in Ncloud Storage (ncloud_ncs_*), so confirm membership with ncloud_list_buckets when in doubt",
     {
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Name of the bucket to check"),
+      bucketName: z.string(reqField("bucketName")).describe("Name of the bucket to check"),
     },
     async (params) => {
       const response = await client.request({

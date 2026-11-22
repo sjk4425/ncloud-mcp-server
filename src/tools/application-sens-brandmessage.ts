@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import {
   serviceIdParam, resolveServiceId, withQuery, reserveTimeSchema, reserveTimeZoneSchema,
@@ -64,7 +65,7 @@ export function registerSensBrandMessageTools(server: McpServer, client: NcloudC
       "Not deliverable 20:50-08:00 (code 3022). targeting I (default) = ad-consented channel friends, M = all ad-consented, N = ad-consented non-friends (M/N need an 080 number). Use dryRun=true to preview.",
     {
       serviceId: kkoService,
-      plusFriendId: z.string({ required_error: requiredError("plusFriendId") }).describe("KakaoTalk channel ID (e.g. @channelname)"),
+      plusFriendId: z.string(reqField("plusFriendId")).describe("KakaoTalk channel ID (e.g. @channelname)"),
       messageType: z.enum(MESSAGE_TYPES).describe("Message layout type"),
       templateCode: z.string().optional().describe("Template code for template-based (기본형) sending"),
       targeting: z.enum(["M", "N", "I"]).optional().describe("Audience: M | N | I (default I)"),
@@ -159,7 +160,7 @@ export function registerSensBrandMessageTools(server: McpServer, client: NcloudC
     "Get one Brand Message delivery result with its full payload (GET /brandmessage/v2/services/{serviceId}/messages/{messageId}). messageStatusCode 0000 = delivered, 3022 = outside 08:00-20:50, 3050 = N targeting without 080 unsubscribe, B004 = quota exceeded.",
     {
       serviceId: kkoService,
-      messageId: z.string({ required_error: requiredError("messageId") }).describe("Message ID"),
+      messageId: z.string(reqField("messageId")).describe("Message ID"),
     },
     async (params) => {
       const svc = resolveServiceId("brandmessage", params.serviceId);
@@ -175,7 +176,7 @@ export function registerSensBrandMessageTools(server: McpServer, client: NcloudC
     "List Brand Message templates of a channel (GET /brandmessage/v2/services/{serviceId}/templates). Note the channel parameter is plusFriendId here (Alim Talk uses channelId). Returns { items[], totalCount, hasNext }.",
     {
       serviceId: kkoService,
-      plusFriendId: z.string({ required_error: requiredError("plusFriendId") }).describe("KakaoTalk channel ID (e.g. @channelname)"),
+      plusFriendId: z.string(reqField("plusFriendId")).describe("KakaoTalk channel ID (e.g. @channelname)"),
       templateCode: z.string().optional().describe("Filter by template code"),
       templateName: z.string().optional().describe("Filter by name (full or partial match)"),
       messageType: z.enum(MESSAGE_TYPES).optional().describe("Filter by message type"),
@@ -213,7 +214,7 @@ export function registerSensBrandMessageTools(server: McpServer, client: NcloudC
     "Get one Brand Message image (GET /brandmessage/v2/services/{serviceId}/images/{imageId}).",
     {
       serviceId: kkoService,
-      imageId: z.string({ required_error: requiredError("imageId") }).describe("Image ID"),
+      imageId: z.string(reqField("imageId")).describe("Image ID"),
     },
     async (params) => {
       const svc = resolveServiceId("brandmessage", params.serviceId);
@@ -228,7 +229,7 @@ export function registerSensBrandMessageTools(server: McpServer, client: NcloudC
     "⚠️ Destructive: Delete an uploaded Brand Message image (DELETE /brandmessage/v2/services/{serviceId}/images/{imageId} → 204). Messages referencing the imageId can no longer be sent. Set confirm=true to execute.",
     {
       serviceId: kkoService,
-      imageId: z.string({ required_error: requiredError("imageId") }).describe("Image ID to delete"),
+      imageId: z.string(reqField("imageId")).describe("Image ID to delete"),
     },
     async (params) => {
       const svc = resolveServiceId("brandmessage", params.serviceId);

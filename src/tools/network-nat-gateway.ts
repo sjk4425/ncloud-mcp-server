@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { maxLenMessage, requiredError } from "./_messages.js";
+import { maxLenMessage } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerNatGatewayTools(server: McpServer, client: NcloudClient): void {
@@ -51,8 +52,8 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_create_nat_gateway",
     "Create a new NAT Gateway instance in a VPC. Supports both Public (PBLIP) and Private (PRVT) types. Use dryRun=true to preview.",
     {
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number to create NAT Gateway in (from getVpcList)"),
-      zoneCode: z.string({ required_error: requiredError("zoneCode") }).describe("Zone code (see ncloud_get_zones)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number to create NAT Gateway in (from getVpcList)"),
+      zoneCode: z.string(reqField("zoneCode")).describe("Zone code (see ncloud_get_zones)"),
       subnetNo: z.string().optional().describe("NATGW-type subnet number. If NULL, creates a PUBLIC-type NATGW subnet automatically. If specified, creates NAT Gateway according to the subnet's subnetTypeCode (PUBLIC or PRIVATE)."),
       natGatewayName: z.string().max(30, {
         message: maxLenMessage("natGatewayName", 30),
@@ -83,8 +84,8 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_set_nat_gateway_description",
     "Set or update the description of a NAT Gateway instance",
     {
-      natGatewayInstanceNo: z.string({ required_error: requiredError("natGatewayInstanceNo") }).describe("NAT Gateway instance number"),
-      natGatewayDescription: z.string({ required_error: requiredError("natGatewayDescription") }).describe("New description for the NAT Gateway"),
+      natGatewayInstanceNo: z.string(reqField("natGatewayInstanceNo")).describe("NAT Gateway instance number"),
+      natGatewayDescription: z.string(reqField("natGatewayDescription")).describe("New description for the NAT Gateway"),
     },
     async (params) => {
       return client.request("/vpc/v2/setNatGatewayDescription", params);
@@ -98,7 +99,7 @@ export function registerNatGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_delete_nat_gateway",
     "⚠️ Destructive: Permanently delete a NAT Gateway instance. Set confirm=true to execute.",
     {
-      natGatewayInstanceNo: z.string({ required_error: requiredError("natGatewayInstanceNo") }).describe("NAT Gateway instance number to delete"),
+      natGatewayInstanceNo: z.string(reqField("natGatewayInstanceNo")).describe("NAT Gateway instance number to delete"),
       returnPublicIpInstance: z.boolean().optional().describe("Also return (release) the public IP instance assigned to the public NAT Gateway. Default: true"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },

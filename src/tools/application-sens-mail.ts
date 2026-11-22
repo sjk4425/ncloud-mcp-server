@@ -2,10 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { withQuery } from "./_sens.js";
 import type { Zone } from "../client/endpoints.js";
+import { reqField } from "./_zod.js";
 
 /**
  * 존 차이(2026-09-30 두 존 sens-overview 대조): 공공존 SENS 에는 **메일 채널(/mail/v2)이 없다** — 공공존은
@@ -209,8 +210,8 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     "List SENS mail send requests in a period (GET /mail/v2/services/{serviceId}/requests). fromDateTime and toDateTime are required (ISO 8601 with offset).",
     {
       serviceId: serviceIdParam,
-      fromDateTime: z.string({ required_error: requiredError("fromDateTime") }).describe("Period start, ISO 8601 with offset (e.g. 2026-09-01T00:00:00+09:00)"),
-      toDateTime: z.string({ required_error: requiredError("toDateTime") }).describe("Period end, ISO 8601 with offset"),
+      fromDateTime: z.string(reqField("fromDateTime")).describe("Period start, ISO 8601 with offset (e.g. 2026-09-01T00:00:00+09:00)"),
+      toDateTime: z.string(reqField("toDateTime")).describe("Period end, ISO 8601 with offset"),
       requestId: z.string().optional().describe("Exact request ID"),
       mailId: z.string().optional().describe("Mail ID"),
       title: z.string().optional().describe("Subject (partial match)"),
@@ -235,7 +236,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     "Get one SENS mail send request with status counts (GET /mail/v2/services/{serviceId}/requests/{requestId}): status, requestCount, sentCount, finishCount, countsByStatus[].",
     {
       serviceId: serviceIdParam,
-      requestId: z.string({ required_error: requiredError("requestId") }).describe("Request ID returned by ncloud_sens_send_mail"),
+      requestId: z.string(reqField("requestId")).describe("Request ID returned by ncloud_sens_send_mail"),
     },
     async (params) => {
       const svc = resolveServiceId(params.serviceId);
@@ -250,7 +251,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     "List the individual mails of a SENS mail send request (GET /mail/v2/services/{serviceId}/requests/{requestId}/mails). Mails whose only recipients were unsubscribed/blocked are counted as FAILED.",
     {
       serviceId: serviceIdParam,
-      requestId: z.string({ required_error: requiredError("requestId") }).describe("Request ID"),
+      requestId: z.string(reqField("requestId")).describe("Request ID"),
       mailId: z.string().optional().describe("Exact mail ID"),
       recipientAddress: z.string().optional().describe("Exact recipient address"),
       title: z.string().optional().describe("Subject (partial match)"),
@@ -271,8 +272,8 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     "Get one SENS mail in detail (GET /mail/v2/services/{serviceId}/requests/{requestId}/mails/{mailId}): substituted title/body, attachFiles[], and per-recipient status / sendResultCode / received / retryCount.",
     {
       serviceId: serviceIdParam,
-      requestId: z.string({ required_error: requiredError("requestId") }).describe("Request ID"),
-      mailId: z.string({ required_error: requiredError("mailId") }).describe("Mail ID (from ncloud_sens_list_mails)"),
+      requestId: z.string(reqField("requestId")).describe("Request ID"),
+      mailId: z.string(reqField("mailId")).describe("Mail ID (from ncloud_sens_list_mails)"),
     },
     async (params) => {
       const svc = resolveServiceId(params.serviceId);
@@ -304,7 +305,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     "ncloud_sens_get_project",
     "Get one SENS project with its channel service IDs (GET /common/v2/projects/{projectId}).",
     {
-      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID (from ncloud_sens_list_projects)"),
+      projectId: z.string(reqField("projectId")).describe("Project ID (from ncloud_sens_list_projects)"),
     },
     async (params) => client.requestRaw("GET", `/common/v2/projects/${encodeURIComponent(params.projectId)}`)
   );
@@ -317,7 +318,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     // "You must agree to both the Terms of Service and the Privacy Policy" 를 돌려준다 — API 로는 해결할 수 없어 설명에 안내만 둔다.
     "Create a SENS project (POST /common/v2/projects). projectName: lowercase letters, digits, '-' and '_', ≤24 chars. Enable at least one of useSms / useKkoBizMsg (the API rejects a project with no service). The account must already have accepted the SENS Terms of Service and Privacy Policy in the console — the API has no agreement field and returns 'You must agree to both the Terms of Service and the Privacy Policy' otherwise. Returns the created channel service IDs (NRN).",
     {
-      projectName: z.string({ required_error: requiredError("projectName") })
+      projectName: z.string(reqField("projectName"))
         .regex(/^[a-z0-9_-]{1,24}$/, "projectName must be 1-24 chars of lowercase letters, digits, '-' or '_'")
         .describe("Project name (lowercase letters, digits, '-', '_'; ≤24 chars)"),
       projectDesc: z.string().max(128).optional().describe("Description (0-128 chars)"),
@@ -348,7 +349,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     "ncloud_sens_update_project",
     "Update a SENS project's description or enabled channels (PUT /common/v2/projects/{projectId}). At least one field must be given.",
     {
-      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID"),
+      projectId: z.string(reqField("projectId")).describe("Project ID"),
       projectDesc: z.string().max(128).optional().describe("Description (0-128 chars)"),
       useSms: z.boolean().optional().describe("Enable/disable the SMS service"),
       useKkoBizMsg: z.boolean().optional().describe("Enable/disable the Biz Message service"),
@@ -373,7 +374,7 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
     "ncloud_sens_delete_project",
     "⚠️ Destructive: Delete a SENS project and its channel services (DELETE /common/v2/projects/{projectId}, 204 on success). Message history and service IDs under the project become unusable. Set confirm=true to execute.",
     {
-      projectId: z.string({ required_error: requiredError("projectId") }).describe("Project ID to delete (from ncloud_sens_list_projects)"),
+      projectId: z.string(reqField("projectId")).describe("Project ID to delete (from ncloud_sens_list_projects)"),
     },
     async (params) => client.requestRaw("DELETE", `/common/v2/projects/${encodeURIComponent(params.projectId)}`),
     { destructive: { noun: "SENS project", describe: (p) => p.projectId } }

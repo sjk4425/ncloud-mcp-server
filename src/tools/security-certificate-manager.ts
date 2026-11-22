@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -313,8 +313,8 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_get_dcv_status",
     `Get the domain-control-validation (DCV) status and the DNS record to set for a requested SSL certificate (Certificate Manager 2.0). ${V2_NOTE}`,
     {
-      certificateNo: z.number({ required_error: requiredError("certificateNo") }).int().describe("Certificate number"),
-      domainAddress: z.string({ required_error: requiredError("domainAddress") }).describe("Domain (FQDN) to validate"),
+      certificateNo: z.number(reqField("certificateNo")).int().describe("Certificate number"),
+      domainAddress: z.string(reqField("domainAddress")).describe("Domain (FQDN) to validate"),
     },
     (params) => v2(() => client.requestRaw("GET", `/api/v2/certificate/getVerificationInfo/${params.certificateNo}`, { domainAddress: params.domainAddress }))()
   );
@@ -352,8 +352,8 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_request_cloud_basic_certificate",
     `Request a free Cloud Basic SSL certificate (Certificate Manager 2.0). DCV is by DNS CNAME record (validationMethod D) — check ncloud_cm2_get_dcv_status afterwards for the record to create. Use dryRun=true to preview. ${V2_NOTE}`,
     {
-      certificateName: z.string({ required_error: requiredError("certificateName") }).describe("Certificate name"),
-      commonName: z.string({ required_error: requiredError("commonName") }).describe("Domain for the certificate CN (e.g. *.example.com)"),
+      certificateName: z.string(reqField("certificateName")).describe("Certificate name"),
+      commonName: z.string(reqField("commonName")).describe("Domain for the certificate CN (e.g. *.example.com)"),
       dnsName: dnsNameSchema,
       validationMethod: z.enum(["D"]).optional().default("D").describe("DCV method: D = DNS CNAME record (the only documented value)"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without requesting"),
@@ -372,12 +372,12 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_request_advanced_certificate",
     `Request a paid Advanced DV/OV certificate from a CSR (Certificate Manager 2.0). OV (NCP_PAID_OV_01) requires organizationNo. validationMethod D = one-time DNS TXT record, PD = persistent DNS TXT record (set once, reused for later validations). Use dryRun=true to preview. ${V2_NOTE}`,
     {
-      csr: z.string({ required_error: requiredError("csr") }).describe("PEM-encoded Certificate Signing Request"),
-      certificateType: z.enum(["NCP_PAID_DV_01", "NCP_PAID_OV_01"], { required_error: requiredError("certificateType") }).describe("NCP_PAID_DV_01 (Advanced DV) or NCP_PAID_OV_01 (Advanced OV)"),
-      certificateName: z.string({ required_error: requiredError("certificateName") }).describe("Certificate name"),
-      commonName: z.string({ required_error: requiredError("commonName") }).describe("Domain for the certificate CN"),
+      csr: z.string(reqField("csr")).describe("PEM-encoded Certificate Signing Request"),
+      certificateType: z.enum(["NCP_PAID_DV_01", "NCP_PAID_OV_01"], reqField("certificateType")).describe("NCP_PAID_DV_01 (Advanced DV) or NCP_PAID_OV_01 (Advanced OV)"),
+      certificateName: z.string(reqField("certificateName")).describe("Certificate name"),
+      commonName: z.string(reqField("commonName")).describe("Domain for the certificate CN"),
       dnsName: dnsNameSchema,
-      validationMethod: z.enum(["D", "PD"], { required_error: requiredError("validationMethod") }).describe("DCV method: D (one-time DNS TXT) or PD (persistent DNS TXT)"),
+      validationMethod: z.enum(["D", "PD"], reqField("validationMethod")).describe("DCV method: D (one-time DNS TXT) or PD (persistent DNS TXT)"),
       organizationNo: z.number().int().optional().describe("Organization number — required for NCP_PAID_OV_01"),
       keyAlgorithm: z.string().optional().describe("Key algorithm"),
       subscriptionPeriod: z.number().int().optional().describe("Subscription period"),
@@ -402,8 +402,8 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_request_global_edge_certificate",
     `Request a Global Edge (CDN) SSL certificate (Certificate Manager 2.0). Use dryRun=true to preview. ${V2_NOTE}`,
     {
-      certificateName: z.string({ required_error: requiredError("certificateName") }).describe("Certificate name"),
-      commonName: z.string({ required_error: requiredError("commonName") }).describe("Domain for the certificate CN"),
+      certificateName: z.string(reqField("certificateName")).describe("Certificate name"),
+      commonName: z.string(reqField("commonName")).describe("Domain for the certificate CN"),
       dnsName: dnsNameSchema,
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without requesting"),
     },
@@ -421,10 +421,10 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_reissue_certificate",
     `Reissue an existing certificate from a new CSR (Certificate Manager 2.0). DCV is by DNS CNAME record (validationMethod D). Use dryRun=true to preview. ${V2_NOTE}`,
     {
-      certificateNo: z.number({ required_error: requiredError("certificateNo") }).int().describe("Certificate number to reissue"),
-      csr: z.string({ required_error: requiredError("csr") }).describe("PEM-encoded Certificate Signing Request"),
-      certificateName: z.string({ required_error: requiredError("certificateName") }).describe("Certificate name"),
-      commonName: z.string({ required_error: requiredError("commonName") }).describe("Domain for the certificate CN"),
+      certificateNo: z.number(reqField("certificateNo")).int().describe("Certificate number to reissue"),
+      csr: z.string(reqField("csr")).describe("PEM-encoded Certificate Signing Request"),
+      certificateName: z.string(reqField("certificateName")).describe("Certificate name"),
+      commonName: z.string(reqField("commonName")).describe("Domain for the certificate CN"),
       dnsName: dnsNameSchema,
       validationMethod: z.enum(["D"]).optional().default("D").describe("DCV method: D = DNS CNAME record"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without reissuing"),
@@ -444,11 +444,11 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_register_external_certificate",
     `Re-register (renew) an existing external certificate in place by certificateNo, or register a new one (Certificate Manager 2.0). For a first-time registration prefer ncloud_register_external_certificate (1.0, works with any key); use this tool when you need the 2.0 certificateNo renewal path. ${V2_NOTE}`,
     {
-      certificateName: z.string({ required_error: requiredError("certificateName") }).describe("Certificate name"),
+      certificateName: z.string(reqField("certificateName")).describe("Certificate name"),
       certificateNo: z.number().int().optional().describe("Existing certificate number to renew/re-register (omit to register a new certificate)"),
-      privateKey: z.string({ required_error: requiredError("privateKey") }).describe("PEM-encoded private key (decrypted)"),
-      certificateBody: z.string({ required_error: requiredError("certificateBody") }).describe("PEM-encoded certificate body"),
-      certificateChain: z.string({ required_error: requiredError("certificateChain") }).describe("PEM-encoded certificate chain"),
+      privateKey: z.string(reqField("privateKey")).describe("PEM-encoded private key (decrypted)"),
+      certificateBody: z.string(reqField("certificateBody")).describe("PEM-encoded certificate body"),
+      certificateChain: z.string(reqField("certificateChain")).describe("PEM-encoded certificate chain"),
     },
     (params) => {
       const body: Record<string, unknown> = { certificateName: params.certificateName, privateKey: params.privateKey, certificateBody: params.certificateBody, certificateChain: params.certificateChain };
@@ -465,7 +465,7 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_get_certificate_chain",
     `Get a certificate in PEM form together with its chain (Certificate Manager 2.0). ${V2_NOTE}`,
     {
-      certificateNo: z.number({ required_error: requiredError("certificateNo") }).int().describe("Certificate number"),
+      certificateNo: z.number(reqField("certificateNo")).int().describe("Certificate number"),
     },
     (params) => v2(() => client.requestRaw("GET", `/api/v2/certificate/exportCertificate/${params.certificateNo}/chain`))()
   );
@@ -476,7 +476,7 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_download_certificate",
     `Download a certificate as a file (zip of PEM files) (Certificate Manager 2.0). Pass savePath to write the file to disk; otherwise it is returned inline as base64 when it is 256 KB or smaller. ${V2_NOTE}`,
     {
-      certificateNo: z.number({ required_error: requiredError("certificateNo") }).int().describe("Certificate number"),
+      certificateNo: z.number(reqField("certificateNo")).int().describe("Certificate number"),
       type: z.enum(["PEM"]).optional().default("PEM").describe("Export format (PEM only)"),
       savePath: z.string().optional().describe("Local file path to save the downloaded file to (recommended)"),
     },
@@ -489,9 +489,9 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_revoke_certificate",
     `⚠️ Destructive: Revoke an Advanced certificate (or the whole order with certificateNo=0) (Certificate Manager 2.0). Set confirm=true to execute. ${V2_NOTE}`,
     {
-      orderId: z.string({ required_error: requiredError("orderId") }).describe("Order ID containing the certificate"),
-      certificateNo: z.number({ required_error: requiredError("certificateNo") }).int().min(0).describe("Certificate number; 0 revokes every certificate in the order"),
-      revokeType: z.enum(["affiliationChanged", "superseded", "cessationOfOperation", "unspecified"], { required_error: requiredError("revokeType") }).describe("Revocation reason"),
+      orderId: z.string(reqField("orderId")).describe("Order ID containing the certificate"),
+      certificateNo: z.number(reqField("certificateNo")).int().min(0).describe("Certificate number; 0 revokes every certificate in the order"),
+      revokeType: z.enum(["affiliationChanged", "superseded", "cessationOfOperation", "unspecified"], reqField("revokeType")).describe("Revocation reason"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     (params) => v2(() => client.requestRaw("POST", "/api/v2/certificate/revoke", undefined, { orderId: params.orderId, certificateNo: params.certificateNo, revokeType: params.revokeType }))(),
@@ -504,8 +504,8 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_set_renewal_status",
     `Enable or disable automatic renewal for a certificate (Certificate Manager 2.0). ${V2_NOTE}`,
     {
-      certificateNo: z.number({ required_error: requiredError("certificateNo") }).int().describe("Certificate number"),
-      renewalYn: z.enum(["Y", "N"], { required_error: requiredError("renewalYn") }).describe("Y to enable auto renewal, N to disable"),
+      certificateNo: z.number(reqField("certificateNo")).int().describe("Certificate number"),
+      renewalYn: z.enum(["Y", "N"], reqField("renewalYn")).describe("Y to enable auto renewal, N to disable"),
     },
     (params) => v2(() => client.requestRaw("POST", "/api/v2/certificate/setCertificateRenewal", undefined, { certificateNo: params.certificateNo, renewalYn: params.renewalYn }))()
   );
@@ -516,8 +516,8 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_register_private_key",
     `Register the private key for a certificate that was issued from an external CSR (Certificate Manager 2.0). ${V2_NOTE}`,
     {
-      certificateNo: z.number({ required_error: requiredError("certificateNo") }).int().describe("Certificate number"),
-      privateKey: z.string({ required_error: requiredError("privateKey") }).describe("PEM-encoded private key"),
+      certificateNo: z.number(reqField("certificateNo")).int().describe("Certificate number"),
+      privateKey: z.string(reqField("privateKey")).describe("PEM-encoded private key"),
     },
     (params) => v2(() => client.requestRaw("POST", "/api/v2/certificate/registPrivateKey", undefined, { certificateNo: params.certificateNo, privateKey: params.privateKey }))()
   );
@@ -528,8 +528,8 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_extend_subscription",
     `Extend the subscription period of an Advanced certificate order by 1, 2 or 3 years (Certificate Manager 2.0). ${V2_NOTE}`,
     {
-      orderId: z.string({ required_error: requiredError("orderId") }).describe("Order ID to extend"),
-      subscriptionPeriod: z.enum(["1Y", "2Y", "3Y"], { required_error: requiredError("subscriptionPeriod") }).describe("Extension period"),
+      orderId: z.string(reqField("orderId")).describe("Order ID to extend"),
+      subscriptionPeriod: z.enum(["1Y", "2Y", "3Y"], reqField("subscriptionPeriod")).describe("Extension period"),
     },
     (params) => v2(() => client.requestRaw("POST", "/api/v2/certificate/subscription/extend", undefined, { orderId: params.orderId, subscriptionPeriod: params.subscriptionPeriod }))()
   );
@@ -562,9 +562,9 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_register_domain",
     `Register a domain for certificate issuance and start its DCV (Certificate Manager 2.0). dcvType PTXT = set the DNS TXT record once and reuse it; TXT = a new record per issuance. ${V2_NOTE}`,
     {
-      dmnAddr: z.string({ required_error: requiredError("dmnAddr") }).describe("Domain address"),
-      dcvType: z.enum(["PTXT", "TXT"], { required_error: requiredError("dcvType") }).describe("DCV type: PTXT (persistent TXT) or TXT (per-issuance TXT)"),
-      issueType: z.enum(["CONSOLE", "ACME"], { required_error: requiredError("issueType") }).describe("How certificates for this domain are issued: CONSOLE or ACME"),
+      dmnAddr: z.string(reqField("dmnAddr")).describe("Domain address"),
+      dcvType: z.enum(["PTXT", "TXT"], reqField("dcvType")).describe("DCV type: PTXT (persistent TXT) or TXT (per-issuance TXT)"),
+      issueType: z.enum(["CONSOLE", "ACME"], reqField("issueType")).describe("How certificates for this domain are issued: CONSOLE or ACME"),
       orgNo: z.number().int().optional().describe("Organization number"),
     },
     (params) => {
@@ -580,7 +580,7 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_delete_domain",
     `⚠️ Destructive: Delete a registered domain from Certificate Manager (Certificate Manager 2.0). Set confirm=true to execute. ${V2_NOTE}`,
     {
-      dmnId: z.number({ required_error: requiredError("dmnId") }).int().describe("Domain ID (from ncloud_cm2_list_domains)"),
+      dmnId: z.number(reqField("dmnId")).int().describe("Domain ID (from ncloud_cm2_list_domains)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     (params) => v2(() => client.requestRaw("DELETE", `/api/v2/domain/domains/${params.dmnId}`))(),
@@ -604,10 +604,10 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_create_eab_credential",
     `Create an ACME EAB credential so an ACME client can obtain certificates from Certificate Manager (Certificate Manager 2.0). NPO_01 (OV) requires organizationNo. ${V2_NOTE}`,
     {
-      validationMode: z.enum(["PRE", "DNS01"], { required_error: requiredError("validationMode") }).describe("Validation mode: PRE (pre-validated domain) or DNS01"),
-      certificateTypeCode: z.enum(["NPD_01", "NPO_01"], { required_error: requiredError("certificateTypeCode") }).describe("Certificate type: NPD_01 (DV) or NPO_01 (OV)"),
-      validityDays: z.number({ required_error: requiredError("validityDays") }).int().min(1).describe("Certificate validity in days"),
-      alias: z.string({ required_error: requiredError("alias") }).describe("ACME account alias"),
+      validationMode: z.enum(["PRE", "DNS01"], reqField("validationMode")).describe("Validation mode: PRE (pre-validated domain) or DNS01"),
+      certificateTypeCode: z.enum(["NPD_01", "NPO_01"], reqField("certificateTypeCode")).describe("Certificate type: NPD_01 (DV) or NPO_01 (OV)"),
+      validityDays: z.number(reqField("validityDays")).int().min(1).describe("Certificate validity in days"),
+      alias: z.string(reqField("alias")).describe("ACME account alias"),
       organizationNo: z.string().optional().describe("Organization number — required for NPO_01"),
     },
     async (params) => {
@@ -626,7 +626,7 @@ function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClie
     "ncloud_cm2_deactivate_eab_credential",
     `⚠️ Destructive: Deactivate an ACME EAB credential; ACME clients using it stop working (Certificate Manager 2.0). Set confirm=true to execute. ${V2_NOTE}`,
     {
-      accountId: z.number({ required_error: requiredError("accountId") }).int().describe("ACME account ID (from ncloud_cm2_list_eab_credentials)"),
+      accountId: z.number(reqField("accountId")).int().describe("ACME account ID (from ncloud_cm2_list_eab_credentials)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     (params) => v2(() => client.requestRaw("POST", `/api/v2/acme/account/${params.accountId}/deactivate`))(),

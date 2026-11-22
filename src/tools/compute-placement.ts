@@ -2,8 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
-import { maxLenMessage, requiredError } from "./_messages.js";
+import { maxLenMessage } from "./_messages.js";
 
+import { reqField } from "./_zod.js";
 /** Fabric Cluster 도구 — 금융존 가이드에는 fabriccluster 오퍼레이션이 없다(api-fin 404, 2026-09-30). */
 export const FABRIC_CLUSTER_TOOLS = [
   "ncloud_list_fabric_clusters",
@@ -46,7 +47,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_get_placement_group_detail",
     "Get detailed information about a specific placement group",
     {
-      placementGroupNo: z.string({ required_error: requiredError("placementGroupNo") }).describe("Placement group number to query"),
+      placementGroupNo: z.string(reqField("placementGroupNo")).describe("Placement group number to query"),
     },
     async (params) => {
       return client.request("/vserver/v2/getPlacementGroupDetail", params);
@@ -77,8 +78,8 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_add_placement_group_server",
     "Add a server instance to a placement group",
     {
-      placementGroupNo: z.string({ required_error: requiredError("placementGroupNo") }).describe("Placement group number"),
-      serverInstanceNo: z.string({ required_error: requiredError("serverInstanceNo") }).describe("Server instance number to add"),
+      placementGroupNo: z.string(reqField("placementGroupNo")).describe("Placement group number"),
+      serverInstanceNo: z.string(reqField("serverInstanceNo")).describe("Server instance number to add"),
     },
     async (params) => {
       return client.request("/vserver/v2/addPlacementGroupServerInstance", params);
@@ -90,8 +91,8 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_remove_placement_group_server",
     "⚠️ Destructive: Remove a server instance from a placement group. Set confirm=true to execute.",
     {
-      placementGroupNo: z.string({ required_error: requiredError("placementGroupNo") }).describe("Placement group number"),
-      serverInstanceNo: z.string({ required_error: requiredError("serverInstanceNo") }).describe("Server instance number to remove"),
+      placementGroupNo: z.string(reqField("placementGroupNo")).describe("Placement group number"),
+      serverInstanceNo: z.string(reqField("serverInstanceNo")).describe("Server instance number to remove"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -109,7 +110,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_delete_placement_group",
     "⚠️ Destructive: Permanently delete a placement group. Set confirm=true to execute.",
     {
-      placementGroupNo: z.string({ required_error: requiredError("placementGroupNo") }).describe("Placement group number to delete"),
+      placementGroupNo: z.string(reqField("placementGroupNo")).describe("Placement group number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -144,7 +145,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_get_fabric_cluster_detail",
     "Get detailed information about a specific fabric cluster",
     {
-      fabricClusterNo: z.string({ required_error: requiredError("fabricClusterNo") }).describe("Fabric cluster number to query"),
+      fabricClusterNo: z.string(reqField("fabricClusterNo")).describe("Fabric cluster number to query"),
     },
     async (params) => {
       return client.request("/vserver/v2/getFabricClusterDetail", params);
@@ -170,10 +171,10 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_create_fabric_cluster",
     "Create a new fabric cluster for dedicated physical server grouping",
     {
-      fabricClusterName: z.string({ required_error: requiredError("fabricClusterName") }).max(30, {
+      fabricClusterName: z.string(reqField("fabricClusterName")).max(30, {
         message: maxLenMessage("fabricClusterName", 30),
       }).describe("Fabric cluster name (max 30 characters)"),
-      fabricClusterPoolNo: z.string({ required_error: requiredError("fabricClusterPoolNo") }).describe("Fabric cluster pool number"),
+      fabricClusterPoolNo: z.string(reqField("fabricClusterPoolNo")).describe("Fabric cluster pool number"),
       fabricClusterDescription: z.string().optional().describe("Description for the fabric cluster"),
     },
     async (params) => {
@@ -192,7 +193,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_update_fabric_cluster",
     "Update a fabric cluster's name and/or description. The Server API has no single update operation: the name is sent to changeFabricClusterName and the description to changeFabricClusterDescription (one call each, name first). Provide at least one of the two.",
     {
-      fabricClusterNo: z.string({ required_error: requiredError("fabricClusterNo") }).describe("Fabric cluster number to update"),
+      fabricClusterNo: z.string(reqField("fabricClusterNo")).describe("Fabric cluster number to update"),
       fabricClusterName: z.string().min(3).max(30, {
         message: maxLenMessage("fabricClusterName", 30),
       }).regex(/^[a-z][a-z0-9-]*[a-z0-9]$/, "fabricClusterName must be 3-30 chars of lowercase letters, digits and '-', start with a letter and end with a letter or digit").optional().describe("New fabric cluster name (3-30 chars: lowercase letters, digits, '-'; starts with a letter, ends with a letter or digit)"),
@@ -229,7 +230,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_change_fabric_cluster_servers",
     "Change server instances assigned to a fabric cluster",
     {
-      fabricClusterNo: z.string({ required_error: requiredError("fabricClusterNo") }).describe("Fabric cluster number"),
+      fabricClusterNo: z.string(reqField("fabricClusterNo")).describe("Fabric cluster number"),
       serverInstanceNoList: z.array(z.string()).describe("List of server instance numbers to assign to the fabric cluster"),
     },
     async (params) => {
@@ -244,7 +245,7 @@ export function registerComputePlacementTools(server: McpServer, client: NcloudC
     "ncloud_delete_fabric_cluster",
     "⚠️ Destructive: Permanently delete a fabric cluster. Set confirm=true to execute.",
     {
-      fabricClusterNo: z.string({ required_error: requiredError("fabricClusterNo") }).describe("Fabric cluster number to delete"),
+      fabricClusterNo: z.string(reqField("fabricClusterNo")).describe("Fabric cluster number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

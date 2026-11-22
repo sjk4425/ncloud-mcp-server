@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -20,8 +20,8 @@ const pageParams = {
   page: z.number().int().min(0).max(100).optional().describe("Page number (0-100, default 0)"),
   size: z.number().int().min(1).max(100).optional().describe("Items per page (1-100, default 10)"),
 };
-const fenceId = z.number({ required_error: requiredError("fenceId") }).int().describe("Datafence number (see ncloud_datafence_get_datafence)");
-const boxId = z.number({ required_error: requiredError("boxId") }).int().describe("Box number (see ncloud_datafence_list_boxes)");
+const fenceId = z.number(reqField("fenceId")).int().describe("Datafence number (see ncloud_datafence_get_datafence)");
+const boxId = z.number(reqField("boxId")).int().describe("Box number (see ncloud_datafence_list_boxes)");
 
 /** 선언한 값만 쿼리/바디에 담는다(undefined 제거). */
 function compact<T extends Record<string, unknown>>(obj: T): Record<string, string | number | boolean | undefined> {
@@ -163,8 +163,8 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   // change-fence-nas-volume: POST /api/v1/fence/change-fence-nas-volume
   defineTool(server, "ncloud_datafence_change_fence_nas_volume", "Resize a Datafence NAS volume (500-10000 GB, 100 GB steps).", {
     fenceId,
-    instanceNo: z.number({ required_error: requiredError("instanceNo") }).int().describe("NAS instance number (see ncloud_datafence_list_fence_infra)"),
-    volumeSize: z.number({ required_error: requiredError("volumeSize") }).int().min(500).max(10000).describe("New NAS volume size in GB"),
+    instanceNo: z.number(reqField("instanceNo")).int().describe("NAS instance number (see ncloud_datafence_list_fence_infra)"),
+    volumeSize: z.number(reqField("volumeSize")).int().min(500).max(10000).describe("New NAS volume size in GB"),
   }, async (params) => {
     return client.requestRaw("POST", "/api/v1/fence/change-fence-nas-volume", undefined, body(params));
   });
@@ -214,7 +214,7 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
     return client.requestRaw("GET", "/api/v1/box/get-box-custom-image", compact(params));
   });
 
-  const instanceNo = (label: string) => z.number({ required_error: requiredError("instanceNo") }).int().describe(`${label} instance number (see ncloud_datafence_list_box_infra)`);
+  const instanceNo = (label: string) => z.number(reqField("instanceNo")).int().describe(`${label} instance number (see ncloud_datafence_list_box_infra)`);
 
   // get-connect-info: GET /api/v1/box/get-connect-info
   defineTool(server, "ncloud_datafence_get_connect_server", "Get a Box connect server's details.", { fenceId, boxId, instanceNo: instanceNo("Connect server") }, async (params) => {
@@ -239,7 +239,7 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   // get-hadoop-cluster-info-1: GET /api/v1/box/get-hadoop-cluster-info
   defineTool(server, "ncloud_datafence_get_hadoop_cluster", "Get a Box Hadoop cluster's details.", {
     fenceId, boxId,
-    hadoopClusterNo: z.number({ required_error: requiredError("hadoopClusterNo") }).int().describe("Hadoop cluster number — instanceNo of the infra whose infraType is HD"),
+    hadoopClusterNo: z.number(reqField("hadoopClusterNo")).int().describe("Hadoop cluster number — instanceNo of the infra whose infraType is HD"),
   }, async (params) => {
     return client.requestRaw("GET", "/api/v1/box/get-hadoop-cluster-info", compact(params));
   });
@@ -300,7 +300,7 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   defineTool(server, "ncloud_datafence_change_box_nas_volume", "Resize a Box NAS volume (500-10000 GB, 100 GB steps).", {
     fenceId, boxId,
     instanceNo: instanceNo("NAS"),
-    volumeSize: z.number({ required_error: requiredError("volumeSize") }).int().min(500).max(10000).describe("New NAS volume size in GB"),
+    volumeSize: z.number(reqField("volumeSize")).int().min(500).max(10000).describe("New NAS volume size in GB"),
   }, async (params) => {
     return client.requestRaw("POST", "/api/v1/box/change-box-nas-volume", undefined, body(params));
   });
@@ -308,7 +308,7 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   // change-box-block-external-network: POST /api/v1/box/change-box-block-external-network
   defineTool(server, "ncloud_datafence_set_box_external_network_block", "Block (true) or allow (false) a Box's external network access.", {
     fenceId, boxId,
-    isBlock: z.boolean({ required_error: requiredError("isBlock") }).describe("true: block external network, false: allow"),
+    isBlock: z.boolean(reqField("isBlock")).describe("true: block external network, false: allow"),
   }, async (params) => {
     return client.requestRaw("POST", "/api/v1/box/change-box-block-external-network", undefined, body(params));
   });
@@ -331,10 +331,10 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   // create-file-import: POST /api/v1/import/create-file-import
   defineTool(server, "ncloud_datafence_create_file_import", "Request a file import from an Object Storage bucket into a Box NAS (up to 10 files, 2 GB each). Use dryRun=true to preview.", {
     fenceId, boxId,
-    sourceBucketName: z.string({ required_error: requiredError("sourceBucketName") }).describe("Source bucket name"),
+    sourceBucketName: z.string(reqField("sourceBucketName")).describe("Source bucket name"),
     sourceFilePathList: z.array(z.string()).min(1).max(10).describe("Files to import (bucket object names, up to 10)"),
-    targetNasInstanceNo: z.string({ required_error: requiredError("targetNasInstanceNo") }).describe("Target NAS instance number (see ncloud_datafence_list_import_target_nas)"),
-    description: z.string({ required_error: requiredError("description") }).min(1).max(50).describe("Description of the import request (1-50 chars)"),
+    targetNasInstanceNo: z.string(reqField("targetNasInstanceNo")).describe("Target NAS instance number (see ncloud_datafence_list_import_target_nas)"),
+    description: z.string(reqField("description")).min(1).max(50).describe("Description of the import request (1-50 chars)"),
     dryRun: z.boolean().optional().default(false).describe("If true, returns the request without sending it"),
   }, async (params) => {
     const { dryRun, ...b } = params;
@@ -356,7 +356,7 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   // get-import-detail: GET /api/v1/import/get-import-detail
   defineTool(server, "ncloud_datafence_get_file_import", "Get a file import request.", {
     fenceId, boxId,
-    fileId: z.number({ required_error: requiredError("fileId") }).int().describe("Import request number (see ncloud_datafence_list_file_imports)"),
+    fileId: z.number(reqField("fileId")).int().describe("Import request number (see ncloud_datafence_list_file_imports)"),
   }, async (params) => {
     return client.requestRaw("GET", "/api/v1/import/get-import-detail", compact(params));
   });
@@ -371,12 +371,12 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   // create-file-export: POST /api/v1/export/create-file-export
   defineTool(server, "ncloud_datafence_create_file_export", "Request a file export from a Box NAS to an Object Storage bucket (up to 10 files, 2 GB each; goes through export approval). Use dryRun=true to preview.", {
     fenceId, boxId,
-    sourceNasInstanceNo: z.number({ required_error: requiredError("sourceNasInstanceNo") }).int().describe("Source NAS instance number (see ncloud_datafence_list_export_source_nas)"),
+    sourceNasInstanceNo: z.number(reqField("sourceNasInstanceNo")).int().describe("Source NAS instance number (see ncloud_datafence_list_export_source_nas)"),
     sourceFilePathList: z.array(z.string()).min(1).max(10).describe("Files to export (up to 10)"),
-    targetBucketName: z.string({ required_error: requiredError("targetBucketName") }).describe("Target bucket name"),
-    fileDescription: z.string({ required_error: requiredError("fileDescription") }).min(1).max(1000).describe("Description of the exported files (1-1000 chars)"),
-    exportPurpose: z.string({ required_error: requiredError("exportPurpose") }).min(1).max(1000).describe("Purpose of the export (1-1000 chars)"),
-    description: z.string({ required_error: requiredError("description") }).max(50).describe("Description of the export request (0-50 chars)"),
+    targetBucketName: z.string(reqField("targetBucketName")).describe("Target bucket name"),
+    fileDescription: z.string(reqField("fileDescription")).min(1).max(1000).describe("Description of the exported files (1-1000 chars)"),
+    exportPurpose: z.string(reqField("exportPurpose")).min(1).max(1000).describe("Purpose of the export (1-1000 chars)"),
+    description: z.string(reqField("description")).max(50).describe("Description of the export request (0-50 chars)"),
     dryRun: z.boolean().optional().default(false).describe("If true, returns the request without sending it"),
   }, async (params) => {
     const { dryRun, ...b } = params;
@@ -391,7 +391,7 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
     to: z.string().optional().describe("End datetime (yyyyMMddHHmmss)"),
     ...pageParams,
   };
-  const exportFileId = z.number({ required_error: requiredError("fileId") }).int().describe("Export request number (see ncloud_datafence_list_file_exports)");
+  const exportFileId = z.number(reqField("fileId")).int().describe("Export request number (see ncloud_datafence_list_file_exports)");
 
   // get-export-list: GET /api/v1/export/get-export-list
   defineTool(server, "ncloud_datafence_list_file_exports", "List file export requests of a Box.", exportListParams, async (params) => {
@@ -431,7 +431,7 @@ export function registerDatafenceTools(server: McpServer, client: NcloudClient):
   // export-file-reject-1: PATCH /api/v1/export-approval/export-file-reject
   defineTool(server, "ncloud_datafence_reject_file_export", "⚠️ Destructive: Reject a file export request with a reason. Set confirm=true to execute.", {
     fenceId, boxId, fileId: exportFileId,
-    rejectReason: z.string({ required_error: requiredError("rejectReason") }).min(1).max(1000).describe("Reason for the rejection (1-1000 chars)"),
+    rejectReason: z.string(reqField("rejectReason")).min(1).max(1000).describe("Reason for the rejection (1-1000 chars)"),
     confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
   }, async (params) => {
     return client.requestRaw("PATCH", "/api/v1/export-approval/export-file-reject", undefined, body({ fenceId: params.fenceId, boxId: params.boxId, fileId: params.fileId, rejectReason: params.rejectReason }));

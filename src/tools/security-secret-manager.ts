@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -47,8 +47,8 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     query?: Record<string, string | number | boolean | undefined>,
     body?: unknown
   ) => (k === "regional" ? clients.regional : clients.global).requestRaw(method, secretPath(k, path), query, body);
-  const secretId = z.string({ required_error: requiredError("secretId") }).describe("Secret ID (see ncloud_secret_list_secrets)");
-  const jobToken = z.string({ required_error: requiredError("jobToken") }).describe("Rotation job token (injected into the rotation function's environment; also in ncloud_secret_get_secret_logs)");
+  const secretId = z.string(reqField("secretId")).describe("Secret ID (see ncloud_secret_list_secrets)");
+  const jobToken = z.string(reqField("jobToken")).describe("Rotation job token (injected into the rotation function's environment; also in ncloud_secret_get_secret_logs)");
   const PLAIN = "⚠️ The response contains the secret value in plain text.";
 
   // ─── Lookup ────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     server,
     "ncloud_secret_get_secret_stage_value",
     `Get the secret value of one stage: previous (value used before the current one), active (value in use) or pending (new value awaiting rotation completion). ${PLAIN}`,
-    { secretId, stage: z.enum(STAGES, { required_error: requiredError("stage") }).describe("Secret value stage: previous | active | pending"), keyIsolation },
+    { secretId, stage: z.enum(STAGES, reqField("stage")).describe("Secret value stage: previous | active | pending"), keyIsolation },
     async (params) => call(params.keyIsolation, "GET", `/api/v1/secrets/${encodeURIComponent(params.secretId)}/${params.stage}`)
   );
 
@@ -137,9 +137,9 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     "ncloud_secret_create_secret",
     "Create a secret. secretValue is a JSON object string of 1-100 key/value pairs (≤10,000 bytes); rotationTargets names the keys that rotation replaces. Use dryRun=true to preview.",
     {
-      secretName: z.string({ required_error: requiredError("secretName") }).regex(/^[A-Za-z][A-Za-z0-9_-]{2,14}$/, "secretName: 3-15 chars of letters, digits, '-' or '_', starting with a letter").describe("Secret name (3-15 chars: letters, digits, '-', '_'; starts with a letter)"),
+      secretName: z.string(reqField("secretName")).regex(/^[A-Za-z][A-Za-z0-9_-]{2,14}$/, "secretName: 3-15 chars of letters, digits, '-' or '_', starting with a letter").describe("Secret name (3-15 chars: letters, digits, '-', '_'; starts with a letter)"),
       memo: z.string().max(1000).optional().describe("Description (0-1000 bytes)"),
-      secretValue: z.string({ required_error: requiredError("secretValue") }).describe("Secret value as a JSON object string, e.g. '{\"password\":\"...\"}' (1-100 key/value pairs, ≤10,000 bytes)"),
+      secretValue: z.string(reqField("secretValue")).describe("Secret value as a JSON object string, e.g. '{\"password\":\"...\"}' (1-100 key/value pairs, ≤10,000 bytes)"),
       rotationTargets: z.array(z.string()).min(1).describe("Keys of secretValue that rotation replaces (at least one)"),
       secretType: z.enum(["BASIC"]).optional().default("BASIC").describe("Secret type (BASIC is the only valid value)"),
       autoRotationYN: z.enum(["Y", "N"]).optional().default("N").describe("Enable automatic rotation (Y) or not (N, default)"),
@@ -212,8 +212,8 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     "Replace the secret value of one stage (previous / active / pending) with a JSON object string (1-100 key/value pairs, ≤10,000 bytes).",
     {
       secretId,
-      stage: z.enum(STAGES, { required_error: requiredError("stage") }).describe("Secret value stage: previous | active | pending"),
-      value: z.string({ required_error: requiredError("value") }).describe("New value as a JSON object string"),
+      stage: z.enum(STAGES, reqField("stage")).describe("Secret value stage: previous | active | pending"),
+      value: z.string(reqField("value")).describe("New value as a JSON object string"),
       keyIsolation,
     },
     async (params) => call(params.keyIsolation, "PUT", `/api/v1/secrets/${encodeURIComponent(params.secretId)}/values/${params.stage}`, undefined, { value: params.value })
@@ -224,7 +224,7 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     server,
     "ncloud_secret_update_memo",
     "Update the description (memo) of a secret.",
-    { secretId, memo: z.string({ required_error: requiredError("memo") }).max(1000).describe("New description (0-1000 bytes)"), keyIsolation },
+    { secretId, memo: z.string(reqField("memo")).max(1000).describe("New description (0-1000 bytes)"), keyIsolation },
     async (params) => call(params.keyIsolation, "PUT", `/api/v1/secrets/${encodeURIComponent(params.secretId)}/memo`, undefined, { memo: params.memo })
   );
 
@@ -235,7 +235,7 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     "Change the KMS protection key of a secret (DEFAULT service key or a USER_MANAGED_KEY by kmsKeyTag). kmsBoundaryType is required in the KR region (JPN is always ISOLATED).",
     {
       secretId,
-      protectionKeyType: z.enum(["DEFAULT", "USER_MANAGED_KEY"], { required_error: requiredError("protectionKeyType") }).describe("DEFAULT or USER_MANAGED_KEY"),
+      protectionKeyType: z.enum(["DEFAULT", "USER_MANAGED_KEY"], reqField("protectionKeyType")).describe("DEFAULT or USER_MANAGED_KEY"),
       kmsKeyTag: z.string().optional().describe("KMS key tag — required when protectionKeyType=USER_MANAGED_KEY"),
       kmsBoundaryType: z.enum(["GLOBAL", "ISOLATED"]).optional().describe("KMS key isolation: GLOBAL or ISOLATED (required in KR)"),
       keyIsolation,
@@ -336,7 +336,7 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     server,
     "ncloud_secret_update_rotation_period",
     "Change the automatic rotation period (days) of a secret.",
-    { secretId, rotationPeriod: z.number({ required_error: requiredError("rotationPeriod") }).int().min(1).max(730).describe("Rotation period in days (1-730)"), keyIsolation },
+    { secretId, rotationPeriod: z.number(reqField("rotationPeriod")).int().min(1).max(730).describe("Rotation period in days (1-730)"), keyIsolation },
     async (params) => call(params.keyIsolation, "PUT", `/api/v1/secrets/${encodeURIComponent(params.secretId)}/rotation-period`, undefined, { rotationPeriod: params.rotationPeriod })
   );
 
@@ -345,7 +345,7 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     server,
     "ncloud_secret_update_rotation_trigger",
     "Set or change the rotation trigger of a secret.",
-    { secretId, triggerId: z.string({ required_error: requiredError("triggerId") }).describe("Rotation trigger ID (see ncloud_secret_list_triggers)"), keyIsolation },
+    { secretId, triggerId: z.string(reqField("triggerId")).describe("Rotation trigger ID (see ncloud_secret_list_triggers)"), keyIsolation },
     async (params) => call(params.keyIsolation, "PUT", `/api/v1/secrets/${encodeURIComponent(params.secretId)}/triggers`, undefined, { triggerId: params.triggerId })
   );
 
@@ -424,7 +424,7 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     server,
     "ncloud_secret_job_update_pending_stage",
     `Set the PENDING stage value (JSON object string) of a rotation job. ${ROTATE_NOTE}`,
-    { secretId, jobToken, value: z.string({ required_error: requiredError("value") }).describe("New pending value as a JSON object string"), keyIsolation },
+    { secretId, jobToken, value: z.string(reqField("value")).describe("New pending value as a JSON object string"), keyIsolation },
     async (params) => call(params.keyIsolation, "PUT", `/action/v1/secrets/${encodeURIComponent(params.secretId)}/jobs/${encodeURIComponent(params.jobToken)}/pending`, undefined, { value: params.value })
   );
 
@@ -436,7 +436,7 @@ export function registerSecretManagerTools(server: McpServer, clients: SecretMan
     {
       secretId,
       jobToken,
-      length: z.number({ required_error: requiredError("length") }).int().min(5).max(32).describe("Length of the random string (5-32, default 12)"),
+      length: z.number(reqField("length")).int().min(5).max(32).describe("Length of the random string (5-32, default 12)"),
       excludeCharacters: z.string().optional().describe("Characters to exclude (one string, no separator)"),
       excludeNumbers: z.boolean().optional().describe("Exclude digits (default false)"),
       excludePunctuation: z.boolean().optional().describe("Exclude punctuation (default false)"),

@@ -3,12 +3,12 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 /** 클러스터·노트북·관리자 이름 규칙(세 존 가이드 동일): 3~15자, 영소문자로 시작, 영소문자·숫자·'-', 영소문자·숫자로 끝. */
 const HADOOP_NAME = /^[a-z][a-z0-9-]{1,13}[a-z0-9]$/;
 const hadoopName = (field: string) =>
-  z.string({ required_error: requiredError(field) }).regex(HADOOP_NAME, {
+  z.string(reqField(field)).regex(HADOOP_NAME, {
     message: `${field}: 3-15 chars, lowercase letters, numbers and '-', starting with a lowercase letter and ending with a letter or number`,
   });
 
@@ -74,8 +74,8 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     {
       regionCode: z.string().optional().describe("Region code"),
       // 가이드 getCloudHadoopAddOnList(세 존 동일): 두 코드 모두 Required — 금융존 테스트에서 clusterTypeCode 가 없어 호출 불가였다.
-      cloudHadoopImageProductCode: z.string({ required_error: requiredError("cloudHadoopImageProductCode") }).describe("Cluster image product code (from ncloud_hadoop_list_image_products)"),
-      cloudHadoopClusterTypeCode: z.string({ required_error: requiredError("cloudHadoopClusterTypeCode") }).describe("Cluster type code (from ncloud_hadoop_list_cluster_types, e.g. CORE_HADOOP_WITH_SPARK)"),
+      cloudHadoopImageProductCode: z.string(reqField("cloudHadoopImageProductCode")).describe("Cluster image product code (from ncloud_hadoop_list_image_products)"),
+      cloudHadoopClusterTypeCode: z.string(reqField("cloudHadoopClusterTypeCode")).describe("Cluster type code (from ncloud_hadoop_list_cluster_types, e.g. CORE_HADOOP_WITH_SPARK)"),
       engineVersionCode: z.string().optional().describe("Engine version code for Rocky images (latest if omitted). Not in the Financial-zone guide"),
     },
     async (params) => {
@@ -102,7 +102,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     "List available cluster types for a Cloud Hadoop image version",
     {
       regionCode: z.string().optional().describe("Region code"),
-      cloudHadoopImageProductCode: z.string({ required_error: requiredError("cloudHadoopImageProductCode") }).describe("Cluster image product code (from ncloud_hadoop_list_image_products)"),
+      cloudHadoopImageProductCode: z.string(reqField("cloudHadoopImageProductCode")).describe("Cluster image product code (from ncloud_hadoop_list_image_products)"),
       engineVersionCode: z.string().optional().describe("Engine version code for Rocky images (latest if omitted). Not in the Financial-zone guide"),
     },
     async (params) => {
@@ -174,7 +174,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
       regionCode: z.string().optional().describe("Region code"),
       // 가이드(세 존 동일): bucketName 필수, 필터는 prefix/delimiter/maxKeys/marker. cloudHadoopInstanceNo·directoryName 은
       // 이 API 의 파라미터가 아니라 무시됐다(금융존 테스트: directoryName 을 줘도 버킷 전체 반환, 더미 instanceNo 통과).
-      bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Bucket name (from ncloud_hadoop_list_buckets)"),
+      bucketName: z.string(reqField("bucketName")).describe("Bucket name (from ncloud_hadoop_list_buckets)"),
       prefix: z.string().optional().describe("Return only objects whose key starts with this prefix (e.g. 'test/')"),
       delimiter: z.string().optional().describe("Roll up keys containing this delimiter after the prefix into commonPrefixList (use '/' for directories)"),
       maxKeys: z.string().optional().describe("Maximum number of objects to return"),
@@ -191,7 +191,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     "List available server types (specs) for Cloud Hadoop nodes. Use infraResourceDetailTypeCode to separate master/worker (MSTDT) from edge (EDGND) node products",
     {
       regionCode: z.string().optional().describe("Region code"),
-      cloudHadoopImageProductCode: z.string({ required_error: requiredError("cloudHadoopImageProductCode") }).describe("Cluster image product code (from ncloud_hadoop_list_image_products)"),
+      cloudHadoopImageProductCode: z.string(reqField("cloudHadoopImageProductCode")).describe("Cluster image product code (from ncloud_hadoop_list_image_products)"),
       infraResourceDetailTypeCode: z.enum(["MSTDT", "EDGND"]).optional().describe("Node type filter: MSTDT = master/worker(data) nodes, EDGND = edge node"),
       zoneCode: z.string().optional().describe("Zone code (see ncloud_get_zones)"),
       productCode: z.string().optional().describe("Server product code to look up"),
@@ -447,7 +447,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     {
       regionCode: z.string().optional().describe("Region code"),
       // 가이드 getCloudHadoopNotebookComponentList(세 존 동일): 노트북 이미지 코드가 Required — 클러스터 이미지 코드 이름으로 보내 호출 불가였다(금융존 테스트).
-      cloudHadoopNotebookImageProductCode: z.string({ required_error: requiredError("cloudHadoopNotebookImageProductCode") }).describe("Notebook image product code (from ncloud_hadoop_list_notebook_images)"),
+      cloudHadoopNotebookImageProductCode: z.string(reqField("cloudHadoopNotebookImageProductCode")).describe("Notebook image product code (from ncloud_hadoop_list_notebook_images)"),
     },
     async (params) => {
       return client.request("/vhadoop/v2/getCloudHadoopNotebookComponentList", params);
@@ -475,7 +475,7 @@ export function registerCloudHadoopTools(server: McpServer, client: NcloudClient
     "List available server types for notebook nodes",
     {
       regionCode: z.string().optional().describe("Region code"),
-      cloudHadoopNotebookImageProductCode: z.string({ required_error: requiredError("cloudHadoopNotebookImageProductCode") }).describe("Notebook image product code (from ncloud_hadoop_list_notebook_images)"),
+      cloudHadoopNotebookImageProductCode: z.string(reqField("cloudHadoopNotebookImageProductCode")).describe("Notebook image product code (from ncloud_hadoop_list_notebook_images)"),
       zoneCode: z.string().optional().describe("Zone code (see ncloud_get_zones)"),
       productCode: z.string().optional().describe("Server product code to look up"),
       exclusionProductCode: z.string().optional().describe("Server product code to exclude"),

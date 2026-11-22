@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import {
   serviceIdParam, resolveServiceId, withQuery, reserveTimeSchema, reserveTimeZoneSchema,
@@ -50,7 +51,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
       serviceId: smsService,
       type: z.enum(SMS_TYPES).describe("SMS (short) | LMS (long) | MMS (image attachment)"),
       from: telNoSchema.describe("Sender number registered in the console (digits only)"),
-      content: z.string({ required_error: requiredError("content") }).describe("Default content (SMS ≤90 bytes, LMS/MMS ≤2000 bytes)"),
+      content: z.string(reqField("content")).describe("Default content (SMS ≤90 bytes, LMS/MMS ≤2000 bytes)"),
       messages: z.array(z.object({
         to: telNoSchema.describe("Recipient number (digits only)"),
         subject: z.string().optional().describe("Per-recipient subject (LMS/MMS, ≤40 bytes)"),
@@ -94,7 +95,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "Get one SMS delivery result (GET /sms/v2/services/{serviceId}/messages/{messageId}): status READY|PROCESSING|COMPLETED, statusCode (carrier result code), statusName success|fail, telcoCode, completeTime.",
     {
       serviceId: smsService,
-      messageId: z.string({ required_error: requiredError("messageId") }).describe("Message ID (from the send response or ncloud_sens_list_sms_requests)"),
+      messageId: z.string(reqField("messageId")).describe("Message ID (from the send response or ncloud_sens_list_sms_requests)"),
     },
     async (params) => {
       const svc = resolveServiceId("sms", params.serviceId);
@@ -136,7 +137,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "Get the status of a scheduled SMS request (GET /sms/v2/services/{serviceId}/reservations/{reserveId}/reserve-status): READY|PROCESSING|CANCELED|FAIL|DONE|STALE|SKIP.",
     {
       serviceId: smsService,
-      reserveId: z.string({ required_error: requiredError("reserveId") }).describe("Reservation ID = the requestId returned by a send with reserveTime"),
+      reserveId: z.string(reqField("reserveId")).describe("Reservation ID = the requestId returned by a send with reserveTime"),
     },
     async (params) => {
       const svc = resolveServiceId("sms", params.serviceId);
@@ -151,7 +152,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "⚠️ Destructive: Cancel a scheduled SMS request before it is sent (DELETE /sms/v2/services/{serviceId}/reservations/{reserveId} → 204). Set confirm=true to execute.",
     {
       serviceId: smsService,
-      reserveId: z.string({ required_error: requiredError("reserveId") }).describe("Reservation ID (requestId of the scheduled send)"),
+      reserveId: z.string(reqField("reserveId")).describe("Reservation ID (requestId of the scheduled send)"),
     },
     async (params) => {
       const svc = resolveServiceId("sms", params.serviceId);
@@ -260,7 +261,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "List Alim Talk templates of a channel (GET /alimtalk/v2/services/{serviceId}/templates). channelId is required; giving templateCode returns that template's full detail including inspection comments.",
     {
       serviceId: kkoService,
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("KakaoTalk channel ID (e.g. @channelname, from ncloud_sens_list_alimtalk_channels)"),
+      channelId: z.string(reqField("channelId")).describe("KakaoTalk channel ID (e.g. @channelname, from ncloud_sens_list_alimtalk_channels)"),
       templateCode: z.string().optional().describe("Template code → detailed view"),
       templateName: z.string().optional().describe("Filter by name (full or partial match)"),
       pageSize: z.number().int().min(1).max(100).optional().describe("Items per page (1-100, default 100)"),
@@ -281,8 +282,8 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
       "Optional SMS failover per message. Use dryRun=true to preview.",
     {
       serviceId: kkoService,
-      plusFriendId: z.string({ required_error: requiredError("plusFriendId") }).describe("KakaoTalk channel ID (e.g. @channelname)"),
-      templateCode: z.string({ required_error: requiredError("templateCode") }).describe("Approved template code"),
+      plusFriendId: z.string(reqField("plusFriendId")).describe("KakaoTalk channel ID (e.g. @channelname)"),
+      templateCode: z.string(reqField("templateCode")).describe("Approved template code"),
       messages: z.array(z.object({
         to: telNoSchema.describe("Recipient number (digits only)"),
         content: z.string().describe("Message content (must match the template)"),
@@ -373,7 +374,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "Get one Alim Talk delivery result (GET /alimtalk/v2/services/{serviceId}/messages/{messageId}): requestStatusCode (A000 = accepted), messageStatusCode (0000 = delivered; 3019 not a KakaoTalk user, 3020 blocked), failover details.",
     {
       serviceId: kkoService,
-      messageId: z.string({ required_error: requiredError("messageId") }).describe("Message ID"),
+      messageId: z.string(reqField("messageId")).describe("Message ID"),
     },
     async (params) => {
       const svc = resolveServiceId("alimtalk", params.serviceId);
@@ -388,7 +389,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "Get the status of a scheduled Alim Talk request (GET /alimtalk/v2/services/{serviceId}/reservations/{reserveId}/reserve-status): READY|PROCESSING|CANCELED|FAIL|DONE|STALE|SKIP.",
     {
       serviceId: kkoService,
-      reserveId: z.string({ required_error: requiredError("reserveId") }).describe("Reservation ID = requestId of the scheduled send"),
+      reserveId: z.string(reqField("reserveId")).describe("Reservation ID = requestId of the scheduled send"),
     },
     async (params) => {
       const svc = resolveServiceId("alimtalk", params.serviceId);
@@ -403,7 +404,7 @@ export function registerSensTools(server: McpServer, client: NcloudClient): void
     "⚠️ Destructive: Cancel a scheduled Alim Talk request before it is sent (DELETE /alimtalk/v2/services/{serviceId}/reservations/{reserveId} → 204). Set confirm=true to execute.",
     {
       serviceId: kkoService,
-      reserveId: z.string({ required_error: requiredError("reserveId") }).describe("Reservation ID (requestId of the scheduled send)"),
+      reserveId: z.string(reqField("reserveId")).describe("Reservation ID (requestId of the scheduled send)"),
     },
     async (params) => {
       const svc = resolveServiceId("alimtalk", params.serviceId);

@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerDatabasePostgresqlTools(server: McpServer, client: NcloudClient): void {
@@ -54,30 +55,14 @@ export function registerDatabasePostgresqlTools(server: McpServer, client: Nclou
     "ncloud_create_postgresql_instance",
     "Create a new Cloud DB for PostgreSQL instance. Use dryRun=true to preview without creating.",
     {
-      cloudPostgresqlServiceName: z.string({
-        required_error: requiredError("cloudPostgresqlServiceName"),
-      }).describe("PostgreSQL service name (3-20 chars, lowercase letters and numbers)"),
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number"),
-      subnetNo: z.string({
-        required_error: requiredError("subnetNo"),
-      }).describe("Subnet number"),
-      cloudPostgresqlDatabaseName: z.string({
-        required_error: requiredError("cloudPostgresqlDatabaseName"),
-      }).describe("Initial database name"),
-      cloudPostgresqlUserName: z.string({
-        required_error: requiredError("cloudPostgresqlUserName"),
-      }).describe("Initial user name"),
-      cloudPostgresqlUserPassword: z.string({
-        required_error: requiredError("cloudPostgresqlUserPassword"),
-      }).describe("Initial user password"),
-      cloudPostgresqlServerNamePrefix: z.string({
-        required_error: requiredError("cloudPostgresqlServerNamePrefix"),
-      }).describe("Server name prefix"),
-      clientCidr: z.string({
-        required_error: requiredError("clientCidr"),
-      }).describe("Client CIDR for access control"),
+      cloudPostgresqlServiceName: z.string(reqField("cloudPostgresqlServiceName")).describe("PostgreSQL service name (3-20 chars, lowercase letters and numbers)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number"),
+      cloudPostgresqlDatabaseName: z.string(reqField("cloudPostgresqlDatabaseName")).describe("Initial database name"),
+      cloudPostgresqlUserName: z.string(reqField("cloudPostgresqlUserName")).describe("Initial user name"),
+      cloudPostgresqlUserPassword: z.string(reqField("cloudPostgresqlUserPassword")).describe("Initial user password"),
+      cloudPostgresqlServerNamePrefix: z.string(reqField("cloudPostgresqlServerNamePrefix")).describe("Server name prefix"),
+      clientCidr: z.string(reqField("clientCidr")).describe("Client CIDR for access control"),
       cloudPostgresqlImageProductCode: z.string().optional().describe("PostgreSQL image product code"),
       cloudPostgresqlProductCode: z.string().optional().describe("PostgreSQL server product (spec) code"),
       isMultiZone: z.boolean().optional().describe("Whether to enable multi-zone high availability"),

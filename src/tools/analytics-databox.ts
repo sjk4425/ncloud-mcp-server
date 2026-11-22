@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -19,7 +19,7 @@ function compact<T extends Record<string, unknown>>(obj: T): Record<string, stri
   return out;
 }
 
-const dataBoxNo = z.number({ required_error: requiredError("dataBoxNo") }).int().describe("Data Box number (console: My Space > server details > Infra tab)");
+const dataBoxNo = z.number(reqField("dataBoxNo")).int().describe("Data Box number (console: My Space > server details > Infra tab)");
 const applyListParams = {
   dataBoxNo,
   applyStartDate: z.string().optional().describe("Start datetime (yyyyMMddHHmmss)"),
@@ -53,9 +53,9 @@ export function registerDataBoxTools(server: McpServer, client: NcloudClient): v
   // apply-file-import-1: POST /api/v1/import/apply-file-import
   defineTool(server, "ncloud_databox_apply_file_import", "Request a file import from an Object Storage bucket into a Data Box NAS (up to 5 files, 500 MB each). Use dryRun=true to preview.", {
     dataBoxNo,
-    bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Source bucket name (see ncloud_databox_list_buckets)"),
+    bucketName: z.string(reqField("bucketName")).describe("Source bucket name (see ncloud_databox_list_buckets)"),
     fileList: z.array(z.object({ name: z.string().describe("Object name in the bucket, including extension") })).min(1).max(5).describe("Files to import (up to 5)"),
-    nasInstanceNo: z.number({ required_error: requiredError("nasInstanceNo") }).int().describe("Target NAS instance number (see ncloud_databox_list_nas)"),
+    nasInstanceNo: z.number(reqField("nasInstanceNo")).int().describe("Target NAS instance number (see ncloud_databox_list_nas)"),
     dryRun: z.boolean().optional().default(false).describe("If true, returns the request without sending it"),
   }, async (params) => {
     const { dryRun, ...b } = params;
@@ -71,7 +71,7 @@ export function registerDataBoxTools(server: McpServer, client: NcloudClient): v
   // get-import-apply-detail-1: GET /api/v1/import/get-import-apply-detail
   defineTool(server, "ncloud_databox_get_import_request", "Get a file import request of a Data Box.", {
     dataBoxNo,
-    importNo: z.number({ required_error: requiredError("importNo") }).int().describe("Import request number (see ncloud_databox_list_import_requests)"),
+    importNo: z.number(reqField("importNo")).int().describe("Import request number (see ncloud_databox_list_import_requests)"),
   }, async (params) => {
     return client.requestRaw("GET", "/api/v1/import/get-import-apply-detail", compact(params));
   });
@@ -79,8 +79,8 @@ export function registerDataBoxTools(server: McpServer, client: NcloudClient): v
   // apply-file-export-1: POST /api/v1/export/apply-file-export (the page's curl example wrongly shows the import URL; the method table is authoritative)
   defineTool(server, "ncloud_databox_apply_file_export", "Request a file export from a Data Box NAS to an Object Storage bucket; each file needs a 30+ char description and a type for the export review. Use dryRun=true to preview.", {
     dataBoxNo,
-    nasInstanceNo: z.number({ required_error: requiredError("nasInstanceNo") }).int().describe("Source NAS instance number (see ncloud_databox_list_nas)"),
-    bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Target bucket name (see ncloud_databox_list_buckets)"),
+    nasInstanceNo: z.number(reqField("nasInstanceNo")).int().describe("Source NAS instance number (see ncloud_databox_list_nas)"),
+    bucketName: z.string(reqField("bucketName")).describe("Target bucket name (see ncloud_databox_list_buckets)"),
     fileList: z.array(exportFileSchema).min(1).describe("Files to export with review metadata"),
     dryRun: z.boolean().optional().default(false).describe("If true, returns the request without sending it"),
   }, async (params) => {
@@ -101,7 +101,7 @@ export function registerDataBoxTools(server: McpServer, client: NcloudClient): v
   // get-export-apply-detail-1: GET /api/v1/export/get-export-apply-detail
   defineTool(server, "ncloud_databox_get_export_request", "Get a file export request of a Data Box.", {
     dataBoxNo,
-    exportNo: z.number({ required_error: requiredError("exportNo") }).int().describe("Export request number (see ncloud_databox_list_export_requests)"),
+    exportNo: z.number(reqField("exportNo")).int().describe("Export request number (see ncloud_databox_list_export_requests)"),
   }, async (params) => {
     return client.requestRaw("GET", "/api/v1/export/get-export-apply-detail", compact(params));
   });

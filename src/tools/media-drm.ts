@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import type { Zone } from "../client/endpoints.js";
 
 /**
@@ -93,7 +93,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_get_site",
     "Get detailed information about a specific DRM site",
     {
-      siteId: z.string({ required_error: requiredError("siteId") }).describe("Site ID (from ncloud_drm_list_sites)"),
+      siteId: z.string(reqField("siteId")).describe("Site ID (from ncloud_drm_list_sites)"),
     },
     async (params) => get(`/api/v1/sites/${encodeURIComponent(params.siteId)}`)
   );
@@ -103,8 +103,8 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_create_site",
     "Create a new DRM site (binds a DRM policy; optionally registers a FairPlay certificate)",
     {
-      policyId: z.number({ required_error: requiredError("policyId") }).describe("DRM policy ID (0 = Basic default, or a custom policy ID)"),
-      siteName: z.string({ required_error: requiredError("siteName") }).describe("Site name (3-20 chars: letters, numbers, '_')"),
+      policyId: z.number(reqField("policyId")).describe("DRM policy ID (0 = Basic default, or a custom policy ID)"),
+      siteName: z.string(reqField("siteName")).describe("Site name (3-20 chars: letters, numbers, '_')"),
       fairPlayCert: fairPlayCertSchema.optional(),
     },
     async (params) => client.postRequest("/api/v1/sites", params)
@@ -115,9 +115,9 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_update_site",
     "Update a DRM site (policy binding, name, or FairPlay certificate)",
     {
-      siteId: z.string({ required_error: requiredError("siteId") }).describe("Site ID to update"),
-      policyId: z.number({ required_error: requiredError("policyId") }).describe("DRM policy ID (0 = Basic default, or a custom policy ID)"),
-      siteName: z.string({ required_error: requiredError("siteName") }).describe("Site name (3-20 chars: letters, numbers, '_')"),
+      siteId: z.string(reqField("siteId")).describe("Site ID to update"),
+      policyId: z.number(reqField("policyId")).describe("DRM policy ID (0 = Basic default, or a custom policy ID)"),
+      siteName: z.string(reqField("siteName")).describe("Site name (3-20 chars: letters, numbers, '_')"),
       fairPlayCert: fairPlayCertSchema.optional(),
     },
     async (params) => {
@@ -131,7 +131,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_enable_site",
     "Enable (activate) a DRM site",
     {
-      siteId: z.string({ required_error: requiredError("siteId") }).describe("Site ID to enable"),
+      siteId: z.string(reqField("siteId")).describe("Site ID to enable"),
     },
     async (params) => client.putRequest(`/api/v1/sites/${encodeURIComponent(params.siteId)}/on`, {})
   );
@@ -141,7 +141,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_disable_site",
     "Disable (deactivate) a DRM site. Disable a site before modifying its active policy.",
     {
-      siteId: z.string({ required_error: requiredError("siteId") }).describe("Site ID to disable"),
+      siteId: z.string(reqField("siteId")).describe("Site ID to disable"),
     },
     async (params) => client.putRequest(`/api/v1/sites/${encodeURIComponent(params.siteId)}/off`, {})
   );
@@ -151,7 +151,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_get_site_logs",
     "Get event logs for a DRM site",
     {
-      siteId: z.string({ required_error: requiredError("siteId") }).describe("Site ID to query logs for"),
+      siteId: z.string(reqField("siteId")).describe("Site ID to query logs for"),
       pageNo: z.number().optional().describe("Page number (1~N, default 1)"),
       pageSize: z.number().optional().describe("Items per page (1~100)"),
     },
@@ -178,7 +178,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_get_policy",
     "Get detailed configuration of a specific DRM policy",
     {
-      policyId: z.number({ required_error: requiredError("policyId") }).describe("DRM policy ID (from ncloud_drm_list_policies)"),
+      policyId: z.number(reqField("policyId")).describe("DRM policy ID (from ncloud_drm_list_policies)"),
     },
     async (params) => get(`/api/v1/policy/${params.policyId}`)
   );
@@ -188,10 +188,10 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_create_policy",
     "Create a new DRM policy with Widevine / PlayReady / FairPlay security settings",
     {
-      policyName: z.string({ required_error: requiredError("policyName") }).describe("Policy name (3-20 chars: letters, numbers, '_')"),
-      persistent: z.boolean({ required_error: requiredError("persistent") }).describe("Offline license retention (must be true if using rentalDuration)"),
-      rentalDuration: z.number({ required_error: requiredError("rentalDuration") }).describe("Seconds until first playback must start after license acquisition (0~2147483647, default 0)"),
-      playbackDuration: z.number({ required_error: requiredError("playbackDuration") }).describe("License validity in seconds from first playback (0~2147483647, default 0)"),
+      policyName: z.string(reqField("policyName")).describe("Policy name (3-20 chars: letters, numbers, '_')"),
+      persistent: z.boolean(reqField("persistent")).describe("Offline license retention (must be true if using rentalDuration)"),
+      rentalDuration: z.number(reqField("rentalDuration")).describe("Seconds until first playback must start after license acquisition (0~2147483647, default 0)"),
+      playbackDuration: z.number(reqField("playbackDuration")).describe("License validity in seconds from first playback (0~2147483647, default 0)"),
       drmPolicyConfig: drmPolicyConfigSchema.describe("Per-DRM policy settings (widevine/playready/fairplay)"),
     },
     async (params) => client.postRequest("/api/v1/policy", params)
@@ -202,7 +202,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_copy_policy",
     "Duplicate a DRM policy (POST /api/v1/policy/{policyId}/copy — Public zone only). The copy is named 'Copy_<original>' and gets a new policyId.",
     {
-      policyId: z.number({ required_error: requiredError("policyId") }).describe("DRM policy ID to duplicate"),
+      policyId: z.number(reqField("policyId")).describe("DRM policy ID to duplicate"),
     },
     async (params) => client.postRequest(`/api/v1/policy/${params.policyId}/copy`, {})
   );
@@ -212,11 +212,11 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_update_policy",
     "Update a DRM policy. Disable any site using this policy before updating.",
     {
-      policyId: z.number({ required_error: requiredError("policyId") }).describe("DRM policy ID to update"),
-      policyName: z.string({ required_error: requiredError("policyName") }).describe("Policy name (3-20 chars: letters, numbers, '_')"),
-      persistent: z.boolean({ required_error: requiredError("persistent") }).describe("Offline license retention"),
-      rentalDuration: z.number({ required_error: requiredError("rentalDuration") }).describe("Seconds until first playback (0~2147483647)"),
-      playbackDuration: z.number({ required_error: requiredError("playbackDuration") }).describe("License validity in seconds from first playback (0~2147483647)"),
+      policyId: z.number(reqField("policyId")).describe("DRM policy ID to update"),
+      policyName: z.string(reqField("policyName")).describe("Policy name (3-20 chars: letters, numbers, '_')"),
+      persistent: z.boolean(reqField("persistent")).describe("Offline license retention"),
+      rentalDuration: z.number(reqField("rentalDuration")).describe("Seconds until first playback (0~2147483647)"),
+      playbackDuration: z.number(reqField("playbackDuration")).describe("License validity in seconds from first playback (0~2147483647)"),
       drmPolicyConfig: drmPolicyConfigSchema.describe("Per-DRM policy settings (widevine/playready/fairplay)"),
     },
     async (params) => {
@@ -230,7 +230,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_delete_policy",
     "⚠️ Destructive: Permanently delete a DRM policy. Disable any site using this policy first. Set confirm=true to execute.",
     {
-      policyId: z.number({ required_error: requiredError("policyId") }).describe("DRM policy ID to delete"),
+      policyId: z.number(reqField("policyId")).describe("DRM policy ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => client.deleteRequest(`/api/v1/policy/${params.policyId}`),
@@ -242,7 +242,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_get_policy_logs",
     "Get event logs for a DRM policy",
     {
-      policyId: z.number({ required_error: requiredError("policyId") }).describe("DRM policy ID to query logs for"),
+      policyId: z.number(reqField("policyId")).describe("DRM policy ID to query logs for"),
       pageNo: z.number().optional().describe("Page number (1~N, default 1)"),
       pageSize: z.number().optional().describe("Items per page (1~100)"),
       startTime: z.number().optional().describe("Query start time (Unix epoch milliseconds)"),
@@ -260,7 +260,7 @@ export function registerMultiDrmTools(server: McpServer, client: NcloudClient, o
     "ncloud_drm_get_license_statistics",
     "Get DRM license issuance statistics/history for a site (filterable by content/user/device, time range, status)",
     {
-      siteId: z.string({ required_error: requiredError("siteId") }).describe("Site ID to query license statistics for"),
+      siteId: z.string(reqField("siteId")).describe("Site ID to query license statistics for"),
       searchCondition: z.enum(["contentId", "drmType", "userId", "deviceId", "deviceModel"]).optional().describe("Search field to filter by"),
       searchKeyword: z.string().optional().describe("Search term matching searchCondition"),
       startTime: z.number().optional().describe("Query start time (Unix epoch milliseconds)"),

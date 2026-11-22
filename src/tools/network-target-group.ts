@@ -2,8 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { maxLenMessage, requiredError } from "./_messages.js";
+import { maxLenMessage } from "./_messages.js";
 
+import { reqField } from "./_zod.js";
 export function registerTargetGroupTools(server: McpServer, client: NcloudClient): void {
   // ─── Target Group Query Tools ──────────────────────────────────────────────
 
@@ -28,9 +29,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_get_target_group_detail",
     "Get detailed information about a specific target group",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number to query"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number to query"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/getTargetGroupDetail", params);
@@ -44,18 +43,12 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_create_target_group",
     "Create a new target group for a load balancer",
     {
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
       targetGroupName: z.string().max(30, {
         message: maxLenMessage("targetGroupName", 30),
       }).optional().describe("Target group name (max 30 characters)"),
-      targetGroupProtocolTypeCode: z.string({
-        required_error: requiredError("targetGroupProtocolTypeCode"),
-      }).describe("Target group protocol type (HTTP, HTTPS, TCP, PROXY_TCP)"),
-      targetTypeCode: z.string({
-        required_error: requiredError("targetTypeCode"),
-      }).describe("Target type code (VSVR)"),
+      targetGroupProtocolTypeCode: z.string(reqField("targetGroupProtocolTypeCode")).describe("Target group protocol type (HTTP, HTTPS, TCP, PROXY_TCP)"),
+      targetTypeCode: z.string(reqField("targetTypeCode")).describe("Target type code (VSVR)"),
       targetGroupPort: z.number().optional().describe("Target group port number"),
       targetGroupDescription: z.string().optional().describe("Target group description"),
       healthCheckProtocolTypeCode: z.string().optional().describe("Health check protocol (HTTP, HTTPS, TCP)"),
@@ -80,9 +73,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_delete_target_groups",
     "⚠️ Destructive: Permanently delete target groups. Set confirm=true to execute.",
     {
-      targetGroupNoList: z.array(z.string(), {
-        required_error: requiredError("targetGroupNoList"),
-      }).describe("List of target group numbers to delete"),
+      targetGroupNoList: z.array(z.string(), reqField("targetGroupNoList")).describe("List of target group numbers to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -100,9 +91,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_list_targets",
     "List all targets in a specific target group",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/getTargetList", params);
@@ -114,12 +103,8 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_add_target",
     "Add targets (server instances) to a target group",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number"),
-      targetNoList: z.array(z.string(), {
-        required_error: requiredError("targetNoList"),
-      }).describe("List of target (server instance) numbers to add"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number"),
+      targetNoList: z.array(z.string(), reqField("targetNoList")).describe("List of target (server instance) numbers to add"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/addTarget", params);
@@ -131,12 +116,8 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_remove_target",
     "⚠️ Destructive: Remove targets from a target group. Set confirm=true to execute.",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number"),
-      targetNoList: z.array(z.string(), {
-        required_error: requiredError("targetNoList"),
-      }).describe("List of target (server instance) numbers to remove"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number"),
+      targetNoList: z.array(z.string(), reqField("targetNoList")).describe("List of target (server instance) numbers to remove"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -154,9 +135,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_change_target_group_config",
     "Change target group configuration (algorithm, sticky session, proxy protocol)",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number"),
       algorithmTypeCode: z.string().optional().describe("Load balancing algorithm type code (RR, SIPHS, LC, MH). HTTP/HTTPS/PROXY_TCP: RR|SIPHS|LC, TCP/UDP: RR|MH"),
       useStickySession: z.boolean().optional().describe("Whether to enable per-session access (true/false). Available for TCP, UDP, HTTP, HTTPS protocols"),
       useProxyProtocol: z.boolean().optional().describe("Whether to use proxy protocol (true/false). Available for PROXY_TCP protocol only"),
@@ -171,9 +150,7 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_change_target_group_health",
     "Change target group health check configuration",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number"),
       healthCheckPort: z.number().optional().describe("Health check port number (1-65534, default: 80)"),
       healthCheckUrlPath: z.string().optional().describe("Health check URL path (for HTTP/HTTPS, starts with /)"),
       healthCheckHttpMethodTypeCode: z.string().optional().describe("HTTP method type for health check (HEAD, GET). Available if health check protocol is HTTP or HTTPS"),
@@ -191,12 +168,8 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_set_target_group_description",
     "Set or update the description of a target group",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number"),
-      targetGroupDescription: z.string({
-        required_error: requiredError("targetGroupDescription"),
-      }).describe("Target group description"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number"),
+      targetGroupDescription: z.string(reqField("targetGroupDescription")).describe("Target group description"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/setTargetGroupDescription", params);
@@ -208,12 +181,8 @@ export function registerTargetGroupTools(server: McpServer, client: NcloudClient
     "ncloud_set_targets",
     "Set targets for a target group (replaces all existing targets with the specified list)",
     {
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number"),
-      targetNoList: z.array(z.string(), {
-        required_error: requiredError("targetNoList"),
-      }).describe("List of target (server instance) numbers to set (replaces existing targets)"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number"),
+      targetNoList: z.array(z.string(), reqField("targetNoList")).describe("List of target (server instance) numbers to set (replaces existing targets)"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/setTarget", params);

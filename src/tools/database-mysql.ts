@@ -2,8 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
+import { reqField } from "./_zod.js";
 
 /** getCloudMysqlEventHistoryList 의 날짜 형식 `yyyy-MM-dd HH:mm:ss`. */
 const MYSQL_DATETIME_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
@@ -129,8 +129,8 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     {
       // 가이드 database-vmysql-getcloudmysqltargetsubnetlist: vpcNo·cloudMysqlImageProductCode Required(세 존 동일).
       //   이전 스키마는 cloudMysqlInstanceNo 를 받아 항상 900 이었다(금융존 테스트 E-10).
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number (see ncloud_get_mysql_target_vpcs)"),
-      cloudMysqlImageProductCode: z.string({ required_error: requiredError("cloudMysqlImageProductCode") }).describe("MySQL image product code (see ncloud_get_mysql_image_products)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number (see ncloud_get_mysql_target_vpcs)"),
+      cloudMysqlImageProductCode: z.string(reqField("cloudMysqlImageProductCode")).describe("MySQL image product code (see ncloud_get_mysql_image_products)"),
       isPublic: z.boolean().optional().describe("true = public subnets only, false = private subnets only"),
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to current region."),
     },
@@ -214,30 +214,14 @@ export function registerDatabaseMysqlTools(server: McpServer, client: NcloudClie
     "Create a new Cloud DB for MySQL instance. Use dryRun=true to preview without creating.",
     {
       // ── Required parameters ──
-      cloudMysqlServiceName: z.string({
-        required_error: requiredError("cloudMysqlServiceName"),
-      }).describe("MySQL service name (3-30 chars, letters, numbers, Korean, '-')"),
-      cloudMysqlServerNamePrefix: z.string({
-        required_error: requiredError("cloudMysqlServerNamePrefix"),
-      }).describe("Server name prefix (3-20 chars, starts with letter, ends with letter/number, allows '-')"),
-      cloudMysqlUserName: z.string({
-        required_error: requiredError("cloudMysqlUserName"),
-      }).describe("DB user account ID (3-16 chars, starts with letter, allows letters/numbers/'-'/'_')"),
-      cloudMysqlUserPassword: z.string({
-        required_error: requiredError("cloudMysqlUserPassword"),
-      }).describe("DB user password (8-20 chars, must include letter+number+special char)"),
-      hostIp: z.string({
-        required_error: requiredError("hostIp"),
-      }).describe("Host IP for MySQL access (e.g. '%' for all, '1.1.1.1', '1.1.1.%', '1.1.1.0/24'). Use '%25' for '%' in GET requests."),
-      cloudMysqlDatabaseName: z.string({
-        required_error: requiredError("cloudMysqlDatabaseName"),
-      }).describe("Initial database name (1-30 chars, starts with letter)"),
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number (getCloudMysqlTargetVpcList)"),
-      subnetNo: z.string({
-        required_error: requiredError("subnetNo"),
-      }).describe("Subnet number for primary NIC (getCloudMysqlTargetSubnetList)"),
+      cloudMysqlServiceName: z.string(reqField("cloudMysqlServiceName")).describe("MySQL service name (3-30 chars, letters, numbers, Korean, '-')"),
+      cloudMysqlServerNamePrefix: z.string(reqField("cloudMysqlServerNamePrefix")).describe("Server name prefix (3-20 chars, starts with letter, ends with letter/number, allows '-')"),
+      cloudMysqlUserName: z.string(reqField("cloudMysqlUserName")).describe("DB user account ID (3-16 chars, starts with letter, allows letters/numbers/'-'/'_')"),
+      cloudMysqlUserPassword: z.string(reqField("cloudMysqlUserPassword")).describe("DB user password (8-20 chars, must include letter+number+special char)"),
+      hostIp: z.string(reqField("hostIp")).describe("Host IP for MySQL access (e.g. '%' for all, '1.1.1.1', '1.1.1.%', '1.1.1.0/24'). Use '%25' for '%' in GET requests."),
+      cloudMysqlDatabaseName: z.string(reqField("cloudMysqlDatabaseName")).describe("Initial database name (1-30 chars, starts with letter)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number (getCloudMysqlTargetVpcList)"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number for primary NIC (getCloudMysqlTargetSubnetList)"),
       // ── Optional parameters ──
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions). Defaults to first region."),
       cloudMysqlImageProductCode: z.string().optional().describe("MySQL image product code (getCloudMysqlImageProductList)"),

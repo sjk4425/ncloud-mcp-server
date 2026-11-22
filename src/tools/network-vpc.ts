@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { cidrMessage, maxLenMessage, requiredError } from "./_messages.js";
+import { cidrMessage, maxLenMessage } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerVpcTools(server: McpServer, client: NcloudClient): void {
@@ -41,9 +42,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "ncloud_create_vpc",
     "Create a new VPC. Use dryRun=true to preview without creating.",
     {
-      ipv4CidrBlock: z.string({
-        required_error: requiredError("ipv4CidrBlock"),
-      }).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
+      ipv4CidrBlock: z.string(reqField("ipv4CidrBlock")).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
         message: cidrMessage("ipv4CidrBlock", "10.0.0.0/16"),
       }).describe("VPC IPv4 CIDR block (e.g., 10.0.0.0/16)"),
       vpcName: z.string().max(30, {
@@ -84,9 +83,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "ncloud_delete_vpc",
     "⚠️ Destructive: Permanently delete a VPC. Set confirm=true to execute.",
     {
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number to delete"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -133,23 +130,13 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "ncloud_create_subnet",
     "Create a new subnet in a VPC. Use dryRun=true to preview without creating.",
     {
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number to create the subnet in"),
-      subnet: z.string({
-        required_error: requiredError("subnet"),
-      }).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number to create the subnet in"),
+      subnet: z.string(reqField("subnet")).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
         message: cidrMessage("subnet", "10.0.1.0/24"),
       }).describe("Subnet CIDR block (e.g., 10.0.1.0/24)"),
-      zoneCode: z.string({
-        required_error: requiredError("zoneCode"),
-      }).describe("Zone code (see ncloud_get_zones)"),
-      networkAclNo: z.string({
-        required_error: requiredError("networkAclNo"),
-      }).describe("Network ACL number to associate"),
-      subnetTypeCode: z.string({
-        required_error: requiredError("subnetTypeCode"),
-      }).describe("Subnet type code (PUBLIC or PRIVATE)"),
+      zoneCode: z.string(reqField("zoneCode")).describe("Zone code (see ncloud_get_zones)"),
+      networkAclNo: z.string(reqField("networkAclNo")).describe("Network ACL number to associate"),
+      subnetTypeCode: z.string(reqField("subnetTypeCode")).describe("Subnet type code (PUBLIC or PRIVATE)"),
       subnetName: z.string().max(30, {
         message: maxLenMessage("subnetName", 30),
       }).optional().describe("Subnet name (max 30 characters)"),
@@ -190,9 +177,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
     "ncloud_delete_subnet",
     "⚠️ Destructive: Permanently delete a subnet. Set confirm=true to execute.",
     {
-      subnetNo: z.string({
-        required_error: requiredError("subnetNo"),
-      }).describe("Subnet number to delete"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

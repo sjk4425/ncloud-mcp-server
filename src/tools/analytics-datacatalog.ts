@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
+import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -107,9 +108,9 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
     "ncloud_datacatalog_create_database",
     "Create a database in a Data Catalog catalog. The database name is appended to location as a sub-path (location 's3a://mybucket' + name 'mydatabase' → 's3a://mybucket/mydatabase'). Use dryRun=true to preview without creating.",
     {
-      catalogId: z.number({ required_error: requiredError("catalogId") }).describe("Catalog ID (from getCatalogs)"),
-      name: z.string({ required_error: requiredError("name") }).describe("Database name (1-128 chars, lowercase letters/digits/'_'/'-'/spaces only — pattern [a-z0-9_\\-\\s]+)"),
-      location: z.string({ required_error: requiredError("location") }).describe("Database location path, max 1000 chars (e.g. 's3a://mybucket'). The name is appended as a sub-path"),
+      catalogId: z.number(reqField("catalogId")).describe("Catalog ID (from getCatalogs)"),
+      name: z.string(reqField("name")).describe("Database name (1-128 chars, lowercase letters/digits/'_'/'-'/spaces only — pattern [a-z0-9_\\-\\s]+)"),
+      location: z.string(reqField("location")).describe("Database location path, max 1000 chars (e.g. 's3a://mybucket'). The name is appended as a sub-path"),
       description: z.string().optional().describe("Database description (max 1000 chars)"),
       tagKeyTypeValueList: z.array(TAG_ITEM_SCHEMA).optional().describe("Tags to attach to the database"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the database"),
@@ -139,8 +140,8 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
     "ncloud_datacatalog_update_database",
     "Update a database's location and/or description. Tags are managed separately by ncloud_datacatalog_update_database_tag.",
     {
-      catalogId: z.number({ required_error: requiredError("catalogId") }).describe("Catalog ID"),
-      databaseName: z.string({ required_error: requiredError("databaseName") }).describe("Database name to update (from getDatabases)"),
+      catalogId: z.number(reqField("catalogId")).describe("Catalog ID"),
+      databaseName: z.string(reqField("databaseName")).describe("Database name to update (from getDatabases)"),
       location: z.string().optional().describe("New database location path"),
       description: z.string().optional().describe("New database description (max 1000 chars)"),
     },
@@ -169,8 +170,8 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
     "ncloud_datacatalog_update_database_tag",
     "⚠️ Replaces ALL tags on a database with the list given — tags not included are removed. Read the current tags first with ncloud_datacatalog_get_database (includeTags=true).",
     {
-      catalogId: z.number({ required_error: requiredError("catalogId") }).describe("Catalog ID"),
-      databaseName: z.string({ required_error: requiredError("databaseName") }).describe("Database name"),
+      catalogId: z.number(reqField("catalogId")).describe("Catalog ID"),
+      databaseName: z.string(reqField("databaseName")).describe("Database name"),
       tagKeyTypeValueList: z
         .array(TAG_ITEM_SCHEMA)
         .describe("Full replacement tag list. Every existing tag not present here is deleted"),
@@ -434,9 +435,9 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
     "ncloud_datacatalog_update_table_schema",
     "⚠️ Replaces the table's ENTIRE column schema with the list given — columns not included are removed. This is the only way to correct a column type a scanner inferred wrongly. Read the current schema first with ncloud_datacatalog_get_table_schema.",
     {
-      catalogId: z.number({ required_error: requiredError("catalogId") }).describe("Catalog ID"),
-      databaseName: z.string({ required_error: requiredError("databaseName") }).describe("Database name"),
-      tableName: z.string({ required_error: requiredError("tableName") }).describe("Table name"),
+      catalogId: z.number(reqField("catalogId")).describe("Catalog ID"),
+      databaseName: z.string(reqField("databaseName")).describe("Database name"),
+      tableName: z.string(reqField("tableName")).describe("Table name"),
       columns: z
         .array(
           z.object({
@@ -464,9 +465,9 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
     "ncloud_datacatalog_update_table_tag",
     "⚠️ Replaces ALL tags on a table with the list given — tags not included are removed (an empty list clears every tag). Read the current tags first with ncloud_datacatalog_get_table_tags.",
     {
-      catalogId: z.number({ required_error: requiredError("catalogId") }).describe("Catalog ID"),
-      databaseName: z.string({ required_error: requiredError("databaseName") }).describe("Database name"),
-      tableName: z.string({ required_error: requiredError("tableName") }).describe("Table name"),
+      catalogId: z.number(reqField("catalogId")).describe("Catalog ID"),
+      databaseName: z.string(reqField("databaseName")).describe("Database name"),
+      tableName: z.string(reqField("tableName")).describe("Table name"),
       tagKeyTypeValueList: z
         .array(TAG_ITEM_SCHEMA)
         .describe("Full replacement tag list. Every existing tag not present here is deleted; pass [] to remove all tags"),
@@ -488,12 +489,12 @@ export function registerDataCatalogTools(server: McpServer, client: NcloudClient
     "ncloud_datacatalog_create_scanner",
     "Create a scanner that registers a data source as catalog tables — the standard path for exposing Object Storage or Iceberg data (and Cloud DB / JDBC sources) as queryable tables. Creating a scanner does not scan: run it with ncloud_datacatalog_run_scanner (or set scheduleType=CRON). Use dryRun=true to preview without creating.",
     {
-      catalogId: z.number({ required_error: requiredError("catalogId") }).describe("Catalog ID (from getCatalogs)"),
-      name: z.string({ required_error: requiredError("name") }).describe("Scanner name"),
+      catalogId: z.number(reqField("catalogId")).describe("Catalog ID (from getCatalogs)"),
+      name: z.string(reqField("name")).describe("Scanner name"),
       type: z
         .enum(["OBJECT_STORAGE", "ICEBERG", "CLOUD_DB_FOR_MYSQL", "CLOUD_DB_FOR_MSSQL", "CLOUD_DB_FOR_MONGODB", "CLOUD_DB_FOR_POSTGRESQL", "JDBC"])
         .describe("Data source type. OBJECT_STORAGE / ICEBERG require location; the Cloud DB types and JDBC require connectionId"),
-      databaseName: z.string({ required_error: requiredError("databaseName") }).describe("Output database name — where the scanned tables are created"),
+      databaseName: z.string(reqField("databaseName")).describe("Output database name — where the scanned tables are created"),
       scheduleType: z.enum(["ON_DEMAND", "CRON"]).describe("Run schedule. ON_DEMAND: only when requested, CRON: on a cron schedule (schedule is then required)"),
       opAddType: z
         .enum(["ADD_NEW_COLUMNS_ONLY", "UPDATE_TABLE", "IGNORE_UPDATE"])

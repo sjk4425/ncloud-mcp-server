@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { withQuery } from "./_query.js";
 
@@ -26,9 +27,9 @@ const recordsPath = (domainNo: number) => `${domainPath(domainNo)}/records`;
 const RECORD_TYPES = ["A", "AAAA", "CAA", "CNAME", "DS", "MX", "NS", "PTR", "SPF", "SRV", "TXT"] as const;
 const TIME_UNITS = ["MINUTE_1", "MINUTE_5", "MINUTE_30", "HOUR_3", "DAY_1"] as const;
 
-const DOMAIN_NO = z.number({ required_error: requiredError("domainNo") }).int().describe("Domain number (domainNo, see ncloud_dns_list_domains)");
-const RECORD_NO = z.number({ required_error: requiredError("recordNo") }).int().describe("Record number (recordNo, see ncloud_dns_list_records)");
-const OPERATION_ID = z.string({ required_error: requiredError("operationId") }).min(1).describe("Operation ID returned by an async (202) call");
+const DOMAIN_NO = z.number(reqField("domainNo")).int().describe("Domain number (domainNo, see ncloud_dns_list_domains)");
+const RECORD_NO = z.number(reqField("recordNo")).int().describe("Record number (recordNo, see ncloud_dns_list_records)");
+const OPERATION_ID = z.string(reqField("operationId")).min(1).describe("Operation ID returned by an async (202) call");
 const PAGE_NO = z.number().int().min(0).optional().describe("Page number (0-based, default 0)");
 const PAGE_SIZE = z.number().int().min(1).max(1000).optional().describe("Page size (1-1000, default 20)");
 const DRY_RUN = z.boolean().optional().default(false).describe("If true, returns a preview of the request without calling the API");
@@ -44,9 +45,9 @@ const OPERATION_SORT = sortSchema(/^(metadata\.startDateTime|metadata\.endDateTi
 /** v2 RecordSpec — 단건 생성/수정과 배치 생성/수정이 공유한다. */
 const RECORD_SPEC_SHAPE = {
   host: z.string().max(255).optional().describe('Host label. "" or "@" or omitted = zone apex'),
-  type: z.enum(RECORD_TYPES, { required_error: requiredError("type") }).describe("Record type"),
-  content: z.string({ required_error: requiredError("content") }).min(1).describe("Record value. Put multiple values on separate lines (newline-separated)"),
-  ttl: z.number({ required_error: requiredError("ttl") }).int().min(0).max(2147483647).describe("TTL in seconds (0-2147483647)"),
+  type: z.enum(RECORD_TYPES, reqField("type")).describe("Record type"),
+  content: z.string(reqField("content")).min(1).describe("Record value. Put multiple values on separate lines (newline-separated)"),
+  ttl: z.number(reqField("ttl")).int().min(0).max(2147483647).describe("TTL in seconds (0-2147483647)"),
   aliasNo: z.number().int().optional().describe("Alias target record number (optional)"),
   loadBalancerNo: z.number().int().optional().describe("Load balancer number to link (requires loadBalancerRegionCode; see ncloud_dns_list_lb_records)"),
   loadBalancerRegionCode: z.string().optional().describe("Region code of the linked load balancer (required with loadBalancerNo)"),
@@ -63,7 +64,7 @@ type RecordSpec = {
 };
 
 const RECORD_SPEC = z.object(RECORD_SPEC_SHAPE);
-const RECORD_SPEC_WITH_NO = z.object({ recordNo: z.number({ required_error: requiredError("recordNo") }).int().describe("Record number to update"), ...RECORD_SPEC_SHAPE });
+const RECORD_SPEC_WITH_NO = z.object({ recordNo: z.number(reqField("recordNo")).int().describe("Record number to update"), ...RECORD_SPEC_SHAPE });
 
 /** 전송 본문 정리 — undefined 필드 제거(얕은 복사). */
 function compact(o: object): Record<string, unknown> {
@@ -127,8 +128,8 @@ export function registerGlobalDnsV2Tools(server: McpServer, client: NcloudClient
     "ncloud_dns_create_domain",
     `Create a Global DNS domain (v2). ${ASYNC_NOTE}ncloud_dns_get_domain_operation until done=true. Use dryRun=true to preview.`,
     {
-      name: z.string({ required_error: requiredError("name") }).min(1).max(255).describe("Domain name (FQDN, max 255 chars, e.g. example.com)"),
-      dnssecEnabled: z.boolean({ required_error: requiredError("dnssecEnabled") }).describe("Whether to enable DNSSEC"),
+      name: z.string(reqField("name")).min(1).max(255).describe("Domain name (FQDN, max 255 chars, e.g. example.com)"),
+      dnssecEnabled: z.boolean(reqField("dnssecEnabled")).describe("Whether to enable DNSSEC"),
       description: z.string().max(1000).optional().describe("Domain description (max 1000 chars)"),
       dryRun: DRY_RUN,
     },
@@ -149,7 +150,7 @@ export function registerGlobalDnsV2Tools(server: McpServer, client: NcloudClient
     `Update a Global DNS domain (v2). Full replacement: an omitted description is cleared. ${ASYNC_NOTE}ncloud_dns_get_domain_operation until done=true. Use dryRun=true to preview.`,
     {
       domainNo: DOMAIN_NO,
-      dnssecEnabled: z.boolean({ required_error: requiredError("dnssecEnabled") }).describe("Whether DNSSEC is enabled"),
+      dnssecEnabled: z.boolean(reqField("dnssecEnabled")).describe("Whether DNSSEC is enabled"),
       description: z.string().max(1000).optional().describe("Domain description (max 1000 chars). Omit to clear it"),
       dryRun: DRY_RUN,
     },
@@ -247,7 +248,7 @@ export function registerGlobalDnsV2Tools(server: McpServer, client: NcloudClient
     `Create 1-500 DNS records in a Global DNS domain (v2) in one all-or-nothing batch. ${PENDING_NOTE} Use dryRun=true to preview.`,
     {
       domainNo: DOMAIN_NO,
-      records: z.array(RECORD_SPEC, { required_error: requiredError("records") }).min(1).max(500).describe("Records to create (1-500)"),
+      records: z.array(RECORD_SPEC, reqField("records")).min(1).max(500).describe("Records to create (1-500)"),
       dryRun: DRY_RUN,
     },
     async (params) => {
@@ -286,7 +287,7 @@ export function registerGlobalDnsV2Tools(server: McpServer, client: NcloudClient
     `Update 1-500 DNS records of a Global DNS domain (v2) in one batch. Each entry is a full replacement identified by recordNo. ${PENDING_NOTE} Use dryRun=true to preview.`,
     {
       domainNo: DOMAIN_NO,
-      records: z.array(RECORD_SPEC_WITH_NO, { required_error: requiredError("records") }).min(1).max(500).describe("Records to update (1-500), each with recordNo"),
+      records: z.array(RECORD_SPEC_WITH_NO, reqField("records")).min(1).max(500).describe("Records to update (1-500), each with recordNo"),
       dryRun: DRY_RUN,
     },
     async (params) => {
@@ -316,7 +317,7 @@ export function registerGlobalDnsV2Tools(server: McpServer, client: NcloudClient
     `⚠️ Destructive: Delete 1-500 DNS records from a Global DNS domain (v2) in one batch. Default records (SOA/NS/DS) cannot be deleted. ${PENDING_NOTE} Set confirm=true to execute.`,
     {
       domainNo: DOMAIN_NO,
-      recordNos: z.array(z.number().int(), { required_error: requiredError("recordNos") }).min(1).max(500).describe("Record numbers to delete (1-500)"),
+      recordNos: z.array(z.number().int(), reqField("recordNos")).min(1).max(500).describe("Record numbers to delete (1-500)"),
     },
     async (params) => client.requestRaw("POST", `${recordsPath(params.domainNo)}/batch-delete`, undefined, { recordNos: params.recordNos }),
     { destructive: { message: (p) => `⚠️ This will delete ${p.recordNos?.length ?? 0} DNS record(s) from Domain [${p.domainNo}] (effective after ncloud_dns_apply_domain).\n\nTo execute, call this tool again with confirm=true.` } }
@@ -396,7 +397,7 @@ export function registerGlobalDnsV2Tools(server: McpServer, client: NcloudClient
     "Get Global DNS query statistics (v2). Without domainNo returns account-wide (member) statistics; with domainNo returns that domain's statistics. " +
       'Optional filter narrows the time range, e.g. "baseTimestamp >= 1568111263000 AND baseTimestamp < 1568711263000" (epoch ms).',
     {
-      baseTimeUnit: z.enum(TIME_UNITS, { required_error: requiredError("baseTimeUnit") }).describe("Aggregation unit"),
+      baseTimeUnit: z.enum(TIME_UNITS, reqField("baseTimeUnit")).describe("Aggregation unit"),
       domainNo: z.number().int().optional().describe("Domain number. Omit for account-wide statistics"),
       filter: z.string().optional().describe('Filter expression, e.g. "baseTimestamp >= 1568111263000 AND baseTimestamp < 1568711263000"'),
     },

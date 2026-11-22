@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { withQuery } from "./_query.js";
 
@@ -51,7 +52,7 @@ const ALLOW_SOURCE_SCHEMA = z.object({
 /** 정책 권한 대상. */
 const POLICY_TARGET_SCHEMA = z.object({
   product: z
-    .string({ required_error: requiredError("product") })
+    .string(reqField("product"))
     .describe("Service (product) code of the target service, e.g. IAM, Server, ObjectStorage"),
   actions: z
     .array(z.string())
@@ -84,12 +85,12 @@ const PERMISSIONS_SCHEMA = z
   .array(POLICY_PERMISSION_SCHEMA)
   .min(1, { message: L({ ko: "permissions는 최소 1개 이상이어야 합니다.", en: "permissions must contain at least one entry." }) });
 
-const SUB_ACCOUNT_ID = z.string({ required_error: requiredError("subAccountId") }).describe("Sub account ID (UUID, see ncloud_list_sub_accounts)");
-const GROUP_ID = z.string({ required_error: requiredError("groupId") }).describe("Group ID (UUID, see ncloud_list_groups)");
-const POLICY_ID = z.string({ required_error: requiredError("policyId") }).describe("Policy ID (UUID, see ncloud_list_policies)");
-const ROLE_ID = z.string({ required_error: requiredError("roleId") }).describe("Role ID (UUID, see ncloud_list_roles)");
+const SUB_ACCOUNT_ID = z.string(reqField("subAccountId")).describe("Sub account ID (UUID, see ncloud_list_sub_accounts)");
+const GROUP_ID = z.string(reqField("groupId")).describe("Group ID (UUID, see ncloud_list_groups)");
+const POLICY_ID = z.string(reqField("policyId")).describe("Policy ID (UUID, see ncloud_list_policies)");
+const ROLE_ID = z.string(reqField("roleId")).describe("Role ID (UUID, see ncloud_list_roles)");
 const ACCESS_KEY = z
-  .string({ required_error: requiredError("accessKey") })
+  .string(reqField("accessKey"))
   .regex(/^(ncp_iam_[A-Za-z0-9_]{20}|[A-Za-z0-9]{20})$/, "accessKey must be a 28-char ncp_iam_ key or a legacy 20-char alphanumeric key")
   .describe("Access key (28-char ncp_iam_… or legacy 20-char alphanumeric; see ncloud_list_sub_account_access_keys)");
 
@@ -160,10 +161,10 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "ncloud_create_sub_account",
     "Create a new sub account (IAM user). Either give password, or set passwordGenerationRequired=true to have one generated — a generated password (generatedPassword) is returned ONLY in this response and cannot be retrieved later, so store it securely and do not paste it into shared logs. In the government zone the user is always asked to change the password at first login. Use dryRun=true to preview without creating.",
     {
-      loginId: z.string({ required_error: requiredError("loginId") }).min(3).max(60).describe("Login ID, unique in the account (3-60 chars)"),
-      name: z.string({ required_error: requiredError("name") }).describe("Display name (2-30 chars after trimming)"),
-      apiGatewayAccessible: z.boolean({ required_error: requiredError("apiGatewayAccessible") }).describe("Allow API Gateway access (needed to issue access keys)"),
-      consoleAccessible: z.boolean({ required_error: requiredError("consoleAccessible") }).describe("Allow management console access"),
+      loginId: z.string(reqField("loginId")).min(3).max(60).describe("Login ID, unique in the account (3-60 chars)"),
+      name: z.string(reqField("name")).describe("Display name (2-30 chars after trimming)"),
+      apiGatewayAccessible: z.boolean(reqField("apiGatewayAccessible")).describe("Allow API Gateway access (needed to issue access keys)"),
+      consoleAccessible: z.boolean(reqField("consoleAccessible")).describe("Allow management console access"),
       email: z.string().optional().describe("Email address"),
       password: z.string().optional().describe("Initial password. Required unless passwordGenerationRequired=true (ignored when it is true)"),
       passwordGenerationRequired: z.boolean().optional().describe("true: generate a random password, returned once in the response (default false)"),
@@ -307,7 +308,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "Replace a sub account's API access-source restriction. apiAllowSources REPLACES the whole existing list — read the current one with ncloud_get_sub_account_api_access_rule first. Use dryRun=true to preview.",
     {
       subAccountId: SUB_ACCOUNT_ID,
-      apiAllowSourceEnabled: z.boolean({ required_error: requiredError("apiAllowSourceEnabled") }).describe("true: only apiAllowSources may use this account's access keys; false: no restriction"),
+      apiAllowSourceEnabled: z.boolean(reqField("apiAllowSourceEnabled")).describe("true: only apiAllowSources may use this account's access keys; false: no restriction"),
       apiAllowSources: z.array(ALLOW_SOURCE_SCHEMA).optional().describe("Full replacement list of allowed sources. Required when apiAllowSourceEnabled=true"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without updating"),
     },
@@ -342,7 +343,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "Replace a sub account's console IP restriction. consolePermitIpAddresses REPLACES the whole existing list — read the current one with ncloud_get_sub_account_console_access_rule first. Use dryRun=true to preview.",
     {
       subAccountId: SUB_ACCOUNT_ID,
-      consolePermitIpEnabled: z.boolean({ required_error: requiredError("consolePermitIpEnabled") }).describe("true: console sign-in only from consolePermitIpAddresses; false: no restriction"),
+      consolePermitIpEnabled: z.boolean(reqField("consolePermitIpEnabled")).describe("true: console sign-in only from consolePermitIpAddresses; false: no restriction"),
       consolePermitIpAddresses: z.array(z.string()).max(100).optional().describe("Full replacement list of allowed IPs/CIDRs (IPv4/IPv6), 0-100. Required when consolePermitIpEnabled=true"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without updating"),
     },
@@ -388,7 +389,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     {
       subAccountId: SUB_ACCOUNT_ID,
       accessKey: ACCESS_KEY,
-      active: z.boolean({ required_error: requiredError("active") }).describe("true: activate, false: deactivate"),
+      active: z.boolean(reqField("active")).describe("true: activate, false: deactivate"),
     },
     async (params) =>
       client.requestRaw(
@@ -534,7 +535,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "ncloud_create_group",
     "Create a new IAM group. Groups have no description field — use tags to annotate. Use dryRun=true to preview without creating.",
     {
-      groupName: z.string({ required_error: requiredError("groupName") }).min(3).max(30).describe("Group name (3-30 chars)"),
+      groupName: z.string(reqField("groupName")).min(3).max(30).describe("Group name (3-30 chars)"),
       tags: TAGS_SCHEMA,
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the group"),
     },
@@ -555,7 +556,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "Rename an IAM group (PATCH).",
     {
       groupId: GROUP_ID,
-      groupName: z.string({ required_error: requiredError("groupName") }).min(3).max(30).describe("New group name (3-30 chars)"),
+      groupName: z.string(reqField("groupName")).min(3).max(30).describe("New group name (3-30 chars)"),
     },
     async (params) => client.requestRaw("PATCH", `${BASE}/groups/${enc(params.groupId)}`, undefined, { groupName: params.groupName })
   );
@@ -692,7 +693,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "ncloud_validate_policy",
     "Validate a user-created policy definition on the SERVER before creating it (calls the real validation API; nothing is created). Unlike dryRun, this catches invalid products, actions, NRNs and conditions.",
     {
-      policyName: z.string({ required_error: requiredError("policyName") }).min(3).max(30).describe("Policy name (3-30 chars)"),
+      policyName: z.string(reqField("policyName")).min(3).max(30).describe("Policy name (3-30 chars)"),
       permissions: PERMISSIONS_SCHEMA.describe("Permission statements to validate"),
       description: z.string().max(300).optional().describe("Description (up to 300 chars)"),
       tags: TAGS_SCHEMA,
@@ -711,7 +712,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "ncloud_create_policy",
     "Create a user-created (custom) IAM policy with explicit Allow/Deny permission statements, to scope access to specific actions and resources. Use ncloud_validate_policy first for real server-side validation; dryRun=true only echoes the request.",
     {
-      policyName: z.string({ required_error: requiredError("policyName") }).min(3).max(30).describe("Policy name (3-30 chars)"),
+      policyName: z.string(reqField("policyName")).min(3).max(30).describe("Policy name (3-30 chars)"),
       permissions: PERMISSIONS_SCHEMA.describe("Permission statements: each allows or denies a set of actions on resource NRNs of one or more services"),
       description: z.string().max(300).optional().describe("Description (up to 300 chars)"),
       tags: TAGS_SCHEMA,
@@ -817,9 +818,9 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "ncloud_create_role",
     "Create a new IAM role. A role grants nothing until policies are attached (ncloud_attach_policy_to_role) and a target is set — ncloud_attach_role_entities for Server/Service roles, ncloud_attach_role_account for Account roles. sessionExpirationSeconds is required for Account roles and rejected for other types. Use dryRun=true to preview without creating.",
     {
-      roleName: z.string({ required_error: requiredError("roleName") }).min(3).max(100).describe("Role name (3-100 chars)"),
+      roleName: z.string(reqField("roleName")).min(3).max(100).describe("Role name (3-100 chars)"),
       roleType: z
-        .enum(["Server", "Account", "Service"], { required_error: requiredError("roleType") })
+        .enum(["Server", "Account", "Service"], reqField("roleType"))
         .describe("Role type: Server (granted to server instances), Account (assumed by another account via role switching), Service (granted to a service product)"),
       sessionExpirationSeconds: z
         .union([z.literal(600), z.literal(1800)])
@@ -881,7 +882,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "Activate or deactivate an IAM role. A deactivated role is kept but cannot be used.",
     {
       roleId: ROLE_ID,
-      active: z.boolean({ required_error: requiredError("active") }).describe("true: activate, false: deactivate"),
+      active: z.boolean(reqField("active")).describe("true: activate, false: deactivate"),
     },
     async (params) => client.requestRaw("POST", `${BASE}/roles/${enc(params.roleId)}/change-status`, undefined, { active: params.active })
   );
@@ -977,7 +978,7 @@ export function registerSubAccountV2Tools(server: McpServer, client: NcloudClien
     "Set the target account of an Account role (the account allowed to switch into this role). ownAccount=true targets your own account; otherwise give accountName and loginId of the other account (400 if no account matches both).",
     {
       roleId: ROLE_ID,
-      ownAccount: z.boolean({ required_error: requiredError("ownAccount") }).describe("true: target the caller's own account (accountName/loginId ignored); false: target the account given by accountName + loginId"),
+      ownAccount: z.boolean(reqField("ownAccount")).describe("true: target the caller's own account (accountName/loginId ignored); false: target the account given by accountName + loginId"),
       accountName: z.string().optional().describe("Owner name of the target account. Required when ownAccount=false"),
       loginId: z.string().max(100).optional().describe("Login ID (usually an email) of the target account owner. Required when ownAccount=false"),
     },

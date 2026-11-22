@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { liveStationPathPrefix, type Zone } from "../client/endpoints.js";
 
@@ -38,7 +38,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_get_channel",
     "Get detailed information about a specific Live Station channel including streaming URLs and CDN settings",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID (e.g., ls-20250820xxxxxx)"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID (e.g., ls-20250820xxxxxx)"),
     },
     async (params) => {
       return client.request(`${P}/channels/${params.channelId}`);
@@ -52,16 +52,16 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_create_channel",
     "Create a new Live Station channel for live streaming. Use dryRun=true to preview without creating.",
     {
-      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars, Korean/English/numbers/_)"),
+      channelName: z.string(reqField("channelName")).describe("Channel name (3-20 chars, Korean/English/numbers/_)"),
       envType: z.enum(["REAL", "DEV", "STAGE"]).optional().default("REAL").describe("Channel environment type"),
       outputProtocol: z.enum(["HLS", "LL_HLS", "HLS,DASH"]).optional().default("HLS").describe("Output protocol: HLS, LL_HLS (low-latency), or HLS,DASH (both)"),
-      createCdn: z.boolean({ required_error: requiredError("createCdn") }).describe("Whether to create a new CDN (true) or use existing (false)"),
-      cdnProfileId: z.number({ required_error: requiredError("cdnProfileId") }).describe("Global Edge profile ID"),
+      createCdn: z.boolean(reqField("createCdn")).describe("Whether to create a new CDN (true) or use existing (false)"),
+      cdnProfileId: z.number(reqField("cdnProfileId")).describe("Global Edge profile ID"),
       cdnRegionType: z.enum(["KOREA", "JAPAN", "GLOBAL"]).optional().describe("CDN service region (required when createCdn=true)"),
       cdnDomain: z.string().optional().describe("Existing Global Edge domain (required when createCdn=false)"),
       cdnInstanceNo: z.number().optional().describe("Existing Global Edge instance ID (required when createCdn=false)"),
-      qualitySetId: z.number({ required_error: requiredError("qualitySetId") }).describe("Image quality setting ID (from quality settings list)"),
-      useDvr: z.boolean({ required_error: requiredError("useDvr") }).describe("Time machine (DVR) setting: true to enable rewind"),
+      qualitySetId: z.number(reqField("qualitySetId")).describe("Image quality setting ID (from quality settings list)"),
+      useDvr: z.boolean(reqField("useDvr")).describe("Time machine (DVR) setting: true to enable rewind"),
       timemachineMin: z.number().optional().describe("Time machine allowance in minutes (360, required if useDvr=true)"),
       immediateOnAir: z.boolean().optional().default(false).describe("Auto-recording on stream start"),
       recordType: z.enum(["NO_RECORD", "AUTO_UPLOAD", "MANUAL_UPLOAD"]).optional().default("NO_RECORD").describe("Recording storage type"),
@@ -133,7 +133,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_delete_channel",
     "⚠️ Destructive: Permanently terminate a Live Station channel. End broadcast streaming before terminating. Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to terminate"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to terminate"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -166,7 +166,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_get_service_url",
     "Get the streaming service URLs (publish/play) for a Live Station channel",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to get service URLs for"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to get service URLs for"),
     },
     async (params) => {
       return client.request(`${P}/channels/${params.channelId}/serviceUrls`);
@@ -180,7 +180,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_stop_channel",
     "⚠️ Destructive: Stop a Live Station channel. The channel will be suspended and streaming will be interrupted. Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to stop"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to stop"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -196,7 +196,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_resume_channel",
     "Resume a stopped Live Station channel to make it active again for streaming",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to resume"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to resume"),
     },
     async (params) => {
       // 가이드 경로는 /on (media-livestation-channel-channelon) — 예전 /resume 은 잘못된 경로였다.
@@ -209,7 +209,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_update_channel",
     "Update configuration of a Live Station channel (CDN, quality, recording, DVR settings)",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to update"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to update"),
       channelName: z.string().optional().describe("New channel name (3-20 chars)"),
       qualitySetId: z.number().optional().describe("New image quality setting ID"),
       useDvr: z.boolean().optional().describe("Time machine (DVR) setting"),
@@ -252,7 +252,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_start_record",
     "Start manual recording for a Live Station channel that is currently streaming",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to start recording"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to start recording"),
     },
     async (params) => {
       // 가이드 경로는 /startRecord (media-livestation-recording-recordingstart) — 예전 /record/start 는 잘못된 경로였다.
@@ -265,7 +265,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_stop_record",
     "Stop manual recording for a Live Station channel",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to stop recording"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to stop recording"),
     },
     async (params) => {
       // 가이드 경로는 /stopRecord (media-livestation-recording-recordingstop).
@@ -280,7 +280,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_switch_stream",
     "Switch the active input stream of a Live Station channel to its standby stream (channel-stream-switch).",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID whose stream to switch"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID whose stream to switch"),
     },
     async (params) => {
       // 가이드 channel-stream-switch: PUT /api/v2/channels/{channelId}/switch-stream (민간·금융). 금융존 페이지는 /api/v2 로 적혀 있지만
@@ -313,7 +313,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_get_vod_channel",
     "Get details of a Live Station VOD-to-Live channel (vodchannelinfo).",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("VOD-to-Live channel ID (see ncloud_livestation_list_vod_channels)"),
+      channelId: z.string(reqField("channelId")).describe("VOD-to-Live channel ID (see ncloud_livestation_list_vod_channels)"),
     },
     async (params) => {
       return client.request(`${VOD}/${params.channelId}`);
@@ -327,8 +327,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       ? "Create a Live Station VOD-to-Live channel (Financial zone: vod-to-live-management). CDN is CDN+ — set createCdn=false with cdnInstanceNo to reuse an existing CDN+ instance. Use dryRun=true to preview."
       : "Create a Live Station VOD-to-Live channel (vodchannelcreate). CDN is Global Edge — give profileId, and either createCdn=true with regionType or createCdn=false with cdnDomain + cdnInstanceNo. Use dryRun=true to preview.",
     {
-      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars: Korean, letters, digits, '_')"),
-      createCdn: z.boolean({ required_error: requiredError("createCdn") }).describe("true to create a new CDN, false to use an existing one"),
+      channelName: z.string(reqField("channelName")).describe("Channel name (3-20 chars: Korean, letters, digits, '_')"),
+      createCdn: z.boolean(reqField("createCdn")).describe("true to create a new CDN, false to use an existing one"),
       cdnType: fin
         ? z.enum(["CDN_PLUS"]).optional().default("CDN_PLUS").describe("CDN type (Financial zone: CDN_PLUS)")
         : z.enum(["GLOBAL_EDGE"]).optional().default("GLOBAL_EDGE").describe("CDN type (Public zone: GLOBAL_EDGE)"),
@@ -338,7 +338,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
       cdnDomain: z.string().optional().describe("Existing CDN domain (required when createCdn=false in the Public zone; see ncloud_edge_list_edges)"),
       cdnInstanceNo: z.number().optional().describe("Existing CDN instance number (required when createCdn=false)"),
       regionType: z.enum(["KOREA", "JAPAN", "GLOBAL"]).optional().describe("Global Edge service region (required when createCdn=true in the Public zone)"),
-      qualitySetId: z.number({ required_error: requiredError("qualitySetId") }).describe("Quality set ID (see ncloud_livestation_list_quality_settings; pick a Low Latency set for LL_HLS)"),
+      qualitySetId: z.number(reqField("qualitySetId")).describe("Quality set ID (see ncloud_livestation_list_quality_settings; pick a Low Latency set for LL_HLS)"),
       envType: z.enum(["REAL", "DEV", "STAGE"]).optional().describe("Channel environment type (default REAL)"),
       outputProtocol: z.enum(["HLS", "LL_HLS", "HLS,DASH"]).optional().describe("Output protocol (default HLS)"),
       drmEnabledYn: z.boolean().optional().describe("Enable Multi DRM (Public zone; required there — defaults to false)"),
@@ -414,8 +414,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_update_vod_channel",
     "Update a Live Station VOD-to-Live channel's name, environment type or output protocol (vodchannelupdate).",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("VOD-to-Live channel ID"),
-      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars: Korean, letters, digits, '_') — required by the API even when unchanged"),
+      channelId: z.string(reqField("channelId")).describe("VOD-to-Live channel ID"),
+      channelName: z.string(reqField("channelName")).describe("Channel name (3-20 chars: Korean, letters, digits, '_') — required by the API even when unchanged"),
       envType: z.enum(["REAL", "DEV", "STAGE"]).optional().describe("Channel environment type"),
       outputProtocol: z.enum(["HLS", "LL_HLS", "HLS,DASH"]).optional().describe("Output protocol"),
     },
@@ -432,7 +432,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_delete_vod_channel",
     "⚠️ Destructive: Permanently delete a Live Station VOD-to-Live channel (vodchanneldelete). Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("VOD-to-Live channel ID to delete"),
+      channelId: z.string(reqField("channelId")).describe("VOD-to-Live channel ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -446,7 +446,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_start_vod_channel",
     "Turn a Live Station VOD-to-Live channel on (vodchannelon).",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("VOD-to-Live channel ID to turn on"),
+      channelId: z.string(reqField("channelId")).describe("VOD-to-Live channel ID to turn on"),
     },
     async (params) => {
       return client.putRequest(`${VOD}/${params.channelId}/on`, {});
@@ -458,7 +458,7 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_stop_vod_channel",
     "⚠️ Destructive: Turn a Live Station VOD-to-Live channel off (vodchanneloff); playback is interrupted. Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("VOD-to-Live channel ID to turn off"),
+      channelId: z.string(reqField("channelId")).describe("VOD-to-Live channel ID to turn off"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -472,8 +472,8 @@ export function registerLiveStationTools(server: McpServer, client: NcloudClient
     "ncloud_livestation_get_vod_service_url",
     "Get the playback (GENERAL: HLS / MPEG-DASH) or thumbnail (THUMBNAIL) service URLs of a Live Station VOD-to-Live channel (vodserviceurl).",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("VOD-to-Live channel ID"),
-      serviceUrlType: z.enum(["GENERAL", "THUMBNAIL"], { required_error: requiredError("serviceUrlType") }).describe("GENERAL for playback URLs, THUMBNAIL for thumbnail image URLs (required)"),
+      channelId: z.string(reqField("channelId")).describe("VOD-to-Live channel ID"),
+      serviceUrlType: z.enum(["GENERAL", "THUMBNAIL"], reqField("serviceUrlType")).describe("GENERAL for playback URLs, THUMBNAIL for thumbnail image URLs (required)"),
     },
     async (params) => {
       return client.request(`${VOD}/${params.channelId}/serviceUrls`, { serviceUrlType: params.serviceUrlType });

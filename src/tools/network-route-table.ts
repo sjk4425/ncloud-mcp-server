@@ -2,8 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { cidrMessage, maxLenMessage, requiredError } from "./_messages.js";
+import { cidrMessage, maxLenMessage } from "./_messages.js";
 
+import { reqField } from "./_zod.js";
 export function registerRouteTableTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
@@ -54,8 +55,8 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     "ncloud_create_route_table",
     "Create a new route table in a VPC",
     {
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number to create route table in"),
-      supportedSubnetTypeCode: z.string({ required_error: requiredError("supportedSubnetTypeCode") }).describe("Supported subnet type (PUBLIC or PRIVATE)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number to create route table in"),
+      supportedSubnetTypeCode: z.string(reqField("supportedSubnetTypeCode")).describe("Supported subnet type (PUBLIC or PRIVATE)"),
       routeTableName: z.string().max(30, {
         message: maxLenMessage("routeTableName", 30),
       }).optional().describe("Route table name (max 30 characters)"),
@@ -73,15 +74,15 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     "ncloud_add_route",
     "Add a route to a route table",
     {
-      routeTableNo: z.string({ required_error: requiredError("routeTableNo") }).describe("Route table number"),
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number"),
-      destinationCidrBlock: z.string({ required_error: requiredError("destinationCidrBlock") }).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
+      routeTableNo: z.string(reqField("routeTableNo")).describe("Route table number"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      destinationCidrBlock: z.string(reqField("destinationCidrBlock")).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
         message: cidrMessage("destinationCidrBlock", "0.0.0.0/0"),
       }).describe("Destination CIDR block (e.g., 0.0.0.0/0)"),
-      targetTypeCode: z.string({ required_error: requiredError("targetTypeCode") }).describe("Target type code (NATGW, VPCPEERING, VGW)"),
-      targetNo: z.string({ required_error: requiredError("targetNo") }).describe("Target instance number"),
+      targetTypeCode: z.string(reqField("targetTypeCode")).describe("Target type code (NATGW, VPCPEERING, VGW)"),
+      targetNo: z.string(reqField("targetNo")).describe("Target instance number"),
       // 가이드 networking-vpc-routetable-addroute: routeList.N.targetName 은 Required(세 존 동일).
-      targetName: z.string({ required_error: requiredError("targetName") }).describe("Target name (NAT Gateway / VPC Peering / VGW name)"),
+      targetName: z.string(reqField("targetName")).describe("Target name (NAT Gateway / VPC Peering / VGW name)"),
     },
     async (params) => {
       const { routeTableNo, vpcNo, destinationCidrBlock, targetTypeCode, targetNo, targetName } = params;
@@ -119,9 +120,9 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     "ncloud_add_route_table_subnet",
     "Associate a subnet with a route table",
     {
-      routeTableNo: z.string({ required_error: requiredError("routeTableNo") }).describe("Route table number"),
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number"),
-      subnetNo: z.string({ required_error: requiredError("subnetNo") }).describe("Subnet number to associate"),
+      routeTableNo: z.string(reqField("routeTableNo")).describe("Route table number"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number to associate"),
     },
     async (params) => {
       const { routeTableNo, vpcNo, subnetNo } = params;
@@ -140,9 +141,9 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     "ncloud_remove_route_table_subnet",
     "⚠️ Destructive: Remove a subnet association from a route table. Set confirm=true to execute.",
     {
-      routeTableNo: z.string({ required_error: requiredError("routeTableNo") }).describe("Route table number"),
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number"),
-      subnetNo: z.string({ required_error: requiredError("subnetNo") }).describe("Subnet number to remove from route table"),
+      routeTableNo: z.string(reqField("routeTableNo")).describe("Route table number"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number to remove from route table"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -165,8 +166,8 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     "ncloud_set_route_table_description",
     "Update the description of a route table",
     {
-      routeTableNo: z.string({ required_error: requiredError("routeTableNo") }).describe("Route table number"),
-      routeTableDescription: z.string({ required_error: requiredError("routeTableDescription") }).describe("New description for the route table"),
+      routeTableNo: z.string(reqField("routeTableNo")).describe("Route table number"),
+      routeTableDescription: z.string(reqField("routeTableDescription")).describe("New description for the route table"),
     },
     async (params) => {
       return client.request("/vpc/v2/setRouteTableDescription", params);
@@ -180,7 +181,7 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     "ncloud_delete_route_table",
     "⚠️ Destructive: Permanently delete a route table. Set confirm=true to execute.",
     {
-      routeTableNo: z.string({ required_error: requiredError("routeTableNo") }).describe("Route table number to delete"),
+      routeTableNo: z.string(reqField("routeTableNo")).describe("Route table number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -196,16 +197,16 @@ export function registerRouteTableTools(server: McpServer, client: NcloudClient)
     "ncloud_remove_route",
     "⚠️ Destructive: Remove a route from a route table. Set confirm=true to execute.",
     {
-      routeTableNo: z.string({ required_error: requiredError("routeTableNo") }).describe("Route table number"),
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number"),
-      destinationCidrBlock: z.string({ required_error: requiredError("destinationCidrBlock") }).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
+      routeTableNo: z.string(reqField("routeTableNo")).describe("Route table number"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      destinationCidrBlock: z.string(reqField("destinationCidrBlock")).regex(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/, {
         message: cidrMessage("destinationCidrBlock", "0.0.0.0/0"),
       }).describe("Destination CIDR block of the route to remove"),
-      targetTypeCode: z.string({ required_error: requiredError("targetTypeCode") }).describe("Target type code (NATGW, VPCPEERING, VGW)"),
-      targetNo: z.string({ required_error: requiredError("targetNo") }).describe("Target instance number"),
+      targetTypeCode: z.string(reqField("targetTypeCode")).describe("Target type code (NATGW, VPCPEERING, VGW)"),
+      targetNo: z.string(reqField("targetNo")).describe("Target instance number"),
       // 가이드 networking-vpc-routetable-removeroute: routeList.N.targetName Required(세 존 동일) — 없으면 900
       //   으로 경로를 지울 수 없었다(금융존 테스트 E-09). ncloud_get_routes 의 targetName 값을 그대로 넘긴다.
-      targetName: z.string({ required_error: requiredError("targetName") }).describe("Target name of the route (see ncloud_get_routes)"),
+      targetName: z.string(reqField("targetName")).describe("Target name of the route (see ncloud_get_routes)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

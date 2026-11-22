@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -40,7 +41,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_get_profile",
     "Get a specific Global Edge profile by ID (the API has no single-profile endpoint; this filters the profile list)",
     {
-      profileId: z.number({ required_error: requiredError("profileId") }).describe("Profile ID to query"),
+      profileId: z.number(reqField("profileId")).describe("Profile ID to query"),
     },
     async (params) => {
       const result = await client.requestRaw("GET", "/api/v1/profiles");
@@ -61,7 +62,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_check_profile_name",
     "Check whether a Global Edge profile name is available (duplicate check)",
     {
-      name: z.string({ required_error: requiredError("name") }).describe("Profile name to check (3-35 chars: letters, digits, '-', '_')"),
+      name: z.string(reqField("name")).describe("Profile name to check (3-35 chars: letters, digits, '-', '_')"),
     },
     async (params) => {
       return client.requestRaw("GET", "/api/v1/profiles/validation", { name: params.name });
@@ -73,7 +74,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_create_profile",
     "Create a new Global Edge CDN profile",
     {
-      name: z.string({ required_error: requiredError("name") }).describe("Name for the new profile (3-35 chars: letters, digits, '-', '_')"),
+      name: z.string(reqField("name")).describe("Name for the new profile (3-35 chars: letters, digits, '-', '_')"),
     },
     async (params) => {
       return client.postRequest("/api/v1/profile", { name: params.name });
@@ -85,8 +86,8 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_rename_profile",
     "Rename an existing Global Edge CDN profile",
     {
-      profileId: z.number({ required_error: requiredError("profileId") }).describe("Profile ID to rename"),
-      name: z.string({ required_error: requiredError("name") }).describe("New profile name (3-35 chars: letters, digits, '-', '_')"),
+      profileId: z.number(reqField("profileId")).describe("Profile ID to rename"),
+      name: z.string(reqField("name")).describe("New profile name (3-35 chars: letters, digits, '-', '_')"),
     },
     async (params) => {
       return client.putRequest(`/api/v1/profiles/${params.profileId}`, { name: params.name });
@@ -98,7 +99,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_delete_profile",
     "⚠️ Destructive: Permanently delete a Global Edge CDN profile. All edges under this profile must be deleted first. Set confirm=true to execute.",
     {
-      profileId: z.number({ required_error: requiredError("profileId") }).describe("Profile ID to delete"),
+      profileId: z.number(reqField("profileId")).describe("Profile ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -114,7 +115,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_list_edges",
     "List all edges under a specific Global Edge profile",
     {
-      profileId: z.number({ required_error: requiredError("profileId") }).describe("Profile ID to list edges for"),
+      profileId: z.number(reqField("profileId")).describe("Profile ID to list edges for"),
     },
     async (params) => {
       return client.requestRaw("GET", `/api/v1/profiles/${params.profileId}/cdn-edges`);
@@ -126,7 +127,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_get_edge",
     "Get detailed configuration of a specific Global Edge CDN edge including origin, caching, and access control settings. For a CUSTOM_DOMAIN edge, the CNAME target to point the service domain at has been observed in distributionConfig.serviceDomain.cname (not documented in the guide); ncloud_edge_list_edges returns the user's own domain for such edges, not the CNAME target.",
     {
-      edgeId: z.number({ required_error: requiredError("edgeId") }).describe("Edge ID to query"),
+      edgeId: z.number(reqField("edgeId")).describe("Edge ID to query"),
     },
     async (params) => {
       return client.requestRaw("GET", `/api/v1/cdn-edges/${params.edgeId}`);
@@ -143,8 +144,8 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_create_edge",
     "Create a new Global Edge CDN edge with origin, caching, and distribution settings. Sub-objects not exposed as parameters use sensible defaults (no edge logging, no edge auth, no caching rules, no header policies, WHITELIST access control with empty lists, which means no access restriction). For full control use ncloud_edge_edit_edge after creation. Use dryRun=true to preview without creating.",
     {
-      profileId: z.number({ required_error: requiredError("profileId") }).describe("Profile ID to create the edge under"),
-      edgeName: z.string({ required_error: requiredError("edgeName") }).describe("Edge name (3-35 chars: letters, digits, '-', '_')"),
+      profileId: z.number(reqField("profileId")).describe("Profile ID to create the edge under"),
+      edgeName: z.string(reqField("edgeName")).describe("Edge name (3-35 chars: letters, digits, '-', '_')"),
       protocolType: z.enum(["HTTPS", "ALL"]).describe("Service protocol: HTTPS or ALL (HTTP+HTTPS)"),
       regionType: z.enum(["KOREA", "JAPAN", "GLOBAL"]).describe("Service region: KOREA, JAPAN, or GLOBAL"),
       serviceDomainType: z.enum(["NCP_DOMAIN_AUTO", "NCP_DOMAIN_CUSTOM", "CUSTOM_DOMAIN"]).describe("Service domain type"),
@@ -300,8 +301,8 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_edit_edge",
     "Edit an existing Global Edge CDN edge configuration. Provide the full edge configuration as a JSON object (same shape as the create body: profileId, edgeName, distributionConfig, originalCopyConfig, cachingConfig, managedRule, headerPolicies, optimizationConfig, accessControl). regionType and serviceDomain cannot change — pass their current values.",
     {
-      edgeId: z.number({ required_error: requiredError("edgeId") }).describe("Edge ID to edit"),
-      configuration: z.string({ required_error: requiredError("configuration") }).describe("Full edge configuration as JSON string (get current config from ncloud_edge_get_edge, modify, and pass here)"),
+      edgeId: z.number(reqField("edgeId")).describe("Edge ID to edit"),
+      configuration: z.string(reqField("configuration")).describe("Full edge configuration as JSON string (get current config from ncloud_edge_get_edge, modify, and pass here)"),
     },
     async (params) => {
       let config: any;
@@ -341,7 +342,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_purge",
     "Run a cache purge (invalidation) on a Global Edge CDN edge. Supports purging all content, by directory, pattern, or specific URLs. Returns a purge request ID (check with ncloud_edge_get_purge_request).",
     {
-      edgeId: z.number({ required_error: requiredError("edgeId") }).describe("Edge ID to purge cache for"),
+      edgeId: z.number(reqField("edgeId")).describe("Edge ID to purge cache for"),
       purgeType: z.enum(["ALL", "DIRECTORY", "PATTERN", "URL"]).describe("Purge type: ALL (purge everything), DIRECTORY (by directory path), PATTERN (directory + extension), URL (specific files)"),
       purgeTarget: z.array(z.string()).optional().describe("Purge target list (omit for ALL type). DIRECTORY: /path/*, PATTERN: /path/*.ext, URL: /path/file.ext"),
     },
@@ -369,7 +370,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_get_purge_request",
     "Get the status/details of a Global Edge purge request",
     {
-      purgeRequestId: z.number({ required_error: requiredError("purgeRequestId") }).describe("Purge request ID returned by ncloud_edge_purge"),
+      purgeRequestId: z.number(reqField("purgeRequestId")).describe("Purge request ID returned by ncloud_edge_purge"),
     },
     async (params) => {
       return client.requestRaw("GET", `/api/v1/purge/${params.purgeRequestId}`);
@@ -407,7 +408,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_get_edge_status",
     "Get the current operational status of a Global Edge CDN edge",
     {
-      edgeId: z.number({ required_error: requiredError("edgeId") }).describe("Edge ID to check status for"),
+      edgeId: z.number(reqField("edgeId")).describe("Edge ID to check status for"),
     },
     async (params) => {
       return client.requestRaw("GET", `/api/v1/cdn-edges/${params.edgeId}/status`);
@@ -419,10 +420,10 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_get_edge_stats",
     "Get traffic statistics summary for a Global Edge CDN edge within a time range (UTC, up to 730 days back)",
     {
-      profileId: z.number({ required_error: requiredError("profileId") }).describe("Profile ID that the edge belongs to"),
-      edgeId: z.number({ required_error: requiredError("edgeId") }).describe("Edge ID to get statistics for"),
-      dateFrom: z.string({ required_error: requiredError("dateFrom") }).describe("Start date-time (ISO 8601 UTC, e.g. 2025-07-17T07:00:00Z)"),
-      dateTo: z.string({ required_error: requiredError("dateTo") }).describe("End date-time (ISO 8601 UTC, e.g. 2025-07-17T08:00:00Z)"),
+      profileId: z.number(reqField("profileId")).describe("Profile ID that the edge belongs to"),
+      edgeId: z.number(reqField("edgeId")).describe("Edge ID to get statistics for"),
+      dateFrom: z.string(reqField("dateFrom")).describe("Start date-time (ISO 8601 UTC, e.g. 2025-07-17T07:00:00Z)"),
+      dateTo: z.string(reqField("dateTo")).describe("End date-time (ISO 8601 UTC, e.g. 2025-07-17T08:00:00Z)"),
     },
     async (params) => {
       return client.requestRaw("GET", `/api/v1/statistics/${params.profileId}/${params.edgeId}`, {
@@ -475,7 +476,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_get_certificate",
     "Get details of a Global Edge certificate slot (certificates provisioned in the slot)",
     {
-      slotId: z.number({ required_error: requiredError("slotId") }).describe("Certificate slot ID"),
+      slotId: z.number(reqField("slotId")).describe("Certificate slot ID"),
       pageNo: z.number().optional().describe("Page number (default 1)"),
       offset: z.number().optional().describe("Items per page (default 15)"),
     },
@@ -489,8 +490,8 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_add_certificate_to_slot",
     "Add a Global Edge Dedicated certificate (from Certificate Manager) to an existing certificate slot",
     {
-      slotId: z.number({ required_error: requiredError("slotId") }).describe("Certificate slot ID"),
-      cmCertificateId: z.number({ required_error: requiredError("cmCertificateId") }).describe("Certificate Manager certificate number (Global Edge Dedicated type)"),
+      slotId: z.number(reqField("slotId")).describe("Certificate slot ID"),
+      cmCertificateId: z.number(reqField("cmCertificateId")).describe("Certificate Manager certificate number (Global Edge Dedicated type)"),
     },
     async (params) => {
       return client.postRequest(`/api/v1/certificate/provisioning/${params.slotId}`, { cmCertificateId: params.cmCertificateId });
@@ -502,7 +503,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_update_certificate_tls",
     "Update the TLS version and cipher profile of a Global Edge certificate slot",
     {
-      slotId: z.number({ required_error: requiredError("slotId") }).describe("Certificate slot ID"),
+      slotId: z.number(reqField("slotId")).describe("Certificate slot ID"),
       tlsVersion: tlsVersionSchema.describe("Supported TLS versions"),
       cipherProfile: cipherProfileSchema.describe("Cipher profile (STRICT not allowed with TLS_ALL_VERSIONS)"),
     },
@@ -519,7 +520,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_remove_certificates_from_slot",
     "⚠️ Destructive: Remove specific certificates (expired or superseded Global Edge Dedicated certificates) from a certificate slot. Set confirm=true to execute.",
     {
-      slotId: z.number({ required_error: requiredError("slotId") }).describe("Certificate slot ID"),
+      slotId: z.number(reqField("slotId")).describe("Certificate slot ID"),
       certificateItemIds: z.array(z.number()).min(1, requiredError("certificateItemIds")).describe("Certificate numbers to remove from the slot"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -534,7 +535,7 @@ export function registerGlobalEdgeTools(server: McpServer, client: NcloudClient)
     "ncloud_edge_delete_certificate",
     "⚠️ Destructive: Delete a Global Edge certificate slot. The slot must not be in use by any edge. Set confirm=true to execute.",
     {
-      slotId: z.number({ required_error: requiredError("slotId") }).describe("Certificate slot ID to delete"),
+      slotId: z.number(reqField("slotId")).describe("Certificate slot ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 /**
  * Cloud Insight 데이터 조회·이벤트·대시보드 도구.
@@ -31,10 +31,10 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_query_monitoring_data",
     "Query time-series monitoring data from Cloud Insight. Returns metric data for a specific product and metric. The aggregation must match one configured in the product schema.",
     {
-      cw_key: z.string({ required_error: requiredError("cw_key") }).describe("Product key (cw_key) identifying the service (see Cloud Insight metrics)"),
-      metric: z.string({ required_error: requiredError("metric") }).describe("Metric name to query (e.g., \"avg_cpu_used_rto\", \"mem_usert\")"),
-      timeStart: z.number({ required_error: requiredError("timeStart") }).describe("Start time in Unix epoch milliseconds"),
-      timeEnd: z.number({ required_error: requiredError("timeEnd") }).describe("End time in Unix epoch milliseconds"),
+      cw_key: z.string(reqField("cw_key")).describe("Product key (cw_key) identifying the service (see Cloud Insight metrics)"),
+      metric: z.string(reqField("metric")).describe("Metric name to query (e.g., \"avg_cpu_used_rto\", \"mem_usert\")"),
+      timeStart: z.number(reqField("timeStart")).describe("Start time in Unix epoch milliseconds"),
+      timeEnd: z.number(reqField("timeEnd")).describe("End time in Unix epoch milliseconds"),
       dimensions: z.record(z.string()).describe("Dimensions identifying the resource as key-value pairs (required, e.g., {\"instanceNo\": \"12345\"})"),
       productName: z.string().optional().describe("Product name (e.g., \"System/Server(VPC)\")"),
       interval: INTERVAL.optional().describe("Aggregation interval (default: Min1)"),
@@ -61,8 +61,8 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         aggregation: CALC.optional().describe("Aggregation type (default: AVG)"),
         queryAggregation: CALC.optional().describe("Query result aggregation (default: AVG)"),
       })).min(1).max(20).describe("Array of metric queries to execute (max 20)"),
-      timeStart: z.number({ required_error: requiredError("timeStart") }).describe("Start time in Unix epoch milliseconds"),
-      timeEnd: z.number({ required_error: requiredError("timeEnd") }).describe("End time in Unix epoch milliseconds"),
+      timeStart: z.number(reqField("timeStart")).describe("Start time in Unix epoch milliseconds"),
+      timeEnd: z.number(reqField("timeEnd")).describe("End time in Unix epoch milliseconds"),
     },
     async (params) => {
       return client.postRequest(`${CW}/data/query/multiple`, { timeStart: params.timeStart, timeEnd: params.timeEnd, metricInfoList: params.metricInfoList });
@@ -75,8 +75,8 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_search_events",
     "Search and get monitoring events from Cloud Insight with filtering options.",
     {
-      startTime: z.number({ required_error: requiredError("startTime") }).describe("Start time in Unix epoch milliseconds"),
-      endTime: z.number({ required_error: requiredError("endTime") }).describe("End time in Unix epoch milliseconds"),
+      startTime: z.number(reqField("startTime")).describe("Start time in Unix epoch milliseconds"),
+      endTime: z.number(reqField("endTime")).describe("End time in Unix epoch milliseconds"),
       ruleId: z.string().optional().describe("Event Rule ID to filter events"),
       eventId: z.string().optional().describe("Event ID to filter"),
       query: z.string().optional().describe("Search by rule name, metric name or resource name"),
@@ -96,10 +96,10 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_search_event_by_id",
     "Get detailed information about a specific monitoring event by event ID and rule ID.",
     {
-      eventId: z.string({ required_error: requiredError("eventId") }).describe("Event ID to retrieve details for"),
-      ruleId: z.string({ required_error: requiredError("ruleId") }).describe("Event Rule ID associated with the event"),
-      startTime: z.number({ required_error: requiredError("startTime") }).describe("Start time in Unix epoch milliseconds"),
-      endTime: z.number({ required_error: requiredError("endTime") }).describe("End time in Unix epoch milliseconds"),
+      eventId: z.string(reqField("eventId")).describe("Event ID to retrieve details for"),
+      ruleId: z.string(reqField("ruleId")).describe("Event Rule ID associated with the event"),
+      startTime: z.number(reqField("startTime")).describe("Start time in Unix epoch milliseconds"),
+      endTime: z.number(reqField("endTime")).describe("End time in Unix epoch milliseconds"),
       query: z.string().optional().describe("Search by rule name, metric name or resource name"),
       pageSize: z.number().optional().describe("Number of results per page (default: 20)"),
       pageNum: z.number().optional().describe("Page number (default: 1)"),
@@ -117,8 +117,8 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_search_event_count",
     "Get the count of monitoring events from Cloud Insight within a specified time range.",
     {
-      startTime: z.number({ required_error: requiredError("startTime") }).describe("Start time in Unix epoch milliseconds"),
-      endTime: z.number({ required_error: requiredError("endTime") }).describe("End time in Unix epoch milliseconds"),
+      startTime: z.number(reqField("startTime")).describe("Start time in Unix epoch milliseconds"),
+      endTime: z.number(reqField("endTime")).describe("End time in Unix epoch milliseconds"),
     },
     async (params) => {
       return client.postRequest(`${CW}/event/searchEventCountConsole`, { startTime: params.startTime, endTime: params.endTime });
@@ -142,7 +142,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_get_dashboard_widgets",
     "Get the list of widgets for a specific Cloud Insight dashboard.",
     {
-      dashboardId: z.string({ required_error: requiredError("dashboardId") }).describe("Dashboard ID to get widgets for"),
+      dashboardId: z.string(reqField("dashboardId")).describe("Dashboard ID to get widgets for"),
     },
     async (params) => {
       return client.requestRaw("GET", `${CW}/chart/dashboard/${encodeURIComponent(params.dashboardId)}/widgets`);
@@ -155,10 +155,10 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_get_dashboard_widget_image",
     "Download a dashboard widget image (binary) from Cloud Insight. Returns content type and size, plus base64 data when small; pass savePath to write the image to a file instead.",
     {
-      dashboardId: z.string({ required_error: requiredError("dashboardId") }).describe("Dashboard ID"),
-      widgetId: z.string({ required_error: requiredError("widgetId") }).describe("Widget ID (see ncloud_get_dashboard_widgets)"),
-      startTime: z.number({ required_error: requiredError("startTime") }).describe("Start time in Unix epoch milliseconds"),
-      endTime: z.number({ required_error: requiredError("endTime") }).describe("End time in Unix epoch milliseconds"),
+      dashboardId: z.string(reqField("dashboardId")).describe("Dashboard ID"),
+      widgetId: z.string(reqField("widgetId")).describe("Widget ID (see ncloud_get_dashboard_widgets)"),
+      startTime: z.number(reqField("startTime")).describe("Start time in Unix epoch milliseconds"),
+      endTime: z.number(reqField("endTime")).describe("End time in Unix epoch milliseconds"),
       widgetResolutionMode: z.enum(["AUTO", "HIGH"]).optional().describe("Resolution: AUTO (same as dashboard, default) or HIGH (finer)"),
       savePath: z.string().optional().describe("Local file path to save the image to; when given, the image bytes are not returned inline"),
     },
@@ -175,8 +175,8 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_query_widget_preview",
     "Query widget preview chart data from Cloud Insight by specifying metrics directly.",
     {
-      periodStart: z.number({ required_error: requiredError("periodStart") }).describe("Start time in Unix epoch milliseconds"),
-      periodEnd: z.number({ required_error: requiredError("periodEnd") }).describe("End time in Unix epoch milliseconds"),
+      periodStart: z.number(reqField("periodStart")).describe("Start time in Unix epoch milliseconds"),
+      periodEnd: z.number(reqField("periodEnd")).describe("End time in Unix epoch milliseconds"),
       metricsInfo: z.array(z.object({
         prodKey: z.string().describe("Product key (cw_key)"),
         metric: z.string().describe("Metric name to query"),
@@ -201,7 +201,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "ncloud_send_monitoring_data",
     "Send custom JSON monitoring data to Cloud Insight for a user-defined schema (cw_key). Each record holds the schema's metric and dimension fields as key-value pairs. (SGN region additionally requires header X-NCP-REGION_NO=7.)",
     {
-      cw_key: z.string({ required_error: requiredError("cw_key") }).describe("Product key (cw_key) of the custom schema"),
+      cw_key: z.string(reqField("cw_key")).describe("Product key (cw_key) of the custom schema"),
       data: z.union([z.record(z.unknown()), z.array(z.record(z.unknown()))]).describe("Data record (object) or records (array) with the schema's metric/dimension fields, e.g. {\"cpu\": 1.5, \"instanceId\": \"i-1\"}"),
     },
     async (params) => {

@@ -2,10 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { S3CompatibleClient, S3CompatibleError } from "../client/s3-compatible-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
-import { L, deletedMessage, requiredError } from "./_messages.js";
+import { L, deletedMessage } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { tag, wrap, xmlDocument, text, block, blocks, texts, intText, boolText } from "./_s3xml.js";
 import { registerStorageNcloudMultipartTools } from "./storage-ncloud-multipart.js";
+import { reqField } from "./_zod.js";
 
 /**
  * Ncloud Storage 도구 (`ncloud_ncs_*`).
@@ -47,10 +48,10 @@ const BUCKET_NAME_RE = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 // ─── 공용 스키마 ─────────────────────────────────────────────────────────────
 
 function bucketNameSchema(desc = "Name of the Ncloud Storage bucket") {
-  return z.string({ required_error: requiredError("bucketName") }).describe(desc);
+  return z.string(reqField("bucketName")).describe(desc);
 }
 function keySchema(desc = "Object key (path)") {
-  return z.string({ required_error: requiredError("key") }).describe(desc);
+  return z.string(reqField("key")).describe(desc);
 }
 function versionIdSchema(desc = "Version ID of the object (versioning-enabled buckets). Omit for the current version") {
   return z.string().optional().describe(desc);
@@ -616,7 +617,7 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
     `${NCS} Set the versioning state of a Ncloud Storage bucket (PUT /?versioning). Enabled keeps every version of every object; Suspended stops creating new versions but keeps existing ones. Once enabled, versioning cannot be turned back to NotConfigured — only Suspended.`,
     {
       bucketName: bucketNameSchema(),
-      status: z.enum(["Enabled", "Suspended"], { required_error: requiredError("status") }).describe("Enabled | Suspended"),
+      status: z.enum(["Enabled", "Suspended"], reqField("status")).describe("Enabled | Suspended"),
     },
     async (params) => {
       const body = xmlDocument("VersioningConfiguration", tag("Status", params.status));
@@ -872,7 +873,7 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
     `${NCS} Set default server-side encryption for a Ncloud Storage bucket (PUT /?encryption). Exactly one rule: AES256 (SSE-S3) or aws:kms (Ncloud-managed KMS key; customer-managed keys and aws:kms:dsse are not supported yet). New objects are encrypted with it by default.`,
     {
       bucketName: bucketNameSchema("Name of the bucket to set encryption configuration for"),
-      sseAlgorithm: z.enum(SSE_ALGORITHMS, { required_error: requiredError("sseAlgorithm") }).describe("AES256 (SSE-S3) | aws:kms (SSE-KMS, Ncloud-managed key)"),
+      sseAlgorithm: z.enum(SSE_ALGORITHMS, reqField("sseAlgorithm")).describe("AES256 (SSE-S3) | aws:kms (SSE-KMS, Ncloud-managed key)"),
     },
     async (params) => {
       const xmlBody = xmlDocument("ServerSideEncryptionConfiguration",
@@ -1046,7 +1047,7 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
     {
       bucketName: bucketNameSchema(),
       key: keySchema("Object key (path) to upload to, e.g. 'folder/file.txt'"),
-      body: z.string({ required_error: requiredError("body") }).describe("Content to upload as the object body"),
+      body: z.string(reqField("body")).describe("Content to upload as the object body"),
       contentType: z.string().optional().describe("Content-Type of the object (e.g. 'text/plain', 'application/json')"),
       storageClass: z.enum(STORAGE_CLASSES).optional().describe(`x-amz-storage-class — ${STORAGE_CLASS_DESC}. Omit to use STANDARD`),
       serverSideEncryption: z.enum(SSE_ALGORITHMS).optional().describe("x-amz-server-side-encryption — AES256 (SSE-S3) | aws:kms"),
@@ -1216,7 +1217,7 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
     {
       bucketName: bucketNameSchema("Destination bucket name"),
       key: keySchema("Destination object key (path)"),
-      copySource: z.string({ required_error: requiredError("copySource") }).describe("Source object as {sourceBucket}/{sourceKey} (a leading slash is tolerated)"),
+      copySource: z.string(reqField("copySource")).describe("Source object as {sourceBucket}/{sourceKey} (a leading slash is tolerated)"),
       copySourceVersionId: z.string().optional().describe("Version ID of the source object to copy (versioning-enabled buckets)"),
       storageClass: z.enum(STORAGE_CLASSES).optional().describe(`x-amz-storage-class for the copy — ${STORAGE_CLASS_DESC}. Omit to use STANDARD`),
       metadataDirective: z.enum(["COPY", "REPLACE"]).optional().describe("COPY (default) keeps the source metadata; REPLACE uses the headers given in this request (contentType)"),
@@ -1495,7 +1496,7 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
       bucketName: bucketNameSchema(),
       key: keySchema(),
       versionId: versionIdSchema(),
-      status: z.enum(LEGAL_HOLD, { required_error: requiredError("status") }).describe("ON | OFF"),
+      status: z.enum(LEGAL_HOLD, reqField("status")).describe("ON | OFF"),
     },
     async (params) => {
       const queryParams: Record<string, string> = { "legal-hold": "" };

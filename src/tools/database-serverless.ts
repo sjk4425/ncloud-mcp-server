@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { L } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { withQuery } from "./_query.js";
 
@@ -186,7 +187,7 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
       backupConfig: backupConfigSchema,
       autoScale: autoScaleSchema.optional(),
       highAvailability: z.boolean().describe("Automatic failover"),
-      engineVersion: z.string({ required_error: requiredError("engineVersion") }).describe("Engine version (e.g. 8.4.5)"),
+      engineVersion: z.string(reqField("engineVersion")).describe("Engine version (e.g. 8.4.5)"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without creating"),
     },
     async (params) => {
@@ -342,7 +343,7 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
     {
       clusterName: clusterNameSchema,
       backupName: backupNameSchema.describe("Backup name (from ncloud_serverless_list_backups)"),
-      bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Destination Object Storage bucket"),
+      bucketName: z.string(reqField("bucketName")).describe("Destination Object Storage bucket"),
       uploadPath: z.string().optional().describe("Path inside the bucket (default root, e.g. backups/2026)"),
     },
     async (params) => {
@@ -375,10 +376,10 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
     "Import a backup file from Object Storage as an imported backup (POST /mysql/v1/imported-backups → 202 Operation; up to 16 TiB). Then restore it with ncloud_serverless_restore_cluster (source.type=IMPORTED_BACKUP). Use dryRun=true to preview.",
     {
       name: importedBackupNameSchema.describe("Imported backup name (3-30 chars, unique)"),
-      bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Source Object Storage bucket"),
+      bucketName: z.string(reqField("bucketName")).describe("Source Object Storage bucket"),
       objectPath: z.string().regex(/^[a-zA-Z0-9._/\-]+$/, "objectPath may contain letters, digits, '.', '_', '/' and '-'").describe("Backup file path inside the bucket (e.g. exports/backup.tar.gz)"),
       zoneCode: z.string().optional().describe("Zone to store it in (default: first available zone; see ncloud_get_zones)"),
-      engineVersion: z.string({ required_error: requiredError("engineVersion") }).describe("Engine version the backup was created with"),
+      engineVersion: z.string(reqField("engineVersion")).describe("Engine version the backup was created with"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without importing"),
     },
     async (params) => {
@@ -645,7 +646,7 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
       clusterName: clusterNameSchema,
       instanceName: instanceNameSchema,
       logs: z.array(logRef).min(1).max(10).describe("Log files to export (1-10)"),
-      bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Destination bucket"),
+      bucketName: z.string(reqField("bucketName")).describe("Destination bucket"),
       uploadPath: z.string().optional().describe("Path inside the bucket (default root, e.g. logs/2026)"),
     },
     async (params) => {

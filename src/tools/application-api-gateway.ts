@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerApiGatewayTools(server: McpServer, client: NcloudClient): void {
@@ -30,7 +30,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_get_product",
     "Get detailed information about a specific API Gateway product",
     {
-      productId: z.string({ required_error: requiredError("productId") }).describe("Product ID to query"),
+      productId: z.string(reqField("productId")).describe("Product ID to query"),
     },
     async (params) => {
       return client.request(`/api/v1/products/${encodeURIComponent(params.productId)}`);
@@ -44,7 +44,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_list_apis",
     "List all APIs in a specific API Gateway product",
     {
-      productId: z.string({ required_error: requiredError("productId") }).describe("Product ID to list APIs for"),
+      productId: z.string(reqField("productId")).describe("Product ID to list APIs for"),
       offset: z.number().optional().describe("Starting point of the response data for pagination"),
       limit: z.number().optional().describe("Maximum number of response data for pagination"),
       apiName: z.string().optional().describe("Filter by API name"),
@@ -72,8 +72,8 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_list_stages",
     "List all stages of an API in an API Gateway product. Find apiId with ncloud_apigw_list_apis.",
     {
-      productId: z.string({ required_error: requiredError("productId") }).describe("Product ID the API belongs to"),
-      apiId: z.string({ required_error: requiredError("apiId") }).describe("API ID to list stages for"),
+      productId: z.string(reqField("productId")).describe("Product ID the API belongs to"),
+      apiId: z.string(reqField("apiId")).describe("API ID to list stages for"),
     },
     async (params) => {
       return client.request(stagesPath(params.productId, params.apiId));
@@ -85,9 +85,9 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_get_stage",
     "Get details of a single stage of an API in an API Gateway product.",
     {
-      productId: z.string({ required_error: requiredError("productId") }).describe("Product ID the API belongs to"),
-      apiId: z.string({ required_error: requiredError("apiId") }).describe("API ID the stage belongs to"),
-      stageId: z.string({ required_error: requiredError("stageId") }).describe("Stage ID to retrieve"),
+      productId: z.string(reqField("productId")).describe("Product ID the API belongs to"),
+      apiId: z.string(reqField("apiId")).describe("API ID the stage belongs to"),
+      stageId: z.string(reqField("stageId")).describe("Stage ID to retrieve"),
     },
     async (params) => {
       return client.request(`${stagesPath(params.productId, params.apiId)}/${encodeURIComponent(params.stageId)}`);
@@ -99,10 +99,10 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_create_stage",
     "Create a new stage for an API in an API Gateway product. Use dryRun=true to preview without creating.",
     {
-      productId: z.string({ required_error: requiredError("productId") }).describe("Product ID the API belongs to"),
-      apiId: z.string({ required_error: requiredError("apiId") }).describe("API ID to create the stage for"),
-      stageName: z.string({ required_error: requiredError("stageName") }).describe("Name for the new stage (1-20 chars: letters, digits, '-', '_')"),
-      endpointDomain: z.string({ required_error: requiredError("endpointDomain") }).describe("Backend endpoint domain for the stage, e.g. https://backend.example.com (required)"),
+      productId: z.string(reqField("productId")).describe("Product ID the API belongs to"),
+      apiId: z.string(reqField("apiId")).describe("API ID to create the stage for"),
+      stageName: z.string(reqField("stageName")).describe("Name for the new stage (1-20 chars: letters, digits, '-', '_')"),
+      endpointDomain: z.string(reqField("endpointDomain")).describe("Backend endpoint domain for the stage, e.g. https://backend.example.com (required)"),
       deploymentDescription: z.string().optional().describe("Description for the stage deployment"),
       cacheTtlSec: z.number().optional().describe("API cache TTL in seconds (1-3600)"),
       throttleRps: z.number().optional().describe("Per-method requests-per-second limit"),
@@ -147,9 +147,9 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_delete_stage",
     "⚠️ Destructive: Permanently delete an API Gateway stage. Set confirm=true to execute.",
     {
-      productId: z.string({ required_error: requiredError("productId") }).describe("Product ID the API belongs to"),
-      apiId: z.string({ required_error: requiredError("apiId") }).describe("API ID the stage belongs to"),
-      stageId: z.string({ required_error: requiredError("stageId") }).describe("Stage ID to delete"),
+      productId: z.string(reqField("productId")).describe("Product ID the API belongs to"),
+      apiId: z.string(reqField("apiId")).describe("API ID the stage belongs to"),
+      stageId: z.string(reqField("stageId")).describe("Stage ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -182,7 +182,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_create_api_key",
     "Create a new API key in API Gateway. Use dryRun=true to preview without creating.",
     {
-      apiKeyName: z.string({ required_error: requiredError("apiKeyName") }).describe("Name for the new API key"),
+      apiKeyName: z.string(reqField("apiKeyName")).describe("Name for the new API key"),
       apiKeyDescription: z.string().optional().describe("Description for the new API key"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the API key"),
     },
@@ -216,7 +216,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_delete_api_key",
     "⚠️ Destructive: Permanently delete an API key from API Gateway. Set confirm=true to execute.",
     {
-      apiKeyId: z.string({ required_error: requiredError("apiKeyId") }).describe("API key ID to delete"),
+      apiKeyId: z.string(reqField("apiKeyId")).describe("API key ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -233,7 +233,7 @@ export function registerApiGatewayTools(server: McpServer, client: NcloudClient)
     "ncloud_apigw_get_usage_plan",
     "Get usage plan details and API usage statistics from API Gateway",
     {
-      usagePlanId: z.string({ required_error: requiredError("usagePlanId") }).describe("Usage plan ID to query"),
+      usagePlanId: z.string(reqField("usagePlanId")).describe("Usage plan ID to query"),
     },
     async (params) => {
       return client.request(`/api/v1/usage-plans/${encodeURIComponent(params.usagePlanId)}`);

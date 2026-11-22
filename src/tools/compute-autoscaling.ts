@@ -3,7 +3,8 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import type { Zone } from "../client/endpoints.js";
 import { defineTool } from "./_tool.js";
-import { L, maxLenMessage, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
+import { L, maxLenMessage } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 // 파라미터 규칙은 세 존 가이드(compute-vautoscaling-*) 공통 — 2026-11-21 22개 오퍼레이션 전량 대조.
@@ -24,7 +25,7 @@ function asgName(field: string) {
 
 /** 용량(min/max/desired): 0~30. */
 function capacity(field: string, required = false) {
-  const base = required ? z.number({ required_error: requiredError(field) }) : z.number();
+  const base = required ? z.number(reqField(field)) : z.number();
   return base.int().min(0, { message: `${field}: 0-30` }).max(30, { message: `${field}: 0-30` });
 }
 
@@ -88,9 +89,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_get_launch_config_detail",
     "Get detailed information about a specific launch configuration for Auto Scaling",
     {
-      launchConfigurationNo: z.string({
-        required_error: requiredError("launchConfigurationNo"),
-      }).describe("Launch configuration number to query"),
+      launchConfigurationNo: z.string(reqField("launchConfigurationNo")).describe("Launch configuration number to query"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/getLaunchConfigurationDetail", params);
@@ -176,9 +175,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_delete_launch_config",
     "⚠️ Destructive: Permanently delete a launch configuration. Set confirm=true to execute.",
     {
-      launchConfigurationNo: z.string({
-        required_error: requiredError("launchConfigurationNo"),
-      }).describe("Launch configuration number to delete"),
+      launchConfigurationNo: z.string(reqField("launchConfigurationNo")).describe("Launch configuration number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -212,9 +209,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_get_asg_detail",
     "Get detailed information about a specific Auto Scaling Group",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number to query"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number to query"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/getAutoScalingGroupDetail", params);
@@ -230,19 +225,13 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     // 예전 스키마는 vpcNo 가 없고 subnetNoList·defaultCooldown 을 보내 `900 Required field … vpcNo` 로 생성 자체가 불가했다.
     "Create a new Auto Scaling Group (VPC). Requires a launch configuration, one subnet (subnetNo) and 1-3 ACGs. vpcNo is looked up from the subnet when omitted. For load-balancer health checks set healthCheckTypeCode=LOADB with healthCheckGracePeriod and targetGroupNoList. Use dryRun=true to preview without creating.",
     {
-      launchConfigurationNo: z.string({
-        required_error: requiredError("launchConfigurationNo"),
-      }).describe("Launch configuration number to use (from ncloud_list_launch_configs)"),
+      launchConfigurationNo: z.string(reqField("launchConfigurationNo")).describe("Launch configuration number to use (from ncloud_list_launch_configs)"),
       autoScalingGroupName: asgName("autoScalingGroupName").max(255, {
         message: maxLenMessage("autoScalingGroupName", 255),
       }).optional().describe("Auto Scaling Group name (1-255 chars: lowercase letters, digits, '-'; start with a letter, end with a letter or digit; auto-generated when omitted)"),
       vpcNo: z.string().optional().describe("VPC number. Optional: when omitted, the tool reads it from subnetNo (ncloud_get_subnet_detail)."),
-      subnetNo: z.string({
-        required_error: requiredError("subnetNo"),
-      }).describe("Subnet number for the servers (a single subnet — the API takes one value)"),
-      accessControlGroupNoList: z.array(z.string(), {
-        required_error: requiredError("accessControlGroupNoList"),
-      }).min(1, { message: "accessControlGroupNoList: 1-3 ACG numbers" })
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number for the servers (a single subnet — the API takes one value)"),
+      accessControlGroupNoList: z.array(z.string(), reqField("accessControlGroupNoList")).min(1, { message: "accessControlGroupNoList: 1-3 ACG numbers" })
         .max(3, { message: "accessControlGroupNoList: 1-3 ACG numbers" })
         .describe("ACG numbers applied to servers created by scale-out (1-3)"),
       minSize: capacity("minSize", true).describe("Minimum number of servers (0-30, ≤ maxSize; 0 keeps no servers)"),
@@ -303,9 +292,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_delete_asg",
     "⚠️ Destructive: Permanently delete an Auto Scaling Group. Set confirm=true to execute.",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number to delete"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -323,12 +310,8 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_set_desired_capacity",
     "Set the desired capacity for an Auto Scaling Group",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
-      desiredCapacity: z.number({
-        required_error: requiredError("desiredCapacity"),
-      }).min(0).describe("Desired number of instances"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
+      desiredCapacity: z.number(reqField("desiredCapacity")).min(0).describe("Desired number of instances"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/setDesiredCapacity", params);
@@ -343,17 +326,11 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     // 가이드: 정책 생성은 새 policyName, 수정은 policyNo 또는 기존 policyName. 쿨다운 키는 coolDown(예전 cooldown 은 무시됐다).
     "Create or update a scaling policy for an Auto Scaling Group. A new policyName creates a policy; to update, pass policyNo or the existing policyName.",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       policyNo: z.string().optional().describe("Policy number to update (from ncloud_list_scaling_policies). Omit when creating."),
       policyName: asgName("policyName").optional().describe("Policy name (1-255 chars: lowercase letters, digits, '-'). A new name creates a policy; an existing name updates it. One of policyNo / policyName is required."),
-      adjustmentTypeCode: z.enum(["CHANG", "PRCNT", "EXACT"], {
-        required_error: requiredError("adjustmentTypeCode"),
-      }).describe("Adjustment type: CHANG (add/remove N servers), PRCNT (change by N percent), EXACT (set capacity to N). See ncloud_get_adjustment_types."),
-      scalingAdjustment: z.number({
-        required_error: requiredError("scalingAdjustment"),
-      }).int().describe("Adjustment value: CHANG ≥ -2147483648, PRCNT ≥ -100, EXACT ≥ 0; negative values scale in for CHANG/PRCNT"),
+      adjustmentTypeCode: z.enum(["CHANG", "PRCNT", "EXACT"], reqField("adjustmentTypeCode")).describe("Adjustment type: CHANG (add/remove N servers), PRCNT (change by N percent), EXACT (set capacity to N). See ncloud_get_adjustment_types."),
+      scalingAdjustment: z.number(reqField("scalingAdjustment")).int().describe("Adjustment value: CHANG ≥ -2147483648, PRCNT ≥ -100, EXACT ≥ 0; negative values scale in for CHANG/PRCNT"),
       minAdjustmentStep: z.number().int().min(1).optional().describe("Minimum adjustment step (servers). Only valid with adjustmentTypeCode=PRCNT."),
       coolDown: z.number().int().min(0).optional().describe("Cooldown in seconds after scaling (default 300)"),
     },
@@ -373,9 +350,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_list_scaling_policies",
     "List all scaling policies for an Auto Scaling Group (includes each policy's policyNo)",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       // 가이드에 페이지 파라미터는 없다 — 필터는 policyNoList.N 뿐.
       policyNoList: z.array(z.string()).optional().describe("Filter by policy numbers"),
     },
@@ -389,13 +364,9 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_delete_scaling_policy",
     "⚠️ Destructive: Delete a scaling policy from an Auto Scaling Group. Set confirm=true to execute.",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       // 가이드: 식별자는 policyNo(Required). 예전 policyName 은 API 파라미터가 아니었다.
-      policyNo: z.string({
-        required_error: requiredError("policyNo"),
-      }).describe("Scaling policy number to delete (from ncloud_list_scaling_policies)"),
+      policyNo: z.string(reqField("policyNo")).describe("Scaling policy number to delete (from ncloud_list_scaling_policies)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -414,9 +385,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     // 가이드: minSize·maxSize 는 수정 때도 Required(나머지는 생략 시 기존 값 유지). Scaling 진행 중이면 실패한다.
     "Update an existing Auto Scaling Group. minSize and maxSize are always required (pass the current values to keep them — see ncloud_get_asg_detail); other omitted fields keep their current values. Fails while the group is scaling. A new launch configuration applies only to servers created afterwards.",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number to update"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number to update"),
       launchConfigurationNo: z.string().optional().describe("New launch configuration number (applies to servers created after the update)"),
       serverNamePrefix: z.string().regex(SERVER_NAME_PREFIX, {
         message: "serverNamePrefix: 3-7 chars of lowercase letters, numbers and '-' — start with a letter, end with a letter or number",
@@ -442,13 +411,9 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_execute_policy",
     "Manually execute a scaling policy for an Auto Scaling Group",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       // 가이드: 식별자는 policyNo(Required). 예전 policyName 은 API 파라미터가 아니었다.
-      policyNo: z.string({
-        required_error: requiredError("policyNo"),
-      }).describe("Scaling policy number to execute (from ncloud_list_scaling_policies)"),
+      policyNo: z.string(reqField("policyNo")).describe("Scaling policy number to execute (from ncloud_list_scaling_policies)"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/executePolicy", params);
@@ -462,9 +427,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_list_asg_activity_logs",
     "List activity logs (scaling actions) for an Auto Scaling Group",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       pageNo: z.number().optional().describe("Page number for pagination"),
       pageSize: z.number().optional().describe("Page size for pagination"),
     },
@@ -480,12 +443,8 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_suspend_processes",
     "Suspend specific scaling processes for an Auto Scaling Group",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
-      scalingProcessCodeList: z.array(z.string(), {
-        required_error: requiredError("scalingProcessCodeList"),
-      }).min(1).describe("List of scaling process codes to suspend"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
+      scalingProcessCodeList: z.array(z.string(), reqField("scalingProcessCodeList")).min(1).describe("List of scaling process codes to suspend"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/suspendProcesses", params);
@@ -497,12 +456,8 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_resume_processes",
     "Resume previously suspended scaling processes for an Auto Scaling Group",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
-      scalingProcessCodeList: z.array(z.string(), {
-        required_error: requiredError("scalingProcessCodeList"),
-      }).min(1).describe("List of scaling process codes to resume"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
+      scalingProcessCodeList: z.array(z.string(), reqField("scalingProcessCodeList")).min(1).describe("List of scaling process codes to resume"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/resumeProcesses", params);
@@ -518,9 +473,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     // 예전 recurrenceInKST 는 API 파라미터가 아니어서 반복 일정이 만들어지지 않았다.
     "Create or update a scheduled action for an Auto Scaling Group. A new scheduledActionName creates one; to update, pass scheduledActionNo or the existing name. Set startTime for a one-off run, recurrence (cron) for a repeating one, or both.",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       scheduledActionNo: z.string().optional().describe("Scheduled action number to update (from ncloud_list_scheduled_actions). Omit when creating."),
       scheduledActionName: asgName("scheduledActionName").optional().describe("Scheduled action name (1-255 chars: lowercase letters, digits, '-'). A new name creates an action; an existing name updates it. One of scheduledActionNo / scheduledActionName is required."),
       minSize: capacity("minSize", true).describe("Minimum number of servers at the scheduled time (0-30)"),
@@ -559,9 +512,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_list_scheduled_actions",
     "List scheduled actions that have not yet been executed for an Auto Scaling Group",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
     },
     async (params) => {
       return client.request("/vautoscaling/v2/getScheduledActionList", params);
@@ -573,13 +524,9 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
     "ncloud_delete_scheduled_action",
     "⚠️ Destructive: Delete a scheduled action from an Auto Scaling Group. Set confirm=true to execute.",
     {
-      autoScalingGroupNo: z.string({
-        required_error: requiredError("autoScalingGroupNo"),
-      }).describe("Auto Scaling Group number"),
+      autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       // 가이드: 식별자는 scheduledActionNo(Required). 예전 scheduledActionName 은 API 파라미터가 아니었다.
-      scheduledActionNo: z.string({
-        required_error: requiredError("scheduledActionNo"),
-      }).describe("Scheduled action number to delete (from ncloud_list_scheduled_actions)"),
+      scheduledActionNo: z.string(reqField("scheduledActionNo")).describe("Scheduled action number to delete (from ncloud_list_scheduled_actions)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
+import { L } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export function registerVpcPeeringTools(server: McpServer, client: NcloudClient): void {
@@ -29,7 +30,7 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
     "ncloud_get_vpc_peering_detail",
     "Get detailed information about a specific VPC Peering instance",
     {
-      vpcPeeringInstanceNo: z.string({ required_error: requiredError("vpcPeeringInstanceNo") }).describe("VPC Peering instance number to query"),
+      vpcPeeringInstanceNo: z.string(reqField("vpcPeeringInstanceNo")).describe("VPC Peering instance number to query"),
     },
     async (params) => {
       return client.request("/vpc/v2/getVpcPeeringInstanceDetail", params);
@@ -43,8 +44,8 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
     "ncloud_create_vpc_peering",
     "Create a new VPC Peering connection between two VPCs. Use dryRun=true to preview without creating.",
     {
-      sourceVpcNo: z.string({ required_error: requiredError("sourceVpcNo") }).describe("Source (requester) VPC number"),
-      targetVpcNo: z.string({ required_error: requiredError("targetVpcNo") }).describe("Target (accepter) VPC number"),
+      sourceVpcNo: z.string(reqField("sourceVpcNo")).describe("Source (requester) VPC number"),
+      targetVpcNo: z.string(reqField("targetVpcNo")).describe("Target (accepter) VPC number"),
       targetVpcName: z.string().optional().describe("Target VPC name (required for cross-account peering)"),
       targetVpcLoginId: z.string().optional().describe("Target VPC owner login ID (required for cross-account peering)"),
       vpcPeeringName: z.string().regex(/^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/, {
@@ -85,8 +86,8 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
     "ncloud_accept_reject_vpc_peering",
     "Accept or reject a pending VPC Peering request",
     {
-      vpcPeeringInstanceNo: z.string({ required_error: requiredError("vpcPeeringInstanceNo") }).describe("VPC Peering instance number"),
-      isAccept: z.boolean({ required_error: requiredError("isAccept") }).describe("true to accept, false to reject the peering request"),
+      vpcPeeringInstanceNo: z.string(reqField("vpcPeeringInstanceNo")).describe("VPC Peering instance number"),
+      isAccept: z.boolean(reqField("isAccept")).describe("true to accept, false to reject the peering request"),
     },
     async (params) => {
       return client.request("/vpc/v2/acceptOrRejectVpcPeering", params);
@@ -100,8 +101,8 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
     "ncloud_set_vpc_peering_description",
     "Set or update the description of a VPC Peering instance",
     {
-      vpcPeeringInstanceNo: z.string({ required_error: requiredError("vpcPeeringInstanceNo") }).describe("VPC Peering instance number"),
-      vpcPeeringDescription: z.string({ required_error: requiredError("vpcPeeringDescription") }).describe("New description for the VPC Peering"),
+      vpcPeeringInstanceNo: z.string(reqField("vpcPeeringInstanceNo")).describe("VPC Peering instance number"),
+      vpcPeeringDescription: z.string(reqField("vpcPeeringDescription")).describe("New description for the VPC Peering"),
     },
     async (params) => {
       return client.request("/vpc/v2/setVpcPeeringDescription", params);
@@ -115,7 +116,7 @@ export function registerVpcPeeringTools(server: McpServer, client: NcloudClient)
     "ncloud_delete_vpc_peering",
     "⚠️ Destructive: Permanently delete a VPC Peering connection. Set confirm=true to execute.",
     {
-      vpcPeeringInstanceNo: z.string({ required_error: requiredError("vpcPeeringInstanceNo") }).describe("VPC Peering instance number to delete"),
+      vpcPeeringInstanceNo: z.string(reqField("vpcPeeringInstanceNo")).describe("VPC Peering instance number to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

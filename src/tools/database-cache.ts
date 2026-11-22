@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { L, maxLenMessage, requiredError } from "./_messages.js";
+import { L, maxLenMessage } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export interface DatabaseCacheToolOptions {
@@ -121,13 +122,9 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       "(e.g. '8.1.6-simple' = Standalone, '7.2.11-cluster' = Cluster) — list valid values with " +
       "ncloud_list_cache_config_group_versions. Use dryRun=true to preview without creating.",
     {
-      configGroupName: z.string({
-        required_error: requiredError("configGroupName"),
-      }).max(15, { message: maxLenMessage("configGroupName", 15) })
+      configGroupName: z.string(reqField("configGroupName")).max(15, { message: maxLenMessage("configGroupName", 15) })
         .describe("Config group name (3-15 chars: lowercase letters, numbers, hyphen; must start with a letter and end with a letter or number)"),
-      cloudCacheVersion: z.string({
-        required_error: requiredError("cloudCacheVersion"),
-      }).describe("Engine version + mode, e.g. '8.1.6-simple' | '7.2.11-cluster' (use ncloud_list_cache_config_group_versions)"),
+      cloudCacheVersion: z.string(reqField("cloudCacheVersion")).describe("Engine version + mode, e.g. '8.1.6-simple' | '7.2.11-cluster' (use ncloud_list_cache_config_group_versions)"),
       cloudCacheDbmsCode: z.enum(["Redis", "Valkey"]).optional().describe("DBMS type: Redis (default) | Valkey"),
       configGroupDescription: z.string().max(255, {
         message: maxLenMessage("configGroupDescription", 255),
@@ -162,9 +159,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       // 스키마가 cloudCacheConfigGroupNo를 받아 그대로 쿼리에 실어 보내
       // 900 "location : configGroupNo"로 항상 실패했다. 이름 정정은 리소스의
       // create/delete/get 전체를 함께 훑어야 한다는 교훈.
-      configGroupNo: z.string({
-        required_error: requiredError("configGroupNo"),
-      }).describe("Config group number to delete (from ncloud_list_cache_config_groups)"),
+      configGroupNo: z.string(reqField("configGroupNo")).describe("Config group number to delete (from ncloud_list_cache_config_groups)"),
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
@@ -185,28 +180,16 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       "ncloud_create_cache_config_group or pick an existing configGroupNo from ncloud_list_cache_config_groups. " +
       "Use dryRun=true to preview without creating.",
     {
-      cloudCacheServiceName: z.string({
-        required_error: requiredError("cloudCacheServiceName"),
-      }).max(15, { message: maxLenMessage("cloudCacheServiceName", 15) })
+      cloudCacheServiceName: z.string(reqField("cloudCacheServiceName")).max(15, { message: maxLenMessage("cloudCacheServiceName", 15) })
         .describe("Cache service name (3-15 chars: letters, numbers, Korean, hyphen)"),
-      cloudCacheServerNamePrefix: z.string({
-        required_error: requiredError("cloudCacheServerNamePrefix"),
-      }).max(15, { message: maxLenMessage("cloudCacheServerNamePrefix", 15) })
+      cloudCacheServerNamePrefix: z.string(reqField("cloudCacheServerNamePrefix")).max(15, { message: maxLenMessage("cloudCacheServerNamePrefix", 15) })
         .describe("Server name prefix (3-15 chars: lowercase letters, numbers, hyphen)"),
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number"),
-      subnetNo: z.string({
-        required_error: requiredError("subnetNo"),
-      }).describe("Private subnet number to create the instance in"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Private subnet number to create the instance in"),
       // API 파라미터명은 configGroupNo다. 예전 스키마의 cloudCacheConfigGroupNo는
       // 쿼리스트링에 그대로 실려 나가 서버가 필수값 누락으로 거절했다(B-1).
-      configGroupNo: z.string({
-        required_error: requiredError("configGroupNo"),
-      }).describe("Config group number (from ncloud_list_cache_config_groups or ncloud_create_cache_config_group)"),
-      cloudCacheModeCode: z.enum(["SIMPLE", "CLUSTER"], {
-        required_error: requiredError("cloudCacheModeCode"),
-      }).describe("Cache mode: SIMPLE (standalone) | CLUSTER. Must match the config group version suffix (-simple / -cluster)"),
+      configGroupNo: z.string(reqField("configGroupNo")).describe("Config group number (from ncloud_list_cache_config_groups or ncloud_create_cache_config_group)"),
+      cloudCacheModeCode: z.enum(["SIMPLE", "CLUSTER"], reqField("cloudCacheModeCode")).describe("Cache mode: SIMPLE (standalone) | CLUSTER. Must match the config group version suffix (-simple / -cluster)"),
       cloudCacheDbmsCode: z.enum(["Redis", "Valkey"]).optional().describe("DBMS type: Redis (default) | Valkey"),
       cloudCacheImageProductCode: z.string().optional().describe("Cache image product code. Default: auto-selected"),
       cloudCacheProductCode: z.string().optional().describe("Cache server spec code. Default: minimum spec"),
@@ -369,9 +352,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       // 이 API는 백업 번호가 아니라 **인스턴스 번호**를 받는다. 예전 스키마의
       // cloudCacheManualBackupNo는 API에 존재하지 않는 파라미터였고, 필수값
       // cloudCacheInstanceNo가 없어 항상 실패했다.
-      cloudCacheInstanceNo: z.string({
-        required_error: requiredError("cloudCacheInstanceNo"),
-      }).describe("Cloud Cache instance number"),
+      cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
@@ -385,9 +366,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "Create a manual backup for a Cloud DB for Cache instance. The backup file name is assigned by the " +
       "server — read it back with ncloud_list_cache_manual_backup_details.",
     {
-      cloudCacheInstanceNo: z.string({
-        required_error: requiredError("cloudCacheInstanceNo"),
-      }).describe("Cloud Cache instance number"),
+      cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
       // createCloudCacheManualBackup은 이름을 받지 않는다 — 예전 스키마의
       // cloudCacheManualBackupName은 사용자에게 무의미한 값을 강제하던 유령 필수값이었다.
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
@@ -407,9 +386,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       // 이 API는 백업 번호를 받지 않는다 — 인스턴스 번호 + 파일 이름 리스트(fileNameList.N)다.
       // 예전 스키마의 cloudCacheManualBackupNo는 존재하지 않는 파라미터였고,
       // 필수값 둘이 모두 빠져 이 파괴적 도구는 한 번도 동작한 적이 없다.
-      cloudCacheInstanceNo: z.string({
-        required_error: requiredError("cloudCacheInstanceNo"),
-      }).describe("Cloud Cache instance number the backups belong to"),
+      cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number the backups belong to"),
       fileNameList: z.array(z.string()).min(1, {
         message: L({
           ko: "fileNameList는 최소 1개 이상이어야 합니다.",
@@ -439,9 +416,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "ncloud_flush_cache_server",
     "⚠️ Destructive: Permanently deletes ALL data from a Cloud Cache server (FlushAll). Set confirm=true to execute.",
     {
-      cloudCacheServerInstanceNo: z.string({
-        required_error: requiredError("cloudCacheServerInstanceNo"),
-      }).describe("Cloud Cache server instance number to flush"),
+      cloudCacheServerInstanceNo: z.string(reqField("cloudCacheServerInstanceNo")).describe("Cloud Cache server instance number to flush"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -462,18 +437,10 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       // 이 API는 단일 파일 export다: fileName + backupTypeMode + bucketName + cloudCacheInstanceNo.
       // 예전 스키마의 cloudCacheServerInstanceNo·folderPath·cloudCacheExportObjectList[].fullObjectName은
       // 전부 API에 없는 파라미터였고, 필수값 fileName·backupTypeMode가 빠져 항상 실패했다.
-      cloudCacheInstanceNo: z.string({
-        required_error: requiredError("cloudCacheInstanceNo"),
-      }).describe("Cloud Cache instance number"),
-      fileName: z.string({
-        required_error: requiredError("fileName"),
-      }).describe("Backup file name to export (e.g. '20210315')"),
-      backupTypeMode: z.enum(["SYSTEM", "MANUAL"], {
-        required_error: requiredError("backupTypeMode"),
-      }).describe("Which backup family the file belongs to: SYSTEM | MANUAL"),
-      bucketName: z.string({
-        required_error: requiredError("bucketName"),
-      }).describe("Destination Object Storage bucket name"),
+      cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
+      fileName: z.string(reqField("fileName")).describe("Backup file name to export (e.g. '20210315')"),
+      backupTypeMode: z.enum(["SYSTEM", "MANUAL"], reqField("backupTypeMode")).describe("Which backup family the file belongs to: SYSTEM | MANUAL"),
+      bucketName: z.string(reqField("bucketName")).describe("Destination Object Storage bucket name"),
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
@@ -487,9 +454,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "ncloud_list_cache_backup_details",
     "List system backup details (file names, sizes) for one Cloud DB for Cache instance",
     {
-      cloudCacheInstanceNo: z.string({
-        required_error: requiredError("cloudCacheInstanceNo"),
-      }).describe("Cloud Cache instance number"),
+      cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
       // getCloudCacheBackupDetailList는 서버 인스턴스 번호를 받지 않는다 —
       // 예전 스키마의 cloudCacheServerInstanceNo는 유령 필수값이었다.
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
@@ -521,9 +486,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "ncloud_get_cache_products",
     "List available Cloud Cache server spec product codes for a given image",
     {
-      cloudCacheImageProductCode: z.string({
-        required_error: requiredError("cloudCacheImageProductCode"),
-      }).describe("Cloud Cache image product code"),
+      cloudCacheImageProductCode: z.string(reqField("cloudCacheImageProductCode")).describe("Cloud Cache image product code"),
       productCode: z.string().optional().describe("Filter by a specific server spec product code"),
       exclusionProductCode: z.string().optional().describe("Exclude a specific server spec product code"),
       zoneCode: z.string().optional().describe("Filter by zone code (see ncloud_get_zones)"),
@@ -553,12 +516,8 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     {
       // 이 API는 인스턴스 번호가 아니라 vpcNo + cloudCacheImageProductCode를 받는다(둘 다 필수).
       // 예전 스키마의 cloudCacheInstanceNo는 존재하지 않는 파라미터였고 필수값 둘이 모두 빠져 있었다.
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number (from ncloud_get_cache_target_vpcs)"),
-      cloudCacheImageProductCode: z.string({
-        required_error: requiredError("cloudCacheImageProductCode"),
-      }).describe("Cache image product code (from ncloud_get_cache_image_products)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number (from ncloud_get_cache_target_vpcs)"),
+      cloudCacheImageProductCode: z.string(reqField("cloudCacheImageProductCode")).describe("Cache image product code (from ncloud_get_cache_image_products)"),
       isPublic: z.boolean().optional().describe("true: public subnets only, false: private subnets only"),
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
@@ -587,9 +546,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     "List Object Storage buckets available for Cloud DB for Cache backup export",
     {
       // cloudCacheInstanceNo는 이 API의 필수값이다 — 빠져 있어 항상 실패했다.
-      cloudCacheInstanceNo: z.string({
-        required_error: requiredError("cloudCacheInstanceNo"),
-      }).describe("Cloud Cache instance number the export will run from"),
+      cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number the export will run from"),
       regionCode: z.string().optional().describe("Region code (see ncloud_get_regions)"),
     },
     async (params) => {
@@ -634,9 +591,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       "ncloud_list_cache_users",
       "List the DB users (ACL) of a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (getCloudCacheUserList)",
       {
-        cloudCacheInstanceNo: z.string({
-          required_error: requiredError("cloudCacheInstanceNo"),
-        }).describe("Cloud Cache instance number"),
+        cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
         regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
       },
       async (params) => {
@@ -649,9 +604,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       "ncloud_add_cache_users",
       "Add DB users (ACL) to a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (addCloudCacheUserList). Name and password rules are checked before the call.",
       {
-        cloudCacheInstanceNo: z.string({
-          required_error: requiredError("cloudCacheInstanceNo"),
-        }).describe("Cloud Cache instance number"),
+        cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
         cloudCacheUserList: z.array(userEntry).min(1).describe("Users to add (sent as cloudCacheUserList.N.name / .password)"),
         regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
       },
@@ -667,9 +620,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       "ncloud_change_cache_users",
       "Change the passwords of existing DB users (ACL) on a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (changeCloudCacheUserList). Password rules are checked before the call.",
       {
-        cloudCacheInstanceNo: z.string({
-          required_error: requiredError("cloudCacheInstanceNo"),
-        }).describe("Cloud Cache instance number"),
+        cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
         cloudCacheUserList: z.array(userEntry).min(1).describe("Existing users with their new passwords (sent as cloudCacheUserList.N.name / .password)"),
         regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
       },
@@ -685,9 +636,7 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
       "ncloud_delete_cache_users",
       "⚠️ Destructive: Delete DB users (ACL) from a Cloud DB for Cache (Redis/Valkey) instance — Government zone only (deleteCloudCacheUserList). Set confirm=true to execute.",
       {
-        cloudCacheInstanceNo: z.string({
-          required_error: requiredError("cloudCacheInstanceNo"),
-        }).describe("Cloud Cache instance number"),
+        cloudCacheInstanceNo: z.string(reqField("cloudCacheInstanceNo")).describe("Cloud Cache instance number"),
         userNameList: z.array(z.string()).min(1).describe("User names to delete (sent as cloudCacheUserList.N.name)"),
         regionCode: z.string().optional().describe("Region code (KR, KRS). Defaults to the client region"),
         confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),

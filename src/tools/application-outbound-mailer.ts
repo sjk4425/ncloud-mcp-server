@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { L, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import type { Zone } from "../client/endpoints.js";
 
@@ -90,11 +91,11 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
   );
 
   const templateBodyFields = {
-    templateName: z.string({ required_error: requiredError("templateName") }).regex(NAME_PATTERN, `templateName: ${NAME_RULE}`).describe(`Template name (${NAME_RULE})`),
+    templateName: z.string(reqField("templateName")).regex(NAME_PATTERN, `templateName: ${NAME_RULE}`).describe(`Template name (${NAME_RULE})`),
     description: z.string().optional().describe("Description (0-300 bytes)"),
-    title: z.string({ required_error: requiredError("title") }).min(1).describe("Mail subject (1-500 bytes)"),
-    body: z.string({ required_error: requiredError("body") }).describe("Mail body (HTML allowed)"),
-    senderAddress: z.string({ required_error: requiredError("senderAddress") }).email().describe("Sender address (naver.com / navercorp.com / ncloud.com domains are not allowed)"),
+    title: z.string(reqField("title")).min(1).describe("Mail subject (1-500 bytes)"),
+    body: z.string(reqField("body")).describe("Mail body (HTML allowed)"),
+    senderAddress: z.string(reqField("senderAddress")).email().describe("Sender address (naver.com / navercorp.com / ncloud.com domains are not allowed)"),
     senderName: z.string().optional().describe("Sender name (0-69 bytes)"),
     isUse: z.boolean().optional().describe("Whether the template is active"),
   };
@@ -165,7 +166,7 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
     "ncloud_mailer_create_category",
     LEGACY_TAG + "Create a template category (POST /category).",
     {
-      categoryName: z.string({ required_error: requiredError("categoryName") }).regex(NAME_PATTERN, `categoryName: ${NAME_RULE}`).describe(`Category name (${NAME_RULE})`),
+      categoryName: z.string(reqField("categoryName")).regex(NAME_PATTERN, `categoryName: ${NAME_RULE}`).describe(`Category name (${NAME_RULE})`),
       parentSid: z.number().int().optional().describe("Parent category SID (default -1 = root)"),
       region: regionParam,
     },
@@ -256,7 +257,7 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
     "ncloud_mailer_delete_recipient_group",
     LEGACY_TAG + "⚠️ Destructive: Delete one recipient group (DELETE /address-book/recipient-groups?groupName=…). Set confirm=true to execute.",
     {
-      groupName: z.string({ required_error: requiredError("groupName") }).min(1).describe("Group name to delete (exact; Korean names are URL-encoded automatically)"),
+      groupName: z.string(reqField("groupName")).min(1).describe("Group name to delete (exact; Korean names are URL-encoded automatically)"),
       region: regionParam,
     },
     async (params) => client.requestRaw("DELETE", `${basePath(params.region)}/address-book/recipient-groups`, { groupName: params.groupName }),
@@ -270,7 +271,7 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
     "ncloud_mailer_get_send_block_list",
     LEGACY_TAG + "Get the send-block history and current block status of one address (GET /send-block?targetAddress=…): registerStatus, expectedDeleteDate, content[] with actionType C(blocked)/D(released), sendResultCode.",
     {
-      targetAddress: z.string({ required_error: requiredError("targetAddress") }).email().describe("Email address to look up"),
+      targetAddress: z.string(reqField("targetAddress")).email().describe("Email address to look up"),
       size: z.number().int().min(1).optional().describe("Page size (default 10)"),
       page: z.number().int().min(0).optional().describe("Page index (0-based)"),
       sort: z.string().optional().describe("Sort 'property(,asc|desc)' (default createUtc)"),
@@ -411,7 +412,7 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
       "ncloud_mailer_get_request_status",
       "Get the processing status of a mail send request (GET /mails/requests/{requestId}/status)",
       {
-        requestId: z.string({ required_error: requiredError("requestId") }).describe("Request ID"),
+        requestId: z.string(reqField("requestId")).describe("Request ID"),
         region: regionParam,
       },
       async (params) => client.requestRaw("GET", `${basePath(params.region)}/mails/requests/${encodeURIComponent(params.requestId)}/status`)
@@ -422,7 +423,7 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
       "ncloud_mailer_list_mails",
       `List the individual mails of a send request (GET /mails/requests/{requestId}/mails). sendStatus codes: ${SEND_STATUS.replace("P | ", "")}.`,
       {
-        requestId: z.string({ required_error: requiredError("requestId") }).describe("Request ID"),
+        requestId: z.string(reqField("requestId")).describe("Request ID"),
         mailId: z.string().optional().describe("Mail ID"),
         recipientAddress: z.string().optional().describe("Recipient address"),
         title: z.string().optional().describe("Subject (partial match)"),
@@ -445,7 +446,7 @@ export function registerOutboundMailerTools(server: McpServer, client: NcloudCli
       "ncloud_mailer_get_mail",
       "Get one mail by its ID (GET /mails/{mailId})",
       {
-        mailId: z.string({ required_error: requiredError("mailId") }).describe("Mail ID"),
+        mailId: z.string(reqField("mailId")).describe("Mail ID"),
         region: regionParam,
       },
       async (params) => client.requestRaw("GET", `${basePath(params.region)}/mails/${encodeURIComponent(params.mailId)}`)

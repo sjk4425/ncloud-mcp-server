@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 /**
  * WMS (Web service Monitoring System) 도구 — 두 존 제공.
@@ -49,9 +49,9 @@ export function registerWmsTools(server: McpServer, client: NcloudClient): void 
     "Get the results of a WMS scenario over a time window: average load time, success/error counts and availability, per monitoring location",
     {
       scenarioId: z.number().int().describe("Scenario ID"),
-      from: z.number({ required_error: requiredError("from") }).int().describe("Window start as a Unix timestamp"),
-      to: z.number({ required_error: requiredError("to") }).int().describe("Window end as a Unix timestamp"),
-      type: z.enum(AGGREGATION_TYPES, { required_error: requiredError("type") }).describe("Aggregation: RAW | MIN5 | MIN30 | HOUR2 | DAY1"),
+      from: z.number(reqField("from")).int().describe("Window start as a Unix timestamp"),
+      to: z.number(reqField("to")).int().describe("Window end as a Unix timestamp"),
+      type: z.enum(AGGREGATION_TYPES, reqField("type")).describe("Aggregation: RAW | MIN5 | MIN30 | HOUR2 | DAY1"),
       resultStatus: z.enum(["SUCCESS", "ERROR"]).optional().describe("Filter by result status"),
       locationTypeCodes: z.string().optional().describe("Monitoring agent locations, comma-separated: KR, USW, JP, SG, DE"),
     },
@@ -70,7 +70,7 @@ export function registerWmsTools(server: McpServer, client: NcloudClient): void 
     {
       scenarioId: z.number().int().describe("Scenario ID"),
       resultId: z.number().int().describe("Monitoring result ID (from ncloud_wms_get_results)"),
-      type: z.enum(AGGREGATION_TYPES, { required_error: requiredError("type") }).describe("Aggregation: RAW | MIN5 | MIN30 | HOUR2 | DAY1"),
+      type: z.enum(AGGREGATION_TYPES, reqField("type")).describe("Aggregation: RAW | MIN5 | MIN30 | HOUR2 | DAY1"),
     },
     async (params) => client.requestRaw("GET", `/api/v1/scenarios/${params.scenarioId}/results/${params.resultId}`, { type: params.type })
   );
@@ -83,7 +83,7 @@ export function registerWmsTools(server: McpServer, client: NcloudClient): void 
     "Start or pause a WMS monitoring scenario (PUT .../settings with serviceYn: true = start, false = pause)",
     {
       scenarioId: z.number().int().describe("Scenario ID"),
-      serviceYn: z.boolean({ required_error: requiredError("serviceYn") }).describe("true = start monitoring, false = pause monitoring"),
+      serviceYn: z.boolean(reqField("serviceYn")).describe("true = start monitoring, false = pause monitoring"),
     },
     async (params) => client.requestRaw("PUT", `/api/v1/scenarios/${params.scenarioId}/settings`, undefined, { serviceYn: params.serviceYn }),
     // 서버 로컬 설정 변경(시작/일시정지) — 파괴적이지 않다.

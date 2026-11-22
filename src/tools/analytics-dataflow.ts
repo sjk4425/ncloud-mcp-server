@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 /**
  * Data Flow API Tools
@@ -29,8 +29,8 @@ export function registerDataFlowTools(
   // Guide (analytics-dataflow-getexecution{count,result,times}): GET /api/v1/stats/executions-interval | /stats/executions | /stats/executions-times,
   // query startDate/endDate (both Required, ISO 8601). Verified 2026-10-02 against the public guide; same paths in gov/fin.
   const statsWindow = {
-    startDate: z.string({ required_error: requiredError("startDate") }).describe("Start of the query range (ISO 8601, e.g. 2025-03-19T00:00:00) (required)"),
-    endDate: z.string({ required_error: requiredError("endDate") }).describe("End of the query range (ISO 8601, e.g. 2025-03-20T23:59:59) (required)"),
+    startDate: z.string(reqField("startDate")).describe("Start of the query range (ISO 8601, e.g. 2025-03-19T00:00:00) (required)"),
+    endDate: z.string(reqField("endDate")).describe("End of the query range (ISO 8601, e.g. 2025-03-20T23:59:59) (required)"),
   };
 
   defineTool(
@@ -208,7 +208,7 @@ export function registerDataFlowTools(
     "ncloud_dataflow_execute_workflow",
     "Execute a Data Flow workflow. Starts a new execution of every job in the workflow.",
     {
-      workflowId: z.string({ required_error: requiredError("workflowId") }).describe("Workflow ID to execute (see ncloud_dataflow_list_workflows)"),
+      workflowId: z.string(reqField("workflowId")).describe("Workflow ID to execute (see ncloud_dataflow_list_workflows)"),
     },
     async (params) => {
       return client.requestRaw("POST", `/api/v1/workflows/${params.workflowId}/executions`);

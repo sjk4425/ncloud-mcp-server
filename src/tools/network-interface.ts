@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { dryRunPreview } from "./_dryrun.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 export function registerNetworkInterfaceTools(server: McpServer, client: NcloudClient): void {
   // ─── Query Tools ───────────────────────────────────────────────────────────
@@ -66,8 +66,8 @@ export function registerNetworkInterfaceTools(server: McpServer, client: NcloudC
     // accessControlGroupNoList.N are Required; the primary IP parameter is `ip`.
     "Create a new network interface in a VPC subnet. vpcNo, subnetNo and 1-3 ACG numbers are required. Use dryRun=true to preview.",
     {
-      vpcNo: z.string({ required_error: requiredError("vpcNo") }).describe("VPC number the subnet belongs to (required; see ncloud_list_vpcs)"),
-      subnetNo: z.string({ required_error: requiredError("subnetNo") }).describe("Subnet number to create the network interface in (required)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number the subnet belongs to (required; see ncloud_list_vpcs)"),
+      subnetNo: z.string(reqField("subnetNo")).describe("Subnet number to create the network interface in (required)"),
       accessControlGroupNoList: z.array(z.string()).min(1).max(3).describe("List of ACG numbers to apply (1-3)"),
       networkInterfaceName: z.string().optional().describe("Network interface name (3-30 chars: lowercase letters, digits, '-'; auto-generated when omitted)"),
       networkInterfaceDescription: z.string().optional().describe("Network interface description (up to 1000 bytes)"),

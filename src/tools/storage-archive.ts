@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { SwiftCompatibleClient } from "../client/swift-compatible-client.js";
 import { defineTool } from "./_tool.js";
-import { deletedMessage, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
+import { deletedMessage } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 /**
@@ -66,9 +67,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_create_archive_container",
     "Create a new container in Archive Storage. Use dryRun=true to preview.",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container to create"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container to create"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),
     },
     async (params) => {
@@ -103,9 +102,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_delete_archive_container",
     "⚠️ Destructive: Permanently delete an empty container from Archive Storage. The container must be empty. Set confirm=true to execute.",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container to delete"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -126,9 +123,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_head_archive_container",
     "Get metadata for an Archive Storage container (object count, bytes used, custom metadata)",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container"),
     },
     async (params) => {
       const response = await client.request({
@@ -153,9 +148,7 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_list_archive_objects",
     "List objects in an Archive Storage container",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container"),
       limit: z.number().optional().describe("Maximum number of objects to return"),
       marker: z.string().optional().describe("Object name to start listing after (for pagination)"),
       prefix: z.string().optional().describe("Filter objects by name prefix"),
@@ -183,12 +176,8 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_download_archive_object",
     "Download (GET) an object from an Archive Storage container. Returns the object content as text.",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object name (path) to download"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container"),
+      objectName: z.string(reqField("objectName")).describe("Object name (path) to download"),
     },
     async (params) => {
       const response = await client.request({
@@ -216,12 +205,8 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_head_archive_object",
     "Get metadata for an object in Archive Storage (size, content-type, custom metadata)",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object name (path) to inspect"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container"),
+      objectName: z.string(reqField("objectName")).describe("Object name (path) to inspect"),
     },
     async (params) => {
       const response = await client.request({
@@ -250,15 +235,9 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_upload_archive_object",
     "Upload (PUT) an object to an Archive Storage container. Use dryRun=true to preview.",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object name (path) to upload to"),
-      body: z.string({
-        required_error: requiredError("body"),
-      }).describe("Content to upload as the object body"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container"),
+      objectName: z.string(reqField("objectName")).describe("Object name (path) to upload to"),
+      body: z.string(reqField("body")).describe("Content to upload as the object body"),
       contentType: z.string().optional().describe("Content-Type for the object (e.g., 'text/plain', 'application/json')"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually uploading"),
     },
@@ -315,15 +294,9 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_copy_archive_object",
     "Copy an object to another location within Archive Storage",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Source container name"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Source object name"),
-      destination: z.string({
-        required_error: requiredError("destination"),
-      }).describe("Destination path in format: /{destContainer}/{destObject}"),
+      containerName: z.string(reqField("containerName")).describe("Source container name"),
+      objectName: z.string(reqField("objectName")).describe("Source object name"),
+      destination: z.string(reqField("destination")).describe("Destination path in format: /{destContainer}/{destObject}"),
     },
     async (params) => {
       await client.request({
@@ -350,12 +323,8 @@ export function registerStorageArchiveTools(server: McpServer, client: SwiftComp
     "ncloud_delete_archive_object",
     "⚠️ Destructive: Permanently delete an object from an Archive Storage container. Set confirm=true to execute.",
     {
-      containerName: z.string({
-        required_error: requiredError("containerName"),
-      }).describe("Name of the container"),
-      objectName: z.string({
-        required_error: requiredError("objectName"),
-      }).describe("Object name (path) to delete"),
+      containerName: z.string(reqField("containerName")).describe("Name of the container"),
+      objectName: z.string(reqField("objectName")).describe("Object name (path) to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

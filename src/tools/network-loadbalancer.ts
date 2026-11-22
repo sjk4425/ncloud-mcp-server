@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { maxLenMessage, requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
+import { maxLenMessage } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 
 export interface LoadBalancerToolOptions {
@@ -53,20 +54,14 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_create_load_balancer",
     "Create a new load balancer instance. Use dryRun=true to preview without creating.",
     {
-      loadBalancerTypeCode: z.string({
-        required_error: requiredError("loadBalancerTypeCode"),
-      }).describe("Load balancer type (APPLICATION, NETWORK, NETWORK_PROXY)"),
+      loadBalancerTypeCode: z.string(reqField("loadBalancerTypeCode")).describe("Load balancer type (APPLICATION, NETWORK, NETWORK_PROXY)"),
       loadBalancerNetworkTypeCode: z.string().optional().describe("Network type (PUBLIC or PRIVATE). Default: PUBLIC"),
       loadBalancerName: z.string().max(30, {
         message: maxLenMessage("loadBalancerName", 30),
       }).optional().describe("Load balancer name (max 30 characters)"),
       loadBalancerDescription: z.string().optional().describe("Load balancer description"),
-      vpcNo: z.string({
-        required_error: requiredError("vpcNo"),
-      }).describe("VPC number"),
-      subnetNoList: z.array(z.string(), {
-        required_error: requiredError("subnetNoList"),
-      }).describe("List of subnet numbers for the load balancer (one LB-only subnet per zone)"),
+      vpcNo: z.string(reqField("vpcNo")).describe("VPC number"),
+      subnetNoList: z.array(z.string(), reqField("subnetNoList")).describe("List of subnet numbers for the load balancer (one LB-only subnet per zone)"),
       throughputTypeCode: z.string().optional().describe("Throughput type (SMALL, MEDIUM, LARGE, XLARGE for ALB/NProxy; DYNAMIC for NLB)"),
       idleTimeout: z.number().optional().describe("Idle timeout in seconds (1-3600, default: 60). Cannot be set for NETWORK type"),
       listenerList: z.array(z.object({
@@ -77,9 +72,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
         useHttp2: z.boolean().optional().describe("Whether to use HTTP/2 protocol (only for HTTPS listener)"),
         tlsMinVersionTypeCode: z.string().optional().describe("TLS minimum version (TLSV10, TLSV11, TLSV12, TLSV13). Only for HTTPS/TLS"),
         cipherSuiteList: z.array(z.string()).optional().describe("List of cipher suites. Only for HTTPS/TLS"),
-      }), {
-        required_error: requiredError("listenerList"),
-      }).describe("List of listener configurations"),
+      }), reqField("listenerList")).describe("List of listener configurations"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the load balancer"),
     },
     async (params) => {
@@ -141,9 +134,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_delete_load_balancers",
     "⚠️ Destructive: Permanently delete load balancer instances. Set confirm=true to execute.",
     {
-      loadBalancerInstanceNoList: z.array(z.string(), {
-        required_error: requiredError("loadBalancerInstanceNoList"),
-      }).describe("List of load balancer instance numbers to delete"),
+      loadBalancerInstanceNoList: z.array(z.string(), reqField("loadBalancerInstanceNoList")).describe("List of load balancer instance numbers to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -161,9 +152,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_change_lb_config",
     "Change load balancer instance configuration (idle timeout, throughput type)",
     {
-      loadBalancerInstanceNo: z.string({
-        required_error: requiredError("loadBalancerInstanceNo"),
-      }).describe("Load balancer instance number"),
+      loadBalancerInstanceNo: z.string(reqField("loadBalancerInstanceNo")).describe("Load balancer instance number"),
       idleTimeout: z.number().optional().describe("Idle timeout in seconds (1-3600, default: 60). Cannot be set for NETWORK type"),
       throughputTypeCode: z.string().optional().describe("Throughput type code (SMALL, MEDIUM, LARGE, XLARGE for ALB/NProxy; DYNAMIC for NLB)"),
     },
@@ -177,12 +166,8 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_set_lb_description",
     "Set or update the description of a load balancer instance",
     {
-      loadBalancerInstanceNo: z.string({
-        required_error: requiredError("loadBalancerInstanceNo"),
-      }).describe("Load balancer instance number"),
-      loadBalancerDescription: z.string({
-        required_error: requiredError("loadBalancerDescription"),
-      }).describe("New description for the load balancer"),
+      loadBalancerInstanceNo: z.string(reqField("loadBalancerInstanceNo")).describe("Load balancer instance number"),
+      loadBalancerDescription: z.string(reqField("loadBalancerDescription")).describe("New description for the load balancer"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/setLoadBalancerDescription", params);
@@ -194,12 +179,8 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_set_lb_subnet",
     "Set subnets for a load balancer instance",
     {
-      loadBalancerInstanceNo: z.string({
-        required_error: requiredError("loadBalancerInstanceNo"),
-      }).describe("Load balancer instance number"),
-      subnetNoList: z.array(z.string(), {
-        required_error: requiredError("subnetNoList"),
-      }).describe("List of subnet numbers to assign to the load balancer"),
+      loadBalancerInstanceNo: z.string(reqField("loadBalancerInstanceNo")).describe("Load balancer instance number"),
+      subnetNoList: z.array(z.string(), reqField("subnetNoList")).describe("List of subnet numbers to assign to the load balancer"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/setLoadBalancerInstanceSubnet", params);
@@ -213,15 +194,9 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_change_lb_listener_config",
     "Change load balancer listener configuration (protocol, port, SSL, TLS settings)",
     {
-      loadBalancerListenerNo: z.string({
-        required_error: requiredError("loadBalancerListenerNo"),
-      }).describe("Load balancer listener number"),
-      protocolTypeCode: z.string({
-        required_error: requiredError("protocolTypeCode"),
-      }).describe("Listener protocol type (HTTP, HTTPS, TCP, UDP, TLS)"),
-      port: z.number({
-        required_error: requiredError("port"),
-      }).describe("Listener port number (1-65534)"),
+      loadBalancerListenerNo: z.string(reqField("loadBalancerListenerNo")).describe("Load balancer listener number"),
+      protocolTypeCode: z.string(reqField("protocolTypeCode")).describe("Listener protocol type (HTTP, HTTPS, TCP, UDP, TLS)"),
+      port: z.number(reqField("port")).describe("Listener port number (1-65534)"),
       useHttp2: z.boolean().optional().describe("Whether to use HTTP/2 protocol (only for HTTPS listener)"),
       sslCertificateNo: z.string().optional().describe("SSL certificate number (required for HTTPS/TLS)"),
       tlsMinVersionTypeCode: z.string().optional().describe("TLS minimum version (TLSV10, TLSV11, TLSV12). Only for HTTPS/TLS"),
@@ -239,9 +214,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_list_lb_rules",
     "List rules registered to a load balancer listener",
     {
-      loadBalancerListenerNo: z.string({
-        required_error: requiredError("loadBalancerListenerNo"),
-      }).describe("Load balancer listener number"),
+      loadBalancerListenerNo: z.string(reqField("loadBalancerListenerNo")).describe("Load balancer listener number"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/getLoadBalancerRuleList", params);
@@ -256,12 +229,8 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_add_lb_listener_certificate",
     "Add an SNI-based TLS certificate to a load balancer listener",
     {
-      loadBalancerListenerNo: z.string({
-        required_error: requiredError("loadBalancerListenerNo"),
-      }).describe("Load balancer listener number"),
-      sslCertificateNo: z.string({
-        required_error: requiredError("sslCertificateNo"),
-      }).describe("SSL certificate number to add"),
+      loadBalancerListenerNo: z.string(reqField("loadBalancerListenerNo")).describe("Load balancer listener number"),
+      sslCertificateNo: z.string(reqField("sslCertificateNo")).describe("SSL certificate number to add"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/addLoadBalancerListenerCertificate", params);
@@ -273,12 +242,8 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_remove_lb_listener_certificate",
     "⚠️ DESTRUCTIVE: Remove an SNI-based TLS certificate from a load balancer listener. Set confirm=true to execute.",
     {
-      loadBalancerListenerNo: z.string({
-        required_error: requiredError("loadBalancerListenerNo"),
-      }).describe("Load balancer listener number"),
-      sslCertificateNo: z.string({
-        required_error: requiredError("sslCertificateNo"),
-      }).describe("SSL certificate number to remove"),
+      loadBalancerListenerNo: z.string(reqField("loadBalancerListenerNo")).describe("Load balancer listener number"),
+      sslCertificateNo: z.string(reqField("sslCertificateNo")).describe("SSL certificate number to remove"),
       confirm: z.boolean().optional().default(false).describe("⚠️ DESTRUCTIVE: Must be true to actually execute the certificate removal"),
     },
     async (params) => {
@@ -294,9 +259,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_list_lb_listener_certificates",
     "List TLS certificates associated with a load balancer listener",
     {
-      loadBalancerListenerNo: z.string({
-        required_error: requiredError("loadBalancerListenerNo"),
-      }).describe("Load balancer listener number"),
+      loadBalancerListenerNo: z.string(reqField("loadBalancerListenerNo")).describe("Load balancer listener number"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/getLoadBalancerListenerCertificateList", params);
@@ -311,9 +274,7 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_list_lb_listeners",
     "List all listeners for a specific load balancer",
     {
-      loadBalancerInstanceNo: z.string({
-        required_error: requiredError("loadBalancerInstanceNo"),
-      }).describe("Load balancer instance number"),
+      loadBalancerInstanceNo: z.string(reqField("loadBalancerInstanceNo")).describe("Load balancer instance number"),
     },
     async (params) => {
       return client.request("/vloadbalancer/v2/getLoadBalancerListenerList", params);
@@ -327,18 +288,10 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_create_lb_listener",
     "Create a new listener for a load balancer",
     {
-      loadBalancerInstanceNo: z.string({
-        required_error: requiredError("loadBalancerInstanceNo"),
-      }).describe("Load balancer instance number"),
-      protocolTypeCode: z.string({
-        required_error: requiredError("protocolTypeCode"),
-      }).describe("Listener protocol type (HTTP, HTTPS, TCP, UDP, TLS)"),
-      port: z.number({
-        required_error: requiredError("port"),
-      }).describe("Listener port number (1-65534)"),
-      targetGroupNo: z.string({
-        required_error: requiredError("targetGroupNo"),
-      }).describe("Target group number for default rule"),
+      loadBalancerInstanceNo: z.string(reqField("loadBalancerInstanceNo")).describe("Load balancer instance number"),
+      protocolTypeCode: z.string(reqField("protocolTypeCode")).describe("Listener protocol type (HTTP, HTTPS, TCP, UDP, TLS)"),
+      port: z.number(reqField("port")).describe("Listener port number (1-65534)"),
+      targetGroupNo: z.string(reqField("targetGroupNo")).describe("Target group number for default rule"),
       useHttp2: z.boolean().optional().describe("Whether to use HTTP/2 protocol (only for HTTPS listener)"),
       sslCertificateNo: z.string().optional().describe("SSL certificate number (required for HTTPS/TLS)"),
       tlsMinVersionTypeCode: z.string().optional().describe("TLS minimum version (TLSV10, TLSV11, TLSV12). Only for HTTPS/TLS"),
@@ -356,12 +309,8 @@ export function registerLoadBalancerTools(server: McpServer, client: NcloudClien
     "ncloud_delete_lb_listeners",
     "⚠️ Destructive: Delete listeners from a load balancer. Set confirm=true to execute.",
     {
-      loadBalancerInstanceNo: z.string({
-        required_error: requiredError("loadBalancerInstanceNo"),
-      }).describe("Load balancer instance number"),
-      loadBalancerListenerNoList: z.array(z.string(), {
-        required_error: requiredError("loadBalancerListenerNoList"),
-      }).describe("List of listener numbers to delete"),
+      loadBalancerInstanceNo: z.string(reqField("loadBalancerInstanceNo")).describe("Load balancer instance number"),
+      loadBalancerListenerNoList: z.array(z.string(), reqField("loadBalancerListenerNoList")).describe("List of listener numbers to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {

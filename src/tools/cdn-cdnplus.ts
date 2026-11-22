@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 
 /**
  * CDN+ — **금융존 전용**.
@@ -38,8 +38,8 @@ export function registerCdnPlusTools(server: McpServer, client: NcloudClient): v
     "Get CDN+ monitoring data (traffic, requests) for one or more instances over a time range (Financial zone only).",
     {
       cdnInstanceNoList: z.array(z.string()).min(1).describe("List of CDN+ instance numbers to query"),
-      startDate: z.string({ required_error: requiredError("startDate") }).describe("Query start datetime (format: yyyyMMddHHmm)"),
-      endDate: z.string({ required_error: requiredError("endDate") }).describe("Query end datetime (format: yyyyMMddHHmm)"),
+      startDate: z.string(reqField("startDate")).describe("Query start datetime (format: yyyyMMddHHmm)"),
+      endDate: z.string(reqField("endDate")).describe("Query end datetime (format: yyyyMMddHHmm)"),
       regionNo: z.string().optional().describe("Region number (defaults to the FKR region when omitted)"),
     },
     async (params) => {
@@ -53,8 +53,8 @@ export function registerCdnPlusTools(server: McpServer, client: NcloudClient): v
     "Get CDN+ usage data (transfer volume) for one or more instances over a date range (Financial zone only).",
     {
       cdnInstanceNoList: z.array(z.string()).min(1).describe("List of CDN+ instance numbers to query"),
-      startDate: z.string({ required_error: requiredError("startDate") }).describe("Query start date (format: yyyyMMdd)"),
-      endDate: z.string({ required_error: requiredError("endDate") }).describe("Query end date (format: yyyyMMdd)"),
+      startDate: z.string(reqField("startDate")).describe("Query start date (format: yyyyMMdd)"),
+      endDate: z.string(reqField("endDate")).describe("Query end date (format: yyyyMMdd)"),
       regionNo: z.string().optional().describe("Region number (defaults to the FKR region when omitted)"),
     },
     async (params) => {
@@ -67,10 +67,10 @@ export function registerCdnPlusTools(server: McpServer, client: NcloudClient): v
     "ncloud_cdnplus_request_purge",
     "Request a CDN+ cache purge (Financial zone only). isWholeDomain / isWholePurge select the scope; otherwise give domainIdList and targetFileList or targetDirectoryName.",
     {
-      cdnInstanceNo: z.string({ required_error: requiredError("cdnInstanceNo") }).describe("CDN+ instance number to purge"),
-      isWholeDomain: z.boolean({ required_error: requiredError("isWholeDomain") }).describe("true: purge across all domains; false: only domains in domainIdList"),
+      cdnInstanceNo: z.string(reqField("cdnInstanceNo")).describe("CDN+ instance number to purge"),
+      isWholeDomain: z.boolean(reqField("isWholeDomain")).describe("true: purge across all domains; false: only domains in domainIdList"),
       domainIdList: z.array(z.string()).optional().describe("Domain IDs to purge (required when isWholeDomain=false)"),
-      isWholePurge: z.boolean({ required_error: requiredError("isWholePurge") }).describe("true: purge all files; false: only targetFileList / targetDirectoryName"),
+      isWholePurge: z.boolean(reqField("isWholePurge")).describe("true: purge all files; false: only targetFileList / targetDirectoryName"),
       targetFileList: z.array(z.string()).optional().describe("Specific file paths to purge (when isWholePurge=false)"),
       targetDirectoryName: z.string().optional().describe("Directory to purge — invalidates all files within (when isWholePurge=false)"),
     },
@@ -96,7 +96,7 @@ export function registerCdnPlusTools(server: McpServer, client: NcloudClient): v
     "ncloud_cdnplus_get_purge_history",
     "Get CDN+ purge request history for an instance, optionally filtered by purge IDs (Financial zone only).",
     {
-      cdnInstanceNo: z.string({ required_error: requiredError("cdnInstanceNo") }).describe("CDN+ instance number"),
+      cdnInstanceNo: z.string(reqField("cdnInstanceNo")).describe("CDN+ instance number"),
       purgeIdList: z.array(z.string()).optional().describe("Specific purge IDs to look up"),
     },
     async (params) => {

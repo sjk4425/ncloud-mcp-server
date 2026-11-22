@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool, excludingTools } from "./_tool.js";
-import { requiredError } from "./_messages.js";
+import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 import type { Zone } from "../client/endpoints.js";
 
@@ -40,7 +40,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient,
     "ncloud_vodstation_get_channel",
     "Get detailed information about a specific VOD Station channel",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID (e.g., vs-20250821095732-xxxxxxx)"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID (e.g., vs-20250821095732-xxxxxxx)"),
     },
     async (params) => {
       return client.request(`/api/v2/channels/${params.channelId}`);
@@ -54,8 +54,8 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient,
     "ncloud_vodstation_create_channel",
     "Create a new VOD Station streaming channel. Use dryRun=true to preview without creating.",
     {
-      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars)"),
-      storageBucketName: z.string({ required_error: requiredError("storageBucketName") }).describe("Object Storage bucket name containing video files"),
+      channelName: z.string(reqField("channelName")).describe("Channel name (3-20 chars)"),
+      storageBucketName: z.string(reqField("storageBucketName")).describe("Object Storage bucket name containing video files"),
       protocolList: z.array(z.enum(["HLS", "DASH"])).optional().default(["HLS"]).describe("Streaming protocols (HLS, DASH)"),
       segmentDuration: z.number().optional().default(10).describe("Playback time per segment in seconds (default: 10)"),
       segmentDurationOption: z.enum(["BASIC", "VARIABLE"]).optional().default("BASIC").describe("Segmentation method: BASIC (regular intervals) or VARIABLE (keyframe-based)"),
@@ -112,10 +112,10 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient,
     "ncloud_vodstation_update_channel",
     "Update a VOD Station streaming channel's details (name, protocols, segment settings, encryption/DRM). This is a PUT that replaces the channel configuration, so provide the full desired state.",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to update (e.g., vs-20250821095732-xxxxxxx)"),
-      channelName: z.string({ required_error: requiredError("channelName") }).describe("Channel name (3-20 chars, alphanumeric + hyphen). Sent as the API 'name' field"),
-      protocolList: z.array(z.enum(["HLS", "DASH"]), { required_error: requiredError("protocolList") }).min(1).describe("Streaming protocols (HLS, DASH)"),
-      segmentDuration: z.number({ required_error: requiredError("segmentDuration") }).describe("Playback seconds per segment (5-20)"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to update (e.g., vs-20250821095732-xxxxxxx)"),
+      channelName: z.string(reqField("channelName")).describe("Channel name (3-20 chars, alphanumeric + hyphen). Sent as the API 'name' field"),
+      protocolList: z.array(z.enum(["HLS", "DASH"]), reqField("protocolList")).min(1).describe("Streaming protocols (HLS, DASH)"),
+      segmentDuration: z.number(reqField("segmentDuration")).describe("Playback seconds per segment (5-20)"),
       segmentDurationOption: z.enum(["BASIC", "VARIABLE"]).optional().describe("Segmentation method: BASIC (default, regular intervals) or VARIABLE (keyframe-based)"),
       encryptionList: z.array(z.object({
         protocol: z.enum(["HLS", "DASH"]).describe("Protocol this encryption applies to"),
@@ -152,7 +152,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient,
     "ncloud_vodstation_delete_channel",
     "⚠️ Destructive: Permanently delete a VOD Station channel. Only channels in STOPPED status can be deleted. Set confirm=true to execute.",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to delete"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to delete"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
@@ -169,7 +169,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient,
     "ncloud_vodstation_start_channel",
     "Start (resume) a VOD Station channel that is in STOPPED status",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to start"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to start"),
     },
     async (params) => {
       return client.putRequest(`/api/v2/channels/${params.channelId}/start`, {});
@@ -181,7 +181,7 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient,
     "ncloud_vodstation_stop_channel",
     "Stop a VOD Station channel that is in READY status",
     {
-      channelId: z.string({ required_error: requiredError("channelId") }).describe("Channel ID to stop"),
+      channelId: z.string(reqField("channelId")).describe("Channel ID to stop"),
     },
     async (params) => {
       return client.putRequest(`/api/v2/channels/${params.channelId}/stop`, {});
@@ -208,9 +208,9 @@ export function registerVodStationTools(server: McpServer, client: NcloudClient,
     "ncloud_vodstation_create_category",
     "Create a new VOD Station encoding category. Use dryRun=true to preview without creating.",
     {
-      name: z.string({ required_error: requiredError("name") }).describe("Category name (folder with this name is auto-created in output bucket)"),
-      bucketName: z.string({ required_error: requiredError("bucketName") }).describe("Output bucket name to save encoded files"),
-      filePath: z.string({ required_error: requiredError("filePath") }).describe("Detailed path to save output files (e.g., /)"),
+      name: z.string(reqField("name")).describe("Category name (folder with this name is auto-created in output bucket)"),
+      bucketName: z.string(reqField("bucketName")).describe("Output bucket name to save encoded files"),
+      filePath: z.string(reqField("filePath")).describe("Detailed path to save output files (e.g., /)"),
       encodingOptions: z.array(z.number()).optional().describe("Encoding option IDs to apply"),
       encodingOptionTemplateId: z.number().optional().describe("Encoding template ID"),
       thumbnail: z.boolean().optional().default(false).describe("Whether to enable thumbnail extraction"),
