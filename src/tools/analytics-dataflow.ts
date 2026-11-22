@@ -111,7 +111,7 @@ export function registerDataFlowTools(
         id: z.string().describe("Node ID (unique within workflow)"),
         type: z.string().describe("Node type (e.g. SOURCE, FILTER, SINK)"),
         name: z.string().describe("Node name"),
-        properties: z.record(z.any()).optional().describe("Node-specific properties"),
+        properties: z.record(z.string(), z.any()).optional().describe("Node-specific properties"),
       })).optional().describe("List of nodes in the workflow"),
       edges: z.array(z.object({
         from: z.string().describe("Source node ID"),
@@ -150,7 +150,7 @@ export function registerDataFlowTools(
         id: z.string().describe("Node ID"),
         type: z.string().describe("Node type"),
         name: z.string().describe("Node name"),
-        properties: z.record(z.any()).optional().describe("Node-specific properties"),
+        properties: z.record(z.string(), z.any()).optional().describe("Node-specific properties"),
       })).optional().describe("Updated list of nodes"),
       edges: z.array(z.object({
         from: z.string().describe("Source node ID"),
@@ -260,7 +260,7 @@ export function registerDataFlowTools(
       name: z.string().describe("Job name"),
       description: z.string().optional().describe("Job description"),
       workflowId: z.string().optional().describe("Associated workflow ID"),
-      options: z.record(z.any()).optional().describe("Job execution options (e.g. resource spec, parallelism)"),
+      options: z.record(z.string(), z.any()).optional().describe("Job execution options (e.g. resource spec, parallelism)"),
       dryRun: z.boolean().optional().default(false).describe("If true, preview without creating"),
     },
     async (params) => {
@@ -291,7 +291,7 @@ export function registerDataFlowTools(
       name: z.string().optional().describe("New job name"),
       description: z.string().optional().describe("New job description"),
       workflowId: z.string().optional().describe("New associated workflow ID"),
-      options: z.record(z.any()).optional().describe("Updated job execution options"),
+      options: z.record(z.string(), z.any()).optional().describe("Updated job execution options"),
     },
     async (params) => {
       const { jobId, ...bodyParams } = params;
@@ -366,7 +366,7 @@ export function registerDataFlowTools(
     "Update the execution configuration (options) of a Data Flow job.",
     {
       jobId: z.string().describe("Job ID to update execution config"),
-      options: z.record(z.any()).describe("Execution options to update (e.g. resource spec, parallelism, timeout)"),
+      options: z.record(z.string(), z.any()).describe("Execution options to update (e.g. resource spec, parallelism, timeout)"),
     },
     async (params) => {
       const body = { options: params.options };

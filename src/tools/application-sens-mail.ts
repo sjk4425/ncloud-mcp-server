@@ -97,14 +97,14 @@ export function registerSensMailTools(server: McpServer, client: NcloudClient, o
       individual: z.boolean().optional().describe("true (default) = one mail per recipient; false = grouped mail (enables CC/BCC, disables advertising)"),
       confirmAndSend: z.boolean().optional().describe("true = send only after console approval (default false)"),
       advertising: z.boolean().optional().describe("true = advertising mail (adds the (광고) notice and unsubscribe text; not allowed with individual=false)"),
-      parameters: z.record(z.string()).optional().describe("Shared ${key} substitution values"),
+      parameters: z.record(z.string(), z.string()).optional().describe("Shared ${key} substitution values"),
       reservationDateTime: z.string().optional().describe("Scheduled send time, ISO 8601 with offset (e.g. 2026-10-01T09:00:00+09:00), at most 30 days ahead"),
       attachFileIds: z.array(z.string()).optional().describe("Attachment file IDs (≤10 MB each, ≤20 MB total)"),
       recipients: z.array(z.object({
         address: z.string().max(254).describe("Recipient address (≤254 bytes)"),
         name: z.string().optional().describe("Recipient name (≤69 bytes UTF-8)"),
         type: z.enum(["TO", "CC", "BCC"]).optional().describe("TO (default) | CC | BCC — CC/BCC only when individual=false, max 30 each"),
-        parameters: z.record(z.string()).optional().describe("Per-recipient ${key} substitution values"),
+        parameters: z.record(z.string(), z.string()).optional().describe("Per-recipient ${key} substitution values"),
       })).max(100000).optional().describe("Recipients (≤100,000; at least one TO). Required unless recipientGroupFilter is given"),
       recipientGroupFilter: z.object({
         operator: z.enum(["OR", "AND"]).optional().describe("How to combine groups (default OR)"),

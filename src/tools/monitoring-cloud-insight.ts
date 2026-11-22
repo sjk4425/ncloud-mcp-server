@@ -35,7 +35,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
       metric: z.string(reqField("metric")).describe("Metric name to query (e.g., \"avg_cpu_used_rto\", \"mem_usert\")"),
       timeStart: z.number(reqField("timeStart")).describe("Start time in Unix epoch milliseconds"),
       timeEnd: z.number(reqField("timeEnd")).describe("End time in Unix epoch milliseconds"),
-      dimensions: z.record(z.string()).describe("Dimensions identifying the resource as key-value pairs (required, e.g., {\"instanceNo\": \"12345\"})"),
+      dimensions: z.record(z.string(), z.string()).describe("Dimensions identifying the resource as key-value pairs (required, e.g., {\"instanceNo\": \"12345\"})"),
       productName: z.string().optional().describe("Product name (e.g., \"System/Server(VPC)\")"),
       interval: INTERVAL.optional().describe("Aggregation interval (default: Min1)"),
       aggregation: CALC.optional().describe("Aggregation type (default: AVG)"),
@@ -57,7 +57,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         prodKey: z.string().describe("Product key (cw_key)"),
         metric: z.string().describe("Metric name to query"),
         interval: INTERVAL.describe("Aggregation interval"),
-        dimensions: z.record(z.string()).describe("Dimensions identifying the resource as key-value pairs"),
+        dimensions: z.record(z.string(), z.string()).describe("Dimensions identifying the resource as key-value pairs"),
         aggregation: CALC.optional().describe("Aggregation type (default: AVG)"),
         queryAggregation: CALC.optional().describe("Query result aggregation (default: AVG)"),
       })).min(1).max(20).describe("Array of metric queries to execute (max 20)"),
@@ -182,7 +182,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
         metric: z.string().describe("Metric name to query"),
         statistic: CALC.describe("Aggregation function"),
         period: INTERVAL.describe("Aggregation interval"),
-        dimensions: z.record(z.string()).optional().describe("Dimension filters as key-value pairs"),
+        dimensions: z.record(z.string(), z.string()).optional().describe("Dimension filters as key-value pairs"),
         productName: z.string().optional().describe("Product name (e.g., \"System/Server(VPC)\")"),
         displayName: z.string().optional().describe("Metric display name on the widget"),
         color: z.string().optional().describe("Chart color (e.g., #1f77b4)"),
@@ -202,7 +202,7 @@ export function registerCloudInsightTools(server: McpServer, client: NcloudClien
     "Send custom JSON monitoring data to Cloud Insight for a user-defined schema (cw_key). Each record holds the schema's metric and dimension fields as key-value pairs. (SGN region additionally requires header X-NCP-REGION_NO=7.)",
     {
       cw_key: z.string(reqField("cw_key")).describe("Product key (cw_key) of the custom schema"),
-      data: z.union([z.record(z.unknown()), z.array(z.record(z.unknown()))]).describe("Data record (object) or records (array) with the schema's metric/dimension fields, e.g. {\"cpu\": 1.5, \"instanceId\": \"i-1\"}"),
+      data: z.union([z.record(z.string(), z.unknown()), z.array(z.record(z.string(), z.unknown()))]).describe("Data record (object) or records (array) with the schema's metric/dimension fields, e.g. {\"cpu\": 1.5, \"instanceId\": \"i-1\"}"),
     },
     async (params) => {
       return client.postRequest("/cw_collector/real/data", { cw_key: params.cw_key, data: params.data });

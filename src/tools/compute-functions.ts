@@ -117,7 +117,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       packageName: z.string().min(1).max(50).describe("Name of the package to create or update"),
       platform: platformSchema,
       description: z.string().max(3000).optional().describe("Description (0-3000 bytes)"),
-      parameters: z.record(z.unknown()).optional().describe("Default parameters as a {key: value} JSON object. Lowest precedence: runtime params > trigger params > action params > package params."),
+      parameters: z.record(z.string(), z.unknown()).optional().describe("Default parameters as a {key: value} JSON object. Lowest precedence: runtime params > trigger params > action params > package params."),
       dryRun: z.boolean().optional().default(false).describe("Preview the request without calling the API"),
     },
     async (params) => {
@@ -218,7 +218,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       limits_timeout: z.number().int().min(500).max(300000).optional().default(60000).describe("Max execution time in ms, 500-300000 (default 60000). basic/web only."),
       limits_memory: z.union([z.literal(128), z.literal(256), z.literal(512), z.literal(1024)]).optional().default(128).describe("Memory in MB: 128 | 256 | 512 | 1024 (default 128). basic/web only."),
       description: z.string().max(3000).optional().describe("Description (0-3000 bytes)"),
-      parameters: z.record(z.unknown()).optional().describe("Default parameters as a {key: value} JSON object (basic/web only). Precedence: runtime params > trigger params > action params > package params."),
+      parameters: z.record(z.string(), z.unknown()).optional().describe("Default parameters as a {key: value} JSON object (basic/web only). Precedence: runtime params > trigger params > action params > package params."),
       raw_http: z.boolean().optional().describe("web types only: pass the raw HTTP request to the action (sent as 'raw-http')"),
       custom_options: z.boolean().optional().describe("web types only: let the action set HTTP response headers (sent as 'custom-options')"),
       vpc_no: z.number().int().optional().describe(v20 ? "Not accepted in API v2.0 (Government-zone Cloud Functions is Classic-only)" : "VPC number to attach (REQUIRED for basic/web on platform=vpc; see ncloud_list_vpcs)"),
@@ -362,7 +362,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       actionName: z.string().describe("Name of the action to invoke"),
       platform: platformSchema,
       timeout: z.number().int().min(0).max(60000).optional().default(60000).describe("Max time to wait for the response in ms (0-60000, default 60000)"),
-      params: z.record(z.unknown()).optional().describe("Runtime parameters passed to the action (highest precedence)"),
+      params: z.record(z.string(), z.unknown()).optional().describe("Runtime parameters passed to the action (highest precedence)"),
     },
     async (params) =>
       client.requestRaw(
@@ -429,7 +429,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
       platform: platformSchema,
       type: z.enum(TRIGGER_TYPES_V21).describe(v20 ? "Trigger type (query parameter; immutable after creation). API v2.0: cron | github only." : "Trigger type (query parameter; immutable after creation)"),
       description: z.string().max(3000).optional().describe("Description (0-3000 bytes)"),
-      parameters: z.record(z.unknown()).optional().describe("Default parameters as a {key: value} JSON object, merged into every invocation (precedence: runtime > trigger > action > package)"),
+      parameters: z.record(z.string(), z.unknown()).optional().describe("Default parameters as a {key: value} JSON object, merged into every invocation (precedence: runtime > trigger > action > package)"),
       cronOption: z.string().optional().describe("cron only. 5-field UNIX cron 'min hour dom mon dow', e.g. '0 8 * * *'. Evaluated in KST (UTC+9) — live-verified 2026-09-15 on KR; the time zone is not documented by Ncloud."),
       credential: z.object({
         username: z.string().describe("GitHub user name"),
@@ -575,7 +575,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
     {
       triggerName: z.string().describe("Name of the trigger to invoke"),
       platform: platformSchema,
-      params: z.record(z.unknown()).optional().describe("Runtime parameters passed to the linked actions"),
+      params: z.record(z.string(), z.unknown()).optional().describe("Runtime parameters passed to the linked actions"),
     },
     async (params) => client.requestRaw("POST", `${CF}/triggers/${enc(params.triggerName)}`, pq(params.platform), params.params ?? {})
   );

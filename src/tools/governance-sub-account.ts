@@ -8,7 +8,7 @@ import { dryRunPreview } from "./_dryrun.js";
 
 /** 태그 맵(리소스당 최대 20개). Sub Account API는 tags를 `{key: value}` Map으로 받는다. */
 const TAGS_SCHEMA = z
-  .record(z.string())
+  .record(z.string(), z.string())
   .optional()
   .describe('Tags as a key-value map, max 20 per resource. Example: {"env":"dev","team":"a"}');
 
@@ -42,7 +42,7 @@ const POLICY_PERMISSION_SCHEMA = z.object({
     .min(1, { message: L({ ko: "targets는 최소 1개 이상이어야 합니다.", en: "targets must contain at least one entry." }) })
     .describe("Permission targets: which service, actions and resources this permission covers"),
   condition: z
-    .record(z.any())
+    .record(z.string(), z.any())
     .optional()
     .describe('Optional policy condition, shaped as {operator: {conditionKey: [values]}}. Example: {"StringEquals": {"ncp:RequestRegion": ["KR"]}}'),
 });

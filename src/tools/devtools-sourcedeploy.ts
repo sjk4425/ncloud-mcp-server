@@ -102,7 +102,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       projectId: z.string().describe("ID of the deployment project"),
       name: z.string().describe("Stage name (up to 100 chars: letters, numbers, '-', '_')"),
       type: z.enum(["Server", "AutoScalingGroup", "KubernetesService", "ObjectStorage"]).describe("Deployment target type"),
-      config: z.record(z.any()).describe("Deployment target config. Server: {serverNo: [number[]]}. AutoScalingGroup: {autoScalingGroupNo: number}. KubernetesService: {clusterNo: number}. ObjectStorage: {bucketName: string}"),
+      config: z.record(z.string(), z.any()).describe("Deployment target config. Server: {serverNo: [number[]]}. AutoScalingGroup: {autoScalingGroupNo: number}. KubernetesService: {clusterNo: number}. ObjectStorage: {bucketName: string}"),
     },
     async (params) => {
       const body = { name: params.name, type: params.type, config: params.config };
@@ -120,7 +120,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       stageId: z.string().describe("ID of the deployment stage"),
       name: z.string().optional().describe("New stage name"),
       type: z.enum(["Server", "AutoScalingGroup", "KubernetesService", "ObjectStorage"]).optional().describe("New deployment target type"),
-      config: z.record(z.any()).optional().describe("New deployment target config"),
+      config: z.record(z.string(), z.any()).optional().describe("New deployment target config"),
     },
     async (params) => {
       const body: Record<string, any> = {};
@@ -187,7 +187,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       projectId: z.string().describe("ID of the deployment project"),
       stageId: z.string().describe("ID of the deployment stage"),
       name: z.string().describe("Scenario name"),
-      config: z.record(z.any()).describe("Scenario configuration (source, deployment strategy, commands, etc.)"),
+      config: z.record(z.string(), z.any()).describe("Scenario configuration (source, deployment strategy, commands, etc.)"),
     },
     async (params) => {
       const body = { name: params.name, ...params.config };
@@ -204,7 +204,7 @@ export function registerSourceDeployTools(server: McpServer, client: NcloudClien
       projectId: z.string().describe("ID of the deployment project"),
       stageId: z.string().describe("ID of the deployment stage"),
       scenarioId: z.string().describe("ID of the deployment scenario"),
-      config: z.record(z.any()).describe("Updated scenario configuration"),
+      config: z.record(z.string(), z.any()).describe("Updated scenario configuration"),
     },
     async (params) => {
       return client.requestRaw("PATCH", `/api/v1/project/${encodeURIComponent(params.projectId)}/stage/${encodeURIComponent(params.stageId)}/scenario/${encodeURIComponent(params.scenarioId)}`, undefined, params.config);

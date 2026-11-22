@@ -368,7 +368,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
     idDimension: z.boolean().optional().describe("Dimension used to identify resources in event rules (exactly one dimension must be the idDimension)"),
     counter: z.boolean().optional().describe("Counter metric (default false)"),
     metricType: z.enum(["BASIC", "EXTENDED", "CUSTOM"]).optional().describe("Metric type"),
-    aggregations: z.record(z.enum(["Min1", "Min5", "Min30", "Hour2", "Day1"]), z.array(z.enum(["COUNT", "SUM", "MAX", "MIN", "AVG"]))).optional().describe("Metric fields only: aggregation functions per interval, e.g. {\"Min1\": [\"AVG\"], \"Min5\": [\"AVG\",\"MAX\"]}"),
+    aggregations: z.partialRecord(z.enum(["Min1", "Min5", "Min30", "Hour2", "Day1"]), z.array(z.enum(["COUNT", "SUM", "MAX", "MIN", "AVG"]))).optional().describe("Metric fields only: aggregation functions per interval, e.g. {\"Min1\": [\"AVG\"], \"Min5\": [\"AVG\",\"MAX\"]}"),
     desc: z.string().optional().describe("Field description"),
   });
 
@@ -588,7 +588,7 @@ export function registerCloudInsightPluginTools(server: McpServer, client: Nclou
 const ME = `${CW}/metric-export`;
 const meInterval = z.enum(["Min1", "Min5", "Min30", "Hour2", "Day1"]).describe("Collection interval of the exported metrics");
 const meAggregation = z.enum(["AVG", "MIN", "MAX", "SUM", "COUNT"]).describe("Aggregation function applied to the exported metrics");
-const meTargets = z.array(z.record(z.unknown())).optional().describe("Target resources (MonitorGroupItem objects). Omit to export all resources of the product");
+const meTargets = z.array(z.record(z.string(), z.unknown())).optional().describe("Target resources (MonitorGroupItem objects). Omit to export all resources of the product");
 const meMetrics = z.array(z.string()).optional().describe("Metric names to export. Omit to export all metrics of the product");
 const meDestination = z
   .object({

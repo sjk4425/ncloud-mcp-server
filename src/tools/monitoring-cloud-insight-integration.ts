@@ -52,7 +52,7 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       url: z.string().describe("Outgoing webhook URL"),
       payload: z.string().describe("Request payload template (JSON string, 0-15000 bytes)"),
       type: z.string().optional().default("OUT_GOING").describe("Integration type (currently 'OUT_GOING')"),
-      headers: z.record(z.string()).optional().describe("HTTP headers to send (max 10 entries)"),
+      headers: z.record(z.string(), z.string()).optional().describe("HTTP headers to send (max 10 entries)"),
     },
     async (params) => {
       const body: Record<string, unknown> = {
@@ -78,7 +78,7 @@ export function registerCloudInsightIntegrationTools(server: McpServer, client: 
       url: z.string().describe("Outgoing webhook URL"),
       payload: z.string().describe("Request payload template (JSON string, 0-15000 bytes)"),
       type: z.string().optional().default("OUT_GOING").describe("Integration type (currently 'OUT_GOING')"),
-      headers: z.record(z.string()).optional().describe("HTTP headers to send (max 10 entries)"),
+      headers: z.record(z.string(), z.string()).optional().describe("HTTP headers to send (max 10 entries)"),
     },
     async (params) => {
       const body: Record<string, unknown> = {

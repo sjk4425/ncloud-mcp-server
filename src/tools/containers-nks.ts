@@ -155,7 +155,7 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
             addons: z.array(z.object({
               addonName: z.string().describe("Add-on name (from ncloud_nks_list_available_addons)"),
               version: z.string().optional().describe("Add-on version (from ncloud_nks_get_available_addon)"),
-              configurationValues: z.record(z.unknown()).optional().describe("Add-on configuration values (schema from ncloud_nks_get_available_addon_version)"),
+              configurationValues: z.record(z.string(), z.unknown()).optional().describe("Add-on configuration values (schema from ncloud_nks_get_available_addon_version)"),
             })).optional().describe("Add-ons to install together with the cluster"),
           }),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating"),

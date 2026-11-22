@@ -40,20 +40,20 @@ const buttonSchema = z.object({
   name: z.string().max(14).describe("Button label (≤14 chars)"),
   bizFormId: z.string().optional().describe("Business form ID (BF)"),
   ...linkFields,
-}).passthrough();
+}).loose();
 
 const couponSchema = z.object({
   title: z.string().describe("Fixed patterns only: '${N}원 할인 쿠폰' | '${1-100}% 할인 쿠폰' | '배송비 할인 쿠폰' | '${≤7 chars} 무료 쿠폰' | '${≤7 chars} UP 쿠폰'"),
   description: z.string().max(18).describe("≤12 chars (WIDE_IMAGE ≤8, WIDE_ITEM_LIST ≤18), no line breaks"),
   ...linkFields,
-}).passthrough();
+}).loose();
 
 const imageSchema = z.object({
   imageId: z.string().optional().describe("Image ID from the console upload / ncloud_sens_list_brandmessage_images"),
   imageLink: z.string().max(1000).optional().describe("URL opened when the image is tapped"),
-}).passthrough();
+}).loose();
 
-const loose = z.record(z.any());
+const loose = z.record(z.string(), z.any());
 
 export function registerSensBrandMessageTools(server: McpServer, client: NcloudClient): void {
   const kkoService = serviceIdParam("brandmessage");
@@ -73,7 +73,7 @@ export function registerSensBrandMessageTools(server: McpServer, client: NcloudC
       messages: z.array(z.object({
         to: telNoSchema.describe("Recipient number (digits only)"),
         countryCode: z.string().optional().describe("Country code (default 82)"),
-        templateParameters: z.record(z.string()).optional().describe("Template variables #{name} → value (template-based sending)"),
+        templateParameters: z.record(z.string(), z.string()).optional().describe("Template variables #{name} → value (template-based sending)"),
         content: z.string().max(1300).optional().describe("TEXT/IMAGE ≤1,300 chars; WIDE_IMAGE/PREMIUM_VIDEO ≤76 chars"),
         headerContent: z.string().max(20).optional().describe("WIDE_ITEM_LIST (required) / PREMIUM_VIDEO header, ≤20 chars"),
         additionalContent: z.string().max(34).optional().describe("COMMERCE additional text (≤34 chars, ≤1 line break)"),
@@ -86,7 +86,7 @@ export function registerSensBrandMessageTools(server: McpServer, client: NcloudC
         buttons: z.array(buttonSchema).max(5).optional().describe("Buttons (TEXT/IMAGE ≤5, WIDE ≤2, COMMERCE 1-2, PREMIUM_VIDEO ≤1). No AC in free-form, no BC/BT with a template"),
         useSmsFailover: z.boolean().optional().describe("Send SMS/LMS when not delivered"),
         failoverConfig: failoverConfigSchema,
-      }).passthrough()).min(1).max(100).describe("Recipients with type-specific payload (1-100)"),
+      }).loose()).min(1).max(100).describe("Recipients with type-specific payload (1-100)"),
       reserveTime: reserveTimeSchema,
       reserveTimeZone: reserveTimeZoneSchema,
       dryRun: z.boolean().optional().default(false).describe("If true, returns the request preview without sending"),

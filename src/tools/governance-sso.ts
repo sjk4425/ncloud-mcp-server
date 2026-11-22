@@ -39,7 +39,7 @@ function nameSchema(field: string) {
 const DESCRIPTION_SCHEMA = z.string().max(300).optional();
 
 const TAGS_SCHEMA = z
-  .record(z.string())
+  .record(z.string(), z.string())
   .optional()
   .refine((t) => t === undefined || Object.keys(t).length <= 20, {
     message: L({ ko: "태그는 최대 20개입니다.", en: "At most 20 tags are allowed." }),

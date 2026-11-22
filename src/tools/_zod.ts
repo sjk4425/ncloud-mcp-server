@@ -10,9 +10,12 @@
 
 import { requiredError } from "./_messages.js";
 
-/** 값이 없을(undefined) 때만 `message` 를 쓰고, 그 밖의 오류는 zod 기본 메시지를 쓴다. */
+/**
+ * 값이 없을(undefined) 때만 `message` 를 쓰고, 그 밖의 오류는 zod 기본 메시지를 쓴다.
+ * zod 3 의 `required_error` 와 같은 동작 — zod 4 에서는 `error` 함수가 `undefined` 를 돌려주면 기본 메시지로 넘어간다.
+ */
 export function reqMsg(message: string) {
-  return { required_error: message };
+  return { error: (iss: { input?: unknown }) => (iss.input === undefined ? message : undefined) };
 }
 
 /** 필수 파라미터 `field` 가 누락됐을 때의 표준 메시지(`requiredError`)를 쓰는 생성 파라미터. */

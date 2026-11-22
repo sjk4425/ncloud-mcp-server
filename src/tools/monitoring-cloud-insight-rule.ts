@@ -94,7 +94,7 @@ export function registerCloudInsightRuleTools(server: McpServer, client: NcloudC
   /** TypeGroupRelatedRuleDto[] — get_rules_by_*_group 응답을 그대로 넘긴다. */
   const relatedRuleGroups = z.array(z.object({
     id: z.string().describe("Monitor group or metrics group ID to delete"),
-    ruleGroupItemDtoList: z.array(z.record(z.unknown())).describe("Event Rules related to the group (RuleGroupItemDto[], as returned by ncloud_get_rules_by_metrics_group / ncloud_get_rules_by_monitor_group)"),
+    ruleGroupItemDtoList: z.array(z.record(z.string(), z.unknown())).describe("Event Rules related to the group (RuleGroupItemDto[], as returned by ncloud_get_rules_by_metrics_group / ncloud_get_rules_by_monitor_group)"),
   }));
 
   const pick = (src: Record<string, unknown>, keys: string[]) => {

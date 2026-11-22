@@ -174,7 +174,7 @@ export function defineTool<Schema extends ZodRawShape>(
   description: string,
   schema: Schema,
   // SDK server.tool과 동일한 zod 추론 타입 — 핸들러 내부 콜백의 컨텍스트 타이핑 유지
-  handler: (params: z.objectOutputType<Schema, z.ZodTypeAny>) => Promise<any>,
+  handler: (params: z.output<z.ZodObject<Schema>>) => Promise<any>,
   opts?: DefineToolOpts
 ): void {
   // destructive 도구는 destructiveHint를 강제(명시 opts.annotations가 있으면 그것이 우선).

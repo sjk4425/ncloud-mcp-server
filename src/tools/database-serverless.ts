@@ -43,7 +43,8 @@ const passwordSchema = z.string().min(8).max(20)
   .refine((v) => /[A-Za-z]/.test(v) && /[0-9]/.test(v) && /[^A-Za-z0-9]/.test(v), { message: "password needs at least one letter, one digit and one special character" })
   .refine((v) => !/[`&+\\"'/\s]/.test(v), { message: "password must not contain ` & + \\ \" ' / or whitespace" })
   .describe("8-20 chars with a letter, a digit and a special character; ` & + \\ \" ' / and spaces are not allowed. Never returned by the API");
-const operationIdSchema = z.string().uuid("operationId must be a UUID").describe("Operation ID (the `id` of the 202 response)");
+// z.guid(): 8-4-4-4-12 hex 형식만 본다(zod 3 의 .uuid() 와 같은 범위). zod 4 의 .uuid() 는 RFC 버전·variant 까지 강제한다.
+const operationIdSchema = z.guid("operationId must be a UUID").describe("Operation ID (the `id` of the 202 response)");
 
 // ─── 공용 스키마 ─────────────────────────────────────────────────────────────
 const pageParams = {
@@ -569,7 +570,7 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
     "Change DB parameters (PATCH /mysql/v1/clusters/{clusterName}/config, merge-patch → 202 Operation). applyWithoutRestart defaults to TRUE here (the API default is false = DB restart); with true, non-dynamic parameters are rejected with 400 — set applyWithoutRestart=false to accept a restart. Use dryRun=true to preview.",
     {
       clusterName: clusterNameSchema,
-      parameters: z.record(z.string()).refine((p) => Object.keys(p).length > 0, { message: "parameters must not be empty" }).describe("Parameter name → value (strings)"),
+      parameters: z.record(z.string(), z.string()).refine((p) => Object.keys(p).length > 0, { message: "parameters must not be empty" }).describe("Parameter name → value (strings)"),
       applyWithoutRestart: z.boolean().optional().default(true).describe("true (tool default) = only dynamic parameters, no restart; false = allow non-dynamic parameters, the DB restarts"),
       dryRun: z.boolean().optional().default(false),
     },
@@ -610,7 +611,7 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
     "Change log rotation for the given log types (PATCH /mysql/v1/clusters/{clusterName}/log-config, merge-patch; the only synchronous write — returns 200 with the new settings).",
     {
       clusterName: clusterNameSchema,
-      rotations: z.record(z.enum(LOG_TYPES), rotationSchema).refine((r) => Object.keys(r).length > 0, { message: "rotations must not be empty" }).describe("logType → rotation settings (only the given types change)"),
+      rotations: z.partialRecord(z.enum(LOG_TYPES), rotationSchema).refine((r) => Object.keys(r).length > 0, { message: "rotations must not be empty" }).describe("logType → rotation settings (only the given types change)"),
     },
     async (params) => call("PATCH", `${clusterPath(params.clusterName)}/log-config`, { rotations: params.rotations }),
     { annotations: { destructiveHint: false, idempotentHint: true } }

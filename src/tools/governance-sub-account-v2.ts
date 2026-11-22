@@ -30,7 +30,7 @@ const enc = encodeURIComponent;
 
 /** 태그 맵. 값 길이 1~256. */
 const TAGS_SCHEMA = z
-  .record(z.string())
+  .record(z.string(), z.string())
   .optional()
   .describe('Tags as a key-value map (value 1-256 chars). Example: {"env":"dev","team":"a"}');
 
@@ -76,7 +76,7 @@ const POLICY_PERMISSION_SCHEMA = z.object({
     .min(1, { message: L({ ko: "targets는 최소 1개 이상이어야 합니다.", en: "targets must contain at least one entry." }) })
     .describe("Targets (product, actions, resource NRNs) this permission covers"),
   condition: z
-    .record(z.record(z.union([z.string(), z.array(z.string())])))
+    .record(z.string(), z.record(z.string(), z.union([z.string(), z.array(z.string())])))
     .optional()
     .describe('Optional condition as {operator: {conditionKey: value | [values]}}. Example: {"StringEquals": {"ncp:resourceTag/env": "beta"}, "DateGreaterThan": {"ncp:currentTime": "2026-01-01T00:00:00Z"}}. Unsupported operators are rejected with 400 iam.policy.invalidConditionSyntax'),
 });
