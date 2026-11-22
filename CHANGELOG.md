@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2026-11-22
+
+> **zod 4.** The schema library moves from zod 3.25 to zod 4.6.7, which clears the last `npm audit` warning ([GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), high: memory exhaustion when validating large size-limited collections; there is no zod 3 fix). The server only receives input from the local MCP client over stdio, so the practical risk was low, but security scanners flagged it.
+>
+> Tool behaviour is unchanged. Every tool's input schema in the Public, Government and Financial zones was compared before and after: required parameters, allowed values, defaults and descriptions are the same, and so are the Korean/English "required parameter is missing" messages. Checked over stdio with live read-only calls in the Public zone.
+
+### Changed
+- **Schema output (`tools/list`)** — the MCP SDK generates JSON Schema differently for zod 4. The meaning is the same, but the text differs:
+  - objects no longer carry `additionalProperties: false` (unknown keys are still removed by the server);
+  - integer fields state the safe-integer range as `minimum` / `maximum`;
+  - repeated sub-schemas are written inline instead of as `$ref`;
+  - lists of allowed numbers are written as `anyOf` / `const` instead of `enum`;
+  - email and UUID fields carry a `pattern`.
+- **Validation messages** — for required parameters that have no tool-specific message, zod's default text changes from `Required` to `Invalid input: expected string, received undefined` (or the matching type). Wrong-type messages use zod 4 wording as well.
+- Dependency: `zod` `^3.24.4` → `^4.6.7`.
+
+### Fixed
+- Maps keyed by a fixed set of names stay partial: `ncloud_serverless_update_log_config` `rotations` and Cloud Insight custom schema `aggregations` accept only the keys you want to change. Under zod 4 they would otherwise have required every key.
+- `ncloud_serverless_get_operation` keeps accepting any `8-4-4-4-12` hex operation ID. zod 4's UUID check would otherwise reject IDs that do not carry RFC version/variant bits.
+
 ## [2.3.0] - 2026-11-21
 
 > **Auto Scaling request formats.** A VPC Auto Scaling Group could not be created: `ncloud_create_asg` had no `vpcNo` and the API answered `900 Required field is not specified. location : vpcNo.` All 22 Auto Scaling tools were then checked against the Public, Government and Financial guides, which match except where noted. Six more tools sent parameter names the API does not use, so the value was ignored or the call failed.
