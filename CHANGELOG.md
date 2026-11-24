@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [3.1.0] - 2026-11-25
 
 > **Transit VPC (VPC API, Public and Financial zone releases of 2026-11-24).** 24 new tools for Transit VPC Connect, Service Function Chain and Endpoint Route Table, plus the new `vpcTypeCode` and `SFC` values in existing VPC and Subnet tools. They are registered in the Public and Financial zones; the Government zone has not announced these APIs, so its tools are unchanged.
 >
