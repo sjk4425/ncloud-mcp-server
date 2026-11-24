@@ -94,7 +94,10 @@ describe("Cloud DB for Cache — create_cache_instance (B-1/B-3)", () => {
   });
 
   it("dryRun 프리뷰는 전송 파라미터를 그대로 보여준다 (B-8)", async () => {
-    const spy = vi.spyOn(client, "request");
+    // 모드 사전 검증 조회도 mock — 빠지면 실제 API 를 불러 CI 에서 타임아웃이 났다(v3.1.0 첫 릴리스 실행).
+    const spy = vi.spyOn(client, "request").mockResolvedValue({
+      cloudCacheConfigGroupList: [{ configGroupNo: "9964", cloudCacheVersion: "7.2.11-simple" }],
+    });
     const handler = getToolHandler(server, "ncloud_create_cache_instance");
     const result = await handler({ ...VALID_INSTANCE_INPUT, dryRun: true }, {} as any);
 

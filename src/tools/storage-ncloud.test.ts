@@ -523,7 +523,10 @@ describe("Ncloud Storage: 오브젝트", () => {
   });
 
   it("delete_object: versionId 쿼리·bypass 헤더, 삭제 마커 응답 안내", async () => {
-    const spy = vi.spyOn(client, "request").mockResolvedValueOnce(mockResponse("", 204, { "x-amz-delete-marker": "true", "x-amz-version-id": "dm1" }));
+    // 두 번째 호출까지 mock — Once 만 두면 두 번째 호출이 실제 API 로 나가 CI 에서 타임아웃이 났다(v3.1.0 첫 릴리스 실행).
+    const spy = vi.spyOn(client, "request")
+      .mockResolvedValueOnce(mockResponse("", 204, { "x-amz-delete-marker": "true", "x-amz-version-id": "dm1" }))
+      .mockResolvedValueOnce(mockResponse("", 204));
     const data = dataOf(await call(server, "ncloud_ncs_delete_object", { bucketName: "b", key: "k", bypassGovernanceRetention: true, confirm: true }));
     const req = (spy.mock.calls[0] as any)[0];
     expect(req.method).toBe("DELETE");
