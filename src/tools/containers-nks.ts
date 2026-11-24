@@ -50,11 +50,34 @@ export const NKS_ADDON_TOOLS = [
   "ncloud_nks_delete_addon",
 ] as const;
 
+/**
+ * `log.authn=true` 를 막는 사유(없으면 null). 가이드 조건: authType=API(기본값) 이고 k8sVersion 1.26 이상.
+ * 버전을 주지 않으면(API 가 기본 버전을 고름) 판단하지 않고 서버 검증에 맡긴다.
+ */
+export function authnBlocker(authType: string | undefined, k8sVersion: string | undefined): string | null {
+  if (authType === "CONFIG_MAP") return "authType=CONFIG_MAP";
+  const m = k8sVersion?.match(/^v?(\d+)\.(\d+)/);
+  if (m && (Number(m[1]) < 1 || (Number(m[1]) === 1 && Number(m[2]) < 26))) return `k8sVersion=${k8sVersion}`;
+  return null;
+}
+
 export function registerContainersNksTools(rawServer: McpServer, client: NcloudClient, opts: NksToolOptions = {}): void {
   const zone: Zone = opts.zone ?? "pub";
   const server = opts.addons === false ? excludingTools(rawServer, NKS_ADDON_TOOLS) : rawServer;
   /** 현재 리전의 경로 접두(리전은 런타임에 바뀔 수 있어 호출 시점에 계산). */
   const base = () => nksPathPrefix(zone, client.getRegionCode());
+  /**
+   * Control Plane 인증(Authentication) 로그 `authn` — 2026-11-24 민간존·금융존 릴리스(nks-createcluster `log.authn`,
+   * nks-clusterauditlog `authn`). 공공존 가이드에는 없고 `audit` 이 여전히 필수(2026-11-25 확인).
+   */
+  const authnSupported = zone !== "gov";
+  const AUTHN_DESC = "Control Plane authentication log (true/false). true is only allowed when authType=API and Kubernetes version is 1.26 or later";
+  const fullLogSchema = z.object({
+    audit: z.boolean().optional(),
+    authn: z.boolean().optional().describe(AUTHN_DESC),
+  });
+  // 공공존은 authn 키가 없는 스키마(알 수 없는 키는 zod 가 제거) — 타입은 공통 스키마로 맞춘다.
+  const logSchema = (authnSupported ? fullLogSchema : z.object({ audit: z.boolean().optional() })) as typeof fullLogSchema;
 
   // ─── Cluster Query Tools ───────────────────────────────────────────────────
 
@@ -126,7 +149,10 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
       lbPrivateSubnetNoList: z.array(z.number()).max(2).optional().describe("Public zone only: up to 2 private LB subnet numbers in different zones (multi-zone). Alternative to lbPrivateSubnetNo"),
       isRegional: z.boolean().optional().describe("Multi-zone (Regional) cluster. Default: false. Public zone only (not in the Government-zone guide)"),
       publicNetwork: z.boolean().optional().describe("Subnet network type. true=Public, false=Private (default)"),
-      log: z.object({ audit: z.boolean().optional() }).optional().describe("Log settings. audit=true sends the Kubernetes audit log to Cloud Log Analytics and, since 2026-09-17, is rejected (400) unless the account has an active CLA subscription"),
+      log: logSchema.optional().describe(
+        "Log settings. audit=true sends the Kubernetes audit log to Cloud Log Analytics and, since 2026-09-17, is rejected (400) unless the account has an active CLA subscription" +
+          (authnSupported ? ". authn=true also collects the Control Plane authentication log (requires authType=API and Kubernetes 1.26+)" : "")
+      ),
       authType: z.enum(["API", "CONFIG_MAP"]).optional().describe("Cluster authentication mode. IAM access entries (ncloud_nks_*_access_entry) require API. ⚠️ Once set to API it cannot be changed back"),
       bootstrapAccessEntry: z.boolean().optional().describe("Auto-create an IAM access entry for the creating principal (authType=API only)"),
       kmsKeyTag: z.string().optional().describe("KMS key tag for Kubernetes secret encryption (from the Key Management Service console)"),
@@ -245,6 +271,19 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
           };
         }
       }
+      // log.authn=true 조건(nks-createcluster, 2026-11-24): authType=API(기본값) 이고 k8sVersion 1.26 이상.
+      if (params.log?.authn === true) {
+        const reason = authnBlocker(params.authType, params.k8sVersion);
+        if (reason) {
+          return {
+            content: [{ type: "text" as const, text: L({
+              ko: `❌ log.authn=true 는 authType=API 이고 Kubernetes 1.26 이상인 클러스터에서만 가능합니다. (${reason})`,
+              en: `❌ log.authn=true requires authType=API and Kubernetes 1.26 or later. (${reason})`,
+            }) }],
+            isError: true,
+          };
+        }
+      }
       // ─── End pre-validation ───────────────────────────────────────────────
 
       const { dryRun, ...body } = params;
@@ -328,13 +367,33 @@ export function registerContainersNksTools(rawServer: McpServer, client: NcloudC
   defineTool(
     server,
     "ncloud_nks_set_audit_log",
-    "Configure audit log collection via Cloud Log Analytics (CLA) for an NKS cluster. Since 2026-09-17 enabling it (audit=true) is rejected with 400 unless the account has an active CLA subscription — subscribe to Cloud Log Analytics first.",
+    authnSupported
+      ? "Configure Control Plane log collection via Cloud Log Analytics (CLA) for an NKS cluster: audit (Kubernetes audit log) and/or authn " +
+          "(authentication log). Give at least one; an omitted field keeps its current setting. authn=true requires authType=API and Kubernetes 1.26+. " +
+          "Since 2026-09-17 enabling audit is rejected with 400 unless the account has an active CLA subscription — subscribe to Cloud Log Analytics first."
+      : "Configure audit log collection via Cloud Log Analytics (CLA) for an NKS cluster. Since 2026-09-17 enabling it (audit=true) is rejected with 400 unless the account has an active CLA subscription — subscribe to Cloud Log Analytics first.",
     {
       clusterUuid: z.string(reqField("clusterUuid")).describe("UUID of the cluster"),
-      audit: z.boolean(reqField("audit")).describe("Whether to enable audit log collection (true/false)"),
+      // nks-clusterauditlog: 민간·금융존은 audit/authn 둘 다 Conditional(하나 이상), 공공존은 audit 필수·authn 없음.
+      ...(authnSupported
+        ? {
+            audit: z.boolean().optional().describe("Kubernetes audit log (true/false). Omit to keep the current setting"),
+            authn: z.boolean().optional().describe(`${AUTHN_DESC}. Omit to keep the current setting`),
+          }
+        : { audit: z.boolean(reqField("audit")).describe("Whether to enable audit log collection (true/false)") }),
     },
     async (params) => {
-      return client.requestRaw("PATCH", `${base()}/clusters/${params.clusterUuid}/log`, undefined, { audit: params.audit });
+      const p = params as { clusterUuid: string; audit?: boolean; authn?: boolean };
+      const body: { audit?: boolean; authn?: boolean } = {};
+      if (p.audit !== undefined) body.audit = p.audit;
+      if (authnSupported && p.authn !== undefined) body.authn = p.authn;
+      if (Object.keys(body).length === 0) {
+        throw new Error(L({
+          ko: "잘못된 파라미터: audit 또는 authn 중 하나 이상을 지정해야 합니다.",
+          en: "Invalid parameter: give at least one of audit or authn.",
+        }));
+      }
+      return client.requestRaw("PATCH", `${base()}/clusters/${p.clusterUuid}/log`, undefined, body);
     }
   );
 

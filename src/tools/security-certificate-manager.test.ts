@@ -262,13 +262,14 @@ describe("Certificate Manager 2.0 — 등록 게이트와 경로 (security-certi
 });
 
 describe("Certificate Manager 2.0 — HTTP 403 (Sub Account 키) 안내", () => {
-  it("빈 403 이면 메인 계정 안내 + STS 호출 주체 + (겹치는 op) 1.0 도구 이름을 isError 로 돌려준다", async () => {
+  it("빈 403 이면 권한 정책·메인 계정 안내 + STS 호출 주체 + (겹치는 op) 1.0 도구 이름을 isError 로 돌려준다", async () => {
     const t = v2Setup();
     const spy = vi.spyOn(t.client, "requestRaw").mockRejectedValue(new Error("API 호출 실패: HTTP 403 (빈 응답)\n  진단 헤더: x-ncp-trace-id: abc"));
     const sts = vi.spyOn(t.stsClient, "requestRaw").mockResolvedValue({ id: "x", loginAlias: "nsupport", userType: "Sub" });
     const r = await getTool(t.server, "ncloud_cm2_list_certificates").call({});
     expect(r.isError).toBe(true);
     expect(text(r)).toMatch(/main-account/);
+    expect(text(r)).toMatch(/permission policy/);
     expect(text(r)).toMatch(/userType=Sub, loginAlias=nsupport/);
     expect(text(r)).toMatch(/ncloud_list_certificates/);
     expect(sts).toHaveBeenCalledWith("GET", "/api/v1/caller-identity");
@@ -285,7 +286,8 @@ describe("Certificate Manager 2.0 — HTTP 403 (Sub Account 키) 안내", () => 
     const spy1 = vi.spyOn(noSts.client, "requestRaw").mockRejectedValue(new Error("API call failed: HTTP 403 (empty response)"));
     const r1 = await getTool(noSts.server, "ncloud_cm2_list_certificate_types").call({});
     expect(r1.isError).toBe(true);
-    expect(text(r1)).toMatch(/Sub Account keys are rejected/);
+    expect(text(r1)).toMatch(/Certificate Manager 2\.0 denied this key/);
+    expect(text(r1)).toMatch(/permission policy/);
     expect(text(r1)).not.toMatch(/Caller identity/);
     spy1.mockRestore();
     const t = v2Setup();

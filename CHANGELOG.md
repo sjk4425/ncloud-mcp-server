@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+> **Transit VPC (VPC API, Public and Financial zone releases of 2026-11-24).** 24 new tools for Transit VPC Connect, Service Function Chain and Endpoint Route Table, plus the new `vpcTypeCode` and `SFC` values in existing VPC and Subnet tools. They are registered in the Public and Financial zones; the Government zone has not announced these APIs, so its tools are unchanged.
+>
+> Checked live in the Public zone with read-only calls (Transit VPC Connect, Endpoint Route Table and their details, propagation list, Service Function Chain list). Create, change and delete calls were not run. In the Financial zone the tools follow the release note, which lists the same operations and parameters; the per-operation guide pages were not published yet when this release was prepared, and nothing was run against the Financial zone.
+
+### Added
+- `ncloud_create_vpc` — `vpcTypeCode`: `NORMAL` (default) or `TRANSIT`.
+- `ncloud_create_subnet` / `ncloud_list_subnets` — `usageTypeCode` accepts `SFC`, a subnet used only by a Service Function Chain. `ncloud_create_subnet` rejects `SFC` unless `subnetTypeCode` is `PUBLIC`.
+- **Transit VPC Connect** (6): `ncloud_list_transit_vpc_connects`, `ncloud_get_transit_vpc_connect_detail`, `ncloud_create_transit_vpc_connect` (cross-account: `transitVpcLoginId` and `transitVpcName` together), `ncloud_set_transit_vpc_connect_description`, `ncloud_accept_reject_transit_vpc_connect`, `ncloud_delete_transit_vpc_connect`.
+- **Service Function Chain** (6): `ncloud_list_service_function_chains`, `ncloud_get_service_function_chain_detail`, `ncloud_create_service_function_chain` (Transit VPC only), `ncloud_change_service_function_chain_configuration` (each list sent replaces the existing one), `ncloud_set_service_function_chain_description`, `ncloud_delete_service_function_chain`. Each chain is checked before the call: 1 to 5 hops; every hop before the last must be `SVR` or `LB` and the last hop must not be; `targetNo` is required except for `IGW`, which must not have one; `SVR` hops need `ingressNetworkInterfaceNo`.
+- **Endpoint Route Table** (12): `ncloud_list_endpoint_route_tables`, `ncloud_get_endpoint_route_table_detail`, `ncloud_create_endpoint_route_table`, `ncloud_set_endpoint_route_table_description`, `ncloud_delete_endpoint_route_table`, `ncloud_add_endpoint_route_table_associations` / `ncloud_remove_endpoint_route_table_associations`, `ncloud_add_endpoint_route_table_routes` / `ncloud_remove_endpoint_route_table_routes` (route targets include `SFC`; `IGW` routes have no `targetNo`), `ncloud_add_endpoint_route_table_propagations` / `ncloud_remove_endpoint_route_table_propagations`, `ncloud_list_endpoint_route_table_propagations`.
+- Delete and remove tools ask for `confirm=true` before running.
+- **NKS Control Plane authentication log** (Public and Financial zones): `ncloud_nks_create_cluster` accepts `log.authn`, and `ncloud_nks_set_audit_log` takes `audit` and/or `authn`. `audit` is no longer required there; give at least one, and an omitted field keeps its current setting. `authn=true` needs `authType=API` and Kubernetes 1.26 or later — `ncloud_nks_create_cluster` rejects other combinations before calling the API. In the Government zone `audit` is still required and there is no `authn`.
+
+### Changed
+- `ncloud_create_init_script` checks `initScriptName`: 3 to 100 letters, digits, `-` or `_` in the Public and Financial zones (relaxed on 2026-11-24); 3 to 30 letters, digits or `-`, starting with a letter and ending with a letter or digit, in the Government zone.
+- **Cloud DB Serverless works with Sub Account keys** (supported since 2026-11-24; confirmed on 2026-11-25 with a Sub Account key: engine versions, cluster list and imported backup list all answered). A 403 now carries a hint to check the Sub Account's permission policy instead of telling you to use a main-account key. The old hint remains only when the API itself answers `sub account is not supported`.
+- **Certificate Manager 2.0 (`ncloud_cm2_*`) works with Sub Account keys.** Until 2026-10 the 2.0 API rejected them with HTTP 403; on 2026-11-25 a Sub Account key read certificate types, certificates, cloud and advanced certificates, domains, recent changes and EAB credentials. Tool descriptions no longer say a main-account key is required, and a 403 now suggests checking the Sub Account's Certificate Manager permissions first.
+- `ncloud_create_cache_config_group` describes the `cloudCacheVersion` values of each zone. The Financial zone now accepts only `7.2.11-simple`, `7.2.11-cluster`, `8.1.11-simple` and `8.1.11-cluster`, so the old `8.1.6-simple` example is no longer shown there. The Government zone supports `-simple` only.
+
 ## [3.0.0] - 2026-11-22
 
 > **Node.js 22.12 or later is required.** Node.js 20 reached end of life on 2026-04-30. Install on Node 20 now prints an `EBADENGINE` warning, and Node 20 is no longer tested. **2.4.0 is the last release for Node 20** and already has the zod security fix — pin `ncloud-mcp-server@2.4.0` if you cannot upgrade Node yet.

@@ -368,12 +368,38 @@ describe("network 그룹: 존별 등록", () => {
     return names;
   }
 
+  // 2026-11-24 민간존·금융존 릴리스: Transit VPC Connect · Service Function Chain · Endpoint Route Table — 공공존 미제공.
+  const isTransitVpc = (n: string) => /transit_vpc_connect|service_function_chain|endpoint_route_table/.test(n);
+
   it("pub: LB 리스너 인증서 도구 3종이 등록된다", () => {
     const names = captureNetwork("pub");
     for (const t of LISTENER_CERT_TOOLS) expect(names).toContain(t);
   });
+  it("Transit VPC 계열 24개 도구(6+6+12): pub·fin 에 같은 집합, gov 에는 없다", () => {
+    const pub = captureNetwork("pub").filter(isTransitVpc);
+    expect(pub.length).toBe(24);
+    expect(captureNetwork("fin" as any).filter(isTransitVpc).sort()).toEqual(pub.sort());
+    expect(captureNetwork("gov").some(isTransitVpc)).toBe(false);
+  });
+  it("create_vpc vpcTypeCode · subnet SFC: pub·fin 만", () => {
+    const schemaOf = (zone: string, tool: string) => {
+      let shape: any;
+      const fakeServer: any = { registerTool: (name: string, cfg: any) => { if (name === tool) shape = cfg.inputSchema; } };
+      registerGroups(
+        { server: fakeServer, client: makeClientFactory(creds, "KR", zone as any, {}), regionCode: "KR", zone: zone as any, creds, env: {} },
+        TOOL_GROUPS.filter((g) => g.key === "network")
+      );
+      return shape;
+    };
+    for (const zone of ["pub", "fin"]) {
+      expect(Object.keys(schemaOf(zone, "ncloud_create_vpc"))).toContain("vpcTypeCode");
+      expect(schemaOf(zone, "ncloud_create_subnet").usageTypeCode.description).toContain("SFC");
+    }
+    expect(Object.keys(schemaOf("gov", "ncloud_create_vpc"))).not.toContain("vpcTypeCode");
+    expect(schemaOf("gov", "ncloud_create_subnet").usageTypeCode.description).not.toContain("SFC");
+  });
   it("gov: 리스너 인증서 도구 3종만 빠지고, Global DNS 는 v2(추가 도구 포함) — 나머지는 public 과 동일", () => {
-    const pub = captureNetwork("pub");
+    const pub = captureNetwork("pub").filter((n) => !isTransitVpc(n));
     const gov = captureNetwork("gov");
     const isDns = (n: string) => n.startsWith("ncloud_dns_");
     for (const t of LISTENER_CERT_TOOLS) expect(gov).not.toContain(t);
@@ -385,7 +411,7 @@ describe("network 그룹: 존별 등록", () => {
     expect(govDns).toContain("ncloud_dns_get_domain_operation");
     expect(govDns).toContain("ncloud_dns_get_record_operation");
   });
-  it("fin: Global Traffic Manager 만 빠지고(금융존 미제공) 리스너 인증서 포함 나머지는 public 과 동일", () => {
+  it("fin: Global Traffic Manager 만 빠지고(금융존 미제공) 리스너 인증서·Transit VPC 포함 나머지는 public 과 동일", () => {
     const pub = captureNetwork("pub");
     const fin = captureNetwork("fin" as any);
     const isGtm = (n: string) => n.startsWith("ncloud_gtm_");

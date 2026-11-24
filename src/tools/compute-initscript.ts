@@ -3,6 +3,8 @@ import { z } from "zod";
 import { NcloudClient } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
 import { redactShellSecrets } from "./_secrets.js";
+import { L } from "./_messages.js";
+import type { Zone } from "../client/endpoints.js";
 
 const INCLUDE_SECRETS_SCHEMA = z
   .boolean()
@@ -42,7 +44,29 @@ export function annotateInitScriptSecrets(result: any, includeSecrets: boolean):
   };
 }
 
-export function registerComputeInitScriptTools(server: McpServer, client: NcloudClient): void {
+/**
+ * createInitScript `initScriptName` 규칙(compute-vserver-initscript-createinitscript).
+ * 민간존·금융존: 2026-11-24 완화 — 영문자·숫자·'-'·'_', 3~100자.
+ * 공공존: 영문자·숫자·'-', 3~30자, 영문자로 시작·영숫자로 끝(2026-11-25 가이드 기준 변경 없음).
+ */
+export function initScriptNameSchema(zone: Zone) {
+  return zone === "gov"
+    ? z.string().regex(/^[A-Za-z][A-Za-z0-9-]{1,28}[A-Za-z0-9]$/, {
+        message: L({
+          ko: "잘못된 파라미터: 'initScriptName'은(는) 3~30자의 영문자/숫자/하이픈만 허용하며, 영문자로 시작하고 영숫자로 끝나야 합니다.",
+          en: "Invalid parameter: 'initScriptName' must be 3-30 characters of letters, digits, and hyphens, starting with a letter and ending with a letter or digit.",
+        }),
+      }).describe("Init script name (3-30 chars: letters, digits, '-'; starts with a letter, ends with a letter or digit). Auto-generated if omitted")
+    : z.string().regex(/^[A-Za-z0-9_-]{3,100}$/, {
+        message: L({
+          ko: "잘못된 파라미터: 'initScriptName'은(는) 3~100자의 영문자/숫자/'-'/'_'만 허용합니다.",
+          en: "Invalid parameter: 'initScriptName' must be 3-100 characters of letters, digits, '-', and '_'.",
+        }),
+      }).describe("Init script name (3-100 chars: letters, digits, '-', '_'). Auto-generated if omitted");
+}
+
+export function registerComputeInitScriptTools(server: McpServer, client: NcloudClient, opts: { zone?: Zone } = {}): void {
+  const zone: Zone = opts.zone ?? "pub";
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
   defineTool(
@@ -85,7 +109,7 @@ export function registerComputeInitScriptTools(server: McpServer, client: Ncloud
     "Create a new init script. The response echoes the script content with secrets REDACTED.",
     {
       initScriptContent: z.string().describe("Init script content (shell script)"),
-      initScriptName: z.string().optional().describe("Init script name"),
+      initScriptName: initScriptNameSchema(zone).optional(),
       initScriptDescription: z.string().optional().describe("Init script description"),
       osTypeCode: z.string().optional().describe("OS type code (LNX or WND)"),
     },

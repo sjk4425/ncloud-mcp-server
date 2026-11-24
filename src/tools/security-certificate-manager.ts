@@ -15,9 +15,11 @@ import { dryRunPreview } from "./_dryrun.js";
  *   - DELETE /api/v1/certificate/{no}?certificateName=... — 인증서 삭제
  *
  * API 2.0(/api/v2, 24 op — 인증서 신청·재발급·체인/다운로드·폐지·자동 갱신·도메인·ACME EAB)은 `opts.v2`
- *   로 켜며 **민간존 전용**(공공·금융 가이드는 1.0 op 뿐)이다. 2.0은 **메인 계정 키 전용**: Ncloud 티켓 답변으로
- *   확정됐고, 2026-10-02 라이브 실측(Sub Account, NCP_ADMINISTRATOR + NCP_CERTIFICATE_MANAGER_MANAGER)에서도
- *   v2 조회가 전부 HTTP 403(빈 응답, x-ncp-apigw-response-origin: ENDPOINT)이고 같은 키로 v1은 정상이었다.
+ *   로 켜며 **민간존 전용**(공공·금융 가이드는 1.0 op 뿐)이다. 2.0은 원래 **메인 계정 키 전용**이었다: Ncloud 티켓 답변,
+ *   2026-10-02 라이브 실측(Sub Account, NCP_ADMINISTRATOR + NCP_CERTIFICATE_MANAGER_MANAGER)에서 v2 조회가 전부
+ *   HTTP 403(빈 응답, x-ncp-apigw-response-origin: ENDPOINT). **2026-11-25 같은 계열 Sub Account 키(userType=Sub)로
+ *   2.0 조회 8종(certificate types·certificates·cloud·advanced·domains·recent changes·EAB)이 모두 200** → Sub Account 지원.
+ *   403 안내는 이제 권한 정책 확인을 먼저 권한다.
  *   역할 분담: 1.0 과 겹치는 조회·외부 등록·삭제는 1.0 도구를 기본으로 쓰고(어떤 키든 동작), 2.0 도구는 1.0 에
  *   없는 기능만 감싼다(삭제는 1.0 과 동일하므로 2.0 으로 중복 구현하지 않음). 2.0 호출이 403 이면 자동 폴백 대신
  *   메인 계정 키 안내 + (겹치는 op 는) 1.0 도구 이름을 돌려준다 — 두 API 는 응답 형태가 달라 몰래 바꾸면 후속
@@ -78,9 +80,12 @@ export interface CertificateManagerToolOptions {
   stsClient?: NcloudClient;
 }
 
-/** 2.0 도구 description 공통 꼬리말 — 민간존 전용 + 메인 계정 키 필수. */
+/**
+ * 2.0 도구 description 공통 꼬리말 — 민간존 전용. 2026-10-02 에는 Sub Account 키가 403 이었으나
+ * 2026-11-25 같은 Sub Account 키(userType=Sub)로 2.0 조회 8종이 모두 200 → 메인 계정 전용 문구 제거.
+ */
 const V2_NOTE =
-  "Public zone only. Requires a main-account API key — Certificate Manager 2.0 rejects Sub Account keys with HTTP 403 (confirmed by Ncloud support; verified 2026-10-02 with NCP_ADMINISTRATOR).";
+  "Public zone only. Works with main-account and Sub Account keys (Sub Account verified 2026-11-25; earlier the 2.0 API rejected Sub Account keys with HTTP 403).";
 
 /** 2.0 ↔ 1.0 이 겹치는 op: 403 안내문에 "어떤 키든 되는 1.0 도구" 이름을 싣는다. */
 const V1_EQUIVALENT: Record<string, string> = {
@@ -92,7 +97,7 @@ const V1_EQUIVALENT: Record<string, string> = {
 /** 403 안내문. 테스트·문구 변경을 한 곳에서 하려고 export 한다. */
 export async function buildV2DeniedMessage(stsClient: NcloudClient | undefined, v1Equivalent?: keyof typeof V1_EQUIVALENT): Promise<string> {
   const lines = [
-    "Certificate Manager 2.0 denied this key (HTTP 403). Only main-account API keys can use the 2.0 API; Sub Account keys are rejected (confirmed by Ncloud support).",
+    "Certificate Manager 2.0 denied this key (HTTP 403). Sub Account keys are accepted since late 2026-11 (verified 2026-11-25), so for a Sub Account check its permission policy for Certificate Manager. Before that, only main-account keys could use the 2.0 API.",
   ];
   if (stsClient) {
     try {
@@ -107,7 +112,7 @@ export async function buildV2DeniedMessage(stsClient: NcloudClient | undefined, 
   if (v1Equivalent) {
     lines.push(`For ${v1Equivalent} use the 1.0 tool ${V1_EQUIVALENT[v1Equivalent]}, which works with any key.`);
   } else {
-    lines.push("This operation exists only in the 2.0 API — retry with the main account's Access Key / Secret Key.");
+    lines.push("This operation exists only in the 2.0 API — grant the key Certificate Manager permissions, or retry with the main account's Access Key / Secret Key.");
   }
   return lines.join("\n");
 }
@@ -240,13 +245,13 @@ export function registerCertificateManagerTools(server: McpServer, client: Nclou
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Certificate Manager API 2.0 (민간존 전용, 메인 계정 키 전용) — security-certificatemanager-* 2.0 표 24 op (삭제 제외 23 도구)
+// Certificate Manager API 2.0 (민간존 전용, 2026-11-25부터 Sub Account 키도 동작) — security-certificatemanager-* 2.0 표 24 op (삭제 제외 23 도구)
 // ═══════════════════════════════════════════════════════════════════════════
 
 type V2Equivalent = keyof typeof V1_EQUIVALENT;
 
 function registerCertificateManagerV2Tools(server: McpServer, client: NcloudClient, stsClient?: NcloudClient): void {
-  /** 2.0 핸들러 공통 래퍼: 403 이면 메인 계정 안내(+1.0 대체 도구)를 isError 응답으로 돌려준다. 그 외 에러는 그대로 던진다. */
+  /** 2.0 핸들러 공통 래퍼: 403 이면 권한 정책·메인 계정 안내(+1.0 대체 도구)를 isError 응답으로 돌려준다. 그 외 에러는 그대로 던진다. */
   const v2 = <T>(run: () => Promise<T>, v1Equivalent?: V2Equivalent) => async () => {
     try {
       return assertReturnCode(await run());

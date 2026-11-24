@@ -20,8 +20,10 @@ import { withQuery } from "./_query.js";
  * 배치 op 는 검증 실패 시 400 `partialFailure` + `failures{index→Error}`(`error` 아님) — 클라이언트가 본문을 그대로 메시지에 싣는다.
  *
  * 2026-09-21 라이브(Sub Account admin 키): 실제 경로(`/mysql/v1/clusters`, `/engine-versions`)는 403 "sub account is not
- * supported yet", 가짜/camelCase 경로는 300 → 경로 실존(kebab-case) 확인, **API 가 Sub Account 키를 아직 지원하지 않음**.
- * 메인 계정 키로만 동작하므로 403 에 그 힌트를 덧붙인다. 응답 형식은 미검증(문서 기준).
+ * supported yet", 가짜/camelCase 경로는 300 → 경로 실존(kebab-case) 확인.
+ * 2026-11-24 릴리스(guide.ncloud-docs.com/docs/releasenote-20261124#cloud-db-serverless)로 Sub Account 지원 —
+ * 2026-11-25 같은 Sub Account 키로 list_engine_versions·list_clusters·list_imported_backups 200 확인.
+ * 403 은 이제 권한 정책 문제일 가능성이 크므로 그 힌트를 덧붙인다(구 문구 "not supported" 가 오면 따로 안내).
  */
 
 const V1 = "/mysql/v1";
@@ -115,16 +117,22 @@ function stripUndefined<T extends Record<string, unknown>>(o: T): T {
 }
 
 export function registerDatabaseServerlessTools(server: McpServer, client: NcloudClient): void {
-  /** 요청 실행 + 403(Sub Account 미지원) 힌트. */
+  /** 요청 실행 + 403 힌트(Sub Account 권한). */
   async function call(method: string, path: string, body?: unknown): Promise<any> {
     try {
       return body === undefined ? await client.requestRaw(method, path) : await client.requestRaw(method, path, undefined, body);
     } catch (e: any) {
       const msg = String(e?.message ?? "");
-      if (/sub account is not supported/i.test(msg) || /HTTP 상태: 403|HTTP status: 403|\b403\b/.test(msg)) {
+      if (/sub account is not supported/i.test(msg)) {
         throw new Error(msg + "\n\n" + L({
-          ko: "💡 Cloud DB Serverless API 는 Sub Account 키를 아직 지원하지 않습니다(2026-09-21 실측: 403 \"sub account is not supported yet\"). 메인 계정의 Access Key 로 실행하세요.",
-          en: "💡 The Cloud DB Serverless API does not support Sub Account keys yet (live 2026-09-21: 403 \"sub account is not supported yet\"). Use a main-account Access Key.",
+          ko: "💡 이 요청은 Sub Account 키를 지원하지 않는다고 응답했습니다. Cloud DB Serverless 는 2026-11-24 부터 Sub Account 를 지원하지만(조회 API 2026-11-25 확인), 이 작업이 아직 제외됐을 수 있습니다. 메인 계정 Access Key 로 다시 시도하세요.",
+          en: "💡 The API answered that this request does not support Sub Account keys. Cloud DB Serverless supports Sub Accounts since 2026-11-24 (read APIs confirmed 2026-11-25), but this operation may still be excluded. Retry with a main-account Access Key.",
+        }));
+      }
+      if (/HTTP 상태: 403|HTTP status: 403|\b403\b/.test(msg)) {
+        throw new Error(msg + "\n\n" + L({
+          ko: "💡 403: Sub Account 키라면 Cloud DB Serverless 에 대한 권한 정책이 부여됐는지 확인하세요(Sub Account 콘솔 > 정책).",
+          en: "💡 403: if this is a Sub Account key, check that it has a permission policy for Cloud DB Serverless (Sub Account console > Policies).",
         }));
       }
       throw e;

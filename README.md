@@ -19,11 +19,11 @@ Ncloud의 **60개 이상 서비스**, **1,000개 이상 API 도구**를 MCP 프�
 | 카테고리 | 서비스 |
 |---------|--------|
 | **Compute** | Server, Block Storage, Snapshot, Public IP, Init Script, Login Key, Placement Group, Fabric Cluster ⓕ, Auto Scaling, Cloud Functions |
-| **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager ⓕ |
+| **Networking** | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Transit VPC Connect·Service Function Chain·Endpoint Route Table ⓖ, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager ⓕ |
 | **Database** | Cloud DB for MySQL, PostgreSQL, MSSQL, MongoDB, Cache (Redis/Valkey), **Cloud DB Serverless (MySQL)** 🅿 |
 | **Storage** | Object Storage (S3 호환), Ncloud Storage (S3 호환) ⓕ, NAS, Archive Storage (Swift 호환) ⓕ |
 | **Containers** | Ncloud Kubernetes Service (NKS), Container Registry |
-| **Security** | Certificate Manager (2.0은 민간존 전용·메인 계정 키 필요), Private CA ⓕ, KMS (금융존은 암·복호화 6종만), Security Monitoring ⓕ, Secret Manager 🅿 |
+| **Security** | Certificate Manager (2.0은 민간존 전용), Private CA ⓕ, KMS (금융존은 암·복호화 6종만), Security Monitoring ⓕ, Secret Manager 🅿 |
 | **Monitoring** | Cloud Insight, Log Analytics |
 | **Management & Governance** | Activity Tracer, Cloud Advisor 🅿, Resource Manager, Sub Account, Web service Monitoring System (WMS), STS(호출자 식별) |
 | **DevTools** | SourceCommit, SourceBuild, SourceDeploy, SourcePipeline |
@@ -110,9 +110,9 @@ npm run build
 > ⚠️ 인증키는 존별로 별개입니다. 민간존 키로 공공존·금융존을 호출하면(또는 그 반대) 인증 오류가 납니다. `NCLOUD_ZONE`에 `pub`/`gov`/`fin` 외의 값을 주면 다른 존으로 조용히 가지 않도록 서버가 시작 시 종료합니다.
 
 > 🔑 **계정·키 관련 주의 (2.0.0)**
-> - **Certificate Manager 2.0** (`ncloud_cm2_*`, 민간존)은 **메인 계정 Access Key로만** 호출됩니다(Ncloud 기술지원 확인). 서브 계정 키는 2.0 엔드포인트가 HTTP 403으로 거부하며, 이때 서버는 호출자 정보와 함께 안내문을 돌려주고 조회·외부 인증서 등록은 어떤 키로든 되는 1.0 도구(`ncloud_list_certificates`, `ncloud_register_external_certificate`)를 안내합니다.
+> - **Certificate Manager 2.0** (`ncloud_cm2_*`, 민간존)은 이제 **서브 계정 키로도 호출됩니다**(2026-11-25 서브 계정 키로 조회 API 정상 응답 확인). 2026-10까지는 메인 계정 키만 받고 서브 계정 키는 HTTP 403으로 거부했습니다. 403이 나면 서버가 호출자 정보와 권한 정책 확인 안내를 돌려주고, 조회·외부 인증서 등록은 1.0 도구(`ncloud_list_certificates`, `ncloud_register_external_certificate`)도 안내합니다.
 > - **Secret Manager** (`ncloud_secret_*`, 민간존)은 시크릿을 암호화한 KMS 키 종류에 따라 호스트가 다릅니다. 모든 도구의 `keyIsolation` 파라미터로 고릅니다 — `global`(기본, `secretmanager.apigw.ntruss.com`) / `regional`(KMS 리전 격리 키, `ocapi-kr.ncloud.com/secretmanager`; 일본 리전은 격리 키만). 격리 키 호스트는 서버 시작 시 리전(`NCLOUD_REGION`)으로 정해집니다.
-> - **Cloud DB Serverless** (`ncloud_serverless_*`, 민간존)도 **메인 계정 Access Key로만** 호출됩니다. 서브 계정 키는 API가 HTTP 403 `sub account is not supported yet`로 거부하며(2026-10-02 재확인, NCP_ADMINISTRATOR 서브 계정), 서버는 그 403에 메인 계정 키를 쓰라는 안내를 덧붙입니다. 같은 키로 Cloud DB for MySQL 등 다른 DB 도구는 정상 동작합니다.
+> - **Cloud DB Serverless** (`ncloud_serverless_*`, 민간존)는 2026-11-24부터 **서브 계정 키도 지원**합니다(2026-11-25 서브 계정 키로 조회 API 정상 응답 확인). 이전에는 HTTP 403 `sub account is not supported yet`로 거부됐습니다. 403이 나면 서버가 권한 정책 확인 안내를 덧붙입니다.
 > - 현재 키가 메인 계정인지 서브 계정인지는 `ncloud_get_caller_identity`(STS, 세 존)로 확인할 수 있습니다.
 
 **공공존 설정 예시**
@@ -289,8 +289,8 @@ npm run build
 | 그룹 key | 포함 서비스 |
 |---|---|
 | `compute` | Server, Block Storage, Snapshot, Public IP, Login Key, Init Script, Placement Group, Fabric Cluster, Auto Scaling, Cloud Functions |
-| `network` | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
-| `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey; 공공존은 사용자(ACL) 관리 포함) / Cloud DB Serverless (MySQL, 민간존·메인 계정 키 전용) |
+| `network` | VPC, Subnet, ACG, Network ACL, NAT Gateway, Route Table, VPC Peering, Transit VPC (Connect·SFC·Endpoint Route Table, 민간존·금융존), Network Interface, Load Balancer, Target Group, Global DNS, Global Traffic Manager |
+| `database` | Cloud DB for MySQL / PostgreSQL / MSSQL / MongoDB / Cache (Redis/Valkey; 공공존은 사용자(ACL) 관리 포함) / Cloud DB Serverless (MySQL, 민간존) |
 | `storage` | Object Storage, Ncloud Storage, NAS, Archive Storage |
 | `containers` | Ncloud Kubernetes Service(NKS), Container Registry |
 | `monitoring` | Cloud Insight, Cloud Log Analytics |
@@ -299,7 +299,7 @@ npm run build
 | `analytics` | Search Engine Service, Cloud Hadoop, Cloud Data Streaming Service, Data Stream/Catalog/Forest/Flow/Query(민간존), Datafence·Cloud Data Box(민간존) |
 | `media` | VOD Station, Live Station(민간존·금융존), One Click Multi DRM |
 | `cdn` | Global Edge (민간존·공공존) · CDN+ (금융존 전용 — 민간은 종료, 공공은 2026-12-31 종료 예정이라 미등록) |
-| `security` | Certificate Manager(공공존은 사설 인증서 발급 포함, 민간존은 2.0 `ncloud_cm2_*` 포함 — 메인 계정 키 전용), Private CA, KMS, Security Monitoring, Secret Manager(민간존, `keyIsolation`) |
+| `security` | Certificate Manager(공공존은 사설 인증서 발급 포함, 민간존은 2.0 `ncloud_cm2_*` 포함), Private CA, KMS, Security Monitoring, Secret Manager(민간존, `keyIsolation`) |
 | `application` | API Gateway, SENS (SMS/알림톡/브랜드메시지/Mail(민간존), 프로젝트), Cloud Outbound Mailer(민간존 레거시 / 공공존 정식) |
 | `billing` | Billing (요금/가격 조회, 비용·사용량, 할인) |
 | `common` *(항상 ON)* | Region / Zone 공통 |

@@ -41,6 +41,8 @@ import {
   registerNatGatewayTools,
   registerRouteTableTools,
   registerVpcPeeringTools,
+  registerTransitVpcTools,
+  registerEndpointRouteTableTools,
   registerNetworkInterfaceTools,
   registerLoadBalancerTools,
   registerTargetGroupTools,
@@ -236,7 +238,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerComputeStorageTools(server, c);
       registerComputePublicIpTools(server, c);
       registerComputeLoginKeyTools(server, c);
-      registerComputeInitScriptTools(server, c);
+      registerComputeInitScriptTools(server, c, { zone });
       registerComputePlacementTools(server, c, { fabricCluster: !fin });
       registerAutoScalingTools(server, c, { zone });
 
@@ -260,7 +262,18 @@ export const TOOL_GROUPS: ToolGroup[] = [
       //   공공존 LB 에만 리스너 인증서(SNI) 오퍼레이션 3종이 없다(금융존은 있음).
       // Global DNS: 세 존 제공. Global Traffic Manager: 금융존 미제공(api-fin 404) → endpoint() undefined 면 미등록.
       const c = client();
-      registerVpcTools(server, c);
+      // Transit VPC(2026-11-24 릴리스): createVpc vpcTypeCode·Subnet SFC + Transit VPC Connect 6 ·
+      //   Service Function Chain 6 · Endpoint Route Table 12.
+      //   민간존: https://api.ncloud-docs.com/docs/api-releasenote-20261124 + 상세 가이드.
+      //   금융존: https://api-fin.ncloud-docs.com/docs/api-releasenote-20261124 에 같은 오퍼레이션·파라미터로 공지
+      //     (2026-11-25 기준 상세 페이지는 아직 404, createVpc/createSubnet 페이지에도 미반영 — 릴리스 노트 근거로 등록).
+      //   공공존: 릴리스 노트·가이드 모두 없음 → 미등록.
+      const transitVpc = zone === "pub" || zone === "fin";
+      registerVpcTools(server, c, { transitVpc });
+      if (transitVpc) {
+        registerTransitVpcTools(server, c);
+        registerEndpointRouteTableTools(server, c);
+      }
       registerAcgTools(server, c);
       registerNetworkAclTools(server, c);
       registerNatGatewayTools(server, c);
@@ -291,8 +304,9 @@ export const TOOL_GROUPS: ToolGroup[] = [
       registerDatabasePostgresqlTools(server, c);
       registerDatabaseMssqlTools(server, c);
       registerDatabaseMongodbTools(server, c);
-      registerDatabaseCacheTools(server, c, { userList: zone === "gov" });
-      // Cloud DB Serverless(2026-09-17 신규): 표준 REST, 별도 base URL. 2026-09-21 실측 "sub account is not supported yet"(403).
+      registerDatabaseCacheTools(server, c, { userList: zone === "gov", zone });
+      // Cloud DB Serverless(2026-09-17 신규): 표준 REST, 별도 base URL. 2026-09-21 실측 "sub account is not supported yet"(403)
+      //   → 2026-11-24 릴리스로 Sub Account 지원, 2026-11-25 Sub Account 키로 조회 200 확인.
       //   공공존 미제공(api-gov 에 pub-clouddb-serverless-* 페이지 없음) → endpoint() 가 undefined 면 등록하지 않는다.
       const serverless = endpoint("clouddbServerless", zone);
       if (serverless) registerDatabaseServerlessTools(server, client(serverless));
@@ -483,8 +497,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
       //   금융존 미제공(상품 없음) → endpoint() undefined 면 미등록.
       // KMS: 민간·공공존은 2.0(ocapi.*, security-kms2-*). 금융존은 v1 게이트웨이(kms.apigw.fin-ntruss.com) 암·복호화 6종만(security-kms.ts).
       // Security Monitoring: 민간·공공존 규칙형, 금융존 미제공.
-      // Certificate Manager 2.0(ncloud_cm2_*, /api/v2)은 민간존 가이드에만 있다(공공·금융은 1.0 op 뿐). 2.0 엔드포인트는 서브 계정 키를
-      //   빈 403 으로 거부한다(Ncloud 티켓 답변 + 2026-10-02 라이브 확인, NCP_ADMINISTRATOR 서브 계정) → 메인 계정 전용 안내에 STS 호출자 식별을 붙인다.
+      // Certificate Manager 2.0(ncloud_cm2_*, /api/v2)은 민간존 가이드에만 있다(공공·금융은 1.0 op 뿐). 2026-10-02 에는 서브 계정 키를
+      //   빈 403 으로 거부했으나 2026-11-25 서브 계정 키로 조회 200 확인 → 403 이면 권한 정책 안내에 STS 호출자 식별을 붙인다.
       registerCertificateManagerTools(server, client(endpoint("certificateManager", zone)), {
         issuePrivate: zone === "gov",
         v2: zone === "pub",

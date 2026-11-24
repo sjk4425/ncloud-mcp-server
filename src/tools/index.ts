@@ -5,6 +5,8 @@ export { registerComputePublicIpTools } from "./compute-publicip.js";
 export { registerComputeLoginKeyTools } from "./compute-loginkey.js";
 export { registerComputeInitScriptTools } from "./compute-initscript.js";
 export { registerVpcTools } from "./network-vpc.js";
+export { registerTransitVpcTools } from "./network-transit-vpc.js";
+export { registerEndpointRouteTableTools } from "./network-endpoint-route-table.js";
 export { registerAcgTools } from "./network-acg.js";
 export { registerNetworkAclTools } from "./network-acl.js";
 export { registerNatGatewayTools } from "./network-nat-gateway.js";

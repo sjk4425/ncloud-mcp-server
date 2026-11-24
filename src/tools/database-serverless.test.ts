@@ -59,6 +59,15 @@ describe("Serverless — 구성·경로", () => {
     expect(text(r)).toMatch(/Sub Account/);
     expect(text(r)).toMatch(/sub account is not supported yet/);
   });
+
+  it("other 403s get a permission-policy hint instead (Sub Account supported since 2026-11-24)", async () => {
+    const { client, call } = setup();
+    vi.spyOn(client, "requestRaw").mockRejectedValue(new Error("API 호출 실패\n\n에러 코드: Forbidden\n메시지: Access denied\n\nHTTP 상태: 403"));
+    const r = await call("ncloud_serverless_list_clusters", {});
+    expect(r.isError).toBe(true);
+    expect(text(r)).toMatch(/권한 정책|permission policy/);
+    expect(text(r)).not.toMatch(/메인 계정|main-account/);
+  });
 });
 
 describe("Serverless — 클러스터", () => {

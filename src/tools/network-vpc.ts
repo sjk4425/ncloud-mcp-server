@@ -1,12 +1,23 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { NcloudClient } from "../client/ncloud-client.js";
+import { NcloudClient, type NcloudApiParams } from "../client/ncloud-client.js";
 import { defineTool } from "./_tool.js";
-import { cidrMessage, maxLenMessage } from "./_messages.js";
+import { cidrMessage, maxLenMessage, L } from "./_messages.js";
 import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
 
-export function registerVpcTools(server: McpServer, client: NcloudClient): void {
+export interface VpcToolOptions {
+  /**
+   * Transit VPC 기능(2026-11-24 민간존·금융존 릴리스): createVpc `vpcTypeCode`(NORMAL|TRANSIT),
+   * Subnet `usageTypeCode=SFC`. 공공존에는 없다 → 민간존·금융존만 true.
+   */
+  transitVpc?: boolean;
+}
+
+export function registerVpcTools(server: McpServer, client: NcloudClient, opts: VpcToolOptions = {}): void {
+  const transit = opts.transitVpc === true;
+  const usageTypes = transit ? "GEN, LOADB, BM, NATGW, SFC" : "GEN, LOADB, BM, NATGW";
+
   // ─── VPC Query Tools ───────────────────────────────────────────────────────
 
   defineTool(
@@ -48,6 +59,14 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       vpcName: z.string().max(30, {
         message: maxLenMessage("vpcName", 30),
       }).optional().describe("VPC name (max 30 characters)"),
+      // 가이드 networking-vpc-vpcmanagement-createvpc(민간존, 2026-11-24): vpcTypeCode Optional, 기본 NORMAL.
+      ...(transit
+        ? {
+            vpcTypeCode: z.enum(["NORMAL", "TRANSIT"]).optional().describe(
+              "VPC type: NORMAL (default, general VPC) or TRANSIT (Transit VPC hub for Transit VPC Connect / Service Function Chain; only where enabled for the account/region)"
+            ),
+          }
+        : {}),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the VPC"),
     },
     async (params) => {
@@ -61,7 +80,8 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
         });
       }
 
-      const result = await client.request("/vpc/v2/createVpc", apiParams);
+      // 조건부 스키마 스프레드라 vpcTypeCode 가 unknown 으로 추론된다(zod enum → string 보장).
+      const result = await client.request("/vpc/v2/createVpc", apiParams as NcloudApiParams);
       const instance = result.vpcList?.[0];
       const summary = {
         리소스타입: "VPC",
@@ -70,6 +90,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
         상태: instance?.vpcStatus?.codeName ?? "creating",
         생성시각: instance?.createDate ?? new Date().toISOString(),
         CIDR블록: params.ipv4CidrBlock,
+        ...(instance?.vpcType ? { VPC유형: instance.vpcType?.code ?? instance.vpcType } : {}),
       };
       return summary;
     }
@@ -104,7 +125,7 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       vpcNo: z.string().optional().describe("Filter by VPC number"),
       subnetName: z.string().optional().describe("Filter by subnet name"),
       subnetTypeCode: z.string().optional().describe("Filter by subnet type (PUBLIC, PRIVATE)"),
-      usageTypeCode: z.string().optional().describe("Filter by usage type (GEN, LOADB, BM, NATGW)"),
+      usageTypeCode: z.string().optional().describe(`Filter by usage type (${usageTypes})`),
     },
     async (params) => {
       return client.request("/vpc/v2/getSubnetList", params);
@@ -140,11 +161,22 @@ export function registerVpcTools(server: McpServer, client: NcloudClient): void 
       subnetName: z.string().max(30, {
         message: maxLenMessage("subnetName", 30),
       }).optional().describe("Subnet name (max 30 characters)"),
-      usageTypeCode: z.string().optional().describe("Usage type code (GEN, LOADB, BM, NATGW). Default: GEN"),
+      usageTypeCode: z.string().optional().describe(
+        transit
+          ? "Usage type code (GEN, LOADB, BM, NATGW, SFC). Default: GEN. SFC = Service Function Chain dedicated subnet — only allowed for a PUBLIC subnet in a Transit VPC"
+          : "Usage type code (GEN, LOADB, BM, NATGW). Default: GEN"
+      ),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without actually creating the subnet"),
     },
     async (params) => {
       const { dryRun, ...apiParams } = params;
+      // 가이드 createSubnet(민간존 2026-11-24): SFC 는 Transit VPC 의 PUBLIC 서브넷 생성 시에만 허용.
+      if (transit && apiParams.usageTypeCode === "SFC" && apiParams.subnetTypeCode !== "PUBLIC") {
+        throw new Error(L({
+          ko: "잘못된 파라미터: usageTypeCode=SFC 는 subnetTypeCode=PUBLIC(Transit VPC)일 때만 허용됩니다.",
+          en: "Invalid parameter: usageTypeCode=SFC is only allowed with subnetTypeCode=PUBLIC (in a Transit VPC).",
+        }));
+      }
       if (dryRun) {
         return dryRunPreview({
           label: "🔍 Dry-Run Preview: Subnet Creation",

@@ -5,6 +5,7 @@ import { defineTool } from "./_tool.js";
 import { L, maxLenMessage } from "./_messages.js";
 import { reqField } from "./_zod.js";
 import { dryRunPreview } from "./_dryrun.js";
+import type { Zone } from "../client/endpoints.js";
 
 export interface DatabaseCacheToolOptions {
   /**
@@ -13,6 +14,24 @@ export interface DatabaseCacheToolOptions {
    * (api-gov.ncloud-docs.com/docs/database-vcache-*cloudcacheuserlist, 민간존 동일 페이지는 404 — 2026-09-30 확인).
    */
   userList?: boolean;
+  /** 존 — createCloudCacheConfigGroup `cloudCacheVersion` 안내 값(존마다 허용 목록이 다르다). 기본 `pub`. */
+  zone?: Zone;
+}
+
+/**
+ * createCloudCacheConfigGroup `cloudCacheVersion` 허용 값 안내(database-vcache-createcloudcacheconfiggroup, 2026-11-25).
+ * 서버가 최종 판정하고 버전이 자주 추가되므로 enum 으로 막지 않고 설명에만 싣는다.
+ *   - 금융존: 2026-11-24 릴리스로 4개만 남음(7.2.11, 8.1.11 × simple/cluster) — 8.1.6·구 Redis 버전 제외.
+ *   - 공공존: simple 만(클러스터 모드 없음).
+ */
+export function cacheVersionHint(zone: Zone): { example: string; allowed: string } {
+  if (zone === "fin") {
+    return { example: "'8.1.11-simple' | '7.2.11-cluster'", allowed: "Financial zone allows only 7.2.11-simple, 7.2.11-cluster, 8.1.11-simple, 8.1.11-cluster" };
+  }
+  if (zone === "gov") {
+    return { example: "'8.1.6-simple' | '7.2.11-simple'", allowed: "Government zone supports simple (standalone) mode only" };
+  }
+  return { example: "'8.1.11-simple' | '7.2.11-cluster'", allowed: "Valkey 7.2.11 / 8.1.6 / 8.1.11 and Redis 4.0.14-7.2.11, each as -simple or -cluster" };
 }
 
 /** 공공존 가이드의 사용자명 규칙: 영문자·숫자·'_'·'-' 조합 4~16자, 영문자로 시작. */
@@ -26,6 +45,7 @@ function cacheUserPasswordError(pw: string): string | null {
 }
 
 export function registerDatabaseCacheTools(server: McpServer, client: NcloudClient, opts: DatabaseCacheToolOptions = {}): void {
+  const versionHint = cacheVersionHint(opts.zone ?? "pub");
   // ─── Query Tools ───────────────────────────────────────────────────────────
 
   defineTool(
@@ -119,12 +139,12 @@ export function registerDatabaseCacheTools(server: McpServer, client: NcloudClie
     server,
     "ncloud_create_cache_config_group",
     "Create a new Cloud Cache config group. cloudCacheVersion combines engine version and mode " +
-      "(e.g. '8.1.6-simple' = Standalone, '7.2.11-cluster' = Cluster) — list valid values with " +
+      "(the -simple suffix = Standalone, -cluster = Cluster; e.g. " + versionHint.example + "). " + versionHint.allowed + ". List valid values with " +
       "ncloud_list_cache_config_group_versions. Use dryRun=true to preview without creating.",
     {
       configGroupName: z.string(reqField("configGroupName")).max(15, { message: maxLenMessage("configGroupName", 15) })
         .describe("Config group name (3-15 chars: lowercase letters, numbers, hyphen; must start with a letter and end with a letter or number)"),
-      cloudCacheVersion: z.string(reqField("cloudCacheVersion")).describe("Engine version + mode, e.g. '8.1.6-simple' | '7.2.11-cluster' (use ncloud_list_cache_config_group_versions)"),
+      cloudCacheVersion: z.string(reqField("cloudCacheVersion")).describe(`Engine version + mode, e.g. ${versionHint.example} (use ncloud_list_cache_config_group_versions)`),
       cloudCacheDbmsCode: z.enum(["Redis", "Valkey"]).optional().describe("DBMS type: Redis (default) | Valkey"),
       configGroupDescription: z.string().max(255, {
         message: maxLenMessage("configGroupDescription", 255),
