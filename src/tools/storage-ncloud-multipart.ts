@@ -5,6 +5,7 @@ import { defineTool } from "./_tool.js";
 import { L } from "./_messages.js";
 import { reqField } from "./_zod.js";
 import { tag, wrap, xmlDocument, text, blocks, intText, boolText } from "./_s3xml.js";
+import { writeConditionShape, writeConditionHeaders, copySourceConditionShape, copySourceConditionHeaders, maybe } from "./storage-ncloud-conditions.js";
 
 /**
  * Ncloud Storage 멀티파트 업로드 도구 7종.
@@ -91,7 +92,13 @@ function parseListMultipartUploadsXml(xml: string) {
   };
 }
 
-export function registerStorageNcloudMultipartTools(server: McpServer, client: S3CompatibleClient): void {
+export function registerStorageNcloudMultipartTools(
+  server: McpServer,
+  client: S3CompatibleClient,
+  opts: { conditional?: boolean } = {}
+): void {
+  /** 2026-11-24 조건부 요청(민간존). storage-ncloud-conditions.ts 참고. */
+  const conditional = opts.conditional !== false;
   // ─── CreateMultipartUpload ─────────────────────────────────────────────────
   defineTool(
     server,
@@ -178,10 +185,13 @@ export function registerStorageNcloudMultipartTools(server: McpServer, client: S
       copySource: z.string(reqField("copySource")).describe("Source object as {sourceBucket}/{sourceKey} (a leading slash is tolerated)"),
       copySourceVersionId: z.string().optional().describe("Version ID of the source object (versioning-enabled buckets)"),
       copySourceRange: z.string().optional().describe("Byte range to copy from the source, e.g. 'bytes=0-5242879'. Omit to copy the whole source object as this part"),
+      // 2026-11-24: 복사 원본 조건·원본 버킷 소유자(ncloudstorage-uploadpartcopy). 대상 파트의 If-Match/If-None-Match 는 미지원.
+      ...maybe(conditional, copySourceConditionShape),
     },
     async (params) => {
       const headers: Record<string, string> = {
         "x-amz-copy-source": normalizeCopySource(params.copySource, params.copySourceVersionId),
+        ...copySourceConditionHeaders(params),
       };
       if (params.copySourceRange) headers["x-amz-copy-source-range"] = params.copySourceRange;
 
@@ -272,8 +282,11 @@ export function registerStorageNcloudMultipartTools(server: McpServer, client: S
         etag: z.string().describe("ETag returned by ncloud_ncs_upload_part / upload_part_copy for this part"),
       })).min(1, { message: L({ ko: "최소 1개 이상의 파트가 필요합니다.", en: "At least one part is required." }) })
         .describe("Parts to assemble"),
+      // 2026-11-24: 조건부 완료(ncloudstorage-completemultipartupload). ifMatch 로 특정 ETag 를 주면 GetObject 권한도 필요.
+      ...maybe(conditional, writeConditionShape),
     },
     async (params) => {
+      const conditionHeaders = writeConditionHeaders(params);
       const sorted = [...params.parts].sort((a, b) => a.partNumber - b.partNumber);
       const partsXml = sorted.map((p) => wrap("Part", tag("PartNumber", p.partNumber) + tag("ETag", p.etag))).join("");
       const body = xmlDocument("CompleteMultipartUpload", partsXml);
@@ -283,7 +296,7 @@ export function registerStorageNcloudMultipartTools(server: McpServer, client: S
         bucket: params.bucketName,
         key: params.key,
         queryParams: { uploadId: params.uploadId },
-        headers: { "content-type": "application/xml" },
+        headers: { "content-type": "application/xml", ...conditionHeaders },
         body,
       });
       return {

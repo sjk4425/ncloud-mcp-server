@@ -454,7 +454,7 @@ export function registerAutoScalingTools(server: McpServer, client: NcloudClient
   defineTool(
     server,
     "ncloud_resume_processes",
-    "Resume previously suspended scaling processes for an Auto Scaling Group",
+    "Resume previously suspended scaling processes for an Auto Scaling Group. Note: Ncloud suspends LAUNCH automatically (administrative suspension) after repeated server-creation failures — spec not offered in the zone, Launch Configuration / image / snapshot problems, server quota exceeded, or repeated failures from a custom image; the cases were expanded on 2026-11-24 and the account now gets an email. It does not resume by itself: fix the cause first, then resume LAUNCH (the guide shows the console Process tab; this tool calls resumeProcesses)",
     {
       autoScalingGroupNo: z.string(reqField("autoScalingGroupNo")).describe("Auto Scaling Group number"),
       scalingProcessCodeList: z.array(z.string(), reqField("scalingProcessCodeList")).min(1).describe("List of scaling process codes to resume"),

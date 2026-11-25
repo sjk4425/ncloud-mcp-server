@@ -345,7 +345,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
         zone,
       });
       if (hasObject) registerStorageObjectTools(server, s3Client);
-      if (hasNcloud) registerStorageNcloudTools(server, ncloudStorageClient);
+      // Ncloud Storage 조건부 요청·버킷 소유자 확인(2026-11-24)은 민간존 가이드에만 있다(공공존 페이지는 2026-10-22 판).
+      if (hasNcloud) registerStorageNcloudTools(server, ncloudStorageClient, { conditional: zone === "pub" });
       registerStorageNasTools(server, client());
 
       // Archive Storage는 NCLOUD_ARCHIVE_PROJECT_ID/DOMAIN_ID 가 있을 때만 (Swift 클라이언트)

@@ -41,8 +41,13 @@ export interface CloudFunctionsOptions {
 const CF_V21 = "/ncf/api/v2";
 const CF_V20 = "/api/v2";
 
-/** 문서상 명시된 런타임(guide: cloudfunctions-spec-runtime, 2026-07 기준). */
-const SUPPORTED_RUNTIMES = ["nodejs:22", "python:3.13", "java", "java:21", "swift:3.1.1", "php:7.3", "go:1.19", "dotnet:2.2", "custom image"];
+/**
+ * 문서상 명시된 런타임(guide: cloudfunctions-spec-runtime, 2026-11-24 기준 — PHP 8.5 추가).
+ * php:7.3 은 2027-02-23 지원 중단 예정(그날부터 신규 액션 생성 불가, 30일 뒤 수정도 불가, 기존 액션 실행은 유지).
+ */
+const SUPPORTED_RUNTIMES = ["nodejs:22", "python:3.13", "java", "java:21", "swift:3.1.1", "php:8.5", "php:7.3", "go:1.19", "dotnet:2.2", "custom image"];
+/** 지원 중단 예정(가이드 표기, KST). 설명에만 안내하고 거부하지 않는다. */
+const SCHEDULED_END: Record<string, string> = { "php:7.3": "2027-02-23" };
 /** 2025-09-18 지원 종료 — 종료 후 **신규 액션 생성이 금지**된다(기존 액션은 동작). */
 const DEPRECATED_RUNTIMES = ["nodejs:6", "nodejs:8", "nodejs:12", "nodejs:16", "python:3.6", "python:3.7", "python:3.11", "php:7.1", "go:1.11"];
 
@@ -201,7 +206,7 @@ export function registerCloudFunctionsTools(server: McpServer, client: NcloudCli
         ? "basic/web: exec_kind, exec_code and exec_main are required; limits_timeout/limits_memory default to 60000 ms / 128 MB. Government-zone Cloud Functions is Classic-only: vpc_no/subnet_no are not accepted and 'custom image' is not available."
         : "basic/web: exec_kind, exec_code and exec_main are required; limits_timeout/limits_memory default to 60000 ms / 128 MB; on platform=vpc the action MUST be attached to a VPC + Subnet (vpc_no, subnet_no).",
       "sequence/sequence-web: pass exec_components as ['{packageName}/{actionName}', ...] (use '-' for unpackaged actions); exec_kind is forced to 'sequence'.",
-      `Runtimes (exec_kind): ${SUPPORTED_RUNTIMES.join(", ")}. Deprecated since 2025-09-18 and refused for NEW actions: ${DEPRECATED_RUNTIMES.join(", ")}. java/dotnet accept only base64 binaries (.jar / .zip) with exec_binary=true.${v20 ? "" : " 'custom image' requires exec_imageUri ('{registryName}/{imageName}:{tag}')."}`,
+      `Runtimes (exec_kind): ${SUPPORTED_RUNTIMES.join(", ")} (php:8.5 added 2026-11-24 in the Public-zone guide). Scheduled end of support: ${Object.entries(SCHEDULED_END).map(([k, d]) => `${k} on ${d}`).join(", ")} — no new actions from that date, prefer php:8.5. Deprecated since 2025-09-18 and refused for NEW actions: ${DEPRECATED_RUNTIMES.join(", ")}. java/dotnet accept only base64 binaries (.jar / .zip) with exec_binary=true.${v20 ? "" : " 'custom image' requires exec_imageUri ('{registryName}/{imageName}:{tag}')."}`,
       "Use dryRun=true to see the exact request without calling the API.",
     ].join(" "),
     {

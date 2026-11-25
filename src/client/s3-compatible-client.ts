@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { fetchWithTimeout } from "./_timeout.js";
+import { storageContextHeaders } from "./_storage-context.js";
 import { OBJECT_STORAGE_ENDPOINTS, NCLOUD_STORAGE_ENDPOINTS, type Zone, type S3RegionEndpoint } from "./endpoints.js";
 
 export type S3StorageType = "object" | "ncloud";
@@ -275,6 +276,8 @@ export class S3CompatibleClient {
       host,
       "x-amz-date": amzDate,
       "x-amz-content-sha256": payloadHash,
+      // Ncloud Storage 공통 헤더(x-amz-expected-bucket-owner) — 도구 공통 파라미터가 컨텍스트로 넘긴다(_storage-context.ts).
+      ...(this.storageType === "ncloud" ? storageContextHeaders() : {}),
       ...extraHeaders,
     };
 
@@ -344,13 +347,13 @@ export class S3CompatibleClient {
     const responseBody = await response.text();
 
     if (!response.ok) {
-      this.handleErrorResponse(response.status, responseBody, response.headers, bucket, key);
+      this.handleErrorResponse(response.status, responseBody, response.headers, bucket, key, requestHeaders);
     }
 
     return { status: response.status, headers: response.headers, body: responseBody };
   }
 
-  private handleErrorResponse(status: number, body: string, headers: Headers, bucket?: string, key?: string): never {
+  private handleErrorResponse(status: number, body: string, headers: Headers, bucket?: string, key?: string, sent: Record<string, string> = {}): never {
     const serviceName = this.storageType === "ncloud" ? "Ncloud Storage" : "Object Storage";
     const codeMatch = body.match(/<Code>(.*?)<\/Code>/);
     const messageMatch = body.match(/<Message>(.*?)<\/Message>/);
@@ -389,6 +392,37 @@ export class S3CompatibleClient {
       lines.push(
         "",
         `힌트: 버킷 '${bucket}'에 오브젝트 '${key}'이(가) 없습니다(NoSuchKey). 버전 관리 버킷이면 현재 버전이 delete marker 일 수 있습니다 — 이전 버전은 list_object_versions 로 찾아 versionId 를 지정해 조회하세요.`
+      );
+    }
+
+    // 2026-11-24 조건부 요청·버킷 소유자 확인(민간존 Ncloud Storage) — 보낸 헤더로 원인을 좁혀 안내한다.
+    const sentKeys = Object.keys(sent).map((k) => k.toLowerCase());
+    const conditional = sentKeys.filter((k) => k === "if-match" || k === "if-none-match" || k.startsWith("x-amz-copy-source-if-"));
+    const ownerSent = sentKeys.includes("x-amz-expected-bucket-owner") || sentKeys.includes("x-amz-source-expected-bucket-owner");
+    if (code === "PreconditionFailed" || (status === 412 && conditional.length)) {
+      lines.push(
+        "",
+        `힌트: 조건(${conditional.join(", ") || "If-*"})이 맞지 않아 요청이 실행되지 않았습니다. 현재 ETag 는 ncloud_ncs_head_object 로 확인하세요. ` +
+          "If-None-Match: * 는 같은 이름의 오브젝트가 이미 있으면 실패합니다."
+      );
+    } else if (code === "NotImplemented" && conditional.length) {
+      lines.push(
+        "",
+        "힌트: 지원하지 않는 조건 조합입니다. If-Match 와 If-None-Match 는 함께 쓸 수 없고, If-None-Match 는 '*' 만, " +
+          "쓰기의 If-Match 는 '*' 가 아닌 ETag 만 받습니다. DeleteObject 의 If-Match 는 versionId 와 함께 쓸 수 없습니다."
+      );
+    } else if (code === "InvalidBucketOwnerAccountID" || code === "InvalidBucketOwnerAWSAccountID") {
+      // 가이드 표기는 InvalidBucketOwnerAccountID, 2026-11-25 라이브 응답은 InvalidBucketOwnerAWSAccountID.
+      lines.push(
+        "",
+        "힌트: expectedBucketOwner(또는 sourceExpectedBucketOwner) 값이 계정 ID 형식이 아닙니다. 숫자로 된 계정 ID 를 넣으세요 — " +
+          "리소스 NRN(nrn:PUB:<서비스>:<리전>:<계정번호>:…)의 계정 번호이며, ncloud_resource_list_resources 로 확인할 수 있습니다. " +
+          "ncloud_ncs_list_buckets 의 owner.id(36자 UUID)는 받지 않습니다."
+      );
+    } else if (code === "AccessDenied" && ownerSent) {
+      lines.push(
+        "",
+        "힌트: expectedBucketOwner/sourceExpectedBucketOwner 로 지정한 계정 ID 가 버킷 소유자와 다르면 AccessDenied 가 납니다. 값을 확인하거나 빼고 다시 시도하세요."
       );
     }
 

@@ -196,7 +196,7 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
       backupConfig: backupConfigSchema,
       autoScale: autoScaleSchema.optional(),
       highAvailability: z.boolean().describe("Automatic failover"),
-      engineVersion: z.string(reqField("engineVersion")).describe("Engine version (e.g. 8.4.5)"),
+      engineVersion: z.string(reqField("engineVersion")).describe("Engine version, e.g. 8.4.11 (added 2026-11-24) or 8.4.5 — list current values with ncloud_serverless_list_engine_versions"),
       dryRun: z.boolean().optional().default(false).describe("If true, returns a preview without creating"),
     },
     async (params) => {
@@ -608,7 +608,8 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_serverless_get_log_config",
-    "Get log rotation settings per log type (GET /mysql/v1/clusters/{clusterName}/log-config): rotations[BIN|SLOW_QUERY|ERROR|GENERAL] → rotationType DAILY|SIZE, fileCount, megaBytes.",
+    "Get log rotation settings per log type (GET /mysql/v1/clusters/{clusterName}/log-config): rotations[BIN|SLOW_QUERY|ERROR|GENERAL] → rotationType DAILY|SIZE, fileCount, megaBytes. " +
+      "Sub Account permission: View/getDBServiceLogConfig (since 2026-11-24; it used to require Change/changeDBServiceLogConfig).",
     { clusterName: clusterNameSchema },
     async (params) => call("GET", `${clusterPath(params.clusterName)}/log-config`)
   );
@@ -616,7 +617,8 @@ export function registerDatabaseServerlessTools(server: McpServer, client: Nclou
   defineTool(
     server,
     "ncloud_serverless_update_log_config",
-    "Change log rotation for the given log types (PATCH /mysql/v1/clusters/{clusterName}/log-config, merge-patch; the only synchronous write — returns 200 with the new settings).",
+    "Change log rotation for the given log types (PATCH /mysql/v1/clusters/{clusterName}/log-config, merge-patch; the only synchronous write — returns 200 with the new settings). " +
+      "Sub Account permission: Change/changeDBServiceLogConfig (managed policy NCP_VPC_CLOUD_DB_SERVERLESS_MANAGER).",
     {
       clusterName: clusterNameSchema,
       rotations: z.partialRecord(z.enum(LOG_TYPES), rotationSchema).refine((r) => Object.keys(r).length > 0, { message: "rotations must not be empty" }).describe("logType → rotation settings (only the given types change)"),

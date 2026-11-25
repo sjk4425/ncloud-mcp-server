@@ -6,6 +6,11 @@ import { L, deletedMessage } from "./_messages.js";
 import { dryRunPreview } from "./_dryrun.js";
 import { tag, wrap, xmlDocument, text, block, blocks, texts, intText, boolText } from "./_s3xml.js";
 import { registerStorageNcloudMultipartTools } from "./storage-ncloud-multipart.js";
+import {
+  withNcsCommonParams, writeConditionShape, writeConditionHeaders, deleteConditionShape, deleteConditionHeaders,
+  copySourceConditionShape, copySourceConditionHeaders, maybe,
+} from "./storage-ncloud-conditions.js";
+import { storageContextHeaders } from "../client/_storage-context.js";
 import { reqField } from "./_zod.js";
 
 /**
@@ -474,10 +479,18 @@ export interface StorageNcloudToolOptions {
    * putobjectlegalhold / getobjectlegalhold 는 민간존 인덱스에만 있다) 공공존은 false 로 등록한다.
    */
   objectLock?: boolean;
+  /**
+   * 2026-11-24 조건부 요청 · 버킷 소유자 확인(If-Match / If-None-Match, x-amz-copy-source-if-*, x-amz-(source-)expected-bucket-owner).
+   * 기본 true(민간존). 공공존 가이드(2026-10-22 판)에는 없으므로 false 로 등록한다.
+   */
+  conditional?: boolean;
 }
 
 export function registerStorageNcloudTools(rawServer: McpServer, client: S3CompatibleClient, opts: StorageNcloudToolOptions = {}): void {
-  const server = opts.objectLock === false ? excludingTools(rawServer, NCS_OBJECT_LOCK_TOOLS) : rawServer;
+  const conditional = opts.conditional !== false;
+  // 공통 헤더 x-amz-expected-bucket-owner — 모든 Ncloud Storage 도구에 `expectedBucketOwner` 파라미터로 붙인다(민간존).
+  const base = conditional ? withNcsCommonParams(rawServer) : rawServer;
+  const server = opts.objectLock === false ? excludingTools(base, NCS_OBJECT_LOCK_TOOLS) : base;
   // ═══ Bucket ═════════════════════════════════════════════════════════════════
 
   defineTool(
@@ -1054,10 +1067,11 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
       objectLockMode: z.enum(OBJECT_LOCK_MODES).optional().describe("x-amz-object-lock-mode — GOVERNANCE | COMPLIANCE (bucket must have Object Lock enabled; give objectLockRetainUntilDate too)"),
       objectLockRetainUntilDate: z.string().optional().describe("x-amz-object-lock-retain-until-date, ISO 8601 (e.g. 2027-01-01T00:00:00Z)"),
       objectLockLegalHold: z.enum(LEGAL_HOLD).optional().describe("x-amz-object-lock-legal-hold — ON | OFF"),
+      ...maybe(conditional, writeConditionShape),
       dryRun: z.boolean().optional().default(true).describe("If true (default), returns a preview without actually uploading"),
     },
     async (params) => {
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { ...writeConditionHeaders(params) };
       if (params.contentType) headers["content-type"] = params.contentType;
       if (params.storageClass) headers["x-amz-storage-class"] = params.storageClass;
       if (params.serverSideEncryption) headers["x-amz-server-side-encryption"] = params.serverSideEncryption;
@@ -1071,7 +1085,7 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
           label: "🔍 Dry-Run Preview: Ncloud Storage Object Upload",
           endpoint: `https://${params.bucketName}.kr.ncloudstorage.com/${params.key}`,
           method: "PUT",
-          requestParams: { bucket: params.bucketName, key: params.key, headers },
+          requestParams: { bucket: params.bucketName, key: params.key, headers: { ...storageContextHeaders(), ...headers } },
           noun: { ko: "오브젝트", en: "object" },
           verb: "upload",
           notes: {
@@ -1226,10 +1240,15 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
       objectLockMode: z.enum(OBJECT_LOCK_MODES).optional().describe("x-amz-object-lock-mode for the copy"),
       objectLockRetainUntilDate: z.string().optional().describe("x-amz-object-lock-retain-until-date for the copy, ISO 8601"),
       objectLockLegalHold: z.enum(LEGAL_HOLD).optional().describe("x-amz-object-lock-legal-hold for the copy — ON | OFF"),
+      // 2026-11-24: 대상 쓰기 조건 + 복사 원본 조건·원본 버킷 소유자(ncloudstorage-copyobject).
+      ...maybe(conditional, writeConditionShape),
+      ...maybe(conditional, copySourceConditionShape),
     },
     async (params) => {
       const headers: Record<string, string> = {
         "x-amz-copy-source": normalizeCopySource(params.copySource, params.copySourceVersionId),
+        ...writeConditionHeaders(params),
+        ...copySourceConditionHeaders(params),
       };
       if (params.storageClass) headers["x-amz-storage-class"] = params.storageClass;
       if (params.metadataDirective) headers["x-amz-metadata-directive"] = params.metadataDirective;
@@ -1263,10 +1282,11 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
       key: keySchema("Object key (path) to delete"),
       versionId: versionIdSchema("Version ID to delete permanently. Omit to delete the current version (adds a delete marker on versioned buckets)"),
       bypassGovernanceRetention: z.boolean().optional().default(false).describe("Send x-amz-bypass-governance-retention: true to delete an object locked in GOVERNANCE mode (requires the bypass permission)"),
+      ...maybe(conditional, deleteConditionShape),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { ...deleteConditionHeaders(params) };
       if (params.bypassGovernanceRetention) headers["x-amz-bypass-governance-retention"] = "true";
       const response = await client.request({
         method: "DELETE",
@@ -1298,14 +1318,16 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
       objects: z.array(z.object({
         key: z.string().describe("Object key"),
         versionId: z.string().optional().describe("Version ID to delete permanently"),
-      })).optional().describe("Objects to delete, each optionally with a versionId"),
+        // 가이드 ncloudstorage-deleteobjects Delete.Object.ETag(민간존 2026-11-24 조건부 삭제, 공공존 가이드에도 있음).
+        etag: z.string().min(1).optional().describe("Conditional delete: delete only if the current ETag equals this value, or '*' to delete only if the object exists. A failed condition is reported for that key as PreconditionFailed while the call still returns 200"),
+      })).optional().describe("Objects to delete, each optionally with a versionId and an ETag condition"),
       quiet: z.boolean().optional().default(false).describe("Quiet mode — the response lists only failures"),
       bypassGovernanceRetention: z.boolean().optional().default(false).describe("Send x-amz-bypass-governance-retention: true for objects under GOVERNANCE retention"),
       confirm: z.boolean().optional().default(false).describe("Must be true to actually execute the destructive operation"),
     },
     async (params) => {
       const targets = [
-        ...(params.keys ?? []).map((k) => ({ key: k, versionId: undefined as string | undefined })),
+        ...(params.keys ?? []).map((k) => ({ key: k, versionId: undefined as string | undefined, etag: undefined as string | undefined })),
         ...(params.objects ?? []),
       ];
       if (targets.length === 0) {
@@ -1314,7 +1336,7 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
       if (targets.length > 1000) {
         return { content: [{ type: "text" as const, text: `❌ ${L({ ko: `한 번에 최대 1,000개까지 삭제할 수 있습니다(요청 ${targets.length}개).`, en: `At most 1,000 objects per call (got ${targets.length}).` })}` }], isError: true };
       }
-      const objectsXml = targets.map((t) => wrap("Object", tag("Key", t.key) + tag("VersionId", t.versionId))).join("");
+      const objectsXml = targets.map((t) => wrap("Object", tag("Key", t.key) + tag("VersionId", t.versionId) + tag("ETag", t.etag))).join("");
       const xmlBody = xmlDocument("Delete", objectsXml + tag("Quiet", params.quiet));
       const headers: Record<string, string> = { "content-type": "application/xml" };
       if (params.bypassGovernanceRetention) headers["x-amz-bypass-governance-retention"] = "true";
@@ -1334,6 +1356,9 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
         }),
         requested: targets.length,
         ...result,
+        ...(result.errors.some((e) => e.code === "PreconditionFailed")
+          ? { note: L({ ko: "PreconditionFailed 키는 etag 조건이 맞지 않아 삭제되지 않았습니다(현재 ETag 는 ncloud_ncs_head_object 로 확인).", en: "Keys with PreconditionFailed were not deleted because their etag condition did not match (check the current ETag with ncloud_ncs_head_object)." }) }
+          : {}),
       };
     },
     { destructive: { message: (params) => {
@@ -1514,5 +1539,5 @@ export function registerStorageNcloudTools(rawServer: McpServer, client: S3Compa
   );
 
   // ═══ Multipart ══════════════════════════════════════════════════════════════
-  registerStorageNcloudMultipartTools(server, client);
+  registerStorageNcloudMultipartTools(server, client, { conditional });
 }
