@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { NCS_OBJECT_LOCK_TOOLS } from "./storage-ncloud.js";
 import {
   makeClientFactory,
   resolveGroups,
@@ -452,6 +453,10 @@ describe("storage 그룹: 존별 등록", () => {
     expect(gov).toEqual(pub);
     expect(pub.some((n) => n.startsWith("ncloud_ncs_"))).toBe(true);
     expect(pub.some((n) => n.includes("archive"))).toBe(true);
+  });
+  it("Object Lock 도구 6종은 공공존에도 등록된다 (api-gov 2026-10-22 개정판에 6개 오퍼레이션 모두 있음)", () => {
+    const gov = captureStorage("gov").map((t) => t.name);
+    for (const t of NCS_OBJECT_LOCK_TOOLS) expect(gov).toContain(t);
   });
   it("fin: Object Storage + NAS 만 등록되고 Ncloud Storage·Archive 도구는 없다", () => {
     const fin = captureStorage("fin" as any).map((t) => t.name);

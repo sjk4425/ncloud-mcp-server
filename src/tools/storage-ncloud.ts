@@ -474,9 +474,11 @@ export const NCS_OBJECT_LOCK_TOOLS = [
 
 export interface StorageNcloudToolOptions {
   /**
-   * Object Lock 도구 등록 여부. 기본 true(민간존). 공공존 가이드에는 Object Lock 페이지가 없으므로
-   * (putobjectlockconfiguration / getobjectlockconfiguration / putobjectretention / getobjectretention /
-   * putobjectlegalhold / getobjectlegalhold 는 민간존 인덱스에만 있다) 공공존은 false 로 등록한다.
+   * Object Lock 도구 6종(NCS_OBJECT_LOCK_TOOLS) 등록 여부. 기본 true.
+   * 공공존 가이드도 2026-10-22 개정판부터 6개 오퍼레이션(put/getobjectlockconfiguration, put/getobjectretention,
+   * put/getobjectlegalhold)과 PutObject·CopyObject 의 x-amz-object-lock-* 헤더, CreateBucket 의
+   * x-amz-bucket-object-lock-enabled 를 모두 싣고 있다(2026-11-26 확인) → 민간·공공존 모두 등록하므로 registry 는
+   * 이 값을 넘기지 않는다. Object Lock 이 없는 존이 생기면 false 로 넘긴다.
    */
   objectLock?: boolean;
   /**
