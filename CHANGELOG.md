@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2026-11-26
+
+> **Ncloud Storage conditional requests and bucket-owner checks** (Public zone release of 2026-11-24, missed in 3.1.0). The Government zone guide does not have them yet, so only `delete_objects` changes there (its guide already lists the per-object ETag).
+
+### Added
+- **Bucket-owner check on every Ncloud Storage tool** (Public zone): optional `expectedBucketOwner` is sent as `x-amz-expected-bucket-owner`; the API answers AccessDenied (403) when the bucket belongs to another account. `ncloud_ncs_copy_object` and `ncloud_ncs_upload_part_copy` also take `sourceExpectedBucketOwner` (`x-amz-source-expected-bucket-owner`) for the source bucket.
+- **Conditional writes** (Public zone): `ifMatch` / `ifNoneMatch` on `ncloud_ncs_put_object`, `ncloud_ncs_copy_object` and `ncloud_ncs_complete_multipart_upload` — `ifNoneMatch: "*"` writes only if the key does not exist yet; `ifMatch` writes only if the current ETag matches. `ncloud_ncs_delete_object` takes `ifMatch` (an ETag, or `*` to delete only if the object exists). Combinations the API does not support (both together, `ifMatch: "*"` on a write, `ifMatch` with `versionId` on delete) are rejected before the call.
+- **Copy-source conditions** (Public zone): `copySourceIfMatch`, `copySourceIfNoneMatch`, `copySourceIfModifiedSince`, `copySourceIfUnmodifiedSince` on `ncloud_ncs_copy_object` and `ncloud_ncs_upload_part_copy`. Dates may be ISO 8601 and are sent as HTTP-date.
+- **Conditional batch delete**: `ncloud_ncs_delete_objects` `objects[].etag`. Keys whose condition fails are listed under `errors` with `PreconditionFailed` while the rest are deleted.
+- Errors explain `PreconditionFailed` (412), unsupported condition combinations (`NotImplemented`), an invalid owner value, and AccessDenied when an owner check was sent.
+
+Checked live in the Public zone on 2026-11-25 with a temporary bucket: create-only and ETag-matched writes, failed writes leaving the object unchanged, copy-source ETag and date conditions, `upload_part_copy` and `complete_multipart_upload` conditions, conditional single and batch deletes all behaved as documented. The bucket-owner value is the **account number in a resource NRN** (`nrn:PUB:<service>:<region>:<accountNo>:…`, e.g. from `ncloud_resource_list_resources`): with it, owner checks on list, upload and copy (target and source) succeeded, and another number was rejected with AccessDenied. The 36-character owner ID that `ncloud_ncs_list_buckets` returns is rejected with `InvalidBucketOwnerAWSAccountID` (the guide calls it `InvalidBucketOwnerAccountID`); the tool descriptions and error hints say where to find the right value.
+
+### Changed
+Descriptions updated from the 2026-11-24 service release notes (no request changes):
+- `ncloud_functions_create_action`: `php:8.5` is listed as a runtime; `php:7.3` support ends on 2027-02-23 (no new actions from that date).
+- `ncloud_serverless_create_cluster`: engine version example `8.4.11` (added 2026-11-24); `ncloud_serverless_get_log_config` / `update_log_config` name the Sub Account actions they need (`View/getDBServiceLogConfig`, `Change/changeDBServiceLogConfig`).
+- `ncloud_resume_processes`: explains Auto Scaling's automatic LAUNCH suspension after repeated server-creation failures (expanded on 2026-11-24, with an email notice) and that it has to be resumed after the cause is fixed.
+
 ## [3.1.0] - 2026-11-25
 
 > **Transit VPC (VPC API, Public and Financial zone releases of 2026-11-24).** 24 new tools for Transit VPC Connect, Service Function Chain and Endpoint Route Table, plus the new `vpcTypeCode` and `SFC` values in existing VPC and Subnet tools. They are registered in the Public and Financial zones; the Government zone has not announced these APIs, so its tools are unchanged.
